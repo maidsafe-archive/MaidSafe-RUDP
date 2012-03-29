@@ -16,7 +16,7 @@
 #include <cassert>
 #include <deque>
 
-#include "boost/cstdint.hpp"
+#include <cstdint>
 #include "maidsafe/common/utils.h"
 #include "maidsafe/rudp/version.h"
 
@@ -33,19 +33,19 @@ namespace rudp {
 struct Parameters {
  public:
   // Window size permitted in RUDP
-  static boost::uint32_t default_window_size;
-  static boost::uint32_t maximum_window_size;
+  static uint32_t default_window_size;
+  static uint32_t maximum_window_size;
 
   // Packet size permitted in RUDP
   // Shall not exceed the UDP payload, which is 65507
-  static boost::uint32_t default_size;
-  static boost::uint32_t max_size;
+  static uint32_t default_size;
+  static uint32_t max_size;
   enum { kUDPPayload = 65500 };
 
   // Data Payload size permitted in RUDP
   // Shall not exceed Packet Size defined
-  static boost::uint32_t default_data_size;
-  static boost::uint32_t max_data_size;
+  static uint32_t default_data_size;
+  static uint32_t max_data_size;
 
   // Timeout defined for a packet to be resent
   static boost::posix_time::time_duration default_send_timeout;
@@ -72,7 +72,7 @@ struct Parameters {
   static boost::posix_time::time_duration speed_calculate_inverval;
 
   // Slow speed threshold to force the socket closed, in b/s
-  static boost::uint32_t slow_speed_threshold;
+  static uint32_t slow_speed_threshold;
 
   // Timeout during client connection establishment
   static boost::posix_time::time_duration client_connect_timeout;

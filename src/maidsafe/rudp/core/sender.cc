@@ -41,7 +41,7 @@ Sender::Sender(Peer &peer,
     unacked_packets_(),
     send_timeout_() {}
 
-boost::uint32_t Sender::GetNextPacketSequenceNumber() const {
+uint32_t Sender::GetNextPacketSequenceNumber() const {
   return unacked_packets_.End();
 }
 
@@ -61,7 +61,7 @@ size_t Sender::AddData(const asio::const_buffer &data) {
   const unsigned char *end = begin + asio::buffer_size(data);
 
   while (!unacked_packets_.IsFull() && (ptr < end)) {
-    boost::uint32_t n = unacked_packets_.Append();
+    uint32_t n = unacked_packets_.Append();
 
     UnackedPacket &p = unacked_packets_[n];
     p.packet.SetPacketSequenceNumber(n);
@@ -85,7 +85,7 @@ size_t Sender::AddData(const asio::const_buffer &data) {
 }
 
 void Sender::HandleAck(const AckPacket &packet) {
-  boost::uint32_t seqnum = packet.PacketSequenceNumber();
+  uint32_t seqnum = packet.PacketSequenceNumber();
 
   if (packet.HasOptionalFields()) {
     congestion_control_.OnAck(seqnum,
@@ -113,7 +113,7 @@ void Sender::HandleAck(const AckPacket &packet) {
 
 void Sender::HandleNegativeAck(const NegativeAckPacket &packet) {
   // Mark the specified packets as lost.
-  for (boost::uint32_t n = unacked_packets_.Begin();
+  for (uint32_t n = unacked_packets_.Begin();
        n != unacked_packets_.End();
        n = unacked_packets_.Next(n)) {
     if (packet.ContainsSequenceNumber(n)) {
@@ -131,7 +131,7 @@ void Sender::HandleTick() {
     send_timeout_ = bptime::pos_infin;
 
     // Mark all timedout unacknowledged packets as lost.
-    for (boost::uint32_t n = unacked_packets_.Begin();
+    for (uint32_t n = unacked_packets_.Begin();
         n != unacked_packets_.End();
         n = unacked_packets_.Next(n)) {
       if ((unacked_packets_[n].last_send_time
@@ -148,7 +148,7 @@ void Sender::HandleTick() {
 void Sender::DoSend() {
   bptime::ptime now = tick_timer_.Now();
 
-  for (boost::uint32_t n = unacked_packets_.Begin();
+  for (uint32_t n = unacked_packets_.Begin();
        n != unacked_packets_.End();
        n = unacked_packets_.Next(n)) {
     UnackedPacket &p = unacked_packets_[n];

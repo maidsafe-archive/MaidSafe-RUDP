@@ -27,12 +27,12 @@ namespace maidsafe {
 
 namespace rudp {
 
-boost::uint32_t RudpParameters::default_window_size = 16;
-boost::uint32_t RudpParameters::maximum_window_size = 512;
-boost::uint32_t RudpParameters::default_size = 1480;
-boost::uint32_t RudpParameters::max_size = 25980;
-boost::uint32_t RudpParameters::default_data_size = 1450;
-boost::uint32_t RudpParameters::max_data_size = 25950;
+uint32_t RudpParameters::default_window_size = 16;
+uint32_t RudpParameters::maximum_window_size = 512;
+uint32_t RudpParameters::default_size = 1480;
+uint32_t RudpParameters::max_size = 25980;
+uint32_t RudpParameters::default_data_size = 1450;
+uint32_t RudpParameters::max_data_size = 25950;
 bptime::time_duration RudpParameters::default_send_timeout =
                                                     bptime::milliseconds(1000);
 bptime::time_duration RudpParameters::default_receive_timeout =
@@ -49,7 +49,7 @@ RudpParameters::ConnectionType RudpParameters::connection_type =
                                                     RudpParameters::kWireless;
 bptime::time_duration RudpParameters::speed_calculate_inverval =
                                                     bptime::milliseconds(1000);
-boost::uint32_t RudpParameters::slow_speed_threshold = 1024;  // b/s
+uint32_t RudpParameters::slow_speed_threshold = 1024;  // b/s
 bptime::time_duration RudpParameters::client_connect_timeout(
                                                     bptime::milliseconds(1000));
 

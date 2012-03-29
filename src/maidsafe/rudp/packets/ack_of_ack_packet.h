@@ -31,8 +31,8 @@ class AckOfAckPacket : public ControlPacket {
   AckOfAckPacket();
   virtual ~AckOfAckPacket() {}
 
-  boost::uint32_t AckSequenceNumber() const;
-  void SetAckSequenceNumber(boost::uint32_t n);
+  uint32_t AckSequenceNumber() const;
+  void SetAckSequenceNumber(uint32_t n);
 
   static bool IsValid(const boost::asio::const_buffer &buffer);
   bool Decode(const boost::asio::const_buffer &buffer);

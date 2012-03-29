@@ -17,7 +17,7 @@
 #include <cassert>
 #include <deque>
 
-#include "boost/cstdint.hpp"
+#include <cstdint>
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/parameters.h"
@@ -41,14 +41,14 @@ class SlidingWindow {
   }
 
   // Construct to start with a specified sequence number.
-  explicit SlidingWindow(boost::uint32_t initial_sequence_number)
+  explicit SlidingWindow(uint32_t initial_sequence_number)
       : items_(),
         maximum_size_(Parameters::default_window_size),
         begin_(initial_sequence_number),
         end_(initial_sequence_number) {}
 
   // Reset to empty starting with the specified sequence number.
-  void Reset(boost::uint32_t initial_sequence_number) {
+  void Reset(uint32_t initial_sequence_number) {
     assert(initial_sequence_number <= kMaxSequenceNumber);
     maximum_size_ = Parameters::default_window_size;
     begin_ = end_ = initial_sequence_number;
@@ -56,27 +56,26 @@ class SlidingWindow {
   }
 
   // Get the sequence number of the first item in window.
-  boost::uint32_t Begin() const {
+  uint32_t Begin() const {
     return begin_;
   }
 
   // Get the one-past-the-end sequence number.
-  boost::uint32_t End() const {
+  uint32_t End() const {
     return end_;
   }
 
   // Determine whether a sequence number is in the window.
-  bool Contains(boost::uint32_t n) const {
+  bool Contains(uint32_t n) const {
     return IsInRange(begin_, end_, n);
   }
 
   // Determine whether a sequence number is within one window size past the
   // end. This is used to filter out packets with non-sensical sequence numbers.
-  bool IsComingSoon(boost::uint32_t n) const {
-    boost::uint32_t begin = end_;
-    boost::uint32_t end =
-        (begin + Parameters::maximum_window_size) %
-            (static_cast<boost::uint32_t>(kMaxSequenceNumber) + 1);
+  bool IsComingSoon(uint32_t n) const {
+    uint32_t begin = end_;
+    uint32_t end = (begin + Parameters::maximum_window_size) %
+                   (static_cast<uint32_t>(kMaxSequenceNumber) + 1);
     return IsInRange(begin, end, n);
   }
 
@@ -108,10 +107,10 @@ class SlidingWindow {
 
   // Add a new item to the end.
   // Precondition: !IsFull().
-  boost::uint32_t Append() {
+  uint32_t Append() {
     assert(!IsFull());
     items_.push_back(T());
-    boost::uint32_t n = end_;
+    uint32_t n = end_;
     end_ = Next(end_);
     return n;
   }
@@ -126,13 +125,13 @@ class SlidingWindow {
 
   // Get the item with the specified sequence number.
   // Precondition: Contains(n).
-  T &operator[](boost::uint32_t n) {
+  T &operator[](uint32_t n) {
     return items_[SequenceNumberToIndex(n)];
   }
 
   // Get the item with the specified sequence number.
   // Precondition: Contains(n).
-  const T &operator[](boost::uint32_t n) const {
+  const T &operator[](uint32_t n) const {
     return items_[SequenceNumberToIndex(n)];
   }
 
@@ -163,7 +162,7 @@ class SlidingWindow {
   }
 
   // Get the sequence number that follows a given number.
-  static boost::uint32_t Next(boost::uint32_t n) {
+  static uint32_t Next(uint32_t n) {
     return (n == kMaxSequenceNumber) ? 0 : n + 1;
   }
 
@@ -173,7 +172,7 @@ class SlidingWindow {
   SlidingWindow &operator=(const SlidingWindow&);
 
   // Helper function to convert a sequence number into an index in the window.
-  size_t SequenceNumberToIndex(boost::uint32_t n) const {
+  size_t SequenceNumberToIndex(uint32_t n) const {
     assert(Contains(n));
     if (begin_ <= end_)
       return n - begin_;
@@ -184,17 +183,15 @@ class SlidingWindow {
   }
 
   // Helper function to generate an initial sequence number.
-  static boost::uint32_t GenerateSequenceNumber() {
-    boost::uint32_t seqnum = 0;
+  static uint32_t GenerateSequenceNumber() {
+    uint32_t seqnum = 0;
     while (seqnum == 0)
       seqnum = (RandomUint32() & 0x7fffffff);
     return seqnum;
   }
 
   // Helper function to determine if a sequence number is in a given range.
-  static bool IsInRange(boost::uint32_t begin,
-                        boost::uint32_t end,
-                        boost::uint32_t n) {
+  static bool IsInRange(uint32_t begin, uint32_t end, uint32_t n) {
     if (begin <= end)
       return (begin <= n) && (n < end);
     else
@@ -208,11 +205,11 @@ class SlidingWindow {
   size_t maximum_size_;
 
   // The sequence number of the first item in window.
-  boost::uint32_t begin_;
+  uint32_t begin_;
 
   // The one-past-the-end sequence number for the window. Will be used as the
   // sequence number of the next item added.
-  boost::uint32_t end_;
+  uint32_t end_;
 };
 
 }  // namespace detail

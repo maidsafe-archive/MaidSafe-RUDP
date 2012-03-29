@@ -17,7 +17,7 @@
 #include <string>
 
 #include "boost/asio/buffer.hpp"
-#include "boost/cstdint.hpp"
+#include <cstdint>
 #include "boost/system/error_code.hpp"
 #include "maidsafe/rudp/packets/packet.h"
 
@@ -33,8 +33,8 @@ class DataPacket : public Packet {
 
   DataPacket();
 
-  boost::uint32_t PacketSequenceNumber() const;
-  void SetPacketSequenceNumber(boost::uint32_t n);
+  uint32_t PacketSequenceNumber() const;
+  void SetPacketSequenceNumber(uint32_t n);
 
   bool FirstPacketInMessage() const;
   void SetFirstPacketInMessage(bool b);
@@ -45,14 +45,14 @@ class DataPacket : public Packet {
   bool InOrder() const;
   void SetInOrder(bool b);
 
-  boost::uint32_t MessageNumber() const;
-  void SetMessageNumber(boost::uint32_t n);
+  uint32_t MessageNumber() const;
+  void SetMessageNumber(uint32_t n);
 
-  boost::uint32_t TimeStamp() const;
-  void SetTimeStamp(boost::uint32_t n);
+  uint32_t TimeStamp() const;
+  void SetTimeStamp(uint32_t n);
 
-  boost::uint32_t DestinationSocketId() const;
-  void SetDestinationSocketId(boost::uint32_t n);
+  uint32_t DestinationSocketId() const;
+  void SetDestinationSocketId(uint32_t n);
 
   const std::string &Data() const;
   void SetData(const std::string &data);
@@ -67,13 +67,13 @@ class DataPacket : public Packet {
   size_t Encode(const boost::asio::mutable_buffer &buffer) const;
 
  private:
-  boost::uint32_t packet_sequence_number_;
+  uint32_t packet_sequence_number_;
   bool first_packet_in_message_;
   bool last_packet_in_message_;
   bool in_order_;
-  boost::uint32_t message_number_;
-  boost::uint32_t time_stamp_;
-  boost::uint32_t destination_socket_id_;
+  uint32_t message_number_;
+  uint32_t time_stamp_;
+  uint32_t destination_socket_id_;
   std::string data_;
 };
 

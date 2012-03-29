@@ -18,7 +18,7 @@
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/address.hpp"
-#include "boost/cstdint.hpp"
+#include <cstdint>
 #include "boost/system/error_code.hpp"
 #include "maidsafe/rudp/packets/control_packet.h"
 
@@ -36,31 +36,31 @@ class HandshakePacket : public ControlPacket {
   HandshakePacket();
   virtual ~HandshakePacket() {}
 
-  boost::uint32_t RudpVersion() const;
-  void SetRudpVersion(boost::uint32_t n);
+  uint32_t RudpVersion() const;
+  void SetRudpVersion(uint32_t n);
 
-  static const boost::uint32_t kStreamSocketType = 0;
-  static const boost::uint32_t kDatagramSocketType = 1;
-  boost::uint32_t SocketType() const;
-  void SetSocketType(boost::uint32_t n);
+  static const uint32_t kStreamSocketType = 0;
+  static const uint32_t kDatagramSocketType = 1;
+  uint32_t SocketType() const;
+  void SetSocketType(uint32_t n);
 
-  boost::uint32_t InitialPacketSequenceNumber() const;
-  void SetInitialPacketSequenceNumber(boost::uint32_t n);
+  uint32_t InitialPacketSequenceNumber() const;
+  void SetInitialPacketSequenceNumber(uint32_t n);
 
-  boost::uint32_t MaximumPacketSize() const;
-  void SetMaximumPacketSize(boost::uint32_t n);
+  uint32_t MaximumPacketSize() const;
+  void SetMaximumPacketSize(uint32_t n);
 
-  boost::uint32_t MaximumFlowWindowSize() const;
-  void SetMaximumFlowWindowSize(boost::uint32_t n);
+  uint32_t MaximumFlowWindowSize() const;
+  void SetMaximumFlowWindowSize(uint32_t n);
 
-  boost::uint32_t ConnectionType() const;
-  void SetConnectionType(boost::uint32_t n);
+  uint32_t ConnectionType() const;
+  void SetConnectionType(uint32_t n);
 
-  boost::uint32_t SocketId() const;
-  void SetSocketId(boost::uint32_t n);
+  uint32_t SocketId() const;
+  void SetSocketId(uint32_t n);
 
-  boost::uint32_t SynCookie() const;
-  void SetSynCookie(boost::uint32_t n);
+  uint32_t SynCookie() const;
+  void SetSynCookie(uint32_t n);
 
   boost::asio::ip::address IpAddress() const;
   void SetIpAddress(const boost::asio::ip::address &address);
@@ -70,14 +70,14 @@ class HandshakePacket : public ControlPacket {
   size_t Encode(const boost::asio::mutable_buffer &buffer) const;
 
  private:
-  boost::uint32_t rudp_version_;
-  boost::uint32_t socket_type_;
-  boost::uint32_t initial_packet_sequence_number_;
-  boost::uint32_t maximum_packet_size_;
-  boost::uint32_t maximum_flow_window_size_;
-  boost::uint32_t connection_type_;
-  boost::uint32_t socket_id_;
-  boost::uint32_t syn_cookie_;
+  uint32_t rudp_version_;
+  uint32_t socket_type_;
+  uint32_t initial_packet_sequence_number_;
+  uint32_t maximum_packet_size_;
+  uint32_t maximum_flow_window_size_;
+  uint32_t connection_type_;
+  uint32_t socket_id_;
+  uint32_t syn_cookie_;
   boost::asio::ip::address_v6 ip_address_;
 };
 

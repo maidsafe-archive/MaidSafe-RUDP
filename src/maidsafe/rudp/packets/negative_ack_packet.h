@@ -32,9 +32,9 @@ class NegativeAckPacket : public ControlPacket {
   NegativeAckPacket();
   virtual ~NegativeAckPacket() {}
 
-  void AddSequenceNumber(boost::uint32_t n);
-  void AddSequenceNumbers(boost::uint32_t first, boost::uint32_t last);
-  bool ContainsSequenceNumber(boost::uint32_t n) const;
+  void AddSequenceNumber(uint32_t n);
+  void AddSequenceNumbers(uint32_t first, uint32_t last);
+  bool ContainsSequenceNumber(uint32_t n) const;
   bool HasSequenceNumbers() const;
 
   static bool IsValid(const boost::asio::const_buffer &buffer);
@@ -42,7 +42,7 @@ class NegativeAckPacket : public ControlPacket {
   size_t Encode(const boost::asio::mutable_buffer &buffer) const;
 
  private:
-  std::vector<boost::uint32_t> sequence_numbers_;
+  std::vector<uint32_t> sequence_numbers_;
 };
 
 }  // namespace detail

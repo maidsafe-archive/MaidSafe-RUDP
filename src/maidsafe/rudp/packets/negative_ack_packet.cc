@@ -26,13 +26,12 @@ NegativeAckPacket::NegativeAckPacket()
   SetType(kPacketType);
 }
 
-void NegativeAckPacket::AddSequenceNumber(boost::uint32_t n) {
+void NegativeAckPacket::AddSequenceNumber(uint32_t n) {
   assert(n <= 0x7fffffff);
   sequence_numbers_.push_back(n);
 }
 
-void NegativeAckPacket::AddSequenceNumbers(boost::uint32_t first,
-                                               boost::uint32_t last) {
+void NegativeAckPacket::AddSequenceNumbers(uint32_t first, uint32_t last) {
   assert(first <= 0x7fffffff);
   assert(last <= 0x7fffffff);
   sequence_numbers_.push_back(first | 0x80000000);
@@ -45,14 +44,14 @@ bool NegativeAckPacket::IsValid(const asio::const_buffer &buffer) {
           ((asio::buffer_size(buffer) - kHeaderSize) % 4 == 0));
 }
 
-bool NegativeAckPacket::ContainsSequenceNumber(boost::uint32_t n) const {
+bool NegativeAckPacket::ContainsSequenceNumber(uint32_t n) const {
   assert(n <= 0x7fffffff);
   for (size_t i = 0; i < sequence_numbers_.size(); ++i) {
     if (((sequence_numbers_[i] & 0x80000000) != 0) &&
         (i + 1 < sequence_numbers_.size())) {
       // This is a range.
-      boost::uint32_t first = (sequence_numbers_[i] & 0x7fffffff);
-      boost::uint32_t last = (sequence_numbers_[i + 1] & 0x7fffffff);
+      uint32_t first = (sequence_numbers_[i] & 0x7fffffff);
+      uint32_t last = (sequence_numbers_[i + 1] & 0x7fffffff);
       if (first <= last) {
         if ((first <= n) && (n <= last))
           return true;
@@ -89,7 +88,7 @@ bool NegativeAckPacket::Decode(const asio::const_buffer &buffer) {
 
   sequence_numbers_.clear();
   for (size_t i = 0; i < length; i += 4) {
-    boost::uint32_t value = 0;
+    uint32_t value = 0;
     DecodeUint32(&value, p + i);
     sequence_numbers_.push_back(value);
   }

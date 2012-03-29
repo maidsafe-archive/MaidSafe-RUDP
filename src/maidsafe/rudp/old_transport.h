@@ -275,7 +275,7 @@ void serialize(Archive &archive,                              // NOLINT (Fraser)
                mt::Endpoint &endpoint,
                const unsigned int& /*version*/) {
   std::string ip;
-  boost::uint16_t port = endpoint.port;
+  uint16_t port = endpoint.port;
   if (Archive::is_saving::value) {
     ip = endpoint.ip.to_string();
     port = endpoint.port;

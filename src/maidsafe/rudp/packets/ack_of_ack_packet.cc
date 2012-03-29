@@ -25,11 +25,11 @@ AckOfAckPacket::AckOfAckPacket() {
   SetType(kPacketType);
 }
 
-boost::uint32_t AckOfAckPacket::AckSequenceNumber() const {
+uint32_t AckOfAckPacket::AckSequenceNumber() const {
   return AdditionalInfo();
 }
 
-void AckOfAckPacket::SetAckSequenceNumber(boost::uint32_t n) {
+void AckOfAckPacket::SetAckSequenceNumber(uint32_t n) {
   SetAdditionalInfo(n);
 }
 

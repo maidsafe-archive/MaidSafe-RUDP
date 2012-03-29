@@ -34,41 +34,41 @@ ControlPacket::ControlPacket()
 ControlPacket::~ControlPacket() {
 }
 
-boost::uint16_t ControlPacket::Type() const {
+uint16_t ControlPacket::Type() const {
   return type_;
 }
 
-void ControlPacket::SetType(boost::uint16_t n) {
+void ControlPacket::SetType(uint16_t n) {
   assert(n <= 0x7fff);
   type_ = n;
 }
 
-boost::uint32_t ControlPacket::AdditionalInfo() const {
+uint32_t ControlPacket::AdditionalInfo() const {
   return additional_info_;
 }
 
-void ControlPacket::SetAdditionalInfo(boost::uint32_t n) {
+void ControlPacket::SetAdditionalInfo(uint32_t n) {
   additional_info_ = n;
 }
 
-boost::uint32_t ControlPacket::TimeStamp() const {
+uint32_t ControlPacket::TimeStamp() const {
   return time_stamp_;
 }
 
-void ControlPacket::SetTimeStamp(boost::uint32_t n) {
+void ControlPacket::SetTimeStamp(uint32_t n) {
   time_stamp_ = n;
 }
 
-boost::uint32_t ControlPacket::DestinationSocketId() const {
+uint32_t ControlPacket::DestinationSocketId() const {
   return destination_socket_id_;
 }
 
-void ControlPacket::SetDestinationSocketId(boost::uint32_t n) {
+void ControlPacket::SetDestinationSocketId(uint32_t n) {
   destination_socket_id_ = n;
 }
 
 bool ControlPacket::IsValidBase(const asio::const_buffer &buffer,
-                                boost::uint16_t expected_packet_type) {
+                                uint16_t expected_packet_type) {
   const unsigned char *p = asio::buffer_cast<const unsigned char *>(buffer);
   return ((asio::buffer_size(buffer) >= kHeaderSize) &&
           ((p[0] & 0x80) != 0) &&
@@ -77,7 +77,7 @@ bool ControlPacket::IsValidBase(const asio::const_buffer &buffer,
 }
 
 bool ControlPacket::DecodeBase(const asio::const_buffer &buffer,
-                                   boost::uint16_t expected_packet_type) {
+                                   uint16_t expected_packet_type) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValidBase(buffer, expected_packet_type))
     return false;

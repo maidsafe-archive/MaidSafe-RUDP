@@ -37,67 +37,67 @@ HandshakePacket::HandshakePacket()
   SetType(kPacketType);
 }
 
-boost::uint32_t HandshakePacket::RudpVersion() const {
+uint32_t HandshakePacket::RudpVersion() const {
   return rudp_version_;
 }
 
-void HandshakePacket::SetRudpVersion(boost::uint32_t n) {
+void HandshakePacket::SetRudpVersion(uint32_t n) {
   rudp_version_ = n;
 }
 
-boost::uint32_t HandshakePacket::SocketType() const {
+uint32_t HandshakePacket::SocketType() const {
   return socket_type_;
 }
 
-void HandshakePacket::SetSocketType(boost::uint32_t n) {
+void HandshakePacket::SetSocketType(uint32_t n) {
   socket_type_ = n;
 }
 
-boost::uint32_t HandshakePacket::InitialPacketSequenceNumber() const {
+uint32_t HandshakePacket::InitialPacketSequenceNumber() const {
   return initial_packet_sequence_number_;
 }
 
-void HandshakePacket::SetInitialPacketSequenceNumber(boost::uint32_t n) {
+void HandshakePacket::SetInitialPacketSequenceNumber(uint32_t n) {
   initial_packet_sequence_number_ = n;
 }
 
-boost::uint32_t HandshakePacket::MaximumPacketSize() const {
+uint32_t HandshakePacket::MaximumPacketSize() const {
   return maximum_packet_size_;
 }
 
-void HandshakePacket::SetMaximumPacketSize(boost::uint32_t n) {
+void HandshakePacket::SetMaximumPacketSize(uint32_t n) {
   maximum_packet_size_ = n;
 }
 
-boost::uint32_t HandshakePacket::MaximumFlowWindowSize() const {
+uint32_t HandshakePacket::MaximumFlowWindowSize() const {
   return maximum_flow_window_size_;
 }
 
-void HandshakePacket::SetMaximumFlowWindowSize(boost::uint32_t n) {
+void HandshakePacket::SetMaximumFlowWindowSize(uint32_t n) {
   maximum_flow_window_size_ = n;
 }
 
-boost::uint32_t HandshakePacket::ConnectionType() const {
+uint32_t HandshakePacket::ConnectionType() const {
   return connection_type_;
 }
 
-void HandshakePacket::SetConnectionType(boost::uint32_t n) {
+void HandshakePacket::SetConnectionType(uint32_t n) {
   connection_type_ = n;
 }
 
-boost::uint32_t HandshakePacket::SocketId() const {
+uint32_t HandshakePacket::SocketId() const {
   return socket_id_;
 }
 
-void HandshakePacket::SetSocketId(boost::uint32_t n) {
+void HandshakePacket::SetSocketId(uint32_t n) {
   socket_id_ = n;
 }
 
-boost::uint32_t HandshakePacket::SynCookie() const {
+uint32_t HandshakePacket::SynCookie() const {
   return syn_cookie_;
 }
 
-void HandshakePacket::SetSynCookie(boost::uint32_t n) {
+void HandshakePacket::SetSynCookie(uint32_t n) {
   syn_cookie_ = n;
 }
 

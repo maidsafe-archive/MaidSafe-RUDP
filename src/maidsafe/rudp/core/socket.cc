@@ -69,20 +69,20 @@ Socket::~Socket() {
     dispatcher_.RemoveSocket(session_.Id());
 }
 
-boost::uint32_t Socket::Id() const {
+uint32_t Socket::Id() const {
   return session_.Id();
 }
 
-boost::uint32_t Socket::SentLength() {
+uint32_t Socket::SentLength() {
   BOOST_ASSERT(waiting_write_bytes_transferred_ - sent_length_ <=
-               std::numeric_limits<boost::uint32_t>::max());
-  boost::uint32_t sent_length = static_cast<boost::uint32_t>(
+               std::numeric_limits<uint32_t>::max());
+  uint32_t sent_length = static_cast<uint32_t>(
       waiting_write_bytes_transferred_ - sent_length_);
   sent_length_ = waiting_write_bytes_transferred_;
   return sent_length;
 }
 
-boost::uint32_t Socket::BestReadBufferSize() {
+uint32_t Socket::BestReadBufferSize() {
   return congestion_control_.BestReadBufferSize();
 }
 
@@ -90,7 +90,7 @@ boost::asio::ip::udp::endpoint Socket::RemoteEndpoint() const {
   return peer_.Endpoint();
 }
 
-boost::uint32_t Socket::RemoteId() const {
+uint32_t Socket::RemoteId() const {
   return peer_.Id();
 }
 

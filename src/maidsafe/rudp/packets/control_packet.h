@@ -15,7 +15,7 @@
 #define MAIDSAFE_RUDP_PACKETS_CONTROL_PACKET_H_
 
 #include "boost/asio/buffer.hpp"
-#include "boost/cstdint.hpp"
+#include <cstdint>
 #include "boost/system/error_code.hpp"
 #include "maidsafe/rudp/packets/packet.h"
 
@@ -35,35 +35,35 @@ class ControlPacket : public Packet {
 
   ControlPacket();
 
-  boost::uint16_t Type() const;
+  uint16_t Type() const;
 
-  boost::uint32_t TimeStamp() const;
-  void SetTimeStamp(boost::uint32_t n);
+  uint32_t TimeStamp() const;
+  void SetTimeStamp(uint32_t n);
 
-  boost::uint32_t DestinationSocketId() const;
-  void SetDestinationSocketId(boost::uint32_t n);
+  uint32_t DestinationSocketId() const;
+  void SetDestinationSocketId(uint32_t n);
 
   friend class test::ControlPacketTest;
  protected:
-  void SetType(boost::uint16_t n);
+  void SetType(uint16_t n);
 
-  boost::uint32_t AdditionalInfo() const;
-  void SetAdditionalInfo(boost::uint32_t n);
+  uint32_t AdditionalInfo() const;
+  void SetAdditionalInfo(uint32_t n);
 
   static bool IsValidBase(const boost::asio::const_buffer &buffer,
-                          boost::uint16_t expected_packet_type);
+                          uint16_t expected_packet_type);
   bool DecodeBase(const boost::asio::const_buffer &buffer,
-                  boost::uint16_t expected_packet_type);
+                  uint16_t expected_packet_type);
   size_t EncodeBase(const boost::asio::mutable_buffer &buffer) const;
 
   // Prevent deletion through this type.
   virtual ~ControlPacket();
 
  private:
-  boost::uint16_t type_;
-  boost::uint32_t additional_info_;
-  boost::uint32_t time_stamp_;
-  boost::uint32_t destination_socket_id_;
+  uint16_t type_;
+  uint32_t additional_info_;
+  uint32_t time_stamp_;
+  uint32_t destination_socket_id_;
 };
 
 }  // namespace detail

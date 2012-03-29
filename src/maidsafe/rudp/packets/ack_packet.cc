@@ -35,19 +35,19 @@ AckPacket::AckPacket()
   SetType(kPacketType);
 }
 
-boost::uint32_t AckPacket::AckSequenceNumber() const {
+uint32_t AckPacket::AckSequenceNumber() const {
   return AdditionalInfo();
 }
 
-void AckPacket::SetAckSequenceNumber(boost::uint32_t n) {
+void AckPacket::SetAckSequenceNumber(uint32_t n) {
   SetAdditionalInfo(n);
 }
 
-boost::uint32_t AckPacket::PacketSequenceNumber() const {
+uint32_t AckPacket::PacketSequenceNumber() const {
   return packet_sequence_number_;
 }
 
-void AckPacket::SetPacketSequenceNumber(boost::uint32_t n) {
+void AckPacket::SetPacketSequenceNumber(uint32_t n) {
   packet_sequence_number_ = n;
 }
 
@@ -59,43 +59,43 @@ void AckPacket::SetHasOptionalFields(bool b) {
   has_optional_fields_ = b;
 }
 
-boost::uint32_t AckPacket::RoundTripTime() const {
+uint32_t AckPacket::RoundTripTime() const {
   return round_trip_time_;
 }
 
-void AckPacket::SetRoundTripTime(boost::uint32_t n) {
+void AckPacket::SetRoundTripTime(uint32_t n) {
   round_trip_time_ = n;
 }
 
-boost::uint32_t AckPacket::RoundTripTimeVariance() const {
+uint32_t AckPacket::RoundTripTimeVariance() const {
   return round_trip_time_variance_;
 }
 
-void AckPacket::SetRoundTripTimeVariance(boost::uint32_t n) {
+void AckPacket::SetRoundTripTimeVariance(uint32_t n) {
   round_trip_time_variance_ = n;
 }
 
-boost::uint32_t AckPacket::AvailableBufferSize() const {
+uint32_t AckPacket::AvailableBufferSize() const {
   return available_buffer_size_;
 }
 
-void AckPacket::SetAvailableBufferSize(boost::uint32_t n) {
+void AckPacket::SetAvailableBufferSize(uint32_t n) {
   available_buffer_size_ = n;
 }
 
-boost::uint32_t AckPacket::PacketsReceivingRate() const {
+uint32_t AckPacket::PacketsReceivingRate() const {
   return packets_receiving_rate_;
 }
 
-void AckPacket::SetPacketsReceivingRate(boost::uint32_t n) {
+void AckPacket::SetPacketsReceivingRate(uint32_t n) {
   packets_receiving_rate_ = n;
 }
 
-boost::uint32_t AckPacket::EstimatedLinkCapacity() const {
+uint32_t AckPacket::EstimatedLinkCapacity() const {
   return estimated_link_capacity_;
 }
 
-void AckPacket::SetEstimatedLinkCapacity(boost::uint32_t n) {
+void AckPacket::SetEstimatedLinkCapacity(uint32_t n) {
   estimated_link_capacity_ = n;
 }
 

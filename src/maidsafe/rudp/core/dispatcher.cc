@@ -46,9 +46,9 @@ void Dispatcher::SetAcceptor(Acceptor *acceptor) {
   acceptor_ = acceptor;
 }
 
-boost::uint32_t Dispatcher::AddSocket(Socket *socket) {
+uint32_t Dispatcher::AddSocket(Socket *socket) {
   // Generate a new unique id for the socket.
-  boost::uint32_t id = 0;
+  uint32_t id = 0;
   while (id == 0 || sockets_.count(id) != 0)
     id = RandomUint32();
 
@@ -56,14 +56,14 @@ boost::uint32_t Dispatcher::AddSocket(Socket *socket) {
   return id;
 }
 
-void Dispatcher::RemoveSocket(boost::uint32_t id) {
+void Dispatcher::RemoveSocket(uint32_t id) {
   if (id)
     sockets_.erase(id);
 }
 
 void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
                                    const ip::udp::endpoint &endpoint) {
-  boost::uint32_t id = 0;
+  uint32_t id = 0;
   if (Packet::DecodeDestinationSocketId(&id, data)) {
     if (id == 0) {
       // This packet is intended for the acceptor.

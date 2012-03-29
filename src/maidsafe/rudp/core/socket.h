@@ -21,7 +21,7 @@
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include "boost/cstdint.hpp"
+#include <cstdint>
 
 #include "maidsafe/rudp/packets/ack_packet.h"
 #include "maidsafe/rudp/packets/ack_of_ack_packet.h"
@@ -56,13 +56,13 @@ class Socket {
   ~Socket();
 
   // Get the unique identifier that has been assigned to the socket.
-  boost::uint32_t Id() const;
+  uint32_t Id() const;
 
   // Get the remote endpoint to which the socket is connected.
   boost::asio::ip::udp::endpoint RemoteEndpoint() const;
 
   // Get the remote socket identifier to which the socket is connected.
-  boost::uint32_t RemoteId() const;
+  uint32_t RemoteId() const;
 
   // Returns whether the connection is open.
   bool IsOpen() const;
@@ -71,10 +71,10 @@ class Socket {
   void Close();
 
   // Return the length of data that successfully sent out during each operation
-  boost::uint32_t SentLength();
+  uint32_t SentLength();
 
   // Return the best read-buffer size calculated by congestion_control
-  boost::uint32_t BestReadBufferSize();
+  uint32_t BestReadBufferSize();
 
   // Calculate if the transmission speed is too slow
   bool IsSlowTransmission(size_t length) {

@@ -41,9 +41,7 @@ Session::Session(Peer &peer, TickTimer &tick_timer)  // NOLINT (Fraser)
     state_(kClosed) {
 }
 
-void Session::Open(boost::uint32_t id,
-                   boost::uint32_t sequence_number,
-                   Mode mode) {
+void Session::Open(uint32_t id, uint32_t sequence_number, Mode mode) {
   assert(id != 0);
   id_ = id;
   sending_sequence_number_ = sequence_number;
@@ -65,15 +63,15 @@ bool Session::IsConnected() const {
   return state_ == kConnected;
 }
 
-boost::uint32_t Session::Id() const {
+uint32_t Session::Id() const {
   return id_;
 }
 
-boost::uint32_t Session::ReceivingSequenceNumber() const {
+uint32_t Session::ReceivingSequenceNumber() const {
   return receiving_sequence_number_;
 }
 
-boost::uint32_t Session::PeerConnectionType() const {
+uint32_t Session::PeerConnectionType() const {
   return peer_connection_type_;
 }
 

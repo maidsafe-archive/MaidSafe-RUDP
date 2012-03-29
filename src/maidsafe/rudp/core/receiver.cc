@@ -48,13 +48,13 @@ Receiver::Receiver(Peer &peer,
     ack_sent_time_(tick_timer_.Now()) {
 }
 
-void Receiver::Reset(boost::uint32_t initial_sequence_number) {
+void Receiver::Reset(uint32_t initial_sequence_number) {
   unread_packets_.Reset(initial_sequence_number);
   last_ack_packet_sequence_number_ = initial_sequence_number;
 }
 
 bool Receiver::Flushed() const {
-  boost::uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
+  uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
   return acks_.IsEmpty() &&
          (ack_packet_seqnum == last_ack_packet_sequence_number_);
 }
@@ -64,7 +64,7 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer &data) {
   unsigned char *ptr = begin;
   unsigned char *end = begin + asio::buffer_size(data);
 
-  for (boost::uint32_t n = unread_packets_.Begin();
+  for (uint32_t n = unread_packets_.Begin();
        (n != unread_packets_.End()) && (ptr < end);
        n = unread_packets_.Next(n)) {
     UnreadPacket &p = unread_packets_[n];
@@ -89,7 +89,7 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer &data) {
 void Receiver::HandleData(const DataPacket &packet) {
   unread_packets_.SetMaximumSize(congestion_control_.ReceiveWindowSize());
 
-  boost::uint32_t seqnum = packet.PacketSequenceNumber();
+  uint32_t seqnum = packet.PacketSequenceNumber();
 
   // Make sure there is space in the window for packets that are expected soon.
   // sliding_window will keep appending till reach the current seqnum or full.
@@ -119,14 +119,14 @@ void Receiver::HandleData(const DataPacket &packet) {
 }
 
 void Receiver::HandleAckOfAck(const AckOfAckPacket &packet) {
-  boost::uint32_t ack_seqnum = packet.AckSequenceNumber();
+  uint32_t ack_seqnum = packet.AckSequenceNumber();
 
   if (acks_.Contains(ack_seqnum)) {
     Ack &a = acks_[ack_seqnum];
     boost::posix_time::time_duration rtt = tick_timer_.Now() - a.send_time;
-    boost::uint64_t rtt_us = rtt.total_microseconds();
+    uint64_t rtt_us = rtt.total_microseconds();
     if (rtt_us < UINT32_MAX) {
-      congestion_control_.OnAckOfAck(static_cast<boost::uint32_t>(rtt_us));
+      congestion_control_.OnAckOfAck(static_cast<uint32_t>(rtt_us));
     }
   }
 
@@ -142,14 +142,14 @@ void Receiver::HandleTick() {
     // Generate an acknowledgement only if the latest sequence number has
     // changed, or if it has been too long since the last unacknowledged
     // acknowledgement.
-    boost::uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
+    uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
     if ((ack_packet_seqnum != last_ack_packet_sequence_number_) ||
         (!acks_.IsEmpty() &&
         (acks_.Back().send_time + congestion_control_.AckTimeout() <= now))) {
       if (acks_.IsFull())
         acks_.Remove();
       congestion_control_.OnGenerateAck(ack_packet_seqnum);
-      boost::uint32_t n = acks_.Append();
+      uint32_t n = acks_.Append();
       Ack& a = acks_[n];
       a.packet.SetDestinationSocketId(peer_.Id());
       a.packet.SetAckSequenceNumber(n);
@@ -172,11 +172,11 @@ void Receiver::HandleTick() {
   // Generate a negative acknowledgement packet to request corruptted packets.
   NegativeAckPacket negative_ack;
   negative_ack.SetDestinationSocketId(peer_.Id());
-  boost::uint32_t n = unread_packets_.Begin();
+  uint32_t n = unread_packets_.Begin();
   while (n != unread_packets_.End()) {
     if (unread_packets_[n].Missing(congestion_control_.ReceiveTimeout())) {
-      boost::uint32_t begin = n;
-      boost::uint32_t end;
+      uint32_t begin = n;
+      uint32_t end;
       do {
         end = n;
         unread_packets_[n].reserve_time = now;
@@ -201,19 +201,18 @@ void Receiver::HandleTick() {
     tick_timer_.TickAfter(congestion_control_.ReceiveDelay());
 }
 
-boost::uint32_t Receiver::AvailableBufferSize() const {
+uint32_t Receiver::AvailableBufferSize() const {
   size_t free_packets = unread_packets_.IsFull() ?
                         0 : unread_packets_.MaximumSize() -
                             unread_packets_.Size();
   BOOST_ASSERT(free_packets * Parameters::max_data_size <
-               std::numeric_limits<boost::uint32_t>::max());
-  return static_cast<boost::uint32_t>(free_packets *
-                                      Parameters::max_data_size);
+               std::numeric_limits<uint32_t>::max());
+  return static_cast<uint32_t>(free_packets * Parameters::max_data_size);
 }
 
-boost::uint32_t Receiver::AckPacketSequenceNumber() const {
+uint32_t Receiver::AckPacketSequenceNumber() const {
   // Work out what sequence number we need to acknowledge up to.
-  boost::uint32_t ack_packet_seqnum = unread_packets_.Begin();
+  uint32_t ack_packet_seqnum = unread_packets_.Begin();
   while (ack_packet_seqnum != unread_packets_.End() &&
          !unread_packets_[ack_packet_seqnum].lost)
     ack_packet_seqnum = unread_packets_.Next(ack_packet_seqnum);

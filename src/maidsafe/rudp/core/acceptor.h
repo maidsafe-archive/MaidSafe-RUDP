@@ -78,7 +78,7 @@ class Acceptor {
     PendingRequest()
         : remote_id(0),
           remote_endpoint() {}
-    boost::uint32_t remote_id;
+    uint32_t remote_id;
     boost::asio::ip::udp::endpoint remote_endpoint;
   };
 

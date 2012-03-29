@@ -19,12 +19,12 @@ namespace maidsafe {
 
 namespace rudp {
 
-boost::uint32_t Parameters::default_window_size(16);
-boost::uint32_t Parameters::maximum_window_size(512);
-boost::uint32_t Parameters::default_size(1480);
-boost::uint32_t Parameters::max_size(25980);
-boost::uint32_t Parameters::default_data_size(1450);
-boost::uint32_t Parameters::max_data_size(25950);
+uint32_t Parameters::default_window_size(16);
+uint32_t Parameters::maximum_window_size(512);
+uint32_t Parameters::default_size(1480);
+uint32_t Parameters::max_size(25980);
+uint32_t Parameters::default_data_size(1450);
+uint32_t Parameters::max_data_size(25950);
 boost::posix_time::time_duration Parameters::default_send_timeout(
     bptime::milliseconds(1000));
 boost::posix_time::time_duration Parameters::default_receive_timeout(
@@ -39,7 +39,7 @@ boost::posix_time::time_duration Parameters::ack_interval(
     bptime::milliseconds(100));
 boost::posix_time::time_duration Parameters::speed_calculate_inverval(
     bptime::milliseconds(1000));
-boost::uint32_t Parameters::slow_speed_threshold(1024);
+uint32_t Parameters::slow_speed_threshold(1024);
 boost::posix_time::time_duration Parameters::client_connect_timeout(
     bptime::milliseconds(1000));
 Parameters::ConnectionType Parameters::connection_type(Parameters::kWireless);

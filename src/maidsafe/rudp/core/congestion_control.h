@@ -16,7 +16,7 @@
 
 #include <deque>
 
-#include "boost/cstdint.hpp"
+#include <cstdint>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 
 #include "maidsafe/rudp/core/sliding_window.h"
@@ -35,28 +35,27 @@ class CongestionControl {
   CongestionControl();
 
   // Event notifications.
-  void OnOpen(boost::uint32_t send_seqnum,
-              boost::uint32_t receive_seqnum);
+  void OnOpen(uint32_t send_seqnum, uint32_t receive_seqnum);
   void OnClose();
-  void OnDataPacketSent(boost::uint32_t seqnum);
-  void OnDataPacketReceived(boost::uint32_t seqnum);
-  void OnGenerateAck(boost::uint32_t seqnum);
-  void OnAck(boost::uint32_t seqnum);
-  void OnAck(boost::uint32_t seqnum,
-             boost::uint32_t round_trip_time,
-             boost::uint32_t round_trip_time_variance,
-             boost::uint32_t available_buffer_size,
-             boost::uint32_t packets_receiving_rate,
-             boost::uint32_t estimated_link_capacity);
-  void OnNegativeAck(boost::uint32_t seqnum);
-  void OnSendTimeout(boost::uint32_t seqnum);
-  void OnAckOfAck(boost::uint32_t round_trip_time);
+  void OnDataPacketSent(uint32_t seqnum);
+  void OnDataPacketReceived(uint32_t seqnum);
+  void OnGenerateAck(uint32_t seqnum);
+  void OnAck(uint32_t seqnum);
+  void OnAck(uint32_t seqnum,
+             uint32_t round_trip_time,
+             uint32_t round_trip_time_variance,
+             uint32_t available_buffer_size,
+             uint32_t packets_receiving_rate,
+             uint32_t estimated_link_capacity);
+  void OnNegativeAck(uint32_t seqnum);
+  void OnSendTimeout(uint32_t seqnum);
+  void OnAckOfAck(uint32_t round_trip_time);
 
   // Calculated values.
-  boost::uint32_t RoundTripTime() const;
-  boost::uint32_t RoundTripTimeVariance() const;
-  boost::uint32_t PacketsReceivingRate() const;
-  boost::uint32_t EstimatedLinkCapacity() const;
+  uint32_t RoundTripTime() const;
+  uint32_t RoundTripTimeVariance() const;
+  uint32_t PacketsReceivingRate() const;
+  uint32_t EstimatedLinkCapacity() const;
 
   // Parameters that are altered based on level of congestion.
   size_t SendWindowSize() const;
@@ -69,19 +68,19 @@ class CongestionControl {
   boost::posix_time::time_duration AckDelay() const;
   boost::posix_time::time_duration AckTimeout() const;
   boost::posix_time::time_duration AckInterval() const;
-//   boost::uint32_t AckInterval() const;
+//   uint32_t AckInterval() const;
 
   // Return the best read-buffer size
-  boost::uint32_t BestReadBufferSize();
+  uint32_t BestReadBufferSize();
 
   // Connection type related
-  void SetPeerConnectionType(boost::uint32_t connection_type);
+  void SetPeerConnectionType(uint32_t connection_type);
   size_t AllowedLost() const;
 
   // Calculate if the transmission speed is too slow
   bool IsSlowTransmission(size_t length);
   // In b/s
-  boost::uint32_t TransmissionSpeed() const;
+  uint32_t TransmissionSpeed() const;
 
  private:
   // Disallow copying and assignment.
@@ -90,10 +89,10 @@ class CongestionControl {
 
   bool slow_start_phase_;
 
-  boost::uint32_t round_trip_time_;
-  boost::uint32_t round_trip_time_variance_;
-  boost::uint32_t packets_receiving_rate_;
-  boost::uint32_t estimated_link_capacity_;
+  uint32_t round_trip_time_;
+  uint32_t round_trip_time_variance_;
+  uint32_t packets_receiving_rate_;
+  uint32_t estimated_link_capacity_;
 
   size_t send_window_size_;
   size_t receive_window_size_;
@@ -104,7 +103,7 @@ class CongestionControl {
   boost::posix_time::time_duration receive_timeout_;
   boost::posix_time::time_duration ack_delay_;
   boost::posix_time::time_duration ack_timeout_;
-  boost::uint32_t ack_interval_;
+  uint32_t ack_interval_;
 
   size_t lost_packets_;
   size_t corrupted_packets_;
@@ -116,16 +115,16 @@ class CongestionControl {
   std::deque<boost::posix_time::time_duration> packet_pair_intervals_;
 
   // The peer's connection type
-  boost::uint32_t peer_connection_type_;
+  uint32_t peer_connection_type_;
 
   // Allowed num of lost packets between two ack packets
   size_t allowed_lost_;
 
   // Speed calculation related;
-  boost::uint32_t transmitted_bits_;
+  uint32_t transmitted_bits_;
   boost::posix_time::ptime last_record_transmit_time_;
   // in b/s
-  boost::uint32_t transmission_speed_;
+  uint32_t transmission_speed_;
 };
 
 }  // namespace detail

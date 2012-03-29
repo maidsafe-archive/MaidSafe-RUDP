@@ -57,8 +57,8 @@ CongestionControl::CongestionControl()
     transmission_speed_(0) {
 }
 
-void CongestionControl::OnOpen(boost::uint32_t /*send_seqnum*/,
-                               boost::uint32_t /*receive_seqnum*/) {
+void CongestionControl::OnOpen(uint32_t /*send_seqnum*/,
+                               uint32_t /*receive_seqnum*/) {
   transmitted_bits_ = 0;
 }
 
@@ -66,10 +66,10 @@ void CongestionControl::OnClose() {
   transmitted_bits_ = 0;
 }
 
-void CongestionControl::OnDataPacketSent(boost::uint32_t /*seqnum*/) {
+void CongestionControl::OnDataPacketSent(uint32_t /*seqnum*/) {
 }
 
-void CongestionControl::OnDataPacketReceived(boost::uint32_t seqnum) {
+void CongestionControl::OnDataPacketReceived(uint32_t seqnum) {
   bptime::ptime now = TickTimer::Now();
 
   if ((seqnum % 16 == 1) && !arrival_times_.empty()) {
@@ -84,24 +84,24 @@ void CongestionControl::OnDataPacketReceived(boost::uint32_t seqnum) {
     arrival_times_.pop_front();
 }
 
-void CongestionControl::OnGenerateAck(boost::uint32_t /*seqnum*/) {
+void CongestionControl::OnGenerateAck(uint32_t /*seqnum*/) {
   // Need to have received at least 8 packets to calculate receiving rate.
   if (arrival_times_.size() <= 8)
     return;
 
   // Calculate all packet arrival intervals.
-  std::vector<boost::uint64_t> intervals;
+  std::vector<uint64_t> intervals;
   for (auto iter = arrival_times_.begin() + 1;
        iter != arrival_times_.end(); ++iter)
     intervals.push_back((*iter - *(iter - 1)).total_microseconds());
 
   // Find the median packet arrival interval.
   std::sort(intervals.begin(), intervals.end());
-  boost::uint64_t median = intervals[intervals.size() / 2];
+  uint64_t median = intervals[intervals.size() / 2];
 
   // Calculate average of all intervals in range (median / 8) to (median * 8).
   size_t num_valid_intervals = 0;
-  boost::uint64_t total = 0;
+  uint64_t total = 0;
   for (auto iter = intervals.begin(); iter != intervals.end(); ++iter)
     if ((median / 8 <= *iter) && (*iter <= median * 8))
       ++num_valid_intervals, total += *iter;
@@ -109,11 +109,11 @@ void CongestionControl::OnGenerateAck(boost::uint32_t /*seqnum*/) {
   // Determine packet arrival speed only if we had more than 8 valid values.
   if ((total > 0) && (num_valid_intervals > 8)) {
     BOOST_ASSERT(num_valid_intervals <=
-                 std::numeric_limits<boost::uint64_t>::max() / 1000000);
+                 std::numeric_limits<uint64_t>::max() / 1000000);
     BOOST_ASSERT((1000000 * num_valid_intervals) / total <=
-                 std::numeric_limits<boost::uint32_t>::max());
+                 std::numeric_limits<uint32_t>::max());
     packets_receiving_rate_ =
-        static_cast<boost::uint32_t>(((1000000 * num_valid_intervals) / total));
+        static_cast<uint32_t>(((1000000 * num_valid_intervals) / total));
   } else {
     packets_receiving_rate_ = 0;
   }
@@ -124,14 +124,14 @@ void CongestionControl::OnGenerateAck(boost::uint32_t /*seqnum*/) {
     // Calculate the estimated link capacity by determining the median of the
     // packet pair intervals, and from that determining the number of packets
     // per second.
-    std::vector<boost::uint64_t> intervals;
+    std::vector<uint64_t> intervals;
     for (auto iter = packet_pair_intervals_.begin();
         iter != packet_pair_intervals_.end(); ++iter)
       intervals.push_back(iter->total_microseconds());
     std::sort(intervals.begin(), intervals.end());
-    boost::uint64_t median = intervals[intervals.size() / 2];
+    uint64_t median = intervals[intervals.size() / 2];
     estimated_link_capacity_ =
-        (median > 0) ? static_cast<boost::uint32_t>(1000000 / median) : 0;
+        (median > 0) ? static_cast<uint32_t>(1000000 / median) : 0;
   }
 
   // TODO(qi.ma@maidsafe.net) : The receive_window_size shall be based on the
@@ -149,15 +149,15 @@ void CongestionControl::OnGenerateAck(boost::uint32_t /*seqnum*/) {
   // TODO(Team) calculate SND (send_delay_).
 }
 
-void CongestionControl::OnAck(boost::uint32_t /*seqnum*/) {
+void CongestionControl::OnAck(uint32_t /*seqnum*/) {
 }
 
-void CongestionControl::OnAck(boost::uint32_t /*seqnum*/,
-                              boost::uint32_t round_trip_time,
-                              boost::uint32_t round_trip_time_variance,
-                              boost::uint32_t available_buffer_size,
-                              boost::uint32_t packets_receiving_rate,
-                              boost::uint32_t estimated_link_capacity) {
+void CongestionControl::OnAck(uint32_t /*seqnum*/,
+                              uint32_t round_trip_time,
+                              uint32_t round_trip_time_variance,
+                              uint32_t available_buffer_size,
+                              uint32_t packets_receiving_rate,
+                              uint32_t estimated_link_capacity) {
   round_trip_time_ = round_trip_time;
   round_trip_time_variance_ = round_trip_time_variance;
 
@@ -166,15 +166,15 @@ void CongestionControl::OnAck(boost::uint32_t /*seqnum*/,
   ack_delay_ += kSynPeriod;
 
   if (packets_receiving_rate) {
-    boost::uint64_t tmp = packets_receiving_rate_ * UINT64_C(7);
+    uint64_t tmp = packets_receiving_rate_ * UINT64_C(7);
     tmp = (tmp + packets_receiving_rate) / 8;
-    packets_receiving_rate_ = static_cast<boost::uint32_t>(tmp);
+    packets_receiving_rate_ = static_cast<uint32_t>(tmp);
   }
 
   if (estimated_link_capacity) {
-    boost::uint64_t tmp = estimated_link_capacity_ * UINT64_C(7);
+    uint64_t tmp = estimated_link_capacity_ * UINT64_C(7);
     tmp = (tmp + estimated_link_capacity) / 8;
-    estimated_link_capacity_ = static_cast<boost::uint32_t>(tmp);
+    estimated_link_capacity_ = static_cast<uint32_t>(tmp);
   }
   // Each time an ack packet received, we check whether during this interval,
   // any packet reported to be lost or corrupted. If none, increase size,
@@ -209,26 +209,26 @@ void CongestionControl::OnAck(boost::uint32_t /*seqnum*/,
   }
 }
 
-void CongestionControl::OnNegativeAck(boost::uint32_t /*seqnum*/) {
+void CongestionControl::OnNegativeAck(uint32_t /*seqnum*/) {
   ++corrupted_packets_;
 }
 
-void CongestionControl::OnSendTimeout(boost::uint32_t /*seqnum*/) {
+void CongestionControl::OnSendTimeout(uint32_t /*seqnum*/) {
   ++lost_packets_;
 }
 
-void CongestionControl::OnAckOfAck(boost::uint32_t round_trip_time) {
-  boost::uint32_t diff = (round_trip_time < round_trip_time_) ?
-                         (round_trip_time_ - round_trip_time) :
-                         (round_trip_time - round_trip_time_);
+void CongestionControl::OnAckOfAck(uint32_t round_trip_time) {
+  uint32_t diff = (round_trip_time < round_trip_time_) ?
+                  (round_trip_time_ - round_trip_time) :
+                  (round_trip_time - round_trip_time_);
 
-  boost::uint32_t tmp = round_trip_time_ * UINT64_C(7);
+  uint32_t tmp = round_trip_time_ * UINT64_C(7);
   tmp = (tmp + round_trip_time) / 8;
-  round_trip_time_ = static_cast<boost::uint32_t>(tmp);
+  round_trip_time_ = static_cast<uint32_t>(tmp);
 
   tmp = round_trip_time_variance_ * UINT64_C(3);
   tmp = (tmp + diff) / 4;
-  round_trip_time_variance_ = static_cast<boost::uint32_t>(tmp);
+  round_trip_time_variance_ = static_cast<uint32_t>(tmp);
 
   ack_delay_ = bptime::microseconds(UINT64_C(4) * round_trip_time_);
   ack_delay_ += bptime::microseconds(round_trip_time_variance_);
@@ -237,8 +237,8 @@ void CongestionControl::OnAckOfAck(boost::uint32_t round_trip_time) {
 
 void CongestionControl::SetPeerConnectionType(uint32_t connection_type) {
   peer_connection_type_ = connection_type;
-  boost::uint32_t local_connection_type = Parameters::connection_type;
-  boost::uint32_t worst_connection_type =
+  uint32_t local_connection_type = Parameters::connection_type;
+  uint32_t worst_connection_type =
       std::min(peer_connection_type_, local_connection_type);
   if (worst_connection_type <= Parameters::kWireless) {
     allowed_lost_ = 5;
@@ -253,17 +253,17 @@ bool CongestionControl::IsSlowTransmission(size_t length) {
   // if length keeps to be zero, socket will have timeout eventually
   // so don't need to worry about all 0 situation here
   if (transmitted_bits_ == 0) {
-    transmitted_bits_ += static_cast<boost::uint32_t>(length * 8);
+    transmitted_bits_ += static_cast<uint32_t>(length * 8);
     last_record_transmit_time_ = TickTimer::Now();
   } else {
-    transmitted_bits_ += static_cast<boost::uint32_t>(length * 8);
+    transmitted_bits_ += static_cast<uint32_t>(length * 8);
     // only calculate speed every calculation interval
     boost::posix_time::time_duration duration = TickTimer::Now() -
                                                 last_record_transmit_time_;
     if (duration > Parameters::speed_calculate_inverval) {
       transmission_speed_ =
-          static_cast<boost::uint32_t>(1000 * transmitted_bits_ /
-                                       duration.total_milliseconds());
+          static_cast<uint32_t>(1000 * transmitted_bits_ /
+                                duration.total_milliseconds());
       // be different to the initial state
       transmitted_bits_ = 1;
       last_record_transmit_time_ = TickTimer::Now();
@@ -274,7 +274,7 @@ bool CongestionControl::IsSlowTransmission(size_t length) {
   return false;
 }
 
-boost::uint32_t CongestionControl::TransmissionSpeed() const {
+uint32_t CongestionControl::TransmissionSpeed() const {
   return transmission_speed_;
 }
 
@@ -282,19 +282,19 @@ size_t CongestionControl::AllowedLost() const {
   return allowed_lost_;
 }
 
-boost::uint32_t CongestionControl::RoundTripTime() const {
+uint32_t CongestionControl::RoundTripTime() const {
   return round_trip_time_;
 }
 
-boost::uint32_t CongestionControl::RoundTripTimeVariance() const {
+uint32_t CongestionControl::RoundTripTimeVariance() const {
   return round_trip_time_variance_;
 }
 
-boost::uint32_t CongestionControl::PacketsReceivingRate() const {
+uint32_t CongestionControl::PacketsReceivingRate() const {
   return packets_receiving_rate_;
 }
 
-boost::uint32_t CongestionControl::EstimatedLinkCapacity() const {
+uint32_t CongestionControl::EstimatedLinkCapacity() const {
   return estimated_link_capacity_;
 }
 
@@ -310,10 +310,10 @@ size_t CongestionControl::SendDataSize() const {
   return send_data_size_;
 }
 
-boost::uint32_t CongestionControl::BestReadBufferSize() {
+uint32_t CongestionControl::BestReadBufferSize() {
   BOOST_ASSERT(receive_window_size_ * Parameters::max_data_size <
-               std::numeric_limits<boost::uint32_t>::max());
-  return static_cast<boost::uint32_t>(
+               std::numeric_limits<uint32_t>::max());
+  return static_cast<uint32_t>(
       receive_window_size_ * Parameters::max_data_size);
 }
 
@@ -341,7 +341,7 @@ boost::posix_time::time_duration CongestionControl::AckTimeout() const {
   return ack_timeout_;
 }
 
-// boost::uint32_t CongestionControl::AckInterval() const {
+// uint32_t CongestionControl::AckInterval() const {
 //   return ack_interval_;
 // }
 

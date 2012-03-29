@@ -185,7 +185,7 @@ void Connection::HandleTick() {
   if (!socket_.IsOpen())
     return;
   if (timeout_state_ == kSending) {
-    boost::uint32_t sent_length = socket_.SentLength();
+    uint32_t sent_length = socket_.SentLength();
     if (sent_length > 0)
       timer_.expires_from_now(kStallTimeout);
     // If transmission speed is too slow, the socket shall be forced closed

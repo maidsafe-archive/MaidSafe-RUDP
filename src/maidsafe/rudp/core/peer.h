@@ -15,7 +15,7 @@
 #define MAIDSAFE_RUDP_CORE_PEER_H_
 
 #include "boost/asio/ip/udp.hpp"
-#include "boost/cstdint.hpp"
+#include <cstdint>
 #include "maidsafe/rudp/core/multiplexer.h"
 
 namespace maidsafe {
@@ -32,8 +32,8 @@ class Peer {
   const boost::asio::ip::udp::endpoint &Endpoint() const { return endpoint_; }
   void SetEndpoint(const boost::asio::ip::udp::endpoint &ep) { endpoint_ = ep; }
 
-  boost::uint32_t Id() const { return id_; }
-  void SetId(boost::uint32_t id) { id_ = id; }
+  uint32_t Id() const { return id_; }
+  void SetId(uint32_t id) { id_ = id; }
 
   template <typename Packet>
   ReturnCode Send(const Packet &packet) {
@@ -50,7 +50,7 @@ class Peer {
 
   // The remote socket's endpoint and identifier.
   boost::asio::ip::udp::endpoint endpoint_;
-  boost::uint32_t id_;
+  uint32_t id_;
 };
 
 }  // namespace detail

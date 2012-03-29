@@ -16,7 +16,7 @@
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include "boost/cstdint.hpp"
+#include <cstdint>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "maidsafe/rudp/packets/ack_packet.h"
 #include "maidsafe/rudp/packets/data_packet.h"
@@ -41,7 +41,7 @@ class Sender {
                   CongestionControl &congestion_control);
 
   // Get the sequence number that will be used for the next packet.
-  boost::uint32_t GetNextPacketSequenceNumber() const;
+  uint32_t GetNextPacketSequenceNumber() const;
 
   // Determine whether all data has been transmitted to the peer.
   bool Flushed() const;

@@ -19,7 +19,7 @@
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include "boost/cstdint.hpp"
+#include <cstdint>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "maidsafe/rudp/packets/ack_packet.h"
 #include "maidsafe/rudp/packets/ack_of_ack_packet.h"
@@ -47,7 +47,7 @@ class Receiver {
 
   // Reset receiver so that it is ready to start receiving data from the
   // specified sequence number.
-  void Reset(boost::uint32_t initial_sequence_number);
+  void Reset(uint32_t initial_sequence_number);
 
   // Determine whether all acknowledgements have been processed.
   bool Flushed() const;
@@ -70,10 +70,10 @@ class Receiver {
   Receiver &operator=(const Receiver&);
 
   // Helper function to calculate the available buffer size.
-  boost::uint32_t AvailableBufferSize() const;
+  uint32_t AvailableBufferSize() const;
 
   // Calculate the sequence number which should be sent in an acknowledgement.
-  boost::uint32_t AckPacketSequenceNumber() const;
+  uint32_t AckPacketSequenceNumber() const;
 
   // The peer with which we are communicating.
   Peer &peer_;
@@ -120,7 +120,7 @@ class Receiver {
   AckWindow acks_;
 
   // The last packet sequence number to have been acknowledged.
-  boost::uint32_t last_ack_packet_sequence_number_;
+  uint32_t last_ack_packet_sequence_number_;
 
   // Next time the ack packet shall be sent
   boost::posix_time::ptime ack_sent_time_;

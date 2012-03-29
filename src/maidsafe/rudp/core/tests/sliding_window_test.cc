@@ -25,18 +25,18 @@ namespace test {
 
 static const size_t kTestPacketCount = 100000;
 
-static void TestWindowRange(boost::uint32_t first_sequence_number) {
-  SlidingWindow<boost::uint32_t> window(first_sequence_number);
+static void TestWindowRange(uint32_t first_sequence_number) {
+  SlidingWindow<uint32_t> window(first_sequence_number);
 
   for (size_t i = 0; i < window.MaximumSize(); ++i) {
-    boost::uint32_t n = window.Append();
+    uint32_t n = window.Append();
     window[n] = n;
   }
 
   for (size_t i = 0; i < kTestPacketCount; ++i) {
     ASSERT_EQ(window.Begin(), window[window.Begin()]);
     window.Remove();
-    boost::uint32_t n = window.Append();
+    uint32_t n = window.Append();
     window[n] = n;
   }
 
@@ -55,7 +55,7 @@ TEST(SlidingWindowTest, BEH_FromN) {
 }
 
 TEST(SlidingWindowTest, BEH_Wraparound) {
-  TestWindowRange(SlidingWindow<boost::uint32_t>::kMaxSequenceNumber -
+  TestWindowRange(SlidingWindow<uint32_t>::kMaxSequenceNumber -
                   kTestPacketCount / 2);
 }
 

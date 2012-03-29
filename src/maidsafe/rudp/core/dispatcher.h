@@ -17,7 +17,7 @@
 #include <unordered_map>
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include "boost/cstdint.hpp"
+#include <cstdint>
 
 namespace maidsafe {
 
@@ -39,10 +39,10 @@ class Dispatcher {
   void SetAcceptor(Acceptor *acceptor);
 
   // Add a socket. Returns a new unique id for the socket.
-  boost::uint32_t AddSocket(Socket *socket);
+  uint32_t AddSocket(Socket *socket);
 
   // Remove the socket corresponding to the given id.
-  void RemoveSocket(boost::uint32_t id);
+  void RemoveSocket(uint32_t id);
 
   // Handle a new packet by dispatching to the appropriate socket or acceptor.
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
@@ -57,7 +57,7 @@ class Dispatcher {
   Acceptor* acceptor_;
 
   // Map of destination socket id to corresponding socket object.
-  typedef std::unordered_map<boost::uint32_t, Socket*> SocketMap;
+  typedef std::unordered_map<uint32_t, Socket*> SocketMap;
   SocketMap sockets_;
 };
 

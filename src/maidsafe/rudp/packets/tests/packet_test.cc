@@ -33,7 +33,7 @@ namespace test {
 TEST(PacketTest, FUNC_DecodeDestinationSocketId) {
   {
     // Try to decode with an invalid buffer
-    boost::uint32_t id;
+    uint32_t id;
     char d[15];
     EXPECT_FALSE(Packet::DecodeDestinationSocketId(&id,
                                                    boost::asio::buffer(d)));
@@ -45,7 +45,7 @@ TEST(PacketTest, FUNC_DecodeDestinationSocketId) {
     d[13] = 0x22;
     d[14] = 0x11;
     d[15] = 0x00;
-    boost::uint32_t id;
+    uint32_t id;
     EXPECT_TRUE(Packet::DecodeDestinationSocketId(&id,
                                                   boost::asio::buffer(d)));
     EXPECT_EQ(0x44221100, id);
@@ -71,10 +71,10 @@ class DataPacketTest : public testing::Test {
     std::string data;
     for (uint32_t i = 0; i < Parameters::max_size; ++i)
       data += "a";
-    boost::uint32_t packet_sequence_number = 0x7fffffff;
-    boost::uint32_t message_number = 0x1fffffff;
-    boost::uint32_t time_stamp = 0xffffffff;
-    boost::uint32_t destination_socket_id = 0xffffffff;
+    uint32_t packet_sequence_number = 0x7fffffff;
+    uint32_t message_number = 0x1fffffff;
+    uint32_t time_stamp = 0xffffffff;
+    uint32_t destination_socket_id = 0xffffffff;
 
     data_packet_.SetData(data);
     data_packet_.SetPacketSequenceNumber(packet_sequence_number);
@@ -214,12 +214,12 @@ class ControlPacketTest : public testing::Test {
     EXPECT_EQ(0xffffffff, control_packet_.AdditionalInfo());
   }
 
-  void SetType(boost::uint16_t n) {
+  void SetType(uint16_t n) {
     control_packet_.SetType(n);
   }
 
   bool IsValidBase(const boost::asio::const_buffer &buffer,
-                   boost::uint16_t expected_packet_type) {
+                   uint16_t expected_packet_type) {
     return control_packet_.IsValidBase(buffer, expected_packet_type);
   }
 

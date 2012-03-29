@@ -14,7 +14,7 @@
 #ifndef MAIDSAFE_RUDP_CORE_SESSION_H_
 #define MAIDSAFE_RUDP_CORE_SESSION_H_
 
-#include "boost/cstdint.hpp"
+#include <cstdint>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "maidsafe/rudp/packets/handshake_packet.h"
 
@@ -33,7 +33,7 @@ class Session {
 
   // Open the session as a client or server.
   enum Mode { kClient, kServer };
-  void Open(boost::uint32_t id, boost::uint32_t sequence_number, Mode mode);
+  void Open(uint32_t id, uint32_t sequence_number, Mode mode);
 
   // Get whether the session is already open. May not be connected.
   bool IsOpen() const;
@@ -42,13 +42,13 @@ class Session {
   bool IsConnected() const;
 
   // Get the id assigned to the session.
-  boost::uint32_t Id() const;
+  uint32_t Id() const;
 
   // Get the first sequence number for packets received.
-  boost::uint32_t ReceivingSequenceNumber() const;
+  uint32_t ReceivingSequenceNumber() const;
 
   // Get the peer connection type.
-  boost::uint32_t PeerConnectionType() const;
+  uint32_t PeerConnectionType() const;
 
   // Close the session. Clears the id.
   void Close();
@@ -78,16 +78,16 @@ class Session {
   TickTimer &tick_timer_;
 
   // The local socket id.
-  boost::uint32_t id_;
+  uint32_t id_;
 
   // The initial sequence number for packets sent in this session.
-  boost::uint32_t sending_sequence_number_;
+  uint32_t sending_sequence_number_;
 
   // The initial sequence number for packets received in this session.
-  boost::uint32_t receiving_sequence_number_;
+  uint32_t receiving_sequence_number_;
 
   // The peer's connection type
-  boost::uint32_t peer_connection_type_;
+  uint32_t peer_connection_type_;
 
   // Are we a client or a server?
   Mode mode_;

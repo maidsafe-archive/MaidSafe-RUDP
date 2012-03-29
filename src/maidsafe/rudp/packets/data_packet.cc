@@ -34,11 +34,11 @@ DataPacket::DataPacket()
     destination_socket_id_(0),
     data_() {}
 
-boost::uint32_t DataPacket::PacketSequenceNumber() const {
+uint32_t DataPacket::PacketSequenceNumber() const {
   return packet_sequence_number_;
 }
 
-void DataPacket::SetPacketSequenceNumber(boost::uint32_t n) {
+void DataPacket::SetPacketSequenceNumber(uint32_t n) {
   assert(n <= 0x7fffffff);
   packet_sequence_number_ = n;
 }
@@ -67,28 +67,28 @@ void DataPacket::SetInOrder(bool b) {
   in_order_ = b;
 }
 
-boost::uint32_t DataPacket::MessageNumber() const {
+uint32_t DataPacket::MessageNumber() const {
   return message_number_;
 }
 
-void DataPacket::SetMessageNumber(boost::uint32_t n) {
+void DataPacket::SetMessageNumber(uint32_t n) {
   assert(n <= 0x1fffffff);
   message_number_ = n;
 }
 
-boost::uint32_t DataPacket::TimeStamp() const {
+uint32_t DataPacket::TimeStamp() const {
   return time_stamp_;
 }
 
-void DataPacket::SetTimeStamp(boost::uint32_t n) {
+void DataPacket::SetTimeStamp(uint32_t n) {
   time_stamp_ = n;
 }
 
-boost::uint32_t DataPacket::DestinationSocketId() const {
+uint32_t DataPacket::DestinationSocketId() const {
   return destination_socket_id_;
 }
 
-void DataPacket::SetDestinationSocketId(boost::uint32_t n) {
+void DataPacket::SetDestinationSocketId(uint32_t n) {
   destination_socket_id_ = n;
 }
 
