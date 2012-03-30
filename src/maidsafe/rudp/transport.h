@@ -34,8 +34,6 @@ class Connection;
 class Multiplexer;
 class Socket;
 
-typedef std::function<void(const ReturnCode&)> ConnectFunctor;
-
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
@@ -105,9 +103,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DoSend(const std::string &data,
               const Endpoint &endpoint,
               const Timeout &timeout);
-  void DoConnect(const Endpoint &endpoint,
-                 const Timeout &timeout,
-                 ConnectFunctor callback);
+
   friend class Connection;
   void InsertConnection(ConnectionPtr connection);
   void DoInsertConnection(ConnectionPtr connection);
