@@ -34,8 +34,6 @@ class Connection;
 class Multiplexer;
 class Socket;
 
-typedef std::function<void(const ReturnCode&)> ConnectFunctor;
-
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"

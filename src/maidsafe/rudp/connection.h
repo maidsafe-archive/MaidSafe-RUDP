@@ -52,7 +52,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void Close();
   void StartReceiving();
   void StartSending(const std::string &data, const Timeout &timeout);
-  void Connect(const Timeout &timeout, ConnectFunctor callback);
 
  private:
   Connection(const Connection&);
