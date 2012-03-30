@@ -13,11 +13,8 @@
 #ifndef MAIDSAFE_RUDP_PARAMETERS_H_
 #define MAIDSAFE_RUDP_PARAMETERS_H_
 
-#include <cassert>
-#include <deque>
-
 #include <cstdint>
-#include "maidsafe/common/utils.h"
+#include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "maidsafe/rudp/version.h"
 
 #if MAIDSAFE_RUDP_VERSION != 100
@@ -28,6 +25,8 @@
 namespace maidsafe {
 
 namespace rudp {
+
+typedef boost::posix_time::time_duration Timeout;
 
 // This class provides the configurability to all traffic related parameters.
 struct Parameters {
@@ -48,34 +47,34 @@ struct Parameters {
   static uint32_t max_data_size;
 
   // Timeout defined for a packet to be resent
-  static boost::posix_time::time_duration default_send_timeout;
+  static Timeout default_send_timeout;
 
   // Timeout defined for a neg-ack packet to be resent to request resent of an
   // observed missing packet in receiver
-  static boost::posix_time::time_duration default_receive_timeout;
+  static Timeout default_receive_timeout;
 
   // Machine dependent parameter of send delay,
   // depending on computation power and I/O speed
-  static boost::posix_time::time_duration default_send_delay;
+  static Timeout default_send_delay;
 
   // Machine dependent parameter of receive delay,
   // depending on computation power and I/O speed
-  static boost::posix_time::time_duration default_receive_delay;
+  static Timeout default_receive_delay;
 
   // Timeout defined for a Ack packet to be resent
-  static boost::posix_time::time_duration default_ack_timeout;
+  static Timeout default_ack_timeout;
 
   // Timeout defined the fixed interval between Ack packets
-  static boost::posix_time::time_duration ack_interval;
+  static Timeout ack_interval;
 
   // Interval to calculate speed
-  static boost::posix_time::time_duration speed_calculate_inverval;
+  static Timeout speed_calculate_inverval;
 
   // Slow speed threshold to force the socket closed, in b/s
   static uint32_t slow_speed_threshold;
 
   // Timeout during client connection establishment
-  static boost::posix_time::time_duration client_connect_timeout;
+  static Timeout client_connect_timeout;
 
   // Defined connection types
   enum ConnectionType {

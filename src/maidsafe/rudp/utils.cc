@@ -90,9 +90,9 @@ uint32_t IpAsciiToNet(const char *buffer) {
   return ret;
 }
 
-std::vector<IP> GetLocalAddresses() {
+std::vector<boost::asio::ip::address> GetLocalAddresses() {
   // get all network interfaces
-  std::vector<IP> ips;
+  std::vector<boost::asio::ip::address> ips;
   boost::system::error_code ec;
   std::vector<NetworkInterface> net_interfaces;
   net_interfaces = NetworkInterface::LocalList(ec);
@@ -106,10 +106,6 @@ std::vector<IP> GetLocalAddresses() {
     }
   }
   return ips;
-}
-
-bool IsValid(const Endpoint &endpoint) {
-  return (endpoint.ip != IP()) && (endpoint.port != 0);
 }
 
 }  // namespace rudp

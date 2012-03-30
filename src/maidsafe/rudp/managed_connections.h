@@ -39,8 +39,6 @@ namespace rudp {
 struct Endpoint;
 class Transport;
 
-typedef boost::asio::ip::address IP;
-typedef uint16_t Port;
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
 typedef std::function<void(const Endpoint&)> ConnectionLostFunctor;
 
@@ -79,6 +77,8 @@ class ManagedConnections {
   friend class Transport;
 
  private:
+  typedef std::map<Endpoint, std::shared_ptr<Transport>> ConnectionMap;
+
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
   Endpoint StartNewTransport(const std::vector<Endpoint> &bootstrap_endpoints);
@@ -88,7 +88,7 @@ class ManagedConnections {
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
   boost::posix_time::time_duration keep_alive_interval_;
-  std::map<Endpoint, std::shared_ptr<Transport>> transports_;
+  ConnectionMap connection_map_;
   mutable boost::shared_mutex shared_mutex_;
 };
 

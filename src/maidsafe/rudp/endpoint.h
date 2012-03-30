@@ -10,39 +10,46 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_RUDP_UTILS_H_
-#define MAIDSAFE_RUDP_UTILS_H_
+#ifndef MAIDSAFE_RUDP_ENDPOINT_H_
+#define MAIDSAFE_RUDP_ENDPOINT_H_
 
 #include <cstdint>
 #include <string>
-#include <vector>
 
-#include "boost/asio/ip/address.hpp"
 
-#include "maidsafe/rudp/common.h"
+#include "maidsafe/rudp/version.h"
 
+#if MAIDSAFE_RUDP_VERSION != 100
+#  error This API is not compatible with the installed library.\
+    Please update the maidsafe_rudp library.
+#endif
 
 namespace maidsafe {
 
 namespace rudp {
 
-// Convert an IP in ASCII format to IPv4 or IPv6 bytes
-std::string IpAsciiToBytes(const std::string &decimal_ip);
+typedef boost::asio::ip::address IP;
+typedef uint16_t Port;
 
-// Convert an IPv4 or IPv6 in bytes format to ASCII format
-std::string IpBytesToAscii(const std::string &bytes_ip);
+struct Endpoint {
+  Endpoint();
+  Endpoint(const IP &ip_in, const Port &port_in);
+  Endpoint(const std::string &ip_as_string, const Port &port_in);
+  bool operator==(const Endpoint &other) const;
+  bool operator!=(const Endpoint &other) const;
+  bool operator<(const Endpoint &other) const;
+  bool operator>(const Endpoint &other) const;
 
-// Convert an internet network address into dotted string format.
-void IpNetToAscii(uint32_t address, char *ip_buffer);
+  IP ip;
+  Port port;
+};
 
-// Convert a dotted string format internet address into Ipv4 format.
-uint32_t IpAsciiToNet(const char *buffer);
 
-// Return all local addresses
-std::vector<boost::asio::ip::address> GetLocalAddresses();
+// Returns true if the IP is not default constructed, and the Port is not 0.
+bool IsValid(const Endpoint &endpoint);
 
 }  // namespace rudp
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_RUDP_UTILS_H_
+#endif  // MAIDSAFE_RUDP_ENDPOINT_H_
