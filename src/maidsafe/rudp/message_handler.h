@@ -23,8 +23,7 @@
 
 
 namespace bs2 = boost::signals2;
-typedef std::shared_ptr<maidsafe::rsa::PrivateKey> PrivateKeyPtr;
-typedef maidsafe::rsa::PublicKey PublicKey;
+typedef std::shared_ptr<maidsafe::asymm::PrivateKey> PrivateKeyPtr;
 
 namespace maidsafe {
 
@@ -87,7 +86,7 @@ class MessageHandler {
       const int &message_type,
       const std::string &payload,
       SecurityType security_type,
-      const PublicKey &recipient_public_key);
+      const asymm::PublicKey &recipient_public_key);
   PrivateKeyPtr private_key_;
 
  private:

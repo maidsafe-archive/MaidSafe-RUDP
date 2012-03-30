@@ -30,7 +30,7 @@ class Service {
  public:
   void ManagedEndpoint(const protobuf::ManagedEndpointMessage &request,
                        protobuf::ManagedEndpointMessage *response,
-                       transport::Timeout *timeout);
+                       Timeout *timeout);
  private:
 };
 

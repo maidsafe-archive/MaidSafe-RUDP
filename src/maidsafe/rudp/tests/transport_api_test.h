@@ -38,7 +38,6 @@ class TestMessageHandler;
 
 static const IP kIP(boost::asio::ip::address_v4::loopback());
 static const uint16_t kThreadGroupSize = 8;
-typedef std::shared_ptr<Transport> TransportPtr;
 typedef boost::shared_ptr<TestMessageHandler> TestMessageHandlerPtr;
 typedef std::vector<std::string> Messages;
 
