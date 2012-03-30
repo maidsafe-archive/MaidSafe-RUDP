@@ -15,7 +15,9 @@
 
 #include <cstdint>
 #include <string>
+#include <ostream>  // NOLINT (Fraser)
 
+#include "boost/asio/ip/address.hpp"
 
 #include "maidsafe/rudp/version.h"
 
@@ -35,10 +37,6 @@ struct Endpoint {
   Endpoint();
   Endpoint(const IP &ip_in, const Port &port_in);
   Endpoint(const std::string &ip_as_string, const Port &port_in);
-  bool operator==(const Endpoint &other) const;
-  bool operator!=(const Endpoint &other) const;
-  bool operator<(const Endpoint &other) const;
-  bool operator>(const Endpoint &other) const;
 
   IP ip;
   Port port;
@@ -47,6 +45,12 @@ struct Endpoint {
 
 // Returns true if the IP is not default constructed, and the Port is not 0.
 bool IsValid(const Endpoint &endpoint);
+
+std::ostream& operator<<(std::ostream& output_stream, const Endpoint& endpoint);
+inline bool operator==(const Endpoint& lhs, const Endpoint& rhs);
+inline bool operator!=(const Endpoint& lhs, const Endpoint& rhs);
+inline bool operator<(const Endpoint& lhs, const Endpoint& rhs);
+inline bool operator>(const Endpoint& lhs, const Endpoint& rhs);
 
 }  // namespace rudp
 

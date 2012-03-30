@@ -10,8 +10,8 @@
  *  the explicit written permission of the board of directors of MaidSafe.net. *
  ******************************************************************************/
 
-#ifndef MAIDSAFE_RUDP_VERSION_H_
-#define MAIDSAFE_RUDP_VERSION_H_
+#ifndef MAIDSAFE_RUDP_RETURN_CODES_H_
+#define MAIDSAFE_RUDP_RETURN_CODES_H_
 
 #include "maidsafe/rudp/version.h"
 
@@ -67,6 +67,7 @@ enum ReturnCode {
   kNullParameter = -350102,
   kInvalidTransport = -350103,
   kInvalidConnection = -350104,
+  kConnectionAlreadyExists = -350105,
 
   // Upper limit of values for this enum.
   kReturnCodeLimit = -359999
@@ -76,4 +77,4 @@ enum ReturnCode {
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_RUDP_VERSION_H_
+#endif  // MAIDSAFE_RUDP_RETURN_CODES_H_

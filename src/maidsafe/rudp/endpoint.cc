@@ -37,32 +37,35 @@ Endpoint::Endpoint(const std::string &ip_as_string, const Port &port_in)
   }
 }
 
-bool Endpoint::operator==(const Endpoint &other) const {
-  return (ip == other.ip && port == other.port);
-}
-
-bool Endpoint::operator!=(const Endpoint &other) const {
-  return !(*this == other);
-}
-
-bool Endpoint::operator<(const Endpoint &other) const {
-  if (ip != other.ip)
-    return (ip < other.ip);
-  else
-    return port < other.port;
-}
-
-bool Endpoint::operator>(const Endpoint &other) const {
-  if (ip != other.ip)
-    return (ip > other.ip);
-  else
-    return port > other.port;
-}
-
-
 bool IsValid(const Endpoint &endpoint) {
   return (endpoint.ip != IP()) && (endpoint.port != 0);
 }
+
+std::ostream& operator<<(std::ostream& output_stream,
+                         const Endpoint& endpoint) {
+  output_stream << endpoint.ip.to_string() << ":" << endpoint.port;
+  return output_stream;
+}
+
+bool operator==(const Endpoint& lhs, const Endpoint& rhs) {
+  return (lhs.ip == rhs.ip && lhs.port == rhs.port);
+}
+
+bool operator!=(const Endpoint& lhs, const Endpoint& rhs) {
+  return !operator==(lhs, rhs);
+}
+
+bool operator<(const Endpoint& lhs, const Endpoint& rhs) {
+  if (lhs.ip != rhs.ip)
+    return (lhs.ip < rhs.ip);
+  else
+    return lhs.port < rhs.port;
+}
+
+bool operator>(const Endpoint& lhs, const Endpoint& rhs) {
+  return operator< (rhs, lhs);
+}
+
 
 }  // namespace rudp
 

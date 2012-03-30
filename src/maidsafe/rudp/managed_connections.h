@@ -60,7 +60,7 @@ class ManagedConnections {
   // Managed Connections already have the maximum number of running sockets.  If
   // there are less than kMaxTransports transports running, a new one will be
   // started and if successful, this will be the returned Endpoint.
-  int GetAvailableEndpoint(Endpoint *endpoint) const;
+  int GetAvailableEndpoint(Endpoint *endpoint);
 
   // Makes a new connection and sends the validation data to the peer which
   // runs its message_received_functor_ with the data.
@@ -81,13 +81,15 @@ class ManagedConnections {
 
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
-  Endpoint StartNewTransport(const std::vector<Endpoint> &bootstrap_endpoints);
+  Endpoint StartNewTransport(std::vector<Endpoint> bootstrap_endpoints);
+
   void RemoveEndpoint(const Endpoint &peer_endpoint);
 
   std::unique_ptr<AsioService> asio_service_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
   boost::posix_time::time_duration keep_alive_interval_;
+  std::vector<std::shared_ptr<Transport>> transports_;
   ConnectionMap connection_map_;
   mutable boost::shared_mutex shared_mutex_;
 };

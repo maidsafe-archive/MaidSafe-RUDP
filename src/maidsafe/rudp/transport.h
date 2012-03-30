@@ -49,23 +49,22 @@ class Transport : public std::enable_shared_from_this<Transport> {
   explicit Transport(boost::asio::io_service &asio_service);  // NOLINT
   virtual ~Transport();
 
-  virtual ReturnCode StartListening(const Endpoint &endpoint);
-  virtual ReturnCode Bootstrap(const std::vector<Contact> &candidates);
-
-  virtual void StopListening();
-  // This timeout defines the max allowed duration for the receiver to respond
-  // to a request. If the receiver is expected to respond slowly (e.g. because
-  // of a large request msg to be processed), a long duration shall be given for
-  // this timeout. If no response is expected, kImmediateTimeout shall be given.
-  virtual void Send(const std::string &data,
-                    const Endpoint &endpoint,
-                    const Timeout &timeout);
-  static DataSize kMaxTransportMessageSize() { return 67108864; }
-
+//  virtual ReturnCode StartListening(const Endpoint &endpoint);
+//  virtual ReturnCode Bootstrap(const std::vector<Contact> &candidates);
+//
+//  virtual void StopListening();
+//  // This timeout defines the max allowed duration for the receiver to respond
+//  // to a request. If the receiver is expected to respond slowly (e.g. because
+//  // of a large request msg to be processed), a long duration shall be given for
+//  // this timeout. If no response is expected, kImmediateTimeout shall be given.
+//  virtual void Send(const std::string &data,
+//                    const Endpoint &endpoint,
+//                    const Timeout &timeout);
+//  static DataSize kMaxTransportMessageSize() { return 67108864; }
 
 
   void RendezvousConnect(const Endpoint &peer_endpoint,
-                         const std::string &this_node_id);
+                         const std::string &validation_data);
   // Returns kSuccess if the connection existed and was closed.  Returns
   // kInvalidConnection if the connection didn't exist.  If this causes the
   // size of connected_endpoints_ to dop to 0, this transport will remove
@@ -86,6 +85,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::shared_ptr<Acceptor> AcceptorPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionSet;
+
+  void StartRendezvousConnect(const Endpoint &peer_endpoint,
+                              const std::string &validation_data,
+                              const Timeout &timeout);
 
   static void CloseAcceptor(AcceptorPtr acceptor);
   static void CloseMultiplexer(MultiplexerPtr multiplexer);
