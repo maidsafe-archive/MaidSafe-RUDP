@@ -39,14 +39,6 @@ namespace rudp {
 
 enum MessageType {
   kManagedEndpointMessage = 1,
-  kNatDetectionRequest,
-  kNatDetectionResponse,
-  kProxyConnectRequest,
-  kProxyConnectResponse,
-  kForwardRendezvousRequest,
-  kForwardRendezvousResponse,
-  kRendezvousRequest,
-  kRendezvousAcknowledgement
 };
 
 namespace protobuf {

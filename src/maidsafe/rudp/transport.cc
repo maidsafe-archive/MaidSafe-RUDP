@@ -171,39 +171,6 @@ void Transport::DoSend(const std::string &data,
     StartDispatch();
 }
 
-void Transport::Connect(const Endpoint &endpoint,
-                            const Timeout &timeout,
-                            ConnectFunctor callback) {
-  strand_.dispatch(std::bind(&Transport::DoConnect,
-                             shared_from_this(), endpoint, timeout, callback));
-}
-
-void Transport::DoConnect(const Endpoint &endpoint,
-                              const Timeout &timeout,
-                              ConnectFunctor callback) {
-  ip::udp::endpoint ep(endpoint.ip, endpoint.port);
-  bool multiplexer_opened_now(false);
-
-  if (!multiplexer_->IsOpen()) {
-    ReturnCode condition = multiplexer_->Open(ep.protocol());
-    if (kSuccess != condition) {
-      (*on_error_)(condition, endpoint);
-      return;
-    }
-    multiplexer_opened_now = true;
-    // StartDispatch();
-  }
-
-  ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(),
-                                                        strand_,
-                                                        multiplexer_, ep));
-  DoInsertConnection(connection);
-  connection->Connect(timeout, callback);
-
-  if (multiplexer_opened_now)
-    StartDispatch();
-}
-
 void Transport::InsertConnection(ConnectionPtr connection) {
   strand_.dispatch(std::bind(&Transport::DoInsertConnection,
                              shared_from_this(), connection));

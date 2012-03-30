@@ -262,38 +262,4 @@ typedef std::shared_ptr<Transport> TransportPtr;
 
 }  // namespace maidsafe
 
-
-
-namespace mt = maidsafe::transport;
-
-namespace boost {
-
-namespace serialization {
-
-template <typename Archive>
-void serialize(Archive &archive,                              // NOLINT (Fraser)
-               mt::Endpoint &endpoint,
-               const unsigned int& /*version*/) {
-  std::string ip;
-  uint16_t port = endpoint.port;
-  if (Archive::is_saving::value) {
-    ip = endpoint.ip.to_string();
-    port = endpoint.port;
-  }
-  archive& boost::serialization::make_nvp("ip", ip);
-  archive& boost::serialization::make_nvp("port", port);
-  if (Archive::is_loading::value) {
-    boost::system::error_code ec;
-    endpoint.ip = boost::asio::ip::address::from_string(ip, ec);
-    if (ec)
-      port = 0;
-    endpoint.port = port;
-  }
-}
-
-}  // namespace serialization
-
-}  // namespace boost
-
-
 #endif  // MAIDSAFE_RUDP_OLD_TRANSPORT_H_

@@ -23,22 +23,6 @@
 //
 //namespace detail {
 //
-////  void MessageHandler::OnMessageReceived(const std::string &request,
-////                                         const Info &info,
-////                                         std::string *response,
-////                                         Timeout *timeout) {
-////    if (request.empty())
-////      return;
-////    SecurityType security_type = request.at(0);
-////    std::string serialised_message(request.substr(1));
-////    protobuf::WrapperMessage wrapper;
-////    if (wrapper.ParseFromString(serialised_message) &&
-////        wrapper.IsInitialized()) {
-////      ProcessSerialisedMessage(wrapper.msg_type(), wrapper.payload(),
-////                               security_type, wrapper.message_signature(),
-////                               info, response, timeout);
-////    }
-////  }
 //
 //std::string MessageHandler::WrapMessage(
 //    const protobuf::ManagedEndpointMessage &msg) {
@@ -47,86 +31,6 @@
 //  return MakeSerialisedWrapperMessage(kManagedEndpointMessage,
 //                                      msg.SerializeAsString(), kNone,
 //                                      asymm::PublicKey());
-//}
-//
-//std::string MessageHandler::WrapMessage(
-//    const protobuf::NatDetectionRequest &msg) {
-//  if (!msg.IsInitialized())
-//    return "";
-//  return MakeSerialisedWrapperMessage(kNatDetectionRequest,
-//                                      msg.SerializeAsString(), kNone,
-//                                      asymm::PublicKey());
-//}
-//
-//std::string MessageHandler::WrapMessage(
-//    const protobuf::NatDetectionResponse &msg) {
-//  if (!msg.IsInitialized())
-//    return "";
-//  return MakeSerialisedWrapperMessage(kNatDetectionResponse,
-//                                      msg.SerializeAsString(), kNone,
-//                                      asymm::PublicKey());
-//}
-//
-//std::string MessageHandler::WrapMessage(
-//    const protobuf::ProxyConnectRequest &msg) {
-//  if (!msg.IsInitialized())
-//    return "";
-//  return MakeSerialisedWrapperMessage(kProxyConnectRequest,
-//                                      msg.SerializeAsString(), kNone,
-//                                      asymm::PublicKey());
-//}
-//
-//std::string MessageHandler::WrapMessage(
-//    const protobuf::ProxyConnectResponse &msg) {
-//  if (!msg.IsInitialized())
-//    return "";
-//  return MakeSerialisedWrapperMessage(kProxyConnectResponse,
-//                                      msg.SerializeAsString(), kNone,
-//                                      asymm::PublicKey());
-//}
-//
-//std::string MessageHandler::WrapMessage(
-//    const protobuf::ForwardRendezvousRequest &msg) {
-//  if (!msg.IsInitialized())
-//    return "";
-//  return MakeSerialisedWrapperMessage(kForwardRendezvousRequest,
-//                                      msg.SerializeAsString(), kNone,
-//                                      asymm::PublicKey());
-//}
-//
-//std::string MessageHandler::WrapMessage(
-//    const protobuf::ForwardRendezvousResponse &msg) {
-//  if (!msg.IsInitialized())
-//    return "";
-//  return MakeSerialisedWrapperMessage(kForwardRendezvousResponse,
-//                                      msg.SerializeAsString(), kNone,
-//                                      asymm::PublicKey());
-//}
-//
-//std::string MessageHandler::WrapMessage(
-//    const protobuf::RendezvousRequest &msg) {
-//  if (!msg.IsInitialized())
-//    return "";
-//  return MakeSerialisedWrapperMessage(kRendezvousRequest,
-//                                      msg.SerializeAsString(), kNone,
-//                                      asymm::PublicKey());
-//}
-//
-//std::string MessageHandler::WrapMessage(
-//    const protobuf::RendezvousAcknowledgement &msg) {
-//  if (!msg.IsInitialized())
-//    return "";
-//  return MakeSerialisedWrapperMessage(kRendezvousAcknowledgement,
-//                                      msg.SerializeAsString(), kNone,
-//                                      asymm::PublicKey());
-//}
-//
-//std::string MessageHandler::CreateForwardRendezvousRequest(
-//    const Endpoint &endpoint) {
-//  protobuf::ForwardRendezvousRequest request;
-//  request.mutable_receiver_endpoint()->set_ip(endpoint.ip.to_string());
-//  request.mutable_receiver_endpoint()->set_port(endpoint.port);
-//  return WrapMessage(request);
 //}
 //
 //void MessageHandler::ProcessSerialisedMessage(
@@ -148,68 +52,6 @@
 //        (*on_managed_endpoint_message_)(request, &response, timeout);
 //        *message_response = WrapMessage(response);
 //      }
-//      break;
-//    }
-//    case kNatDetectionRequest: {
-//      protobuf::NatDetectionRequest request;
-//      if (request.ParseFromString(payload) && request.IsInitialized()) {
-//        protobuf::NatDetectionResponse response;
-//        (*on_nat_detection_request_)(info, request, &response, timeout);
-//        if (response.IsInitialized()) {
-//          *message_response = WrapMessage(response);
-//        }
-//      }
-//      break;
-//    }
-//    case kNatDetectionResponse: {
-//      protobuf::NatDetectionResponse response;
-//      if (response.ParseFromString(payload) && response.IsInitialized())
-//        (*on_nat_detection_response_)(response);
-//      break;
-//    }
-//    case kProxyConnectRequest: {
-//      protobuf::ProxyConnectRequest request;
-//      if (request.ParseFromString(payload) && request.IsInitialized()) {
-//        protobuf::ProxyConnectResponse response;
-//        (*on_proxy_connect_request_)(info, request, &response, timeout);
-//        *message_response = WrapMessage(response);
-//      }
-//      break;
-//    }
-//    case kProxyConnectResponse: {
-//      protobuf::ProxyConnectResponse response;
-//      if (response.ParseFromString(payload) && response.IsInitialized())
-//        (*on_proxy_connect_response_)(response);
-//      break;
-//    }
-//    case kForwardRendezvousRequest: {
-//      protobuf::ForwardRendezvousRequest request;
-//      if (request.ParseFromString(payload) && request.IsInitialized()) {
-//        protobuf::ForwardRendezvousResponse response;
-//        (*on_forward_rendezvous_request_)(info, request, &response);
-//        *message_response = WrapMessage(response);
-//      }
-//      break;
-//    }
-//    case kForwardRendezvousResponse: {
-//      protobuf::ForwardRendezvousResponse response;
-//      if (response.ParseFromString(payload) && response.IsInitialized())
-//        (*on_forward_rendezvous_response_)(response);
-//      break;
-//    }
-//    case kRendezvousRequest: {
-//      protobuf::RendezvousRequest request;
-//      if (request.ParseFromString(payload) && request.IsInitialized()) {
-//        protobuf::RendezvousAcknowledgement response;
-//        (*on_rendezvous_request_)(info, request, &response);
-//      }
-//      break;
-//    }
-//    case kRendezvousAcknowledgement: {
-//      protobuf::RendezvousAcknowledgement acknowledgement;
-//      if (acknowledgement.ParseFromString(payload) &&
-//          acknowledgement.IsInitialized())
-//        (*on_rendezvous_acknowledgement_)(acknowledgement);
 //      break;
 //    }
 //    default:

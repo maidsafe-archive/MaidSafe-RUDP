@@ -31,18 +31,6 @@ class Service {
   void ManagedEndpoint(const protobuf::ManagedEndpointMessage &request,
                        protobuf::ManagedEndpointMessage *response,
                        transport::Timeout *timeout);
-  void NatDetection(const protobuf::NatDetectionRequest &request,
-                    const Info &info,
-                    protobuf::NatDetectionResponse *response,
-                    transport::Timeout *timeout);
-  void ProxyConnect(const protobuf::ProxyConnectRequest &request,
-                    protobuf::ProxyConnectResponse *response,
-                    transport::Timeout *timeout);
-  void ForwardRendezvous(const protobuf::ForwardRendezvousRequest &request,
-                         protobuf::ForwardRendezvousResponse *response,
-                         transport::Timeout *timeout);
-  void Rendezvous(const protobuf::RendezvousRequest &request);
-
  private:
 };
 

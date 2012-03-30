@@ -60,9 +60,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
   virtual void Send(const std::string &data,
                     const Endpoint &endpoint,
                     const Timeout &timeout);
-  void Connect(const Endpoint &endpoint,
-               const Timeout &timeout,
-               ConnectFunctor callback);
   static DataSize kMaxTransportMessageSize() { return 67108864; }
 
 

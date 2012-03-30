@@ -137,41 +137,18 @@ class MessageHandlerTest : public testing::Test {
   void ConnectToHandlerSignals() {
     msg_hndlr_->on_managed_endpoint_message()->connect(boost::bind(
         &MessageHandlerTest::ManagedEndpointSlot, this, _1, _2, _3));
-    msg_hndlr_->on_nat_detection_request()->connect(boost::bind(
-        &MessageHandlerTest::NatDetectionReqSlot, this, _1, _2, _3, _4));
-    msg_hndlr_->on_nat_detection_response()->connect(boost::bind(
-        &MessageHandlerTest::NatDetectionRspSlot, this, _1));
-    msg_hndlr_->on_proxy_connect_request()->connect(boost::bind(
-        &MessageHandlerTest::ProxyConnectReqSlot, this, _1, _2, _3, _4));
-    msg_hndlr_->on_proxy_connect_response()->connect(boost::bind(
-        &MessageHandlerTest::ProxyConnectRspSlot, this, _1));
-    msg_hndlr_->on_forward_rendezvous_request()->connect(boost::bind(
-        &MessageHandlerTest::ForwardRendezvousReqSlot, this, _1, _2, _3));
-    msg_hndlr_->on_forward_rendezvous_response()->connect(boost::bind(
-        &MessageHandlerTest::ForwardRendezvousRspSlot, this, _1));
-    msg_hndlr_->on_rendezvous_request()->connect(boost::bind(
-        &MessageHandlerTest::RendezvousReqSlot, this, _1, _2, _3));
-    msg_hndlr_->on_rendezvous_acknowledgement()->connect(boost::bind(
-        &MessageHandlerTest::RendezvousAckSlot, this, _1));
     msg_hndlr_->on_error()->connect(boost::bind(
         &MessageHandlerTest::ErrorSlot, this, _1));
   }
   void InitialiseMap() {
     invoked_slots_.reset(new std::map<MessageType, uint16_t>);
-    for (int n = kManagedEndpointMessage; n != kRendezvousAcknowledgement; ++n)
+    // TODO(Prakash) : Update this with updated MessageType.
+    for (int n = kManagedEndpointMessage; n != kManagedEndpointMessage; ++n)
       invoked_slots_->insert(std::pair<MessageType, uint16_t>(
                                       MessageType(n), 0));
   }
   std::vector<std::string> CreateMessages() {
     protobuf::ManagedEndpointMessage me_msg;
-    protobuf::NatDetectionRequest nd_req;
-    protobuf::ProxyConnectRequest pc_req;
-    protobuf::ForwardRendezvousRequest fr_req;
-    protobuf::RendezvousRequest r_req;
-    protobuf::NatDetectionResponse nd_res;
-    protobuf::ProxyConnectResponse pc_res;
-    protobuf::ForwardRendezvousResponse fr_res;
-    protobuf::RendezvousAcknowledgement ra_msg;
 
     protobuf::Endpoint ep, ep_proxy;
     ep.set_ip(std::string("192.168.1.1"));
@@ -179,74 +156,13 @@ class MessageHandlerTest : public testing::Test {
     ep.set_port(12345);
     ep_proxy.set_port(12349);
     me_msg.mutable_endpoint()->CopyFrom(ep);
-    pc_req.mutable_endpoint()->CopyFrom(ep);
-    fr_req.mutable_receiver_endpoint()->CopyFrom(ep);
-    r_req.mutable_proxy_endpoint()->CopyFrom(ep_proxy);
-    nd_res.mutable_endpoint()->CopyFrom(ep);
-    fr_res.mutable_receiver_rendezvous_endpoint()->CopyFrom(ep);
-    ra_msg.mutable_originator_endpoint()->CopyFrom(ep);
-
-    nd_req.set_local_port(12021);
-    nd_req.add_local_ips(std::string("192.168.1.1"));
-    nd_req.add_local_ips(std::string("192.168.1.2"));
-    nd_res.set_nat_type(0);
-    pc_req.set_rendezvous_connect(true);
-    pc_res.set_result(true);
 
     EXPECT_TRUE(me_msg.IsInitialized());
-    EXPECT_TRUE(nd_req.IsInitialized());
-    EXPECT_TRUE(pc_req.IsInitialized());
-    EXPECT_TRUE(fr_req.IsInitialized());
-    EXPECT_TRUE(r_req.IsInitialized());
-    EXPECT_TRUE(nd_res.IsInitialized());
-    EXPECT_TRUE(pc_res.IsInitialized());
-    EXPECT_TRUE(fr_res.IsInitialized());
-    EXPECT_TRUE(ra_msg.IsInitialized());
 
     std::vector<std::string> messages;
     transport::protobuf::WrapperMessage wrap;
     wrap.set_msg_type(kManagedEndpointMessage);
     wrap.set_payload(me_msg.SerializeAsString());
-    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
-
-    wrap.Clear();
-    wrap.set_msg_type(kNatDetectionRequest);
-    wrap.set_payload(nd_req.SerializeAsString());
-    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
-
-    wrap.Clear();
-    wrap.set_msg_type(kProxyConnectRequest);
-    wrap.set_payload(pc_req.SerializeAsString());
-    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
-
-    wrap.Clear();
-    wrap.set_msg_type(kForwardRendezvousRequest);
-    wrap.set_payload(fr_req.SerializeAsString());
-    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
-
-    wrap.Clear();
-    wrap.set_msg_type(kRendezvousRequest);
-    wrap.set_payload(r_req.SerializeAsString());
-    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
-
-    wrap.Clear();
-    wrap.set_msg_type(kNatDetectionResponse);
-    wrap.set_payload(nd_res.SerializeAsString());
-    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
-
-    wrap.Clear();
-    wrap.set_msg_type(kProxyConnectResponse);
-    wrap.set_payload(pc_res.SerializeAsString());
-    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
-
-    wrap.Clear();
-    wrap.set_msg_type(kForwardRendezvousResponse);
-    wrap.set_payload(fr_res.SerializeAsString());
-    messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
-
-    wrap.Clear();
-    wrap.set_msg_type(kRendezvousAcknowledgement);
-    wrap.set_payload(ra_msg.SerializeAsString());
     messages.push_back(std::string(1, kNone) + wrap.SerializeAsString());
     return messages;
   }
@@ -336,119 +252,6 @@ TEST_F(MessageHandlerTest, BEH_WrapMessageManagedEndpointMessage) {  // NOLINT
   std::string function(msg_hndlr_->WrapMessage(managed_endpoint_message));
   std::string manual(EncryptMessage<protobuf::ManagedEndpointMessage>(
                         managed_endpoint_message, kManagedEndpointMessage));
-  EXPECT_EQ(manual, function);
-}
-
-TEST_F(MessageHandlerTest, BEH_WrapMessageNatDetectionRequest) {
-  protobuf::NatDetectionRequest nat_detection_rqst;
-  nat_detection_rqst.add_local_ips(std::string("192.168.1.1"));
-  nat_detection_rqst.set_local_port(12345);
-  nat_detection_rqst.set_full_detection(true);
-  ASSERT_TRUE(nat_detection_rqst.IsInitialized());
-
-  std::string function_encrypt(msg_hndlr_->WrapMessage(nat_detection_rqst));
-  std::string manual_encrypt(
-      EncryptMessage<protobuf::NatDetectionRequest>(nat_detection_rqst,
-                                                    kNatDetectionRequest));
-  EXPECT_EQ(manual_encrypt, function_encrypt);
-}
-
-TEST_F(MessageHandlerTest, BEH_WrapMessageProxyConnectRequest) {
-  protobuf::ProxyConnectRequest proxy_connect_rqst;
-  protobuf::Endpoint *ep = proxy_connect_rqst.mutable_endpoint();
-  ep->set_ip(std::string("192.168.1.1"));
-  ep->set_port(12345);
-  proxy_connect_rqst.set_rendezvous_connect(true);
-  ASSERT_TRUE(proxy_connect_rqst.IsInitialized());
-
-  std::string function_encrypt(msg_hndlr_->WrapMessage(proxy_connect_rqst));
-  std::string manual_encrypt(
-      EncryptMessage<protobuf::ProxyConnectRequest>(proxy_connect_rqst,
-                                                    kProxyConnectRequest));
-  EXPECT_EQ(manual_encrypt, function_encrypt);
-}
-
-TEST_F(MessageHandlerTest, BEH_WrapMessageForwardRendezvousRequest) {  // NOLINT
-  protobuf::ForwardRendezvousRequest forward_rdvz_rqst;
-  protobuf::Endpoint *ep = forward_rdvz_rqst.mutable_receiver_endpoint();
-  ep->set_ip(std::string("192.168.1.1"));
-  ep->set_port(12345);
-  ASSERT_TRUE(forward_rdvz_rqst.IsInitialized());
-
-  std::string function_encrypt(msg_hndlr_->WrapMessage(forward_rdvz_rqst));
-  std::string manual_encrypt(EncryptMessage<protobuf::ForwardRendezvousRequest>(
-                                forward_rdvz_rqst, kForwardRendezvousRequest));
-  EXPECT_EQ(manual_encrypt, function_encrypt);
-}
-
-TEST_F(MessageHandlerTest, BEH_WrapMessageRendezvousRequest) {
-  protobuf::RendezvousRequest rdvz_rqst;
-
-  protobuf::Endpoint *proxy_endpoint = rdvz_rqst.mutable_proxy_endpoint();
-  proxy_endpoint->set_ip(std::string("192.168.0.9"));
-  proxy_endpoint->set_port(12349);
-
-  ASSERT_TRUE(rdvz_rqst.IsInitialized());
-
-  std::string function_encrypt(msg_hndlr_->WrapMessage(rdvz_rqst));
-  std::string manual_encrypt(EncryptMessage<protobuf::RendezvousRequest>(
-                                 rdvz_rqst, kRendezvousRequest));
-  EXPECT_EQ(manual_encrypt, function_encrypt);
-}
-
-TEST_F(MessageHandlerTest, BEH_WrapMessageNatDetectionResponse) {
-  protobuf::NatDetectionResponse nat_detection_resp;
-  protobuf::Endpoint *endpoint = nat_detection_resp.mutable_endpoint();
-  endpoint->set_ip(std::string("192.168.0.9"));
-  endpoint->set_port(12349);
-  nat_detection_resp.set_nat_type(12345);
-  ASSERT_TRUE(nat_detection_resp.IsInitialized());
-
-  std::string function_encrypt(msg_hndlr_->WrapMessage(nat_detection_resp));
-  std::string manual_encrypt(
-      EncryptMessage<protobuf::NatDetectionResponse>(nat_detection_resp,
-                                                    kNatDetectionResponse));
-  EXPECT_EQ(manual_encrypt, function_encrypt);
-}
-
-TEST_F(MessageHandlerTest, BEH_WrapMessageProxyConnectResponse) {
-  protobuf::ProxyConnectResponse proxy_connect_resp;
-  proxy_connect_resp.set_result(true);
-  ASSERT_TRUE(proxy_connect_resp.IsInitialized());
-
-  std::string function_encrypt(msg_hndlr_->WrapMessage(proxy_connect_resp));
-  std::string manual_encrypt(
-      EncryptMessage<protobuf::ProxyConnectResponse>(proxy_connect_resp,
-                                                    kProxyConnectResponse));
-  EXPECT_EQ(manual_encrypt, function_encrypt);
-}
-
-TEST_F(MessageHandlerTest, BEH_WrapMessageForwardRendezvousResponse) {  // NOLINT
-  protobuf::ForwardRendezvousResponse forward_rdvz_resp;
-  protobuf::Endpoint *ep =
-      forward_rdvz_resp.mutable_receiver_rendezvous_endpoint();
-  ep->set_ip(std::string("192.168.1.1"));
-  ep->set_port(12345);
-  ASSERT_TRUE(forward_rdvz_resp.IsInitialized());
-
-  std::string function_encrypt(msg_hndlr_->WrapMessage(forward_rdvz_resp));
-  std::string manual_encrypt(
-      EncryptMessage<protobuf::ForwardRendezvousResponse>(
-          forward_rdvz_resp, kForwardRendezvousResponse));
-  EXPECT_EQ(manual_encrypt, function_encrypt);
-}
-
-TEST_F(MessageHandlerTest, BEH_WrapMessageRendezvousAcknowledgement) {  // NOLINT
-  protobuf::RendezvousAcknowledgement rdvz_ack_message;
-  protobuf::Endpoint *ep =
-      rdvz_ack_message.mutable_originator_endpoint();
-  ep->set_ip(std::string("192.168.1.1"));
-  ep->set_port(12345);
-  ASSERT_TRUE(rdvz_ack_message.IsInitialized());
-
-  std::string function(msg_hndlr_->WrapMessage(rdvz_ack_message));
-  std::string manual(EncryptMessage<protobuf::RendezvousAcknowledgement>(
-                        rdvz_ack_message, kRendezvousAcknowledgement));
   EXPECT_EQ(manual, function);
 }
 

@@ -90,43 +90,6 @@ void Connection::DoStartReceiving() {
   CheckTimeout(ignored_ec);
 }
 
-void Connection::Connect(const Timeout &timeout, ConnectFunctor callback) {
-  timeout_for_response_ = timeout;
-  strand_.dispatch(std::bind(&Connection::DoConnect,
-                             shared_from_this(), callback));
-}
-
-void Connection::DoConnect(ConnectFunctor callback) {
-  StartTick();
-  SimpleClientConnect(callback);
-  bs::error_code ignored_ec;
-  CheckTimeout(ignored_ec);
-}
-
-void Connection::SimpleClientConnect(ConnectFunctor callback) {
-  auto handler = strand_.wrap(
-      std::bind(&Connection::HandleSimpleClientConnect,
-                shared_from_this(), args::_1, callback));
-  socket_.AsyncConnect(remote_endpoint_, handler);
-
-  timer_.expires_from_now(kMinTimeout);
-  timeout_state_ = kSending;
-}
-
-void Connection::HandleSimpleClientConnect(const bs::error_code &ec,
-                                               ConnectFunctor callback) {
-  if (Stopped()) {
-    return;
-  }
-
-  if (ec) {
-    callback(kConnectError);
-    DoClose();
-  } else {
-    callback(kSuccess);
-  }
-}
-
 void Connection::StartSending(const std::string &data, const Timeout &timeout) {
   EncodeData(data);
   timeout_for_response_ = timeout;

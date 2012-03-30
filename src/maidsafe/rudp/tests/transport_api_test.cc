@@ -121,14 +121,6 @@ void TestMessageHandler::ClearContainers() {
   results_.clear();
 }
 
-void TestMessageHandler::ConnectCallback(const int &in_result,
-                                         int *out_result,
-                                         boost::condition_variable* condition) {
-  *out_result = in_result;
-  condition->notify_one();
-}
-
-
 IncomingMessages TestMessageHandler::requests_received() {
   boost::mutex::scoped_lock lock(mutex_);
   return requests_received_;
@@ -788,42 +780,6 @@ TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_DetectDroppedSender) {
           sender->StopListening();
     }
     EXPECT_GT(10, waited_seconds);
-  }
-}
-
-TEST_F(RUDPSingleTransportAPITest, BEH_TRANS_Connect) {
-  std::shared_ptr<RudpTransport> client(
-      new RudpTransport(this->asio_services_[0]->service()));
-  std::shared_ptr<RudpTransport> server(
-      new RudpTransport(this->asio_services_[0]->service()));
-  Port port(RandomUint32() % 50000 + 1025);
-  while (server->StartListening(Endpoint(kIP, port)) != kSuccess)
-    port = RandomUint32() % 50000 + 1025;
-
-  TestMessageHandlerPtr msgh_client(new TestMessageHandler("client"));
-
-  int result(kError);
-  boost::condition_variable condition;
-  client->on_error()->connect(
-      boost::bind(&TestMessageHandler::ConnectCallback, msgh_client, _1,
-          &result, &condition));
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-    client->Connect(Endpoint(kIP, port + 1), kDefaultInitialTimeout,
-                    std::bind(&TestMessageHandler::ConnectCallback,
-        msgh_client, args::_1, &result, &condition));
-    condition.wait(lock);
-    EXPECT_NE(kSuccess, result);
-  }
-
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-    boost::condition_variable condition;
-    client->Connect(Endpoint(kIP, port), kDefaultInitialTimeout,
-                    std::bind(&TestMessageHandler::ConnectCallback,
-        msgh_client, args::_1, &result, &condition));
-    condition.wait(lock);
-    EXPECT_EQ(kSuccess, result);
   }
 }
 

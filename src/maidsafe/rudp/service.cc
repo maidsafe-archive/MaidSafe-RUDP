@@ -22,37 +22,6 @@ void Service::ManagedEndpoint(const protobuf::ManagedEndpointMessage&,
                               protobuf::ManagedEndpointMessage*,
                               transport::Timeout*) {}
 
-void Service::NatDetection(const protobuf::NatDetectionRequest &request,
-                           const Info &info,
-                           protobuf::NatDetectionResponse *response,
-                           transport::Timeout*) {
-  if (!request.full_detection()) {
-    protobuf::Endpoint *ep = response->mutable_endpoint();
-    ep->set_ip(info.endpoint.ip.to_string());
-    ep->set_port(info.endpoint.port);
-    response->set_nat_type(5);
-    for (int n = 0; n < request.local_ips_size(); ++n) {
-      if (ep->ip() == request.local_ips(n)) {
-        response->set_nat_type(0);
-        n = request.local_ips_size();
-      }
-    }
-  } else {
-    // TODO(Team): Implement full nat detection.
-  }
-}
-
-void Service::ProxyConnect(const protobuf::ProxyConnectRequest&,
-                           protobuf::ProxyConnectResponse*,
-                           transport::Timeout*) {}
-
-void Service::ForwardRendezvous(
-    const protobuf::ForwardRendezvousRequest&,
-    protobuf::ForwardRendezvousResponse*,
-    transport::Timeout*) {}
-
-void Service::Rendezvous(const protobuf::RendezvousRequest &) {}
-
 }  // namespace rudp
 
 }  // namespace maidsafe
