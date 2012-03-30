@@ -61,7 +61,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void DoClose();
   void DoStartReceiving();
   void DoStartSending();
-  void DoConnect(ConnectFunctor callback);
 
   void CheckTimeout(const boost::system::error_code &ec);
   bool Stopped() const;
@@ -74,10 +73,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void StartClientConnect();
   void HandleClientConnect(const boost::system::error_code &ec);
-
-  void SimpleClientConnect(ConnectFunctor callback);
-  void HandleSimpleClientConnect(const boost::system::error_code &ec,
-                                 ConnectFunctor callback);
 
   void StartReadSize();
   void HandleReadSize(const boost::system::error_code &ec);
