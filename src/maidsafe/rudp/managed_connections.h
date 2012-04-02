@@ -82,7 +82,9 @@ class ManagedConnections {
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
   Endpoint StartNewTransport(std::vector<Endpoint> bootstrap_endpoints);
-
+  void RemoveTransport(std::shared_ptr<Transport> transport);
+  void InsertEndpoint(const Endpoint &peer_endpoint,
+                      std::shared_ptr<Transport> transport);
   void RemoveEndpoint(const Endpoint &peer_endpoint);
 
   std::unique_ptr<AsioService> asio_service_;

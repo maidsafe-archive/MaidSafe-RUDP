@@ -16,17 +16,14 @@
 #include <cassert>
 #include <functional>
 
-#include "maidsafe/rudp/core/acceptor.h"
+#include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/connection.h"
+#include "maidsafe/rudp/core/acceptor.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/log.h"
-#include "maidsafe/rudp/contact.h"
-#include "maidsafe/rudp/nat_detection.h"
-#include "maidsafe/rudp/core/message_handler.h"
 
 namespace asio = boost::asio;
-namespace bs = boost::system;
 namespace ip = asio::ip;
 namespace args = std::placeholders;
 
@@ -35,9 +32,8 @@ namespace maidsafe {
 namespace rudp {
 
 Transport::Transport(asio::io_service &asio_service)   // NOLINT
-    : Transport(asio_service),
-      strand_(asio_service),
-      multiplexer_(new Multiplexer(asio_service)),
+    : strand_(asio_service),
+      multiplexer_(new detail::Multiplexer(asio_service)),
       acceptor_(),
       connections_() {}
 
@@ -97,7 +93,7 @@ void Transport::StartDispatch() {
 }
 
 void Transport::HandleDispatch(MultiplexerPtr multiplexer,
-                               const bs::error_code &/*ec*/) {
+                               const boost::system::error_code &/*ec*/) {
   if (!multiplexer->IsOpen())
     return;
 
@@ -119,7 +115,7 @@ void Transport::StartAccept() {
 
 void Transport::HandleAccept(AcceptorPtr acceptor,
                              ConnectionPtr connection,
-                             const bs::error_code &ec) {
+                             const boost::system::error_code &ec) {
   if (!acceptor->IsOpen())
     return;
 
@@ -178,6 +174,10 @@ void Transport::InsertConnection(ConnectionPtr connection) {
 
 void Transport::DoInsertConnection(ConnectionPtr connection) {
   connections_.insert(connection);
+  if (std::shared_ptr<ManagedConnections> managed_connections =
+      managed_connections_.lock()) {
+    managed_connections->InsertEndpoint(connection->remote_endpoint());
+  }
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection) {
@@ -187,6 +187,10 @@ void Transport::RemoveConnection(ConnectionPtr connection) {
 
 void Transport::DoRemoveConnection(ConnectionPtr connection) {
   connections_.erase(connection);
+  if (std::shared_ptr<ManagedConnections> managed_connections =
+      managed_connections_.lock()) {
+    managed_connections->RemoveEndpoint(connection->remote_endpoint());
+  }
 }
 
 }  // namespace rudp

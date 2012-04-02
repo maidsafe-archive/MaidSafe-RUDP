@@ -19,10 +19,12 @@
 #include <set>
 #include <string>
 #include <vector>
+
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/strand.hpp"
+
+#include "maidsafe/rudp/endpoint.h"
 #include "maidsafe/rudp/parameters.h"
-#include "maidsafe/rudp/core/message_handler.h"
 
 
 namespace maidsafe {
@@ -60,17 +62,16 @@ class Transport : public std::enable_shared_from_this<Transport> {
 //                    const Timeout &timeout);
 //  static DataSize kMaxTransportMessageSize() { return 67108864; }
 
-
+  Endpoint Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints);
   void RendezvousConnect(const Endpoint &peer_endpoint,
                          const std::string &validation_data);
   // Returns kSuccess if the connection existed and was closed.  Returns
   // kInvalidConnection if the connection didn't exist.  If this causes the
-  // size of connected_endpoints_ to dop to 0, this transport will remove
+  // size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
   int CloseConnection(const Endpoint &peer_endpoint);
   int Send(const Endpoint &peer_endpoint, const std::string &message) const;
   Endpoint this_endpoint() const;
-  Endpoint Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints);
   std::vector<Endpoint> connected_endpoints() const;
   size_t connected_endpoints_size() const;
   static uint32_t kMaxConnections() { return 50; }
@@ -110,6 +111,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void RemoveConnection(ConnectionPtr connection);
   void DoRemoveConnection(ConnectionPtr connection);
 
+  std::weak_ptr<ManagedConnections> managed_connections_;
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
   AcceptorPtr acceptor_;

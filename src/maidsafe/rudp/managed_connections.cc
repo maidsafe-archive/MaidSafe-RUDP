@@ -175,35 +175,55 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
   return kSuccess;
 }
 
-void ManagedConnections::Remove(const Endpoint &/*peer_endpoint*/) {
-//  SharedLock shared_lock(shared_mutex_);
-//  for (auto itr(connection_map_.begin()); itr != connection_map_.end(); ++itr) {
-//    int result((*itr)->CloseConnection(peer_endpoint));
-//    if (result == kSuccess) {
-//      return;
-//    } else if (result != kInvalidConnection) {
-//      DLOG(ERROR) << "Failed to close connection to " << peer_endpoint;
-//    }
-//  }
+void ManagedConnections::Remove(const Endpoint &peer_endpoint) {
+  SharedLock shared_lock(shared_mutex_);
+  auto itr(connection_map_.find(peer_endpoint));
+  if (itr == connection_map_.end()) {
+    DLOG(WARNING) << "Can't remove " << peer_endpoint << " - not in map.";
+    return;
+  }
+  (*itr).second->CloseConnection(peer_endpoint);
 }
 
-int ManagedConnections::Send(const Endpoint &/*peer_endpoint*/,
-                             const std::string &/*message*/) const {
-//  SharedLock shared_lock(shared_mutex_);
-//  for (auto itr(connection_map_.begin()); itr != connection_map_.end(); ++itr) {
-//    int result((*itr)->Send(peer_endpoint, message));
-//    if (result == kSuccess) {
-//      return;
-//    } else if (result != kInvalidConnection) {
-//      DLOG(ERROR) << "Failed to send message to " << peer_endpoint;
-//    }
-//  }
-                                                                             return 0;
+int ManagedConnections::Send(const Endpoint &peer_endpoint,
+                             const std::string &message) const {
+  SharedLock shared_lock(shared_mutex_);
+  auto itr(connection_map_.find(peer_endpoint));
+  if (itr == connection_map_.end()) {
+    DLOG(ERROR) << "Can't send to " << peer_endpoint << " - not in map.";
+    return kInvalidConnection;
+  }
+  return (*itr).second->Send(peer_endpoint, message);
 }
 
 void ManagedConnections::Ping(const Endpoint &/*peer_endpoint*/) const {
+  // TODO(Fraser#5#): 2012-04-02 - Do async probe
 }
 
+void ManagedConnections::RemoveTransport(std::shared_ptr<Transport> transport) {
+  UniqueLock unique_lock(shared_mutex_);
+  auto itr(std::find(transports_.begin(), transports_.end(), transport));
+  if (itr == transports_.end()) {
+    DLOG(ERROR) << "Failed to find transport in vector.";
+    return;
+  }
+  transports_.erase(itr);
+}
+
+void ManagedConnections::InsertEndpoint(const Endpoint &peer_endpoint,
+                                        std::shared_ptr<Transport> transport) {
+  UniqueLock unique_lock(shared_mutex_);
+  auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
+  if (!result.second)
+    DLOG(ERROR) << "Already connected to " << peer_endpoint;
+}
+
+void ManagedConnections::RemoveEndpoint(const Endpoint &peer_endpoint) {
+  UniqueLock unique_lock(shared_mutex_);
+  size_t result(connection_map_.erase(peer_endpoint));
+  if (result != 1U)
+    DLOG(ERROR) << "Was not connected to " << peer_endpoint;
+}
 
 
 
