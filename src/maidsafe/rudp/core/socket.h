@@ -30,6 +30,7 @@
 #include "maidsafe/rudp/packets/data_packet.h"
 #include "maidsafe/rudp/operations/flush_op.h"
 #include "maidsafe/rudp/packets/handshake_packet.h"
+#include "maidsafe/rudp/packets/keepalive_packet.h"
 #include "maidsafe/rudp/packets/negative_ack_packet.h"
 #include "maidsafe/rudp/packets/shutdown_packet.h"
 #include "maidsafe/rudp/core/peer.h"
@@ -140,6 +141,11 @@ class Socket {
     waiting_flush_.async_wait(op);
     StartFlush();
   }
+  template <typename ProbeHandler>
+  void AsyncProbe(ProbeHandler handler) {
+//    waiting_probe_.async_wait(op);
+    StartProbe();
+  }
 
  private:
   friend class Acceptor;
@@ -159,6 +165,8 @@ class Socket {
   void StartFlush();
   void ProcessFlush();
 
+  void StartProbe();
+
   // Called by the Dispatcher when a new packet arrives for the socket.
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
                          const boost::asio::ip::udp::endpoint &endpoint);
@@ -177,6 +185,9 @@ class Socket {
 
   // Called to process a newly received negative acknowledgement packet.
   void HandleNegativeAck(const NegativeAckPacket &packet);
+
+  // Called to process a newly received Keepalive packet.
+  void HandleKeepalive(const KeepalivePacket &packet);
 
   // Called to handle a tick event.
   void HandleTick();
@@ -227,6 +238,10 @@ class Socket {
   size_t waiting_read_transfer_at_least_;
   boost::system::error_code waiting_read_ec_;
   size_t waiting_read_bytes_transferred_;
+
+  size_t waiting_keepalive_sequence_number_;
+  boost::asio::deadline_timer waiting_probe_;
+  boost::system::error_code waiting_probe_ec_;
 
   // This class allows only one outstanding flush operation at a time. The
   // following data members  store the pending flush, and the result that is

@@ -31,6 +31,15 @@ class KeepalivePacket : public ControlPacket {
   KeepalivePacket();
   virtual ~KeepalivePacket() {}
 
+  void SetSequenceNumber(uint32_t n);
+  uint32_t KeepalivePacket::SequenceNumber() const;
+  // Request will have odd sequence number
+  bool IsRequest() const;
+  // Response will have even sequence number
+  bool IsResponse() const;
+  // Checks if this is a response to provided request sequence number (odd).
+  bool IsResponseOf(const uint32_t &sequence_number) const;
+
   static bool IsValid(const boost::asio::const_buffer &buffer);
   bool Decode(const boost::asio::const_buffer &buffer);
   size_t Encode(const boost::asio::mutable_buffer &buffer) const;

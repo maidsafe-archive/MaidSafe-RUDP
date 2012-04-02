@@ -55,12 +55,16 @@ Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
     waiting_read_transfer_at_least_(0),
     waiting_read_ec_(),
     waiting_read_bytes_transferred_(0),
+    waiting_keepalive_sequence_number_(0),
+    waiting_probe_(multiplexer.socket_.get_io_service()),
+    waiting_probe_ec_(),
     waiting_flush_(multiplexer.socket_.get_io_service()),
     waiting_flush_ec_(),
     sent_length_(0) {
   waiting_connect_.expires_at(boost::posix_time::pos_infin);
   waiting_write_.expires_at(boost::posix_time::pos_infin);
   waiting_read_.expires_at(boost::posix_time::pos_infin);
+  waiting_probe_.expires_at(boost::posix_time::pos_infin); // TODO(Prakash) : need to put a parameter timeout
   waiting_flush_.expires_at(boost::posix_time::pos_infin);
 }
 
@@ -134,6 +138,21 @@ void Socket::StartConnect() {
   session_.Open(dispatcher_.AddSocket(this),
                 sender_.GetNextPacketSequenceNumber(),
                 Session::kServer);
+}
+
+void Socket::StartProbe() {
+  BOOST_ASSERT(peer_.Endpoint() != ip::udp::endpoint());
+  BOOST_ASSERT(peer_.Id() != 0);
+  // Request packet sequence numbers must be odd
+  waiting_keepalive_sequence_number_ = (RandomUint32() | 0x00000001);
+  KeepalivePacket keepalive_packet;
+  keepalive_packet.SetDestinationSocketId(peer_.Id());
+  keepalive_packet.SetSequenceNumber(waiting_keepalive_sequence_number_);
+  if (kSuccess != sender_.SendKeepalive(keepalive_packet)) {
+//    waiting_probe_ec_.
+    waiting_probe_.cancel();
+    waiting_keepalive_sequence_number_ = 0;
+  }
 }
 
 void Socket::StartWrite(const asio::const_buffer &data) {
@@ -229,7 +248,10 @@ void Socket::HandleReceiveFrom(const asio::const_buffer &data,
     NegativeAckPacket negative_ack_packet;
     HandshakePacket handshake_packet;
     ShutdownPacket shutdown_packet;
-    if (data_packet.Decode(data)) {
+    KeepalivePacket keepalive_packet;
+    if (keepalive_packet.Decode(data)) {
+      HandleKeepalive(keepalive_packet);
+    } else if (data_packet.Decode(data)) {
       HandleData(data_packet);
     } else if (ack_packet.Decode(data)) {
       HandleAck(ack_packet);
@@ -263,6 +285,26 @@ void Socket::HandleHandshake(const HandshakePacket &packet) {
     receiver_.Reset(session_.ReceivingSequenceNumber());
     waiting_connect_ec_.clear();
     waiting_connect_.cancel();
+  }
+}
+
+void Socket::HandleKeepalive(const KeepalivePacket &packet) {
+  if (session_.IsConnected()) {
+    if (packet.IsResponse()) {
+      if (waiting_keepalive_sequence_number_ &&
+            packet.IsResponseOf(waiting_keepalive_sequence_number_)) {
+        waiting_keepalive_sequence_number_ = 0;
+        waiting_probe_ec_.clear();
+        waiting_probe_.cancel();
+       return;
+      } else {
+        DLOG(ERROR) << "Socket " << session_.Id()
+                    << " ignoring unexpected keepalive response packet from "
+                    << peer_.Endpoint() << std::endl;
+      }
+    } else {
+      sender_.HandleKeepalive(packet);
+    }
   }
 }
 

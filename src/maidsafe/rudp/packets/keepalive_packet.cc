@@ -25,9 +25,30 @@ KeepalivePacket::KeepalivePacket() {
   SetType(kPacketType);
 }
 
+uint32_t KeepalivePacket::SequenceNumber() const {
+  return AdditionalInfo();
+}
+
+void KeepalivePacket::SetSequenceNumber(uint32_t n) {
+  SetAdditionalInfo(n);
+}
+
 bool KeepalivePacket::IsValid(const asio::const_buffer &buffer) {
   return (IsValidBase(buffer, kPacketType) &&
           (asio::buffer_size(buffer) == kPacketSize));
+}
+
+bool KeepalivePacket::IsRequest() const {
+  return (AdditionalInfo() & 0x00000001);
+}
+
+bool KeepalivePacket::IsResponse() const {
+  return !IsRequest();
+}
+
+bool KeepalivePacket::IsResponseOf(const uint32_t &sequence_number) const {
+  BOOST_VERIFY(IsResponse() && (sequence_number & 0x00000001));
+  return (sequence_number + 1 == SequenceNumber());
 }
 
 bool KeepalivePacket::Decode(const asio::const_buffer &buffer) {

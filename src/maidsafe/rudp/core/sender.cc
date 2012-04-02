@@ -184,6 +184,19 @@ void Sender::NotifyClose() {
   peer_.Send(shut_down_packet);
 }
 
+void Sender::HandleKeepalive(const KeepalivePacket &packet) {
+  if (!packet.IsRequest())
+    return;
+  KeepalivePacket response_packet;
+  response_packet.SetSequenceNumber(packet.SequenceNumber() + 1);
+  response_packet.SetDestinationSocketId(peer_.Id());
+  SendKeepalive(response_packet);
+}
+
+ReturnCode Sender::SendKeepalive(const KeepalivePacket &keepalive_packet) {
+  return peer_.Send(keepalive_packet);
+}
+
 }  // namespace detail
 
 }  // namespace rudp
