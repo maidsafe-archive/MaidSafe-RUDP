@@ -28,6 +28,8 @@ namespace maidsafe {
 
 namespace rudp {
 
+namespace detail {
+
 namespace test {
 
 TEST(PacketTest, FUNC_DecodeDestinationSocketId) {
@@ -692,6 +694,8 @@ TEST_F(NegativeAckPacketTest, BEH_EncodeDecode) {
 }
 
 }  // namespace test
+
+}  // namespace detail
 
 }  // namespace rudp
 

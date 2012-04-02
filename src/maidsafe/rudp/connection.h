@@ -28,8 +28,10 @@ namespace maidsafe {
 
 namespace rudp {
 
+namespace detail {
 class Multiplexer;
 class Socket;
+}  // namespace detail
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -43,11 +45,11 @@ class Connection : public std::enable_shared_from_this<Connection> {
  public:
   Connection(const std::shared_ptr<Transport> &transport,
              const boost::asio::io_service::strand &strand,
-             const std::shared_ptr<Multiplexer> &multiplexer,
+             const std::shared_ptr<detail::Multiplexer> &multiplexer,
              const boost::asio::ip::udp::endpoint &remote);
   ~Connection();
 
-  Socket &Socket();
+  detail::Socket &Socket();
 
   void Close();
   void StartReceiving();
@@ -88,8 +90,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
-  std::shared_ptr<Multiplexer> multiplexer_;
-  Socket socket_;
+  std::shared_ptr<detail::Multiplexer> multiplexer_;
+  detail::Socket socket_;
   boost::asio::deadline_timer timer_;
   boost::posix_time::ptime response_deadline_;
   boost::asio::ip::udp::endpoint remote_endpoint_;

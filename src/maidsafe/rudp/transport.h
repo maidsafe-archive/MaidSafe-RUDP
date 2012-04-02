@@ -23,7 +23,7 @@
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/strand.hpp"
 
-#include "maidsafe/rudp/endpoint.h"
+#include "maidsafe/rudp/common.h"
 #include "maidsafe/rudp/parameters.h"
 
 
@@ -31,10 +31,15 @@ namespace maidsafe {
 
 namespace rudp {
 
-class Acceptor;
+class ManagedConnections;
 class Connection;
+
+namespace detail {
+class Acceptor;
 class Multiplexer;
 class Socket;
+}  // namespace detail
+
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -80,8 +85,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   Transport(const Transport&);
   Transport &operator=(const Transport&);
 
-  typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
-  typedef std::shared_ptr<Acceptor> AcceptorPtr;
+  typedef std::shared_ptr<detail::Multiplexer> MultiplexerPtr;
+  typedef std::shared_ptr<detail::Acceptor> AcceptorPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionSet;
 

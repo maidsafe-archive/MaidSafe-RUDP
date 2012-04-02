@@ -111,7 +111,7 @@ class Socket {
     StartConnect();
   }
 
-  // Initiate an asynchronous operatio to write data. The operation will
+  // Initiate an asynchronous operation to write data. The operation will
   // generally complete immediately unless congestion has caused the internal
   // buffer for unprocessed send data to fill up.
   template <typename WriteHandler>

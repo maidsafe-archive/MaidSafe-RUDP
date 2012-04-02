@@ -35,7 +35,7 @@ namespace rudp {
 
 Connection::Connection(const std::shared_ptr<Transport> &transport,
                        const asio::io_service::strand &strand,
-                       const std::shared_ptr<Multiplexer> &multiplexer,
+                       const std::shared_ptr<detail::Multiplexer> &multiplexer,
                        const ip::udp::endpoint &remote)
     : transport_(transport),
       strand_(strand),
@@ -54,7 +54,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
 
 Connection::~Connection() {}
 
-Socket &Connection::Socket() {
+detail::Socket &Connection::Socket() {
   return socket_;
 }
 

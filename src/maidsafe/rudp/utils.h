@@ -41,6 +41,9 @@ uint32_t IpAsciiToNet(const char *buffer);
 // Return all local addresses
 std::vector<boost::asio::ip::address> GetLocalAddresses();
 
+// Returns false if the port is <= 1024
+bool IsValid(const Endpoint &endpoint);
+
 }  // namespace rudp
 
 }  // namespace maidsafe

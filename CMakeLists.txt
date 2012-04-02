@@ -167,7 +167,6 @@ RENAME_OUTDATED_BUILT_EXES()
 
 SET(MAIDSAFE_RUDP_INSTALL_FILES
       ${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/managed_connections.h
-      ${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/endpoint.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/version.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/parameters.h
       ${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/return_codes.h)

@@ -108,6 +108,10 @@ std::vector<boost::asio::ip::address> GetLocalAddresses() {
   return ips;
 }
 
+bool IsValid(const Endpoint &endpoint) {
+  return endpoint.port() > 1024U;
+}
+
 }  // namespace rudp
 
 }  // namespace maidsafe
