@@ -47,6 +47,8 @@ class ManagedConnections {
  public:
   ManagedConnections();
 
+  static int32_t kMaxMessageSize() { return 67108864; }
+
   // Creates a new transport object and bootstraps it to one of the provided
   // bootstrap_endpoints.  The successfully connected endpoint is returned, or
   // a default endpoint is returned if bootstrapping is unsuccessful.

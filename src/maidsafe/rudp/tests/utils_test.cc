@@ -49,7 +49,7 @@ TEST(UtilsTest, BEH_DecimalAndAscii) {
 }
 
 TEST(UtilsTest, BEH_NetworkInterfaces) {
-  std::vector<IP> all_local_ips(GetLocalAddresses());
+  std::vector<boost::asio::ip::address> all_local_ips(GetLocalAddresses());
   EXPECT_FALSE(all_local_ips.empty());
   for (size_t n = 0; n < all_local_ips.size(); ++n)
     DLOG(INFO) << n << " - " << all_local_ips.at(n).to_string();

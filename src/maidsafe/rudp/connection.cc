@@ -11,6 +11,8 @@
  ******************************************************************************/
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
+#include "maidsafe/rudp/connection.h"
+
 #include <algorithm>
 #include <array>  // NOLINT
 #include <functional>
@@ -19,9 +21,9 @@
 #include "boost/asio/write.hpp"
 
 #include "maidsafe/rudp/log.h"
-#include "maidsafe/rudp/connection.h"
-#include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/transport.h"
+#include "maidsafe/rudp/managed_connections.h"
+#include "maidsafe/rudp/core/multiplexer.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;
@@ -47,7 +49,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       buffer_(),
       data_size_(0),
       data_received_(0),
-      timeout_for_response_(kMinTimeout),
+      timeout_for_response_(Parameters::default_receive_timeout),
       timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
 }
@@ -70,7 +72,7 @@ void Connection::DoClose() {
     transport_.reset();
     socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose,
                                               shared_from_this())));
-    timer_.expires_from_now(kStallTimeout);
+    timer_.expires_from_now(Parameters::speed_calculate_inverval);
   } else {
     // We've already had a go at graceful closure. Just tear down the socket.
     socket_.Close();
@@ -150,7 +152,7 @@ void Connection::HandleTick() {
   if (timeout_state_ == kSending) {
     uint32_t sent_length = socket_.SentLength();
     if (sent_length > 0)
-      timer_.expires_from_now(kStallTimeout);
+      timer_.expires_from_now(Parameters::speed_calculate_inverval);
     // If transmission speed is too slow, the socket shall be forced closed
     if (socket_.IsSlowTransmission(sent_length)) {
       CloseOnError(kSendTimeout);
@@ -167,7 +169,7 @@ void Connection::StartServerConnect() {
                                         shared_from_this(), args::_1));
   socket_.AsyncConnect(handler);
 
-  timer_.expires_from_now(kDefaultInitialTimeout);
+  timer_.expires_from_now(Parameters::client_connect_timeout);
   timeout_state_ = kSending;
 }
 
@@ -189,7 +191,7 @@ void Connection::StartClientConnect() {
                                         shared_from_this(), args::_1));
   socket_.AsyncConnect(remote_endpoint_, handler);
 
-  timer_.expires_from_now(kMinTimeout);
+  timer_.expires_from_now(Parameters::client_connect_timeout);
   timeout_state_ = kSending;
 }
 
@@ -214,8 +216,9 @@ void Connection::StartReadSize() {
                                            shared_from_this(), args::_1)));
 
   boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
-  response_deadline_ = now + timeout_for_response_;
-  timer_.expires_at(std::max(response_deadline_, now + kStallTimeout));
+  response_deadline_ = now + Parameters::default_receive_timeout;
+  timer_.expires_at(std::max(response_deadline_,
+                             now + Parameters::speed_calculate_inverval));
   timeout_state_ = kReceiving;
 }
 
@@ -232,7 +235,7 @@ void Connection::HandleReadSize(const bs::error_code &ec) {
   data_size_ = size;
   data_received_ = 0;
 
-  timer_.expires_from_now(kStallTimeout);
+  timer_.expires_from_now(Parameters::speed_calculate_inverval);
   StartReadData();
 }
 
@@ -270,7 +273,7 @@ void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
   } else {
     // Need more data to complete the message.
     if (length > 0)
-      timer_.expires_from_now(kStallTimeout);
+      timer_.expires_from_now(Parameters::speed_calculate_inverval);
     // If transmission speed is too slow, the socket shall be forced closed
     if (socket_.IsSlowTransmission(length)) {
       CloseOnError(kReceiveTimeout);
@@ -283,10 +286,11 @@ void Connection::DispatchMessage() {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     // Signal message received and send response if applicable
     std::string response;
-    Timeout response_timeout(kImmediateTimeout);
-    Info info;
-    info.endpoint.ip = socket_.RemoteEndpoint().address();
-    info.endpoint.port = socket_.RemoteEndpoint().port();
+    Timeout response_timeout(bptime::seconds(0));
+
+//    Info info;
+//    info.endpoint.ip = socket_.RemoteEndpoint().address();
+//    info.endpoint.port = socket_.RemoteEndpoint().port();
 
 //    // Changes for managed connection
 //    if (managed_) {
@@ -314,10 +318,12 @@ void Connection::DispatchMessage() {
 //      Close();
 //      return;
 //    } else {
-      (*transport->on_message_received_)(std::string(buffer_.begin(),
-                                                     buffer_.end()),
-                                         info, &response,
-                                         &response_timeout);
+
+
+//      (*transport->on_message_received_)(std::string(buffer_.begin(),
+//                                                     buffer_.end()),
+//                                         info, &response,
+//                                         &response_timeout);
       if (response.empty()) {
         Close();
         return;
@@ -333,9 +339,9 @@ void Connection::EncodeData(const std::string &data) {
   // Serialize message to internal buffer
   DataSize msg_size = static_cast<DataSize>(data.size());
   if (static_cast<size_t>(msg_size) >
-          static_cast<size_t>(Transport::kMaxTransportMessageSize())) {
+          static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
-                << Transport::kMaxTransportMessageSize() << ")"
+                << ManagedConnections::kMaxMessageSize() << ")"
                 << std::endl;
     CloseOnError(kMessageSizeTooLarge);
     return;
@@ -353,7 +359,7 @@ void Connection::StartWrite() {
   socket_.AsyncWrite(asio::buffer(buffer_),
                      strand_.wrap(std::bind(&Connection::HandleWrite,
                                             shared_from_this(), args::_1)));
-  timer_.expires_from_now(kStallTimeout);
+  timer_.expires_from_now(Parameters::speed_calculate_inverval);
   timeout_state_ = kSending;
 }
 
@@ -373,16 +379,16 @@ void Connection::HandleWrite(const bs::error_code &ec) {
 //    return;
 //  }
   // Start receiving response
-  if (timeout_for_response_ != kImmediateTimeout) {
+//  if (timeout_for_response_ != bptime::seconds(0)) {
     StartReadSize();
-  } else {
-    DoClose();
-  }
+//  } else {
+//    DoClose();
+//  }
 }
 
-void Connection::CloseOnError(const ReturnCode &error) {
-  if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
+void Connection::CloseOnError(const ReturnCode &/*error*/) {
+//  if (std::shared_ptr<Transport> transport = transport_.lock()) {
+//    Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
 //    if (managed_) {
 //      if (write_complete_functor_) {
 //        write_complete_functor_(error);
@@ -397,8 +403,10 @@ void Connection::CloseOnError(const ReturnCode &error) {
 //        response_functor_(error, "");
 //        response_functor_ = ResponseFunctor();
 //      } else {
-        (*transport->on_error_)(error, ep);
-      }
+
+    
+//        (*transport->on_error_)(error, ep);
+//      }
       DoClose();
 //    }
 //  }
