@@ -109,7 +109,9 @@ std::vector<boost::asio::ip::address> GetLocalAddresses() {
 }
 
 bool IsValid(const Endpoint &endpoint) {
-  return endpoint.port() > 1024U;
+  return endpoint.port() > 1024U &&
+         endpoint.port() < 49151U &&
+         !endpoint.address().is_unspecified();
 }
 
 }  // namespace rudp

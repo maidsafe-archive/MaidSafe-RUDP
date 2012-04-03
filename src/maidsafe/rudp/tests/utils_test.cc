@@ -13,6 +13,9 @@
 #include <algorithm>
 #include <cstdlib>
 #include <set>
+#include "boost/exception/error_info.hpp"
+#include "boost/exception/get_error_info.hpp"
+#include "boost/exception/info.hpp"
 #include "boost/scoped_array.hpp"
 #include "maidsafe/common/test.h"
 #include "maidsafe/rudp/log.h"
@@ -53,6 +56,41 @@ TEST(UtilsTest, BEH_NetworkInterfaces) {
   EXPECT_FALSE(all_local_ips.empty());
   for (size_t n = 0; n < all_local_ips.size(); ++n)
     DLOG(INFO) << n << " - " << all_local_ips.at(n).to_string();
+}
+
+TEST(UtilsTest, BEH_EndpointIsValid) {
+  EXPECT_FALSE(IsValid(Endpoint(
+      boost::asio::ip::address::from_string("1.1.1.1"), 1024)));
+  EXPECT_TRUE(IsValid(Endpoint(
+      boost::asio::ip::address::from_string("1.1.1.1"), 1025)));
+  EXPECT_TRUE(IsValid(Endpoint(
+      boost::asio::ip::address::from_string("1.1.1.1"), 49150)));
+  EXPECT_FALSE(IsValid(Endpoint(
+      boost::asio::ip::address::from_string("1.1.1.1"), 49151)));
+
+  boost::system::error_code error_code;
+  try {
+    boost::asio::ip::address::from_string("Rubbish");
+  }
+  catch(const boost::system::system_error &system_error) {
+    error_code = system_error.code();
+  }
+  EXPECT_EQ(error_code.value(), 10022);
+  error_code.clear();
+
+  try {
+    boost::asio::ip::address::from_string("256.1.1.1");
+  }
+  catch(const boost::system::system_error &system_error) {
+    error_code = system_error.code();
+  }
+  EXPECT_EQ(error_code.value(), 10022);
+  error_code.clear();
+
+  EXPECT_FALSE(IsValid(Endpoint()));
+  EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::udp::v4(), 1025)));
+  EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::udp::v6(), 1025)));
+  EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::address(), 1025)));
 }
 
 }  // namespace test
