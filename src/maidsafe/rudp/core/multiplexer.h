@@ -58,8 +58,8 @@ class Multiplexer {
                                sender_endpoint_, 0, op);
   }
 
-  // Called by the acceptor or socket objects to send a packet. Returns true if
-  // the data was sent successfully, false otherwise.
+  // Called by the acceptor or socket objects to send a packet. Returns
+  // kSuccess if the data was sent successfully, kSendFailure otherwise.
   template <typename Packet>
   ReturnCode SendTo(const Packet &packet,
                             const boost::asio::ip::udp::endpoint &endpoint) {

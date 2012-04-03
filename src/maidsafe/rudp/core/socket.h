@@ -29,6 +29,7 @@
 #include "maidsafe/rudp/operations/connect_op.h"
 #include "maidsafe/rudp/packets/data_packet.h"
 #include "maidsafe/rudp/operations/flush_op.h"
+#include "maidsafe/rudp/operations/probe_op.h"
 #include "maidsafe/rudp/packets/handshake_packet.h"
 #include "maidsafe/rudp/packets/keepalive_packet.h"
 #include "maidsafe/rudp/packets/negative_ack_packet.h"
@@ -141,9 +142,13 @@ class Socket {
     waiting_flush_.async_wait(op);
     StartFlush();
   }
+
+  // Initiate an asynchronous probe to send keepalive packet to the peer & the
+  // handler is called upon receiving valid keepalive response.
   template <typename ProbeHandler>
   void AsyncProbe(ProbeHandler handler) {
-//    waiting_probe_.async_wait(op);
+    ProbeOp<ProbeHandler> op(handler, &waiting_probe_ec_);
+    waiting_probe_.async_wait(op);
     StartProbe();
   }
 

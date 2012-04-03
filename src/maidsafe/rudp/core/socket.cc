@@ -61,11 +61,13 @@ Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
     waiting_flush_(multiplexer.socket_.get_io_service()),
     waiting_flush_ec_(),
     sent_length_(0) {
-  waiting_connect_.expires_at(boost::posix_time::pos_infin);
-  waiting_write_.expires_at(boost::posix_time::pos_infin);
-  waiting_read_.expires_at(boost::posix_time::pos_infin);
-  waiting_probe_.expires_at(boost::posix_time::pos_infin); // TODO(Prakash) : need to put a parameter timeout
-  waiting_flush_.expires_at(boost::posix_time::pos_infin);
+  waiting_connect_.expires_at(bptime::pos_infin);
+  waiting_write_.expires_at(bptime::pos_infin);
+  waiting_read_.expires_at(bptime::pos_infin);
+  // TODO(Prakash) : need to put a timeout parameter for keep alive response.
+  waiting_probe_.expires_at(boost::asio::deadline_timer::traits_type::now() +
+      bptime::seconds(10));
+  waiting_flush_.expires_at(bptime::pos_infin);
 }
 
 Socket::~Socket() {
@@ -149,7 +151,7 @@ void Socket::StartProbe() {
   keepalive_packet.SetDestinationSocketId(peer_.Id());
   keepalive_packet.SetSequenceNumber(waiting_keepalive_sequence_number_);
   if (kSuccess != sender_.SendKeepalive(keepalive_packet)) {
-//    waiting_probe_ec_.
+//    waiting_probe_ec_ = // TODO(Prakash) : work out appropriate error code.
     waiting_probe_.cancel();
     waiting_keepalive_sequence_number_ = 0;
   }
