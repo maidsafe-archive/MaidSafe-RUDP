@@ -13,9 +13,6 @@
 #include <algorithm>
 #include <cstdlib>
 #include <set>
-#include "boost/exception/error_info.hpp"
-#include "boost/exception/get_error_info.hpp"
-#include "boost/exception/info.hpp"
 #include "boost/scoped_array.hpp"
 #include "maidsafe/common/test.h"
 #include "maidsafe/rudp/log.h"

@@ -130,8 +130,8 @@ int ManagedConnections::GetAvailableEndpoint(Endpoint *endpoint) {
         transports_.begin(),
         transports_.end(),
         [&least_connections, &chosen_endpoint] (const TransportPtr &transport) {
-      if (transport->connected_endpoints_size() < least_connections) {
-        least_connections = transport->connected_endpoints_size();
+      if (transport->ConnectionsCount() < least_connections) {
+        least_connections = transport->ConnectionsCount();
         chosen_endpoint = transport->this_endpoint();
       }
     });

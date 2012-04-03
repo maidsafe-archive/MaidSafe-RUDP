@@ -54,6 +54,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void Close();
   void StartReceiving();
   void StartSending(const std::string &data, const Timeout &timeout);
+  // Returns this node's endpoint as viewed by peer.
+  Endpoint StartRvConnecting();
 
  private:
   Connection(const Connection&);

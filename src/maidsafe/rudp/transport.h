@@ -77,8 +77,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   int CloseConnection(const Endpoint &peer_endpoint);
   int Send(const Endpoint &peer_endpoint, const std::string &message) const;
   Endpoint this_endpoint() const;
-  std::vector<Endpoint> connected_endpoints() const;
-  size_t connected_endpoints_size() const;
+  size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
 
  private:
@@ -125,6 +124,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   // async operations (after calling PrepareSend()), they are kept alive with
   // a shared_ptr in this map, as well as in the async operation handlers.
   ConnectionSet connections_;
+  Endpoint this_endpoint_;
 };
 
 typedef std::shared_ptr<Transport> TransportPtr;

@@ -412,6 +412,34 @@ void Connection::CloseOnError(const ReturnCode &/*error*/) {
 //  }
 }
 
+Endpoint Connection::StartRvConnecting() {
+  EncodeData("RV");
+                                      timeout_for_response_ = bptime::milliseconds(100000);
+  StartTick();
+
+  auto handler = strand_.wrap(std::bind(&Connection::HandleClientConnect,
+                                        shared_from_this(), args::_1));
+  socket_.AsyncConnect(remote_endpoint_, handler);
+
+  timer_.expires_from_now(Parameters::client_connect_timeout);
+  timeout_state_ = kSending;
+
+
+
+  socket_.AsyncWrite(asio::buffer(buffer_),
+                     strand_.wrap(std::bind(&Connection::HandleWrite,
+                                            shared_from_this(), args::_1)));
+  timer_.expires_from_now(Parameters::speed_calculate_inverval);
+  timeout_state_ = kSending;
+
+
+  bs::error_code ignored_ec;
+  CheckTimeout(ignored_ec);
+
+
+  return Endpoint();
+}
+
 }  // namespace rudp
 
 }  // namespace maidsafe

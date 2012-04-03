@@ -16,12 +16,13 @@
 #include <cassert>
 #include <functional>
 
-#include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/connection.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/managed_connections.h"
+#include "maidsafe/rudp/utils.h"
 #include "maidsafe/rudp/core/acceptor.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/socket.h"
-#include "maidsafe/rudp/log.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;
@@ -35,7 +36,8 @@ Transport::Transport(asio::io_service &asio_service)   // NOLINT
     : strand_(asio_service),
       multiplexer_(new detail::Multiplexer(asio_service)),
       acceptor_(),
-      connections_() {}
+      connections_(),
+      this_endpoint_() {}
 
 Transport::~Transport() {
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
@@ -62,11 +64,6 @@ Transport::~Transport() {
 //  return kSuccess;
 //}
 //
-//ReturnCode Transport::Bootstrap(
-//    const std::vector<Contact> &/*candidates*/) {
-//  return kSuccess;
-//}
-//
 //void Transport::StopListening() {
 //  if (acceptor_)
 //    strand_.dispatch(std::bind(&Transport::CloseAcceptor, acceptor_));
@@ -76,6 +73,57 @@ Transport::~Transport() {
 //  acceptor_.reset();
 //  multiplexer_.reset(new Multiplexer(asio_service_));
 //}
+
+Endpoint Transport::Bootstrap(
+    const std::vector<Endpoint> &bootstrap_endpoints) {
+  BOOST_ASSERT(!multiplexer_->IsOpen());
+  ReturnCode result = multiplexer_->Open(ip::udp::v4());
+  if (result != kSuccess) {
+    DLOG(ERROR) << "Failed to open multiplexer.";
+    return Endpoint();
+  }
+
+  StartDispatch();
+
+  for (auto itr(bootstrap_endpoints.begin());
+       itr != bootstrap_endpoints.end();
+       ++itr) {
+    ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(),
+                                                          strand_,
+                                                          multiplexer_, *itr));
+    this_endpoint_ = connection->StartRvConnecting();
+    if (IsValid(this_endpoint_)) {
+      DoInsertConnection(connection);
+      break;
+    }
+  }
+
+  return this_endpoint_;
+}
+
+void Transport::RendezvousConnect(const Endpoint &/*peer_endpoint*/,
+                        const std::string &/*validation_data*/) {
+}
+
+int Transport::CloseConnection(const Endpoint &/*peer_endpoint*/) {
+  return 0;
+}
+
+int Transport::Send(const Endpoint &/*peer_endpoint*/,
+                    const std::string &/*message*/) const {
+//  strand_.dispatch(std::bind(&Transport::DoSend, shared_from_this(), data,
+//                             endpoint, timeout));
+                      return 0;
+}
+
+Endpoint Transport::this_endpoint() const {
+  return this_endpoint_;
+}
+
+size_t Transport::ConnectionsCount() const {
+  // TODO(Fraser#5#): 2012-04-03 - Handle thread-safety
+  return connections_.size();
+}
 
 void Transport::CloseAcceptor(AcceptorPtr acceptor) {
   acceptor->Close();
@@ -128,14 +176,7 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
 //
 //  StartAccept();
 //}
-//
-//void Transport::Send(const std::string &data,
-//                     const Endpoint &endpoint,
-//                     const Timeout &timeout) {
-//  strand_.dispatch(std::bind(&Transport::DoSend, shared_from_this(), data,
-//                             endpoint, timeout));
-//}
-//
+
 //void Transport::DoSend(const std::string &data,
 //                       const Endpoint &endpoint,
 //                       const Timeout &timeout) {
