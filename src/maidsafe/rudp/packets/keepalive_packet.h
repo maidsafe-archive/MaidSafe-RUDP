@@ -32,7 +32,7 @@ class KeepalivePacket : public ControlPacket {
   virtual ~KeepalivePacket() {}
 
   void SetSequenceNumber(uint32_t n);
-  uint32_t KeepalivePacket::SequenceNumber() const;
+  uint32_t SequenceNumber() const;
   // Request will have odd sequence number
   bool IsRequest() const;
   // Response will have even sequence number
