@@ -124,6 +124,8 @@ void Socket::Close() {
   waiting_read_.cancel();
   waiting_flush_ec_ = asio::error::operation_aborted;
   waiting_flush_.cancel();
+  waiting_probe_ec_ = asio::error::operation_aborted;
+  waiting_probe_.cancel();
 }
 
 void Socket::StartConnect(const ip::udp::endpoint &remote) {
@@ -145,13 +147,18 @@ void Socket::StartConnect() {
 void Socket::StartProbe() {
   BOOST_ASSERT(peer_.Endpoint() != ip::udp::endpoint());
   BOOST_ASSERT(peer_.Id() != 0);
+  if (!session_.IsConnected()) {
+    waiting_probe_ec_ = boost::asio::error::not_connected;
+    waiting_probe_.cancel();
+    waiting_keepalive_sequence_number_ = 0;
+  }
   // Request packet sequence numbers must be odd
   waiting_keepalive_sequence_number_ = (RandomUint32() | 0x00000001);
   KeepalivePacket keepalive_packet;
   keepalive_packet.SetDestinationSocketId(peer_.Id());
   keepalive_packet.SetSequenceNumber(waiting_keepalive_sequence_number_);
   if (kSuccess != sender_.SendKeepalive(keepalive_packet)) {
-//    waiting_probe_ec_ = // TODO(Prakash) : work out appropriate error code.
+    waiting_probe_ec_ = boost::asio::error::try_again;
     waiting_probe_.cancel();
     waiting_keepalive_sequence_number_ = 0;
   }
