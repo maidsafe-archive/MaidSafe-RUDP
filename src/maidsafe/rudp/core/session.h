@@ -31,9 +31,12 @@ class Session {
  public:
   explicit Session(Peer &peer, TickTimer &tick_timer);  // NOLINT (Fraser)
 
-  // Open the session as a client or server.
-  enum Mode { kClient, kServer };
-  void Open(uint32_t id, uint32_t sequence_number, Mode mode);
+//  // Open the session as a client or server.
+//  enum Mode { kClient, kServer };
+//  void Open(uint32_t id, uint32_t sequence_number, Mode mode);
+
+  // Open the session.
+  void Open(uint32_t id, uint32_t sequence_number);
 
   // Get whether the session is already open. May not be connected.
   bool IsOpen() const;
@@ -67,9 +70,7 @@ class Session {
   // Helper functions to send the packets that make up the handshaking process.
   void SendPacket();
   void SendConnectionRequest();
-  void SendCookieChallenge();
-  void SendCookieResponse();
-  void SendConnectionAccepted();
+  void SendCookie();
 
   // The peer with which we are communicating.
   Peer &peer_;
@@ -88,9 +89,6 @@ class Session {
 
   // The peer's connection type
   uint32_t peer_connection_type_;
-
-  // Are we a client or a server?
-  Mode mode_;
 
   // The state of the session.
   enum State { kClosed, kProbing, kHandshaking, kConnected } state_;

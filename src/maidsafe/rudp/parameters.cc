@@ -32,7 +32,7 @@ Timeout Parameters::default_ack_timeout(bptime::milliseconds(1000));
 Timeout Parameters::ack_interval(bptime::milliseconds(100));
 Timeout Parameters::speed_calculate_inverval(bptime::milliseconds(1000));
 uint32_t Parameters::slow_speed_threshold(1024);
-Timeout Parameters::client_connect_timeout(bptime::milliseconds(1000));
+Timeout Parameters::connect_timeout(bptime::milliseconds(5000));
 Parameters::ConnectionType Parameters::connection_type(Parameters::kWireless);
 
 }  // namespace rudp

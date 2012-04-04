@@ -73,8 +73,8 @@ struct Parameters {
   // Slow speed threshold to force the socket closed, in b/s
   static uint32_t slow_speed_threshold;
 
-  // Timeout during client connection establishment
-  static Timeout client_connect_timeout;
+  // Timeout during connection establishment
+  static Timeout connect_timeout;
 
   // Defined connection types
   enum ConnectionType {

@@ -132,16 +132,7 @@ void Socket::StartConnect(const ip::udp::endpoint &remote) {
   peer_.SetEndpoint(remote);
   peer_.SetId(0);  // Assigned when handshake response is received.
   session_.Open(dispatcher_.AddSocket(this),
-                sender_.GetNextPacketSequenceNumber(),
-                Session::kClient);
-}
-
-void Socket::StartConnect() {
-  assert(peer_.Endpoint() != ip::udp::endpoint());
-  assert(peer_.Id() != 0);
-  session_.Open(dispatcher_.AddSocket(this),
-                sender_.GetNextPacketSequenceNumber(),
-                Session::kServer);
+                sender_.GetNextPacketSequenceNumber());
 }
 
 void Socket::StartProbe() {
@@ -274,13 +265,11 @@ void Socket::HandleReceiveFrom(const asio::const_buffer &data,
       Close();
     } else {
       DLOG(ERROR) << "Socket " << session_.Id()
-                  << " ignoring invalid packet from "
-                  << endpoint << std::endl;
+                  << " ignoring invalid packet from " << endpoint;
     }
   } else {
     DLOG(ERROR) << "Socket " << session_.Id()
-                << " ignoring spurious packet from "
-                << endpoint << std::endl;
+                << " ignoring spurious packet from " << endpoint;
   }
 }
 

@@ -91,26 +91,16 @@ class Socket {
     tick_timer_.AsyncWait(op);
   }
 
-  // Initiate an asynchronous connect operation for the client side. Note that
-  // the socket will continue to make connection attempts indefinitely. It is
-  // up to the caller to set a timeout and close the socket after the timeout
-  // period expires.
+  // Initiate an asynchronous rendezvous connect operation. Note that the socket
+  // will continue to make connection attempts indefinitely. It is up to the
+  // caller to set a timeout and close the socket after the timeout period
+  // expires.
   template <typename ConnectHandler>
   void AsyncConnect(const boost::asio::ip::udp::endpoint &remote,
                     ConnectHandler handler) {
     ConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
     waiting_connect_.async_wait(op);
     StartConnect(remote);
-  }
-
-  // Initiate an asynchronous connect operation for the server side. This
-  // function performs RUDP handshaking after a socket has been accepted to
-  // complete the connection establishment.
-  template <typename ConnectHandler>
-  void AsyncConnect(ConnectHandler handler) {
-    ConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
-    waiting_connect_.async_wait(op);
-    StartConnect();
   }
 
   // Initiate an asynchronous operation to write data. The operation will
@@ -161,7 +151,6 @@ class Socket {
   Socket &operator=(const Socket&);
 
   void StartConnect(const boost::asio::ip::udp::endpoint &remote);
-  void StartConnect();
   void StartWrite(const boost::asio::const_buffer &data);
   void ProcessWrite();
   void StartRead(const boost::asio::mutable_buffer &data,

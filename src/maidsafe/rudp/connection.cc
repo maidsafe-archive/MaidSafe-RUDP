@@ -52,6 +52,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       timeout_for_response_(Parameters::default_receive_timeout),
       timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
+  StartReceiving();
 }
 
 Connection::~Connection() {}
@@ -87,7 +88,7 @@ void Connection::StartReceiving() {
 
 void Connection::DoStartReceiving() {
   StartTick();
-  StartServerConnect();
+  StartConnect();
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
 }
@@ -100,7 +101,8 @@ void Connection::StartSending(const std::string &data, const Timeout &timeout) {
 
 void Connection::DoStartSending() {
   StartTick();
-  StartClientConnect();
+                                                                //  StartClientConnect();
+  StartWrite();
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
 }
@@ -164,47 +166,25 @@ void Connection::HandleTick() {
   }
 }
 
-void Connection::StartServerConnect() {
-  auto handler = strand_.wrap(std::bind(&Connection::HandleServerConnect,
-                                        shared_from_this(), args::_1));
-  socket_.AsyncConnect(handler);
-
-  timer_.expires_from_now(Parameters::client_connect_timeout);
-  timeout_state_ = kSending;
-}
-
-void Connection::HandleServerConnect(const bs::error_code &ec) {
-  if (Stopped()) {
-    return;
-  }
-
-  if (ec) {
-    return CloseOnError(kReceiveFailure);
-  }
-
-  remote_endpoint_ = socket_.RemoteEndpoint();
-  StartReadSize();
-}
-
-void Connection::StartClientConnect() {
-  auto handler = strand_.wrap(std::bind(&Connection::HandleClientConnect,
+void Connection::StartConnect() {
+  auto handler = strand_.wrap(std::bind(&Connection::HandleConnect,
                                         shared_from_this(), args::_1));
   socket_.AsyncConnect(remote_endpoint_, handler);
 
-  timer_.expires_from_now(Parameters::client_connect_timeout);
+  timer_.expires_from_now(Parameters::connect_timeout);
   timeout_state_ = kSending;
 }
 
-void Connection::HandleClientConnect(const bs::error_code &ec) {
+void Connection::HandleConnect(const bs::error_code &ec) {
   if (Stopped()) {
     return;
   }
 
   if (ec) {
-    return CloseOnError(kSendFailure);
+    return CloseOnError(kConnectError);
   }
 
-  StartWrite();
+  StartReadSize();
 }
 
 void Connection::StartReadSize() {
@@ -341,8 +321,7 @@ void Connection::EncodeData(const std::string &data) {
   if (static_cast<size_t>(msg_size) >
           static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
-                << ManagedConnections::kMaxMessageSize() << ")"
-                << std::endl;
+                << ManagedConnections::kMaxMessageSize() << ")";
     CloseOnError(kMessageSizeTooLarge);
     return;
   }
@@ -410,34 +389,6 @@ void Connection::CloseOnError(const ReturnCode &/*error*/) {
       DoClose();
 //    }
 //  }
-}
-
-Endpoint Connection::StartRvConnecting() {
-  EncodeData("RV");
-                                      timeout_for_response_ = bptime::milliseconds(100000);
-  StartTick();
-
-  auto handler = strand_.wrap(std::bind(&Connection::HandleClientConnect,
-                                        shared_from_this(), args::_1));
-  socket_.AsyncConnect(remote_endpoint_, handler);
-
-  timer_.expires_from_now(Parameters::client_connect_timeout);
-  timeout_state_ = kSending;
-
-
-
-  socket_.AsyncWrite(asio::buffer(buffer_),
-                     strand_.wrap(std::bind(&Connection::HandleWrite,
-                                            shared_from_this(), args::_1)));
-  timer_.expires_from_now(Parameters::speed_calculate_inverval);
-  timeout_state_ = kSending;
-
-
-  bs::error_code ignored_ec;
-  CheckTimeout(ignored_ec);
-
-
-  return Endpoint();
 }
 
 }  // namespace rudp

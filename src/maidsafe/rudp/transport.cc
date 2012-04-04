@@ -91,7 +91,6 @@ Endpoint Transport::Bootstrap(
     ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(),
                                                           strand_,
                                                           multiplexer_, *itr));
-    this_endpoint_ = connection->StartRvConnecting();
     if (IsValid(this_endpoint_)) {
       DoInsertConnection(connection);
       break;
@@ -102,7 +101,7 @@ Endpoint Transport::Bootstrap(
 }
 
 void Transport::RendezvousConnect(const Endpoint &/*peer_endpoint*/,
-                        const std::string &/*validation_data*/) {
+                                  const std::string &/*validation_data*/) {
 }
 
 int Transport::CloseConnection(const Endpoint &/*peer_endpoint*/) {

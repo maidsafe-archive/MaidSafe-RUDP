@@ -20,9 +20,8 @@
 #include "maidsafe/rudp/core/sliding_window.h"
 #include "maidsafe/rudp/core/tick_timer.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
 namespace bptime = boost::posix_time;
+
 
 namespace maidsafe {
 
@@ -31,28 +30,20 @@ namespace rudp {
 namespace detail {
 
 Session::Session(Peer &peer, TickTimer &tick_timer)  // NOLINT (Fraser)
-  : peer_(peer),
-    tick_timer_(tick_timer),
-    id_(0),
-    sending_sequence_number_(0),
-    receiving_sequence_number_(0),
-    peer_connection_type_(0),
-    mode_(kClient),
-    state_(kClosed) {
-}
+    : peer_(peer),
+      tick_timer_(tick_timer),
+      id_(0),
+      sending_sequence_number_(0),
+      receiving_sequence_number_(0),
+      peer_connection_type_(0),
+      state_(kClosed) {}
 
-void Session::Open(uint32_t id, uint32_t sequence_number, Mode mode) {
+void Session::Open(uint32_t id, uint32_t sequence_number) {
   assert(id != 0);
   id_ = id;
   sending_sequence_number_ = sequence_number;
-  mode_ = mode;
-  if (mode_ == kClient) {
-    state_ = kProbing;
-    SendConnectionRequest();
-  } else {
-    state_ = kHandshaking;
-    SendCookieChallenge();
-  }
+  state_ = kProbing;
+  SendConnectionRequest();
 }
 
 bool Session::IsOpen() const {
@@ -84,51 +75,36 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
     peer_.SetId(packet.SocketId());
   }
 
-  if (mode_ == kClient) {
-    if (state_ == kProbing || state_ == kHandshaking) {
-      state_ = kHandshaking;
-      if (packet.ConnectionType() == 0xffffffff) {
-        state_ = kConnected;
-        receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
-      } else {
-        peer_connection_type_ = packet.ConnectionType();
-        SendCookieResponse();
-      }
-    }
-  } else {
-    if (state_ == kConnected) {
-      SendConnectionAccepted();
-    } else if (packet.SynCookie() == 1) {
-      state_ = kConnected;
-      peer_connection_type_ = packet.ConnectionType();
-      receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
-      SendConnectionAccepted();
-    } else {
-      SendCookieChallenge();
-    }
+  // TODO(Fraser#5#): 2012-04-04 - Check if we need to uncomment the lines below
+  if (state_ == kProbing) {
+//    if (packet.ConnectionType() == 1 && packet.SynCookie() == 0)
+    SendCookie();
+  } else if (state_ == kHandshaking) {
+//    if (packet.SynCookie() == 1) {
+    state_ = kConnected;
+    peer_connection_type_ = packet.ConnectionType();
+    receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
+//    }
   }
 }
 
 void Session::HandleTick() {
-  if (mode_ == kClient) {
-    if (state_ == kProbing) {
-      SendConnectionRequest();
-    } else if (state_ == kHandshaking) {
-      SendCookieResponse();
-    }
+  if (state_ == kProbing) {
+    SendConnectionRequest();
+  } else if (state_ == kHandshaking) {
+    SendCookie();
   }
 }
 
 void Session::SendConnectionRequest() {
-  assert(mode_ == kClient);
-
   HandshakePacket packet;
-  packet.SetRudpVersion(4);
-  packet.SetSocketType(HandshakePacket::kStreamSocketType);
-  packet.SetSocketId(id_);
-  packet.SetIpAddress(peer_.Endpoint().address());
-  packet.SetDestinationSocketId(0);
-  packet.SetConnectionType(1);
+  // TODO(Fraser#5#): 2012-04-04 - Check if we need to uncomment the lines below
+//  packet.SetRudpVersion(4);
+//  packet.SetSocketType(HandshakePacket::kStreamSocketType);
+//  packet.SetSocketId(id_);
+//  packet.SetIpAddress(peer_.Endpoint().address());
+//  packet.SetDestinationSocketId(0);
+//  packet.SetConnectionType(1);
 
   peer_.Send(packet);
 
@@ -136,58 +112,25 @@ void Session::SendConnectionRequest() {
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
-void Session::SendCookieChallenge() {
-  assert(mode_ == kServer);
+void Session::SendCookie() {
+  state_ = kHandshaking;
 
   HandshakePacket packet;
-  packet.SetRudpVersion(4);
-  packet.SetSocketType(HandshakePacket::kStreamSocketType);
-  packet.SetSocketId(id_);
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
-  packet.SetConnectionType(Parameters::connection_type);
-  packet.SetSynCookie(1);  // TODO(Team) calculate cookie
-
-  peer_.Send(packet);
-}
-
-void Session::SendCookieResponse() {
-  assert(mode_ == kClient);
-
-  HandshakePacket packet;
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
   packet.SetMaximumPacketSize(Parameters::max_size);
   packet.SetMaximumFlowWindowSize(Parameters::maximum_window_size);
-  packet.SetSocketId(id_);
-  packet.SetIpAddress(peer_.Endpoint().address());
-  packet.SetDestinationSocketId(peer_.Id());
   packet.SetConnectionType(Parameters::connection_type);
+  packet.SetSocketId(id_);
   packet.SetSynCookie(1);  // TODO(Team) calculate cookie
 
   peer_.Send(packet);
 
-  // Schedule another cookie response.
+  // Schedule another cookie send.
   tick_timer_.TickAfter(bptime::milliseconds(250));
-}
-
-void Session::SendConnectionAccepted() {
-  assert(mode_ == kServer);
-
-  HandshakePacket packet;
-  packet.SetRudpVersion(4);
-  packet.SetSocketType(HandshakePacket::kStreamSocketType);
-  packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
-  packet.SetMaximumPacketSize(Parameters::max_size);
-  packet.SetMaximumFlowWindowSize(Parameters::maximum_window_size);
-  packet.SetSocketId(id_);
-  packet.SetIpAddress(peer_.Endpoint().address());
-  packet.SetDestinationSocketId(peer_.Id());
-  packet.SetConnectionType(0xffffffff);
-  packet.SetSynCookie(0);  // TODO(Team) calculate cookie
-
-  peer_.Send(packet);
 }
 
 }  // namespace detail
