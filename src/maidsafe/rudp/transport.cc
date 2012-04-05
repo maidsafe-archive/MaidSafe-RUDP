@@ -13,6 +13,7 @@
 
 #include "maidsafe/rudp/transport.h"
 
+#include <algorithm>
 #include <cassert>
 #include <functional>
 
@@ -32,55 +33,48 @@ namespace maidsafe {
 
 namespace rudp {
 
-Transport::Transport(asio::io_service &asio_service)   // NOLINT
+Transport::Transport(asio::io_service &asio_service)          // NOLINT (Fraser)
     : strand_(asio_service),
       multiplexer_(new detail::Multiplexer(asio_service)),
       acceptor_(),
       connections_(),
-      this_endpoint_() {}
+      this_endpoint_(),
+      mutex_(),
+      on_message_(),
+      on_connection_added_(),
+      on_connection_lost_() {}
 
 Transport::~Transport() {
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
     (*it)->Close();
 }
 
-//ReturnCode Transport::StartListening(const Endpoint &endpoint) {
-//  if (listening_port_ != 0)
-//    return kAlreadyStarted;
-//
-//  ip::udp::endpoint ep(endpoint.ip, endpoint.port);
-//  ReturnCode condition = multiplexer_->Open(ep);
-//  if (condition != kSuccess)
-//    return condition;
-//
-//  acceptor_.reset(new Acceptor(*multiplexer_));
-//  listening_port_ = endpoint.port;
-//  transport_details_.endpoint.port = listening_port_;
-//  transport_details_.endpoint.ip = endpoint.ip;
-//
-//  StartAccept();
-//  StartDispatch();
-//
-//  return kSuccess;
-//}
-//
-//void Transport::StopListening() {
-//  if (acceptor_)
-//    strand_.dispatch(std::bind(&Transport::CloseAcceptor, acceptor_));
-//  if (multiplexer_)
-//    strand_.dispatch(std::bind(&Transport::CloseMultiplexer, multiplexer_));
-//  listening_port_ = 0;
-//  acceptor_.reset();
-//  multiplexer_.reset(new Multiplexer(asio_service_));
-//}
-
-Endpoint Transport::Bootstrap(
-    const std::vector<Endpoint> &bootstrap_endpoints) {
+void Transport::Bootstrap(
+    const std::vector<Endpoint> &bootstrap_endpoints,
+    const OnMessage::slot_type &on_message_slot,
+    const OnConnectionAdded::slot_type &on_connection_added_slot,
+    const OnConnectionLost::slot_type &on_connection_lost_slot,
+    Endpoint *chosen_endpoint,
+    boost::signals2::connection *on_message_connection,
+    boost::signals2::connection *on_connection_added_connection,
+    boost::signals2::connection *on_connection_lost_connection) {
+  BOOST_ASSERT(chosen_endpoint);
+  BOOST_ASSERT(on_message_connection);
+  BOOST_ASSERT(on_connection_added_connection);
+  BOOST_ASSERT(on_connection_lost_connection);
   BOOST_ASSERT(!multiplexer_->IsOpen());
+
+  *chosen_endpoint = Endpoint();
+  *on_message_connection = on_message_.connect(on_message_slot);
+  *on_connection_added_connection =
+      on_connection_added_.connect(on_connection_added_slot);
+  *on_connection_lost_connection =
+      on_connection_lost_.connect(on_connection_lost_slot);
+
   ReturnCode result = multiplexer_->Open(ip::udp::v4());
   if (result != kSuccess) {
-    DLOG(ERROR) << "Failed to open multiplexer.";
-    return Endpoint();
+    DLOG(ERROR) << "Failed to open multiplexer.  Result: " << result;
+    return;
   }
 
   StartDispatch();
@@ -88,31 +82,101 @@ Endpoint Transport::Bootstrap(
   for (auto itr(bootstrap_endpoints.begin());
        itr != bootstrap_endpoints.end();
        ++itr) {
+    if (!IsValid(*itr)) {
+      DLOG(ERROR) << *itr << " is an invalid endpoint.";
+      continue;
+    }
     ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(),
                                                           strand_,
                                                           multiplexer_, *itr));
+    connection->StartReceiving();
+    this_endpoint_ = connection->GetThisExternalEndpoint();
+
+
+//                                                                    check this_endpoint_
+
     if (IsValid(this_endpoint_)) {
+      *chosen_endpoint = *itr;
       DoInsertConnection(connection);
-      break;
+      return;
     }
   }
-
-  return this_endpoint_;
 }
 
-void Transport::RendezvousConnect(const Endpoint &/*peer_endpoint*/,
-                                  const std::string &/*validation_data*/) {
+void Transport::Connect(const Endpoint &peer_endpoint,
+                        const std::string &validation_data) {
+  strand_.dispatch(std::bind(&Transport::DoConnect, shared_from_this(),
+                             peer_endpoint, validation_data));
 }
 
-int Transport::CloseConnection(const Endpoint &/*peer_endpoint*/) {
-  return 0;
+void Transport::DoConnect(const Endpoint &peer_endpoint,
+                          const std::string &validation_data) {
+  bool opened_multiplexer(false);
+
+  if (!multiplexer_->IsOpen()) {
+    ReturnCode result = multiplexer_->Open(peer_endpoint.protocol());
+    if (result != kSuccess) {
+      DLOG(ERROR) << "Failed to open multiplexer.  Error " << result;
+      return;
+    }
+    opened_multiplexer = true;
+  }
+
+  ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(),
+                                                        strand_,
+                                                        multiplexer_,
+                                                        peer_endpoint));
+  connection->StartReceiving();
+  DoInsertConnection(connection);
+
+  if (opened_multiplexer)
+    StartDispatch();
+
+  connection->StartSending(validation_data);
 }
 
-int Transport::Send(const Endpoint &/*peer_endpoint*/,
-                    const std::string &/*message*/) const {
-//  strand_.dispatch(std::bind(&Transport::DoSend, shared_from_this(), data,
-//                             endpoint, timeout));
-                      return 0;
+int Transport::CloseConnection(const Endpoint &peer_endpoint) {
+  boost::mutex::scoped_lock lock(mutex_);
+  auto itr(std::find_if(connections_.begin(),
+                        connections_.end(),
+                        [peer_endpoint](const ConnectionPtr &connection) {
+                          return connection->Socket().RemoteEndpoint() ==
+                                 peer_endpoint;
+                        }));
+  if (itr == connections_.end()) {
+    DLOG(WARNING) << "Not currently connected to " << peer_endpoint;
+    return kInvalidConnection;
+  }
+
+  strand_.dispatch(std::bind(&Transport::DoCloseConnection,
+                             shared_from_this(), *itr));
+  return kSuccess;
+}
+
+void Transport::DoCloseConnection(ConnectionPtr connection) {
+  connection->Close();
+}
+
+int Transport::Send(const Endpoint &peer_endpoint, const std::string &message) {
+  boost::mutex::scoped_lock lock(mutex_);
+  auto itr(std::find_if(connections_.begin(),
+                        connections_.end(),
+                        [peer_endpoint](const ConnectionPtr &connection) {
+                          return connection->Socket().RemoteEndpoint() ==
+                                 peer_endpoint;
+                        }));
+  if (itr == connections_.end()) {
+    DLOG(WARNING) << "Not currently connected to " << peer_endpoint;
+    return kInvalidConnection;
+  }
+
+  strand_.dispatch(std::bind(&Transport::DoSend, shared_from_this(),
+                             *itr, message));
+  return kSuccess;
+}
+
+void Transport::DoSend(ConnectionPtr connection, const std::string &message) {
+  connection->StartSending(message);
 }
 
 Endpoint Transport::this_endpoint() const {
@@ -120,7 +184,7 @@ Endpoint Transport::this_endpoint() const {
 }
 
 size_t Transport::ConnectionsCount() const {
-  // TODO(Fraser#5#): 2012-04-03 - Handle thread-safety
+  boost::mutex::scoped_lock lock(mutex_);
   return connections_.size();
 }
 
@@ -147,79 +211,19 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
   StartDispatch();
 }
 
-//void Transport::StartAccept() {
-//  ip::udp::endpoint endpoint;  // Endpoint is assigned when socket is accepted.
-//  ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(),
-//                                                        strand_,
-//                                                        multiplexer_,
-//                                                        endpoint));
-//
-//  acceptor_->AsyncAccept(connection->Socket(),
-//                         strand_.wrap(std::bind(&Transport::HandleAccept,
-//                                                shared_from_this(), acceptor_,
-//                                                connection, args::_1)));
-//}
-//
-//void Transport::HandleAccept(AcceptorPtr acceptor,
-//                             ConnectionPtr connection,
-//                             const boost::system::error_code &ec) {
-//  if (!acceptor->IsOpen())
-//    return;
-//
-//  if (!ec) {
-//    // It is safe to call DoInsertConnection directly because HandleAccept() is
-//    // already being called inside the strand.
-//    DoInsertConnection(connection);
-//    connection->StartReceiving();
-//  }
-//
-//  StartAccept();
-//}
+void Transport::SignalMessageReceived(const std::string &message) {
+  strand_.dispatch(std::bind(&Transport::DoSignalMessageReceived,
+                             shared_from_this(), message));
+}
 
-//void Transport::DoSend(const std::string &data,
-//                       const Endpoint &endpoint,
-//                       const Timeout &timeout) {
-//  ip::udp::endpoint ep(endpoint.ip, endpoint.port);
-//  bool multiplexer_opened_now(false);
-//
-//  if (!multiplexer_->IsOpen()) {
-//    ReturnCode condition = multiplexer_->Open(ep.protocol());
-//    if (kSuccess != condition) {
-//      (*on_error_)(condition, endpoint);
-//      return;
-//    }
-//    multiplexer_opened_now = true;
-//    // StartDispatch();
-//  }
-//
-//  ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(),
-//                                                        strand_,
-//                                                        multiplexer_, ep));
-//
-//  DoInsertConnection(connection);
-//  connection->StartSending(data, timeout);
-//// Moving StartDispatch() after StartSending(), as on Windows - client-socket's
-//// attempt to call async_receive_from() will result in EINVAL error until it is
-//// either bound to any port or a sendto() operation is performed by the socket.
-//// Also, this makes it in sync with tcp transport's implementation.
-//
-//  if (multiplexer_opened_now)
-//    StartDispatch();
-//}
-
-void Transport::InsertConnection(ConnectionPtr connection) {
-  strand_.dispatch(std::bind(&Transport::DoInsertConnection,
-                             shared_from_this(), connection));
+void Transport::DoSignalMessageReceived(const std::string &message) {
+  on_message_(message);
 }
 
 void Transport::DoInsertConnection(ConnectionPtr connection) {
   connections_.insert(connection);
-  if (std::shared_ptr<ManagedConnections> managed_connections =
-      managed_connections_.lock()) {
-    managed_connections->InsertEndpoint(
-        Endpoint(connection->Socket().RemoteEndpoint()),
-        shared_from_this());
-  }
+  on_connection_added_(connection->Socket().RemoteEndpoint(),
+                       shared_from_this());
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection) {
@@ -229,12 +233,11 @@ void Transport::RemoveConnection(ConnectionPtr connection) {
 
 void Transport::DoRemoveConnection(ConnectionPtr connection) {
   connections_.erase(connection);
-  if (std::shared_ptr<ManagedConnections> managed_connections =
-      managed_connections_.lock()) {
-    managed_connections->RemoveEndpoint(connection->Socket().RemoteEndpoint());
-    if (connections_.empty()) {
-      managed_connections->RemoveTransport(shared_from_this());
-    }
+  if (connections_.empty()) {
+    on_connection_lost_(connection->Socket().RemoteEndpoint(),
+                        shared_from_this());
+  } else {
+    on_connection_lost_(connection->Socket().RemoteEndpoint(), nullptr);
   }
 }
 

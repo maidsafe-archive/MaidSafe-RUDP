@@ -34,12 +34,12 @@ class Socket;
 }  // namespace detail
 
 #ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Weffc++"
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Weffc++"
 #endif
 class Connection : public std::enable_shared_from_this<Connection> {
 #ifdef __GNUC__
-#pragma GCC diagnostic pop
+#  pragma GCC diagnostic pop
 #endif
 
  public:
@@ -52,14 +52,15 @@ class Connection : public std::enable_shared_from_this<Connection> {
   detail::Socket &Socket();
 
   void Close();
-  void StartSending(const std::string &data, const Timeout &timeout);
+  void StartReceiving();
+  void StartSending(const std::string &data);
+  Endpoint GetThisExternalEndpoint();
 
  private:
   Connection(const Connection&);
   Connection &operator=(const Connection&);
 
   void DoClose();
-  void StartReceiving();
   void DoStartReceiving();
   void DoStartSending();
 

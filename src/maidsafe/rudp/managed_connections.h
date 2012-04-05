@@ -21,6 +21,7 @@
 
 #include "boost/asio/ip/udp.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
+#include "boost/signals2/connection.hpp"
 #include "boost/thread/shared_mutex.hpp"
 
 #include "maidsafe/common/asio_service.h"
@@ -46,6 +47,7 @@ typedef std::function<void(const boost::asio::ip::udp::endpoint&)>
 class ManagedConnections {
  public:
   ManagedConnections();
+  ~ManagedConnections();
 
   static int32_t kMaxMessageSize() { return 67108864; }
 
@@ -84,19 +86,33 @@ class ManagedConnections {
   typedef std::map<boost::asio::ip::udp::endpoint,
                    std::shared_ptr<Transport>> ConnectionMap;
 
+  struct TransportAndSignalConnections {
+    std::shared_ptr<Transport> transport;
+    boost::signals2::connection on_message_connection;
+    boost::signals2::connection on_connection_added_connection;
+    boost::signals2::connection on_connection_lost_connection;
+  };
+
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
   boost::asio::ip::udp::endpoint StartNewTransport(
       std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints);
-  void RemoveTransport(std::shared_ptr<Transport> transport);
-  void InsertEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint,
-                      std::shared_ptr<Transport> transport);
-  void RemoveEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint);
+
+  void OnMessageSlot(const std::string &message);
+  void OnConnectionAddedSlot(
+      const boost::asio::ip::udp::endpoint &peer_endpoint,
+      std::shared_ptr<Transport> transport);
+  void OnConnectionLostSlot(const boost::asio::ip::udp::endpoint &peer_endpoint,
+                            std::shared_ptr<Transport> transport);
+//  void RemoveTransport(std::shared_ptr<Transport> transport);
+//  void InsertEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint,
+//                      std::shared_ptr<Transport> transport);
+//  void RemoveEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint);
 
   std::unique_ptr<AsioService> asio_service_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
-  std::vector<std::shared_ptr<Transport>> transports_;
+  std::vector<TransportAndSignalConnections> transports_;
   ConnectionMap connection_map_;
   mutable boost::shared_mutex shared_mutex_;
 };

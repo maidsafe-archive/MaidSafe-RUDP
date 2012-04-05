@@ -64,6 +64,8 @@ TEST(UtilsTest, BEH_EndpointIsValid) {
       boost::asio::ip::address::from_string("1.1.1.1"), 49150)));
   EXPECT_FALSE(IsValid(Endpoint(
       boost::asio::ip::address::from_string("1.1.1.1"), 49151)));
+  EXPECT_FALSE(IsValid(Endpoint(
+      boost::asio::ip::address::from_string("0.0.0.0"), 49150)));
 
   boost::system::error_code error_code;
   try {

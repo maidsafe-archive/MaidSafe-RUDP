@@ -22,6 +22,8 @@
 
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/strand.hpp"
+#include "boost/signals2/signal.hpp"
+#include "boost/thread/mutex.hpp"
 
 #include "maidsafe/rudp/common.h"
 #include "maidsafe/rudp/parameters.h"
@@ -42,40 +44,39 @@ class Socket;
 
 
 #ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Weffc++"
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Weffc++"
 #endif
 class Transport : public std::enable_shared_from_this<Transport> {
 #ifdef __GNUC__
-#pragma GCC diagnostic pop
+#  pragma GCC diagnostic pop
 #endif
 
  public:
-  explicit Transport(boost::asio::io_service &asio_service);  // NOLINT
+  typedef boost::signals2::signal<void(const std::string&)> OnMessage;
+  typedef boost::signals2::signal<void(const Endpoint&,
+                                       std::shared_ptr<Transport>)>
+                                          OnConnectionAdded, OnConnectionLost;
+   
+  explicit Transport(boost::asio::io_service &asio_service);           // NOLINT (Fraser)
   virtual ~Transport();
 
-//  virtual ReturnCode StartListening(const Endpoint &endpoint);
-//  virtual ReturnCode Bootstrap(const std::vector<Contact> &candidates);
-//
-//  virtual void StopListening();
-//  // This timeout defines the max allowed duration for the receiver to respond
-//  // to a request. If the receiver is expected to respond slowly (e.g. because
-//  // of a large request msg to be processed), a long duration shall be given for
-//  // this timeout. If no response is expected, kImmediateTimeout shall be given.
-//  virtual void Send(const std::string &data,
-//                    const Endpoint &endpoint,
-//                    const Timeout &timeout);
-//  static DataSize kMaxTransportMessageSize() { return 67108864; }
-
-  Endpoint Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints);
-  void RendezvousConnect(const Endpoint &peer_endpoint,
-                         const std::string &validation_data);
+  void Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
+                 const OnMessage::slot_type &on_message_slot,
+                 const OnConnectionAdded::slot_type &on_connection_added_slot,
+                 const OnConnectionLost::slot_type &on_connection_lost_slot,
+                 Endpoint *chosen_endpoint,
+                 boost::signals2::connection *on_message_connection,
+                 boost::signals2::connection *on_connection_added_connection,
+                 boost::signals2::connection *on_connection_lost_connection);
+  void Connect(const Endpoint &peer_endpoint,
+               const std::string &validation_data);
   // Returns kSuccess if the connection existed and was closed.  Returns
   // kInvalidConnection if the connection didn't exist.  If this causes the
   // size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
   int CloseConnection(const Endpoint &peer_endpoint);
-  int Send(const Endpoint &peer_endpoint, const std::string &message) const;
+  int Send(const Endpoint &peer_endpoint, const std::string &message);
   Endpoint this_endpoint() const;
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
@@ -84,14 +85,16 @@ class Transport : public std::enable_shared_from_this<Transport> {
   Transport(const Transport&);
   Transport &operator=(const Transport&);
 
+  typedef std::shared_ptr<ManagedConnections> ManagedConnectionsPtr;
   typedef std::shared_ptr<detail::Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<detail::Acceptor> AcceptorPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionSet;
 
-  void StartRendezvousConnect(const Endpoint &peer_endpoint,
-                              const std::string &validation_data,
-                              const Timeout &timeout);
+  void DoConnect(const Endpoint &peer_endpoint,
+                 const std::string &validation_data);
+  void DoCloseConnection(ConnectionPtr connection);
+  void DoSend(ConnectionPtr connection, const std::string &message);
 
   static void CloseAcceptor(AcceptorPtr acceptor);
   static void CloseMultiplexer(MultiplexerPtr multiplexer);
@@ -100,22 +103,13 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void HandleDispatch(MultiplexerPtr multiplexer,
                       const boost::system::error_code &ec);
 
-  void StartAccept();
-  void HandleAccept(AcceptorPtr acceptor,
-                    ConnectionPtr connection,
-                    const boost::system::error_code &ec);
-
-  void DoSend(const std::string &data,
-              const Endpoint &endpoint,
-              const Timeout &timeout);
-
   friend class Connection;
-  void InsertConnection(ConnectionPtr connection);
+  void SignalMessageReceived(const std::string &message);
+  void DoSignalMessageReceived(const std::string &message);
   void DoInsertConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection);
   void DoRemoveConnection(ConnectionPtr connection);
 
-  std::weak_ptr<ManagedConnections> managed_connections_;
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
   AcceptorPtr acceptor_;
@@ -125,6 +119,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
   // a shared_ptr in this map, as well as in the async operation handlers.
   ConnectionSet connections_;
   Endpoint this_endpoint_;
+  mutable boost::mutex mutex_;
+  OnMessage on_message_;
+  OnConnectionAdded on_connection_added_;
+  OnConnectionLost on_connection_lost_;
 };
 
 typedef std::shared_ptr<Transport> TransportPtr;

@@ -52,7 +52,6 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       timeout_for_response_(Parameters::default_receive_timeout),
       timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
-  StartReceiving();
 }
 
 Connection::~Connection() {}
@@ -93,9 +92,9 @@ void Connection::DoStartReceiving() {
   CheckTimeout(ignored_ec);
 }
 
-void Connection::StartSending(const std::string &data, const Timeout &timeout) {
+void Connection::StartSending(const std::string &data) {
   EncodeData(data);
-  timeout_for_response_ = timeout;
+  timeout_for_response_ = Parameters::default_send_timeout;
   strand_.dispatch(std::bind(&Connection::DoStartSending, shared_from_this()));
 }
 
@@ -264,54 +263,8 @@ void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
 
 void Connection::DispatchMessage() {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    // Signal message received and send response if applicable
-    std::string response;
-    Timeout response_timeout(bptime::seconds(0));
-
-//    Info info;
-//    info.endpoint.ip = socket_.RemoteEndpoint().address();
-//    info.endpoint.port = socket_.RemoteEndpoint().port();
-
-//    // Changes for managed connection
-//    if (managed_) {
-//      //  Keep Alive case
-//       if (data_size_ == 9) {
-//         std::string data(buffer_.begin(), buffer_.end());
-//         if (data == "KeepAlive") {
-//           DLOG(INFO) << "DispatchMessage -- received >>KeepAlive<<";
-//           // if a keep alive message received, do nothing.
-//           return;
-//         }
-//      }
-//      // managed connection - need to keep connection alive.
-//      timeout_for_response_ = bptime::seconds(bptime::pos_infin);
-//      timeout_state_ = kNoTimeout;
-//      if (response_functor_) {
-//        response_functor_(kSuccess, std::string(buffer_.begin(),
-//                                                buffer_.end()));
-//        response_functor_ = ResponseFunctor();
-//      }
-//      return;
-//    } else if (response_functor_) {
-//      response_functor_(kSuccess, std::string(buffer_.begin(), buffer_.end()));
-//      response_functor_ = ResponseFunctor();
-//      Close();
-//      return;
-//    } else {
-
-
-//      (*transport->on_message_received_)(std::string(buffer_.begin(),
-//                                                     buffer_.end()),
-//                                         info, &response,
-//                                         &response_timeout);
-      if (response.empty()) {
-        Close();
-        return;
-      }
-      EncodeData(response);
-      timeout_for_response_ = response_timeout;
-      strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this()));
-//    }
+    transport->SignalMessageReceived(std::string(buffer_.begin(),
+                                                 buffer_.end()));
   }
 }
 
@@ -365,31 +318,17 @@ void Connection::HandleWrite(const bs::error_code &ec) {
 //  }
 }
 
-void Connection::CloseOnError(const ReturnCode &/*error*/) {
-//  if (std::shared_ptr<Transport> transport = transport_.lock()) {
-//    Endpoint ep(remote_endpoint_.address(), remote_endpoint_.port());
-//    if (managed_) {
-//      if (write_complete_functor_) {
-//        write_complete_functor_(error);
-//        write_complete_functor_ = WriteCompleteFunctor();
-//      } else if (response_functor_) {
-//        response_functor_(error, "");
-//        response_functor_ = ResponseFunctor();
-//      }
-//      DoClose();  // Need not to call transport->on_error_ signal for mngd conn.
-//    } else {
-//      if (response_functor_) {
-//        response_functor_(error, "");
-//        response_functor_ = ResponseFunctor();
-//      } else {
-
-    
-//        (*transport->on_error_)(error, ep);
-//      }
-      DoClose();
-//    }
-//  }
+void Connection::CloseOnError(const ReturnCode &error) {
+  DLOG(WARNING) << "Closing connection to " << socket_.RemoteEndpoint()
+                << " with return code " << error;
+  DoClose();
 }
+
+Endpoint Connection::GetThisExternalEndpoint() {
+                                                                          return Endpoint(ip::address_v4::loopback(), 11001);
+}
+
+
 
 }  // namespace rudp
 

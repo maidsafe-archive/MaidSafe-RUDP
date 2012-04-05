@@ -39,9 +39,6 @@ class Multiplexer {
   // Open the multiplexer as a client for the specified protocol.
   ReturnCode Open(const boost::asio::ip::udp &protocol);
 
-  // Open the multiplexer as a server on the specified endpoint.
-  ReturnCode Open(const boost::asio::ip::udp::endpoint &endpoint);
-
   // Whether the multiplexer is open.
   bool IsOpen() const;
 
@@ -62,13 +59,18 @@ class Multiplexer {
   // kSuccess if the data was sent successfully, kSendFailure otherwise.
   template <typename Packet>
   ReturnCode SendTo(const Packet &packet,
-                            const boost::asio::ip::udp::endpoint &endpoint) {
+                    const boost::asio::ip::udp::endpoint &endpoint) {
     std::array<unsigned char, Parameters::kUDPPayload> data;
     auto buffer = boost::asio::buffer(&data[0], Parameters::max_size);
     if (size_t length = packet.Encode(buffer)) {
       boost::system::error_code ec;
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
-      return ec ? kSendFailure : kSuccess;
+      if (ec) {
+        PrintSendError(endpoint, ec);
+        return kSendFailure;
+      } else {
+        return kSuccess;
+      }
     }
     return kSendFailure;
   }
@@ -80,6 +82,10 @@ class Multiplexer {
   // Disallow copying and assignment.
   Multiplexer(const Multiplexer&);
   Multiplexer &operator=(const Multiplexer&);
+
+  // Allow use of logging without #including log.h in this header.
+  void PrintSendError(const boost::asio::ip::udp::endpoint &endpoint,
+                      boost::system::error_code ec) const;
 
   // The UDP socket used for all RUDP protocol communication.
   boost::asio::ip::udp::socket socket_;

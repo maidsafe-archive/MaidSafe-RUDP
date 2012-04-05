@@ -40,10 +40,32 @@ ManagedConnections::ManagedConnections()
       connection_map_(),
       shared_mutex_() {}
 
+ManagedConnections::~ManagedConnections() {
+  UniqueLock unique_lock(shared_mutex_);
+  std::for_each(transports_.begin(),
+                transports_.end(),
+                [](const TransportAndSignalConnections &element) {
+    element.on_message_connection.disconnect();
+    element.on_connection_added_connection.disconnect();
+    element.on_connection_lost_connection.disconnect();
+  });
+}
+
 Endpoint ManagedConnections::Bootstrap(
     const std::vector<Endpoint> &bootstrap_endpoints,
     MessageReceivedFunctor message_received_functor,
     ConnectionLostFunctor connection_lost_functor) {
+  if (!message_received_functor) {
+    DLOG(ERROR) << "You must provide a valid MessageReceivedFunctor.";
+    return Endpoint();
+  }
+  message_received_functor_ = message_received_functor;
+  if (!connection_lost_functor) {
+    DLOG(ERROR) << "You must provide a valid ConnectionLostFunctor.";
+    return Endpoint();
+  }
+  connection_lost_functor_ = connection_lost_functor;
+
   {
     SharedLock shared_lock(shared_mutex_);
     if (!connection_map_.empty()) {
@@ -59,14 +81,14 @@ Endpoint ManagedConnections::Bootstrap(
     return Endpoint();
   }
 
-  message_received_functor_ = message_received_functor;
-  connection_lost_functor_ = connection_lost_functor;
   return new_endpoint;
 }
 
 Endpoint ManagedConnections::StartNewTransport(
     std::vector<Endpoint> bootstrap_endpoints) {
-  TransportPtr transport(new Transport(asio_service_->service()));
+  TransportAndSignalConnections transport_and_signals_connections;
+  transport_and_signals_connections.transport =
+      std::make_shared<Transport>(asio_service_->service());
 
   bool bootstrapping(!bootstrap_endpoints.empty());
   if (!bootstrapping) {
@@ -80,7 +102,18 @@ Endpoint ManagedConnections::StartNewTransport(
     });
   }
 
-  Endpoint chosen_endpoint(transport->Bootstrap(bootstrap_endpoints));
+  Endpoint chosen_endpoint;
+  transport_and_signals_connections.transport->Bootstrap(
+      bootstrap_endpoints,
+      std::bind(&ManagedConnections::OnMessageSlot, this, args::_1),
+      std::bind(&ManagedConnections::OnConnectionAddedSlot, this, args::_1,
+                args::_2),
+      std::bind(&ManagedConnections::OnConnectionLostSlot, this, args::_1,
+                args::_2),
+      &chosen_endpoint,
+      &transport_and_signals_connections.on_message_connection,
+      &transport_and_signals_connections.on_connection_added_connection,
+      &transport_and_signals_connections.on_connection_lost_connection);
   if (!IsValid(chosen_endpoint)) {
     SharedLock shared_lock(shared_mutex_);
     DLOG(WARNING) << "Failed to start a new Transport.  "
@@ -89,9 +122,10 @@ Endpoint ManagedConnections::StartNewTransport(
   }
 
   UniqueLock unique_lock(shared_mutex_);
-  transports_.push_back(transport);
+  transports_.push_back(transport_and_signals_connections);
   if (bootstrapping) {
-    connection_map_.insert(std::make_pair(chosen_endpoint, transport));
+    connection_map_.insert(std::make_pair(chosen_endpoint,
+                           transport_and_signals_connections.transport));
   }
   return chosen_endpoint;
 }
@@ -129,10 +163,11 @@ int ManagedConnections::GetAvailableEndpoint(Endpoint *endpoint) {
     std::for_each(
         transports_.begin(),
         transports_.end(),
-        [&least_connections, &chosen_endpoint] (const TransportPtr &transport) {
-      if (transport->ConnectionsCount() < least_connections) {
-        least_connections = transport->ConnectionsCount();
-        chosen_endpoint = transport->this_endpoint();
+        [&least_connections, &chosen_endpoint]
+            (const TransportAndSignalConnections &element) {
+      if (element.transport->ConnectionsCount() < least_connections) {
+        least_connections = element.transport->ConnectionsCount();
+        chosen_endpoint = element.transport->this_endpoint();
       }
     });
 
@@ -149,13 +184,14 @@ int ManagedConnections::GetAvailableEndpoint(Endpoint *endpoint) {
 int ManagedConnections::Add(const Endpoint &this_endpoint,
                             const Endpoint &peer_endpoint,
                             const std::string &validation_data) {
-  std::vector<TransportPtr>::iterator itr;
+  std::vector<TransportAndSignalConnections>::iterator itr;
   {
     SharedLock shared_lock(shared_mutex_);
-    itr = std::find_if(transports_.begin(),
-                       transports_.end(),
-                       [&this_endpoint] (const TransportPtr &transport) {
-      return transport->this_endpoint() == this_endpoint;
+    itr = std::find_if(
+        transports_.begin(),
+        transports_.end(),
+        [&this_endpoint] (const TransportAndSignalConnections &element) {
+      return element.transport->this_endpoint() == this_endpoint;
     });
     if (itr == transports_.end()) {
       DLOG(ERROR) << "No Transports have endpoint " << this_endpoint;
@@ -169,7 +205,7 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
     }
   }
 
-  (*itr)->RendezvousConnect(peer_endpoint, validation_data);
+  (*itr).transport->Connect(peer_endpoint, validation_data);
   return kSuccess;
 }
 
@@ -198,29 +234,47 @@ void ManagedConnections::Ping(const Endpoint &/*peer_endpoint*/) const {
   // TODO(Fraser#5#): 2012-04-02 - Do async probe
 }
 
-void ManagedConnections::RemoveTransport(std::shared_ptr<Transport> transport) {
-  UniqueLock unique_lock(shared_mutex_);
-  auto itr(std::find(transports_.begin(), transports_.end(), transport));
-  if (itr == transports_.end()) {
-    DLOG(ERROR) << "Failed to find transport in vector.";
-    return;
-  }
-  transports_.erase(itr);
+void ManagedConnections::OnMessageSlot(const std::string &message) {
+  SharedLock shared_lock(shared_mutex_);
+  message_received_functor_(message);
 }
 
-void ManagedConnections::InsertEndpoint(const Endpoint &peer_endpoint,
-                                        std::shared_ptr<Transport> transport) {
+void ManagedConnections::OnConnectionAddedSlot(const Endpoint &peer_endpoint,
+                                               TransportPtr transport) {
   UniqueLock unique_lock(shared_mutex_);
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
   if (!result.second)
     DLOG(ERROR) << "Already connected to " << peer_endpoint;
 }
 
-void ManagedConnections::RemoveEndpoint(const Endpoint &peer_endpoint) {
+void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
+                                              TransportPtr transport) {
   UniqueLock unique_lock(shared_mutex_);
   size_t result(connection_map_.erase(peer_endpoint));
-  if (result != 1U)
+  if (result == 1U) {
+    connection_lost_functor_(peer_endpoint);
+  } else {
     DLOG(ERROR) << "Was not connected to " << peer_endpoint;
+  }
+
+  if (!transport)
+    return;
+
+  auto itr(std::find_if(
+      transports_.begin(),
+      transports_.end(),
+      [&transport](const TransportAndSignalConnections &element) {
+        return transport == element.transport;
+      }));
+
+  if (itr == transports_.end()) {
+    DLOG(ERROR) << "Failed to find transport in vector.";
+    return;
+  }
+  (*itr).on_message_connection.disconnect();
+  (*itr).on_connection_added_connection.disconnect();
+  (*itr).on_connection_lost_connection.disconnect();
+  transports_.erase(itr);
 }
 
 }  // namespace rudp

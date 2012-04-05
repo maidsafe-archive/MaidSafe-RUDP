@@ -34,51 +34,29 @@ Multiplexer::Multiplexer(asio::io_service &asio_service) //NOLINT
     sender_endpoint_(),
     dispatcher_() {}
 
-Multiplexer::~Multiplexer() {
-}
+Multiplexer::~Multiplexer() {}
 
 ReturnCode Multiplexer::Open(const ip::udp &protocol) {
-  if (socket_.is_open())
+  if (socket_.is_open()) {
+    DLOG(WARNING) << "Multiplexer already open.";
     return kAlreadyStarted;
+  }
 
   bs::error_code ec;
   socket_.open(protocol, ec);
 
-  if (ec)
+  if (ec) {
+    DLOG(ERROR) << "Multiplexer socket opening error: " << ec.message();
     return kInvalidAddress;
+  }
 
   ip::udp::socket::non_blocking_io nbio(true);
   socket_.io_control(nbio, ec);
 
-  if (ec)
+  if (ec) {
+    DLOG(ERROR) << "Multiplexer setting option error: " << ec.message();
     return kSetOptionFailure;
-
-  return kSuccess;
-}
-
-ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
-  if (socket_.is_open())
-    return kAlreadyStarted;
-
-  if (endpoint.port() == 0)
-    return kInvalidPort;
-
-  bs::error_code ec;
-  socket_.open(endpoint.protocol(), ec);
-
-  if (ec)
-    return kInvalidAddress;
-
-  ip::udp::socket::non_blocking_io nbio(true);
-  socket_.io_control(nbio, ec);
-
-  if (ec)
-    return kSetOptionFailure;
-
-  socket_.bind(endpoint, ec);
-
-  if (ec)
-    return kBindError;
+  }
 
   return kSuccess;
 }
@@ -90,6 +68,13 @@ bool Multiplexer::IsOpen() const {
 void Multiplexer::Close() {
   bs::error_code ec;
   socket_.close(ec);
+  if (ec)
+    DLOG(WARNING) << "Multiplexer closing error: " << ec.message();
+}
+
+void Multiplexer::PrintSendError(const boost::asio::ip::udp::endpoint &endpoint,
+                                 boost::system::error_code ec) const {
+  DLOG(ERROR) << "Error sending to << " << endpoint << " - " << ec.message();
 }
 
 }  // namespace detail
