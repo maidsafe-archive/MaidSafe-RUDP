@@ -37,7 +37,6 @@ class ManagedConnections;
 class Connection;
 
 namespace detail {
-class Acceptor;
 class Multiplexer;
 class Socket;
 }  // namespace detail
@@ -87,7 +86,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   typedef std::shared_ptr<ManagedConnections> ManagedConnectionsPtr;
   typedef std::shared_ptr<detail::Multiplexer> MultiplexerPtr;
-  typedef std::shared_ptr<detail::Acceptor> AcceptorPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionSet;
 
@@ -96,7 +94,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DoCloseConnection(ConnectionPtr connection);
   void DoSend(ConnectionPtr connection, const std::string &message);
 
-  static void CloseAcceptor(AcceptorPtr acceptor);
   static void CloseMultiplexer(MultiplexerPtr multiplexer);
 
   void StartDispatch();
@@ -112,8 +109,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
-  AcceptorPtr acceptor_;
-
+  
   // Because the connections can be in an idle initial state with no pending
   // async operations (after calling PrepareSend()), they are kept alive with
   // a shared_ptr in this map, as well as in the async operation handlers.

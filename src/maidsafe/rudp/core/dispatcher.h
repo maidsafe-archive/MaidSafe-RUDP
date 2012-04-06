@@ -25,18 +25,11 @@ namespace rudp {
 
 namespace detail {
 
-class Acceptor;
 class Socket;
 
 class Dispatcher {
  public:
   Dispatcher();
-
-  // Get the one-and-only acceptor.
-  Acceptor *GetAcceptor() const;
-
-  // Set the one-and-only acceptor.
-  void SetAcceptor(Acceptor *acceptor);
 
   // Add a socket. Returns a new unique id for the socket.
   uint32_t AddSocket(Socket *socket);
@@ -44,7 +37,7 @@ class Dispatcher {
   // Remove the socket corresponding to the given id.
   void RemoveSocket(uint32_t id);
 
-  // Handle a new packet by dispatching to the appropriate socket or acceptor.
+  // Handle a new packet by dispatching to the appropriate socket.
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
                          const boost::asio::ip::udp::endpoint &endpoint);
 
@@ -52,9 +45,6 @@ class Dispatcher {
   // Disallow copying and assignment.
   Dispatcher(const Dispatcher&);
   Dispatcher &operator=(const Dispatcher&);
-
-  // The one-and-only acceptor.
-  Acceptor* acceptor_;
 
   // Map of destination socket id to corresponding socket object.
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;

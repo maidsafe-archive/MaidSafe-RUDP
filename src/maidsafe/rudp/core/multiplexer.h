@@ -55,8 +55,8 @@ class Multiplexer {
                                sender_endpoint_, 0, op);
   }
 
-  // Called by the acceptor or socket objects to send a packet. Returns
-  // kSuccess if the data was sent successfully, kSendFailure otherwise.
+  // Called by the socket objects to send a packet. Returns kSuccess if the data
+  // was sent successfully, kSendFailure otherwise.
   template <typename Packet>
   ReturnCode SendTo(const Packet &packet,
                     const boost::asio::ip::udp::endpoint &endpoint) {
@@ -75,10 +75,9 @@ class Multiplexer {
     return kSendFailure;
   }
 
- private:
-  friend class Acceptor;
   friend class Socket;
 
+ private:
   // Disallow copying and assignment.
   Multiplexer(const Multiplexer&);
   Multiplexer &operator=(const Multiplexer&);
@@ -94,7 +93,7 @@ class Multiplexer {
   std::vector<unsigned char> receive_buffer_;
   boost::asio::ip::udp::endpoint sender_endpoint_;
 
-  // Dispatcher keeps track of the active sockets and the acceptor.
+  // Dispatcher keeps track of the active sockets.
   Dispatcher dispatcher_;
 };
 

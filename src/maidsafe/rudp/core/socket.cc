@@ -298,7 +298,7 @@ void Socket::HandleKeepalive(const KeepalivePacket &packet) {
       } else {
         DLOG(ERROR) << "Socket " << session_.Id()
                     << " ignoring unexpected keepalive response packet from "
-                    << peer_.Endpoint() << std::endl;
+                    << peer_.Endpoint();
       }
     } else {
       sender_.HandleKeepalive(packet);

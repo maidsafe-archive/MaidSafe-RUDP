@@ -16,7 +16,6 @@
 
 #include "maidsafe/common/test.h"
 #include "maidsafe/rudp/log.h"
-#include "maidsafe/rudp/core/acceptor.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/socket.h"
 
@@ -68,11 +67,8 @@ TEST(SocketTest, BEH_Socket) {
                                              &server_multiplexer));
 
 
-  Acceptor server_acceptor(server_multiplexer);
   Socket server_socket(server_multiplexer);
   server_ec = asio::error::would_block;
-  server_acceptor.AsyncAccept(server_socket, std::bind(&handler1, args::_1,
-                                                       &server_ec));
 
   Socket client_socket(client_multiplexer);
   client_ec = asio::error::would_block;

@@ -49,7 +49,6 @@ namespace rudp {
 
 namespace detail {
 
-class Acceptor;
 class Dispatcher;
 
 class Socket {
@@ -142,10 +141,9 @@ class Socket {
     StartProbe();
   }
 
- private:
-  friend class Acceptor;
   friend class Dispatcher;
 
+ private:
   // Disallow copying and assignment.
   Socket(const Socket&);
   Socket &operator=(const Socket&);

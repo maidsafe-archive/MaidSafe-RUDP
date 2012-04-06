@@ -21,7 +21,6 @@
 #include "maidsafe/rudp/log.h"
 #include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/utils.h"
-#include "maidsafe/rudp/core/acceptor.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/socket.h"
 
@@ -36,7 +35,6 @@ namespace rudp {
 Transport::Transport(asio::io_service &asio_service)          // NOLINT (Fraser)
     : strand_(asio_service),
       multiplexer_(new detail::Multiplexer(asio_service)),
-      acceptor_(),
       connections_(),
       this_endpoint_(),
       mutex_(),
@@ -186,10 +184,6 @@ Endpoint Transport::this_endpoint() const {
 size_t Transport::ConnectionsCount() const {
   boost::mutex::scoped_lock lock(mutex_);
   return connections_.size();
-}
-
-void Transport::CloseAcceptor(AcceptorPtr acceptor) {
-  acceptor->Close();
 }
 
 void Transport::CloseMultiplexer(MultiplexerPtr multiplexer) {

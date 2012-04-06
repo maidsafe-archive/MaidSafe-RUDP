@@ -17,7 +17,6 @@
 
 #include "maidsafe/common/utils.h"
 
-#include "maidsafe/rudp/core/acceptor.h"
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/log.h"
@@ -32,19 +31,7 @@ namespace rudp {
 
 namespace detail {
 
-Dispatcher::Dispatcher()
-    : acceptor_(0),
-      sockets_() {
-}
-
-Acceptor *Dispatcher::GetAcceptor() const {
-  return acceptor_;
-}
-
-void Dispatcher::SetAcceptor(Acceptor *acceptor) {
-  assert(acceptor == 0 || acceptor_ == 0);
-  acceptor_ = acceptor;
-}
+Dispatcher::Dispatcher() : sockets_() {}
 
 uint32_t Dispatcher::AddSocket(Socket *socket) {
   // Generate a new unique id for the socket.
@@ -66,13 +53,13 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
   uint32_t id = 0;
   if (Packet::DecodeDestinationSocketId(&id, data)) {
     if (id == 0) {
-      // This packet is intended for the acceptor.
-      if (acceptor_) {
-        acceptor_->HandleReceiveFrom(data, endpoint);
-      } else {
+//      // This packet is intended for the acceptor.
+//      if (acceptor_) {
+//        acceptor_->HandleReceiveFrom(data, endpoint);
+//      } else {
         DLOG(ERROR) << "Received a request for a new connection from "
-                    << endpoint << " but there is no acceptor" << std::endl;
-      }
+                    << endpoint << " but there is no acceptor";
+//      }
     } else {
       // This packet is intended for a specific connection.
       SocketMap::iterator socket_iter = sockets_.find(id);
@@ -83,7 +70,7 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
         DLOG(ERROR) << "Received a packet \"0x" << std::hex
                     << static_cast<int>(*p) << std::dec
                     << "\" for unknown connection "
-                    << id << " from " << endpoint << std::endl;
+                    << id << " from " << endpoint;
       }
     }
   }

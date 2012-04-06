@@ -106,7 +106,7 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
                              std::vector<Endpoint>(1, endpoint2),
                              message_received_functor,
                              connection_lost_functor));
-//  Sleep(bptime::milliseconds(100000));
+  Sleep(bptime::milliseconds(100000));
   boost::thread t2(std::bind(&ManagedConnections::Bootstrap,
                              &managed_connections2,
                              std::vector<Endpoint>(1, endpoint1),
