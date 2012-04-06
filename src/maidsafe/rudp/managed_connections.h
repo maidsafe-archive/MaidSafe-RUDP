@@ -53,11 +53,14 @@ class ManagedConnections {
 
   // Creates a new transport object and bootstraps it to one of the provided
   // bootstrap_endpoints.  The successfully connected endpoint is returned, or
-  // a default endpoint is returned if bootstrapping is unsuccessful.
+  // a default endpoint is returned if bootstrapping is unsuccessful.  For
+  // zero-state network, pass required local_endpoint.
   boost::asio::ip::udp::endpoint Bootstrap(
       const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
       MessageReceivedFunctor message_received_functor,
-      ConnectionLostFunctor connection_lost_functor);
+      ConnectionLostFunctor connection_lost_functor,
+      boost::asio::ip::udp::endpoint local_endpoint =
+          boost::asio::ip::udp::endpoint());
 
   // Returns one of the transport's external endpoints.  Returns kNoneAvailable
   // if there are no running Managed Connections.  In this case, Bootstrap must
@@ -96,7 +99,8 @@ class ManagedConnections {
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
   boost::asio::ip::udp::endpoint StartNewTransport(
-      std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints);
+      std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints,
+      boost::asio::ip::udp::endpoint local_endpoint);
 
   void OnMessageSlot(const std::string &message);
   void OnConnectionAddedSlot(

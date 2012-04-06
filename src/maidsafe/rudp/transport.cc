@@ -49,6 +49,7 @@ Transport::~Transport() {
 
 void Transport::Bootstrap(
     const std::vector<Endpoint> &bootstrap_endpoints,
+    Endpoint local_endpoint,
     const OnMessage::slot_type &on_message_slot,
     const OnConnectionAdded::slot_type &on_connection_added_slot,
     const OnConnectionLost::slot_type &on_connection_lost_slot,
@@ -69,7 +70,7 @@ void Transport::Bootstrap(
   *on_connection_lost_connection =
       on_connection_lost_.connect(on_connection_lost_slot);
 
-  ReturnCode result = multiplexer_->Open(ip::udp::v4());
+  ReturnCode result = multiplexer_->Open(local_endpoint);
   if (result != kSuccess) {
     DLOG(ERROR) << "Failed to open multiplexer.  Result: " << result;
     return;
@@ -112,7 +113,8 @@ void Transport::DoConnect(const Endpoint &peer_endpoint,
   bool opened_multiplexer(false);
 
   if (!multiplexer_->IsOpen()) {
-    ReturnCode result = multiplexer_->Open(peer_endpoint.protocol());
+    ReturnCode result =
+        multiplexer_->Open(Endpoint(peer_endpoint.protocol(), 0));
     if (result != kSuccess) {
       DLOG(ERROR) << "Failed to open multiplexer.  Error " << result;
       return;

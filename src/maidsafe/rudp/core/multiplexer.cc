@@ -16,6 +16,7 @@
 
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/packets/packet.h"
+#include "maidsafe/rudp/utils.h"
 #include "maidsafe/rudp/log.h"
 
 namespace asio = boost::asio;
@@ -36,14 +37,14 @@ Multiplexer::Multiplexer(asio::io_service &asio_service) //NOLINT
 
 Multiplexer::~Multiplexer() {}
 
-ReturnCode Multiplexer::Open(const ip::udp &protocol) {
+ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
   if (socket_.is_open()) {
     DLOG(WARNING) << "Multiplexer already open.";
     return kAlreadyStarted;
   }
 
   bs::error_code ec;
-  socket_.open(protocol, ec);
+  socket_.open(endpoint.protocol(), ec);
 
   if (ec) {
     DLOG(ERROR) << "Multiplexer socket opening error: " << ec.message();
@@ -56,6 +57,14 @@ ReturnCode Multiplexer::Open(const ip::udp &protocol) {
   if (ec) {
     DLOG(ERROR) << "Multiplexer setting option error: " << ec.message();
     return kSetOptionFailure;
+  }
+
+  if (IsValid(endpoint)) {
+    socket_.bind(endpoint, ec);
+    if (ec) {
+      DLOG(ERROR) << "Multiplexer socket binding error: " << ec.message();
+      return kBindError;
+    }
   }
 
   return kSuccess;

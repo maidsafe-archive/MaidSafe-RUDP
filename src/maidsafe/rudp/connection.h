@@ -94,8 +94,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   std::vector<unsigned char> buffer_;
   size_t data_size_, data_received_;
   Timeout timeout_for_response_;
-  enum TimeoutState { kNoTimeout, kConnecting, kSending, kReceiving };
-  TimeoutState timeout_state_;
+  enum TimeoutState { kNoTimeout, kConnecting, kSending } timeout_state_;
 };
 
 }  // namespace rudp

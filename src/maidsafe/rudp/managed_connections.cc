@@ -54,7 +54,8 @@ ManagedConnections::~ManagedConnections() {
 Endpoint ManagedConnections::Bootstrap(
     const std::vector<Endpoint> &bootstrap_endpoints,
     MessageReceivedFunctor message_received_functor,
-    ConnectionLostFunctor connection_lost_functor) {
+    ConnectionLostFunctor connection_lost_functor,
+    boost::asio::ip::udp::endpoint local_endpoint) {
   if (!message_received_functor) {
     DLOG(ERROR) << "You must provide a valid MessageReceivedFunctor.";
     return Endpoint();
@@ -77,7 +78,7 @@ Endpoint ManagedConnections::Bootstrap(
 
   asio_service_->Start(Parameters::thread_count);
 
-  Endpoint new_endpoint(StartNewTransport(bootstrap_endpoints));
+  Endpoint new_endpoint(StartNewTransport(bootstrap_endpoints, local_endpoint));
   if (!IsValid(new_endpoint)) {
     DLOG(ERROR) << "Failed to bootstrap managed connections.";
     return Endpoint();
@@ -87,7 +88,8 @@ Endpoint ManagedConnections::Bootstrap(
 }
 
 Endpoint ManagedConnections::StartNewTransport(
-    std::vector<Endpoint> bootstrap_endpoints) {
+    std::vector<Endpoint> bootstrap_endpoints,
+    Endpoint local_endpoint) {
   TransportAndSignalConnections transport_and_signals_connections;
   transport_and_signals_connections.transport =
       std::make_shared<Transport>(asio_service_->service());
@@ -107,6 +109,7 @@ Endpoint ManagedConnections::StartNewTransport(
   Endpoint chosen_endpoint;
   transport_and_signals_connections.transport->Bootstrap(
       bootstrap_endpoints,
+      local_endpoint,
       std::bind(&ManagedConnections::OnMessageSlot, this, args::_1),
       std::bind(&ManagedConnections::OnConnectionAddedSlot, this, args::_1,
                 args::_2),
@@ -150,7 +153,8 @@ int ManagedConnections::GetAvailableEndpoint(Endpoint *endpoint) {
       return kNoneAvailable;
     }
 
-    Endpoint new_endpoint(StartNewTransport(std::vector<Endpoint>()));
+    Endpoint new_endpoint(StartNewTransport(std::vector<Endpoint>(),
+                                            Endpoint()));
     if (IsValid(new_endpoint)) {
       *endpoint = new_endpoint;
       return kSuccess;
@@ -238,6 +242,7 @@ void ManagedConnections::Ping(const Endpoint &/*peer_endpoint*/) const {
 
 void ManagedConnections::OnMessageSlot(const std::string &message) {
   SharedLock shared_lock(shared_mutex_);
+  DLOG(INFO) << "Received message.";
   message_received_functor_(message);
 }
 
@@ -245,7 +250,9 @@ void ManagedConnections::OnConnectionAddedSlot(const Endpoint &peer_endpoint,
                                                TransportPtr transport) {
   UniqueLock unique_lock(shared_mutex_);
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
-  if (!result.second)
+  if (result.second)
+    DLOG(INFO) << "Added managed connection to " << peer_endpoint;
+  else
     DLOG(ERROR) << "Already connected to " << peer_endpoint;
 }
 
@@ -254,6 +261,8 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
   UniqueLock unique_lock(shared_mutex_);
   size_t result(connection_map_.erase(peer_endpoint));
   if (result == 1U) {
+    DLOG(INFO) << "Removed managed connection to " << peer_endpoint
+               << (transport ? " - also removing corresponding transport" : "");
     connection_lost_functor_(peer_endpoint);
   } else {
     DLOG(ERROR) << "Was not connected to " << peer_endpoint;

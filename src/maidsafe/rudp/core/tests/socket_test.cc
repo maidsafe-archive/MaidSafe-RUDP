@@ -54,13 +54,13 @@ TEST(SocketTest, BEH_Socket) {
 
   Multiplexer server_multiplexer(io_service);
   // TODO(Fraser#5#): 2012-04-04 - Use random valid ports.
-  ip::udp::endpoint server_endpoint(ip::address_v4::loopback(), 2000);
-  ip::udp::endpoint client_endpoint(ip::address_v4::loopback(), 2001);
-  ReturnCode condition = server_multiplexer.Open(server_endpoint.protocol());
+  ip::udp::endpoint server_endpoint(ip::address_v4::loopback(), 8100);
+  ip::udp::endpoint client_endpoint(ip::address_v4::loopback(), 8101);
+  ReturnCode condition = server_multiplexer.Open(server_endpoint);
   ASSERT_EQ(kSuccess, condition);
 
   Multiplexer client_multiplexer(io_service);
-  condition = client_multiplexer.Open(client_endpoint.protocol());
+  condition = client_multiplexer.Open(client_endpoint);
   ASSERT_EQ(kSuccess, condition);
 
   server_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1,

@@ -99,12 +99,12 @@ void Session::HandleTick() {
 void Session::SendConnectionRequest() {
   HandshakePacket packet;
   // TODO(Fraser#5#): 2012-04-04 - Check if we need to uncomment the lines below
-//  packet.SetRudpVersion(4);
-//  packet.SetSocketType(HandshakePacket::kStreamSocketType);
-//  packet.SetSocketId(id_);
-//  packet.SetIpAddress(peer_.Endpoint().address());
-//  packet.SetDestinationSocketId(0);
-//  packet.SetConnectionType(1);
+  packet.SetRudpVersion(4);
+  packet.SetSocketType(HandshakePacket::kStreamSocketType);
+  packet.SetSocketId(id_);
+  packet.SetIpAddress(peer_.Endpoint().address());
+  packet.SetDestinationSocketId(0);
+  packet.SetConnectionType(1);
 
   peer_.Send(packet);
 

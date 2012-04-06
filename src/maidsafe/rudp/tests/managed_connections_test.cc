@@ -105,14 +105,17 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
                              &managed_connections1,
                              std::vector<Endpoint>(1, endpoint2),
                              message_received_functor,
-                             connection_lost_functor));
+                             connection_lost_functor,
+                             endpoint1));
 //  Sleep(bptime::milliseconds(10000000));
   boost::thread t2(std::bind(&ManagedConnections::Bootstrap,
                              &managed_connections2,
                              std::vector<Endpoint>(1, endpoint1),
                              message_received_functor,
-                             connection_lost_functor));
+                             connection_lost_functor,
+                             endpoint2));
 
+  Sleep(bptime::milliseconds(10000000));
   for (int i(0); i != 10; ++i) {
     Sleep(bptime::seconds(1));
     managed_connections1.Send(endpoint2, "Message from 1 to 2");

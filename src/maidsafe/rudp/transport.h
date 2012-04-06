@@ -61,6 +61,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   virtual ~Transport();
 
   void Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
+                 Endpoint local_endpoint,
                  const OnMessage::slot_type &on_message_slot,
                  const OnConnectionAdded::slot_type &on_connection_added_slot,
                  const OnConnectionLost::slot_type &on_connection_lost_slot,

@@ -36,8 +36,9 @@ class Multiplexer {
   explicit Multiplexer(boost::asio::io_service &asio_service);  // NOLINT (Fraser)
   ~Multiplexer();
 
-  // Open the multiplexer as a client for the specified protocol.
-  ReturnCode Open(const boost::asio::ip::udp &protocol);
+  // Open the multiplexer.  If endpoint is valid, the new socket will be bound
+  // to it.
+  ReturnCode Open(const boost::asio::ip::udp::endpoint &endpoint);
 
   // Whether the multiplexer is open.
   bool IsOpen() const;

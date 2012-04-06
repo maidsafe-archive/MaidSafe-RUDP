@@ -117,10 +117,8 @@ void Connection::CheckTimeout(const bs::error_code &ec) {
 
   if (timer_.expires_at() <= asio::deadline_timer::traits_type::now()) {
     // Time has run out.
-    DLOG(ERROR) << "Closing connection to " << socket_.RemoteEndpoint()
-        << " - timed out while "
-        << (timeout_state_ == kSending ? "sending." :
-           (timeout_state_ == kReceiving ? "receiving." : "connecting"));
+    DLOG(ERROR) << "Closing connection to " << socket_.RemoteEndpoint() << " - "
+        << "timed out " << (timeout_state_ == kSending ? "send" : "connect") << "ing.";
     DoClose();
   }
 
@@ -196,11 +194,12 @@ void Connection::StartReadSize() {
                     strand_.wrap(std::bind(&Connection::HandleReadSize,
                                            shared_from_this(), args::_1)));
 
-  boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
-  response_deadline_ = now + Parameters::default_receive_timeout;
-  timer_.expires_at(std::max(response_deadline_,
-                             now + Parameters::speed_calculate_inverval));
-  timeout_state_ = kReceiving;
+  timer_.expires_at(boost::posix_time::pos_infin);
+//  boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
+//  response_deadline_ = now + Parameters::default_receive_timeout;
+//  timer_.expires_at(std::max(response_deadline_,
+//                             now + Parameters::speed_calculate_inverval));
+  timeout_state_ = kNoTimeout;
 }
 
 void Connection::HandleReadSize(const bs::error_code &ec) {
