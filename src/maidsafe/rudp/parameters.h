@@ -31,6 +31,9 @@ typedef boost::posix_time::time_duration Timeout;
 // This class provides the configurability to all traffic related parameters.
 struct Parameters {
  public:
+  // Thread count for use of asio::io_service
+  static uint32_t thread_count;
+
   // Window size permitted in RUDP
   static uint32_t default_window_size;
   static uint32_t maximum_window_size;

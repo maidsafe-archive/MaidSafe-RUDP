@@ -95,15 +95,7 @@ void Connection::DoStartReceiving() {
 void Connection::StartSending(const std::string &data) {
   EncodeData(data);
   timeout_for_response_ = Parameters::default_send_timeout;
-  strand_.dispatch(std::bind(&Connection::DoStartSending, shared_from_this()));
-}
-
-void Connection::DoStartSending() {
-  StartTick();
-                                                                //  StartClientConnect();
-  StartWrite();
-  bs::error_code ignored_ec;
-  CheckTimeout(ignored_ec);
+  strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this()));
 }
 
 void Connection::CheckTimeout(const bs::error_code &ec) {
@@ -115,17 +107,21 @@ void Connection::CheckTimeout(const bs::error_code &ec) {
 
   // If the socket is closed, it means the connection has been shut down.
   if (!socket_.IsOpen()) {
-    if (timeout_state_ == kSending)
-      CloseOnError(kSendStalled);
+    if (timeout_state_ == kSending) {
+      DLOG(WARNING) << "Connection to " << socket_.RemoteEndpoint()
+                    << " already closed.";
+      DoClose();
+    }
     return;
   }
 
   if (timer_.expires_at() <= asio::deadline_timer::traits_type::now()) {
     // Time has run out.
-    if (timeout_state_ == kSending)
-      CloseOnError(kSendTimeout);
-    else
-      CloseOnError(kReceiveTimeout);
+    DLOG(ERROR) << "Closing connection to " << socket_.RemoteEndpoint()
+        << " - timed out while "
+        << (timeout_state_ == kSending ? "sending." :
+           (timeout_state_ == kReceiving ? "receiving." : "connecting"));
+    DoClose();
   }
 
   // Keep processing timeouts until the socket is completely closed.
@@ -156,7 +152,9 @@ void Connection::HandleTick() {
       timer_.expires_from_now(Parameters::speed_calculate_inverval);
     // If transmission speed is too slow, the socket shall be forced closed
     if (socket_.IsSlowTransmission(sent_length)) {
-      CloseOnError(kSendTimeout);
+      DLOG(WARNING) << "Connection to " << socket_.RemoteEndpoint()
+                    << " has slow transmission - closing now.";
+      DoClose();
     }
   }
   // We need to keep ticking during a graceful shutdown.
@@ -171,16 +169,20 @@ void Connection::StartConnect() {
   socket_.AsyncConnect(remote_endpoint_, handler);
 
   timer_.expires_from_now(Parameters::connect_timeout);
-  timeout_state_ = kSending;
+  timeout_state_ = kConnecting;
 }
 
 void Connection::HandleConnect(const bs::error_code &ec) {
   if (Stopped()) {
+    DLOG(WARNING) << "Connection to " << socket_.RemoteEndpoint()
+                  << " already stopped.";
     return;
   }
 
   if (ec) {
-    return CloseOnError(kConnectError);
+    DLOG(ERROR) << "Failed to connect to " << socket_.RemoteEndpoint()
+                << " - " << ec.message();
+    DoClose();
   }
 
   StartReadSize();
@@ -202,11 +204,17 @@ void Connection::StartReadSize() {
 }
 
 void Connection::HandleReadSize(const bs::error_code &ec) {
-  if (ec)
-    return CloseOnError(kReceiveFailure);
+  if (ec) {
+    DLOG(ERROR) << "Failed to read size from " << socket_.RemoteEndpoint()
+                << " - " << ec.message();
+    DoClose();
+  }
 
-  if (Stopped())
-    return CloseOnError(kReceiveTimeout);
+  if (Stopped()) {
+    DLOG(ERROR) << "Failed to read size from " << socket_.RemoteEndpoint()
+                << " - connection stopped.";
+    DoClose();
+  }
 
   DataSize size = (((((buffer_.at(0) << 8) | buffer_.at(1)) << 8) |
                     buffer_.at(2)) << 8) | buffer_.at(3);
@@ -219,8 +227,11 @@ void Connection::HandleReadSize(const bs::error_code &ec) {
 }
 
 void Connection::StartReadData() {
-  if (Stopped())
-    return CloseOnError(kNoConnection);
+  if (Stopped()) {
+    DLOG(ERROR) << "Failed to read size from " << socket_.RemoteEndpoint()
+                << " - connection stopped.";
+    DoClose();
+  }
 
   size_t buffer_size = data_received_;
   buffer_size += std::min(static_cast<size_t> (socket_.BestReadBufferSize()),
@@ -234,11 +245,17 @@ void Connection::StartReadData() {
 }
 
 void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
-  if (Stopped())
-    return CloseOnError(kReceiveTimeout);
+  if (ec) {
+    DLOG(ERROR) << "Failed to read data from " << socket_.RemoteEndpoint()
+                << " - " << ec.message();
+    DoClose();
+  }
 
-  if (ec)
-    return CloseOnError(kReceiveFailure);
+  if (Stopped()) {
+    DLOG(ERROR) << "Failed to read data from " << socket_.RemoteEndpoint()
+                << " - connection stopped.";
+    DoClose();
+  }
 
   data_received_ += length;
 
@@ -255,7 +272,9 @@ void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
       timer_.expires_from_now(Parameters::speed_calculate_inverval);
     // If transmission speed is too slow, the socket shall be forced closed
     if (socket_.IsSlowTransmission(length)) {
-      CloseOnError(kReceiveTimeout);
+      DLOG(WARNING) << "Connection to " << socket_.RemoteEndpoint()
+                    << " has slow transmission - closing now.";
+      DoClose();
     }
     StartReadData();
   }
@@ -275,7 +294,7 @@ void Connection::EncodeData(const std::string &data) {
           static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
                 << ManagedConnections::kMaxMessageSize() << ")";
-    CloseOnError(kMessageSizeTooLarge);
+    DoClose();
     return;
   }
 
@@ -286,8 +305,12 @@ void Connection::EncodeData(const std::string &data) {
 }
 
 void Connection::StartWrite() {
-  if (Stopped())
-    return CloseOnError(kNoConnection);
+  if (Stopped()) {
+    DLOG(ERROR) << "Failed to write to " << socket_.RemoteEndpoint()
+                << " - connection stopped.";
+    DoClose();
+  }
+
   socket_.AsyncWrite(asio::buffer(buffer_),
                      strand_.wrap(std::bind(&Connection::HandleWrite,
                                             shared_from_this(), args::_1)));
@@ -296,11 +319,17 @@ void Connection::StartWrite() {
 }
 
 void Connection::HandleWrite(const bs::error_code &ec) {
-  if (Stopped())
-    return CloseOnError(kNoConnection);
+  if (ec) {
+    DLOG(ERROR) << "Failed to write to " << socket_.RemoteEndpoint()
+                << " - " << ec.message();
+    DoClose();
+  }
 
-  if (ec)
-    return CloseOnError(kSendFailure);
+  if (Stopped()) {
+    DLOG(ERROR) << "Failed to write to " << socket_.RemoteEndpoint()
+                << " - connection stopped.";
+    DoClose();
+  }
 
   // Once data sent out, stop the timer for the sending procedure
   timer_.expires_at(boost::posix_time::pos_infin);
@@ -316,12 +345,6 @@ void Connection::HandleWrite(const bs::error_code &ec) {
 //  } else {
 //    DoClose();
 //  }
-}
-
-void Connection::CloseOnError(const ReturnCode &error) {
-  DLOG(WARNING) << "Closing connection to " << socket_.RemoteEndpoint()
-                << " with return code " << error;
-  DoClose();
 }
 
 Endpoint Connection::GetThisExternalEndpoint() {

@@ -62,7 +62,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void DoClose();
   void DoStartReceiving();
-  void DoStartSending();
 
   void CheckTimeout(const boost::system::error_code &ec);
   bool Stopped() const;
@@ -72,11 +71,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void StartConnect();
   void HandleConnect(const boost::system::error_code &ec);
-                                                          //  void StartServerConnect();
-                                                          //  void HandleServerConnect(const boost::system::error_code &ec);
-                                                          //
-                                                          //  void StartClientConnect();
-                                                          //  void HandleClientConnect(const boost::system::error_code &ec);
 
   void StartReadSize();
   void HandleReadSize(const boost::system::error_code &ec);
@@ -89,7 +83,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void DispatchMessage();
   void EncodeData(const std::string &data);
-  void CloseOnError(const ReturnCode &error);
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
@@ -101,7 +94,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   std::vector<unsigned char> buffer_;
   size_t data_size_, data_received_;
   Timeout timeout_for_response_;
-  enum TimeoutState { kNoTimeout, kSending, kReceiving } timeout_state_;
+  enum TimeoutState { kNoTimeout, kConnecting, kSending, kReceiving };
+  TimeoutState timeout_state_;
 };
 
 }  // namespace rudp

@@ -75,6 +75,8 @@ Endpoint ManagedConnections::Bootstrap(
     BOOST_ASSERT(transports_.empty());
   }
 
+  asio_service_->Start(Parameters::thread_count);
+
   Endpoint new_endpoint(StartNewTransport(bootstrap_endpoints));
   if (!IsValid(new_endpoint)) {
     DLOG(ERROR) << "Failed to bootstrap managed connections.";
