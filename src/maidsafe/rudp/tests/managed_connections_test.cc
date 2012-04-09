@@ -118,17 +118,14 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
   t1.join();
   t2.join();
 //  Sleep(bptime::milliseconds(10000000));
-  for (int i(0); i != 5; ++i) {
+  for (int i(0); i != 15; ++i) {
     Sleep(bptime::seconds(1));
-    managed_connections1.Send(endpoint2, "Message from 1 to 2");
+    if ((i % 2 == 0) && (i > 3))
+      managed_connections1.Send(endpoint2, "Message from 1 to 2");
+    else
+      managed_connections2.Send(endpoint1, "Message from 2 to 1");
   }
-
-  for (int i(0); i != 5; ++i) {
-    Sleep(bptime::seconds(1));
-    managed_connections2.Send(endpoint1, "Message from 2 to 1");
-  }
-
-  Sleep(bptime::milliseconds(10000));
+  Sleep(bptime::seconds(1));
 }
 
 
