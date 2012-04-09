@@ -46,7 +46,8 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       timer_(strand_.get_io_service()),
       response_deadline_(),
       remote_endpoint_(remote),
-      buffer_(),
+      send_buffer_(),
+      receive_buffer_(),
       data_size_(0),
       data_received_(0),
       timeout_for_response_(Parameters::default_receive_timeout),
@@ -149,11 +150,11 @@ void Connection::HandleTick() {
     if (sent_length > 0)
       timer_.expires_from_now(Parameters::speed_calculate_inverval);
     // If transmission speed is too slow, the socket shall be forced closed
-    if (socket_.IsSlowTransmission(sent_length)) {
-      DLOG(WARNING) << "Connection to " << socket_.RemoteEndpoint()
-                    << " has slow transmission - closing now.";
-      DoClose();
-    }
+//                                                                                        if (socket_.IsSlowTransmission(sent_length)) {
+//                                                                                          DLOG(WARNING) << "Connection to " << socket_.RemoteEndpoint()
+//                                                                                                        << " has slow transmission - closing now.";
+//                                                                                          DoClose();
+//                                                                                        }
   }
   // We need to keep ticking during a graceful shutdown.
   if (socket_.IsOpen()) {
@@ -183,14 +184,20 @@ void Connection::HandleConnect(const bs::error_code &ec) {
     DoClose();
   }
 
+  if (std::shared_ptr<Transport> transport = transport_.lock()) {
+    DLOG(INFO) << "Inserting connection to " << Socket().RemoteEndpoint();
+    transport->InsertConnection(shared_from_this());
+  }
+
   StartReadSize();
 }
 
 void Connection::StartReadSize() {
   assert(!Stopped());
 
-  buffer_.resize(sizeof(DataSize));
-  socket_.AsyncRead(asio::buffer(buffer_), sizeof(DataSize),
+  receive_buffer_.clear();
+  receive_buffer_.resize(sizeof(DataSize));
+  socket_.AsyncRead(asio::buffer(receive_buffer_), sizeof(DataSize),
                     strand_.wrap(std::bind(&Connection::HandleReadSize,
                                            shared_from_this(), args::_1)));
 
@@ -215,8 +222,10 @@ void Connection::HandleReadSize(const bs::error_code &ec) {
     DoClose();
   }
 
-  DataSize size = (((((buffer_.at(0) << 8) | buffer_.at(1)) << 8) |
-                    buffer_.at(2)) << 8) | buffer_.at(3);
+  DataSize size = (((((receive_buffer_.at(0) << 8) |
+                       receive_buffer_.at(1)) << 8) |
+                       receive_buffer_.at(2)) << 8) |
+                       receive_buffer_.at(3);
 
   data_size_ = size;
   data_received_ = 0;
@@ -235,8 +244,9 @@ void Connection::StartReadData() {
   size_t buffer_size = data_received_;
   buffer_size += std::min(static_cast<size_t> (socket_.BestReadBufferSize()),
                           data_size_ - data_received_);
-  buffer_.resize(buffer_size);
-  asio::mutable_buffer data_buffer = asio::buffer(buffer_) + data_received_;
+  receive_buffer_.resize(buffer_size);
+  asio::mutable_buffer data_buffer =
+      asio::buffer(receive_buffer_) + data_received_;
   socket_.AsyncRead(asio::buffer(data_buffer), 1,
                     strand_.wrap(std::bind(&Connection::HandleReadData,
                                            shared_from_this(),
@@ -281,8 +291,10 @@ void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
 
 void Connection::DispatchMessage() {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    transport->SignalMessageReceived(std::string(buffer_.begin(),
-                                                 buffer_.end()));
+    transport->SignalMessageReceived(std::string(receive_buffer_.begin(),
+                                                 receive_buffer_.end()));
+//    std::cout << "RECEIVED " << std::string(receive_buffer_.begin(), receive_buffer_.end());
+    StartReadSize();
   }
 }
 
@@ -297,10 +309,10 @@ void Connection::EncodeData(const std::string &data) {
     return;
   }
 
-  buffer_.clear();
+  send_buffer_.clear();
   for (int i = 0; i != 4; ++i)
-    buffer_.push_back(static_cast<char>(msg_size >> (8 * (3 - i))));
-  buffer_.insert(buffer_.end(), data.begin(), data.end());
+    send_buffer_.push_back(static_cast<char>(msg_size >> (8 * (3 - i))));
+  send_buffer_.insert(send_buffer_.end(), data.begin(), data.end());
 }
 
 void Connection::StartWrite() {
@@ -310,7 +322,7 @@ void Connection::StartWrite() {
     DoClose();
   }
 
-  socket_.AsyncWrite(asio::buffer(buffer_),
+  socket_.AsyncWrite(asio::buffer(send_buffer_),
                      strand_.wrap(std::bind(&Connection::HandleWrite,
                                             shared_from_this(), args::_1)));
   timer_.expires_from_now(Parameters::speed_calculate_inverval);
@@ -340,7 +352,7 @@ void Connection::HandleWrite(const bs::error_code &ec) {
 //  }
   // Start receiving response
 //  if (timeout_for_response_ != bptime::seconds(0)) {
-    StartReadSize();
+                                                                    //  StartReadSize();
 //  } else {
 //    DoClose();
 //  }

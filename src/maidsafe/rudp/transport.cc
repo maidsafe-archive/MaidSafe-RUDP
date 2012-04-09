@@ -93,10 +93,8 @@ void Transport::Bootstrap(
 
 
 //                                                                    check this_endpoint_
-
     if (IsValid(this_endpoint_)) {
       *chosen_endpoint = *itr;
-      DoInsertConnection(connection);
       return;
     }
   }
@@ -127,7 +125,6 @@ void Transport::DoConnect(const Endpoint &peer_endpoint,
                                                         multiplexer_,
                                                         peer_endpoint));
   connection->StartReceiving();
-  DoInsertConnection(connection);
 
   if (opened_multiplexer)
     StartDispatch();
@@ -214,6 +211,11 @@ void Transport::SignalMessageReceived(const std::string &message) {
 
 void Transport::DoSignalMessageReceived(const std::string &message) {
   on_message_(message);
+}
+
+void Transport::InsertConnection(ConnectionPtr connection) {
+  strand_.dispatch(std::bind(&Transport::DoInsertConnection,
+                             shared_from_this(), connection));
 }
 
 void Transport::DoInsertConnection(ConnectionPtr connection) {

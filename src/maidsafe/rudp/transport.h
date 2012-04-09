@@ -104,6 +104,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   friend class Connection;
   void SignalMessageReceived(const std::string &message);
   void DoSignalMessageReceived(const std::string &message);
+  void InsertConnection(ConnectionPtr connection);
   void DoInsertConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection);
   void DoRemoveConnection(ConnectionPtr connection);

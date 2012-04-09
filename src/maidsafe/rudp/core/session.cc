@@ -19,6 +19,7 @@
 #include "maidsafe/rudp/core/peer.h"
 #include "maidsafe/rudp/core/sliding_window.h"
 #include "maidsafe/rudp/core/tick_timer.h"
+#include "maidsafe/rudp/log.h"
 
 namespace bptime = boost::posix_time;
 
@@ -78,12 +79,14 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
   // TODO(Fraser#5#): 2012-04-04 - Check if we need to uncomment the lines below
   if (state_ == kProbing) {
 //    if (packet.ConnectionType() == 1 && packet.SynCookie() == 0)
+    state_ = kHandshaking;
     SendCookie();
   } else if (state_ == kHandshaking) {
 //    if (packet.SynCookie() == 1) {
     state_ = kConnected;
     peer_connection_type_ = packet.ConnectionType();
     receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
+    SendConnectionAccepted();
 //    }
   }
 }
@@ -98,7 +101,6 @@ void Session::HandleTick() {
 
 void Session::SendConnectionRequest() {
   HandshakePacket packet;
-  // TODO(Fraser#5#): 2012-04-04 - Check if we need to uncomment the lines below
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetSocketId(id_);
@@ -106,15 +108,15 @@ void Session::SendConnectionRequest() {
   packet.SetDestinationSocketId(0);
   packet.SetConnectionType(1);
 
-  peer_.Send(packet);
+  int result(peer_.Send(packet));
+  if (result != kSuccess)
+    DLOG(ERROR) << "Failed to send handshake to " << peer_.Endpoint();
 
   // Schedule another connection request.
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
 void Session::SendCookie() {
-  state_ = kHandshaking;
-
   HandshakePacket packet;
   packet.SetIpAddress(peer_.Endpoint().address());
   packet.SetDestinationSocketId(peer_.Id());
@@ -127,10 +129,30 @@ void Session::SendCookie() {
   packet.SetSocketId(id_);
   packet.SetSynCookie(1);  // TODO(Team) calculate cookie
 
-  peer_.Send(packet);
+  int result(peer_.Send(packet));
+  if (result != kSuccess)
+    DLOG(ERROR) << "Failed to send cookie to " << peer_.Endpoint();
 
   // Schedule another cookie send.
   tick_timer_.TickAfter(bptime::milliseconds(250));
+}
+
+void Session::SendConnectionAccepted() {
+  HandshakePacket packet;
+//  packet.SetRudpVersion(4);
+//  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
+//  packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
+//  packet.SetMaximumPacketSize(RudpParameters::max_size);
+//  packet.SetMaximumFlowWindowSize(RudpParameters::maximum_window_size);
+//  packet.SetSocketId(id_);
+//  packet.SetIpAddress(peer_.Endpoint().address());
+//  packet.SetDestinationSocketId(peer_.Id());
+//  packet.SetConnectionType(0xffffffff);
+//  packet.SetSynCookie(0);  // TODO(Team) calculate cookie
+
+  int result(peer_.Send(packet));
+  if (result != kSuccess)
+    DLOG(ERROR) << "Failed to send connection_accepted to " << peer_.Endpoint();
 }
 
 }  // namespace detail

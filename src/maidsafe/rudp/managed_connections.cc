@@ -128,10 +128,10 @@ Endpoint ManagedConnections::StartNewTransport(
 
   UniqueLock unique_lock(shared_mutex_);
   transports_.push_back(transport_and_signals_connections);
-  if (bootstrapping) {
-    connection_map_.insert(std::make_pair(chosen_endpoint,
-                           transport_and_signals_connections.transport));
-  }
+                                                                              //  if (bootstrapping) {
+                                                                              //    connection_map_.insert(std::make_pair(chosen_endpoint,
+                                                                              //                           transport_and_signals_connections.transport));
+                                                                              //  }
   return chosen_endpoint;
 }
 

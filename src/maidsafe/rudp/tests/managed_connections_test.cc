@@ -94,7 +94,7 @@ void ConnectionLost(const Endpoint &endpoint) {
 TEST(ManagedConnectionsTest, BEH_Bootstrap) {
   ManagedConnections managed_connections1, managed_connections2;
   Endpoint endpoint1(ip::address_v4::loopback(), 9000),
-           endpoint2(ip::address_v4::loopback(), 9001);
+           endpoint2(ip::address_v4::loopback(), 11111);
 
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
@@ -107,7 +107,6 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
                              message_received_functor,
                              connection_lost_functor,
                              endpoint1));
-//  Sleep(bptime::milliseconds(10000000));
   boost::thread t2(std::bind(&ManagedConnections::Bootstrap,
                              &managed_connections2,
                              std::vector<Endpoint>(1, endpoint1),
@@ -115,16 +114,21 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
                              connection_lost_functor,
                              endpoint2));
 
-  Sleep(bptime::milliseconds(10000000));
-  for (int i(0); i != 10; ++i) {
+
+  t1.join();
+  t2.join();
+//  Sleep(bptime::milliseconds(10000000));
+  for (int i(0); i != 5; ++i) {
     Sleep(bptime::seconds(1));
     managed_connections1.Send(endpoint2, "Message from 1 to 2");
   }
 
-  t1.join();
-  t2.join();
+  for (int i(0); i != 5; ++i) {
+    Sleep(bptime::seconds(1));
+    managed_connections2.Send(endpoint1, "Message from 2 to 1");
+  }
 
-  Sleep(bptime::milliseconds(100000));
+  Sleep(bptime::milliseconds(10000));
 }
 
 

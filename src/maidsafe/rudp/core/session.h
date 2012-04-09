@@ -71,6 +71,7 @@ class Session {
   void SendPacket();
   void SendConnectionRequest();
   void SendCookie();
+  void SendConnectionAccepted();
 
   // The peer with which we are communicating.
   Peer &peer_;

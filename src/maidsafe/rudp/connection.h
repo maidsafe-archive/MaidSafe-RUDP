@@ -91,7 +91,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   boost::asio::deadline_timer timer_;
   boost::posix_time::ptime response_deadline_;
   boost::asio::ip::udp::endpoint remote_endpoint_;
-  std::vector<unsigned char> buffer_;
+  std::vector<unsigned char> send_buffer_, receive_buffer_;
   size_t data_size_, data_received_;
   Timeout timeout_for_response_;
   enum TimeoutState { kNoTimeout, kConnecting, kSending } timeout_state_;
