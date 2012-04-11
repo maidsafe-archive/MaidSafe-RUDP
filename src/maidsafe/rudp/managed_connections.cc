@@ -45,9 +45,9 @@ ManagedConnections::~ManagedConnections() {
   std::for_each(transports_.begin(),
                 transports_.end(),
                 [](const TransportAndSignalConnections &element) {
-    element.on_message_connection.disconnect();
-    element.on_connection_added_connection.disconnect();
     element.on_connection_lost_connection.disconnect();
+    element.on_connection_added_connection.disconnect();
+    element.on_message_connection.disconnect();
   });
 }
 
@@ -242,7 +242,6 @@ void ManagedConnections::Ping(const Endpoint &/*peer_endpoint*/) const {
 
 void ManagedConnections::OnMessageSlot(const std::string &message) {
   SharedLock shared_lock(shared_mutex_);
-  DLOG(INFO) << "Received message.";
   message_received_functor_(message);
 }
 

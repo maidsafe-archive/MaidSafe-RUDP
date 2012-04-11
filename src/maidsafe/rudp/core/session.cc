@@ -139,16 +139,16 @@ void Session::SendCookie() {
 
 void Session::SendConnectionAccepted() {
   HandshakePacket packet;
-//  packet.SetRudpVersion(4);
-//  packet.SetSocketType(RudpHandshakePacket::kStreamSocketType);
-//  packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
-//  packet.SetMaximumPacketSize(RudpParameters::max_size);
-//  packet.SetMaximumFlowWindowSize(RudpParameters::maximum_window_size);
-//  packet.SetSocketId(id_);
-//  packet.SetIpAddress(peer_.Endpoint().address());
-//  packet.SetDestinationSocketId(peer_.Id());
-//  packet.SetConnectionType(0xffffffff);
-//  packet.SetSynCookie(0);  // TODO(Team) calculate cookie
+  packet.SetIpAddress(peer_.Endpoint().address());
+  packet.SetDestinationSocketId(peer_.Id());
+  packet.SetRudpVersion(4);
+  packet.SetSocketType(HandshakePacket::kStreamSocketType);
+  packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
+  packet.SetMaximumPacketSize(Parameters::max_size);
+  packet.SetMaximumFlowWindowSize(Parameters::maximum_window_size);
+  packet.SetConnectionType(Parameters::connection_type);
+  packet.SetSocketId(id_);
+  packet.SetSynCookie(1);  // TODO(Team) calculate cookie
 
   int result(peer_.Send(packet));
   if (result != kSuccess)

@@ -13,10 +13,13 @@
 #include <functional>
 #include <vector>
 
+#include "boost/lexical_cast.hpp"
+
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/managed_connections.h"
+#include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/log.h"
 
 
@@ -117,15 +120,24 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
 
   t1.join();
   t2.join();
-//  Sleep(bptime::milliseconds(10000000));
-  for (int i(0); i != 15; ++i) {
-    Sleep(bptime::seconds(1));
-    if ((i % 2 == 0) && (i > 3))
-      managed_connections1.Send(endpoint2, "Message from 1 to 2");
+  while (kInvalidConnection == managed_connections1.Send(endpoint2, "Ping"));
+    Sleep(bptime::milliseconds(1));
+  while (kInvalidConnection == managed_connections2.Send(endpoint1, "Ping"));
+    Sleep(bptime::milliseconds(1));
+
+  for (int i(0); i != 2000; ++i) {
+    Sleep(bptime::milliseconds(10));
+    std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
+    if (i % 2)
+      managed_connections1.Send(endpoint2, message + " from 9000 to 11111");
     else
-      managed_connections2.Send(endpoint1, "Message from 2 to 1");
+      managed_connections2.Send(endpoint1, message + " from 11111 to 9000");
   }
-  Sleep(bptime::seconds(1));
+
+  DLOG(INFO) << "==================== REMOVING ENDPOINT 2 ====================";
+  managed_connections1.Remove(endpoint2);
+  DLOG(INFO) << "==================== REMOVING ENDPOINT 1 ====================";
+  managed_connections2.Remove(endpoint1);
 }
 
 

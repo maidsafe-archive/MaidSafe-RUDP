@@ -67,8 +67,8 @@ class CongestionControl {
   boost::posix_time::time_duration ReceiveTimeout() const;
   boost::posix_time::time_duration AckDelay() const;
   boost::posix_time::time_duration AckTimeout() const;
-  boost::posix_time::time_duration AckInterval() const;
-//   uint32_t AckInterval() const;
+  uint32_t AckInterval() const;
+//  boost::posix_time::time_duration AckInterval() const;
 
   // Return the best read-buffer size
   uint32_t BestReadBufferSize();

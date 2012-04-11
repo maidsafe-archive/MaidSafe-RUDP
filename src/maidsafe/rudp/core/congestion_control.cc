@@ -341,13 +341,13 @@ boost::posix_time::time_duration CongestionControl::AckTimeout() const {
   return ack_timeout_;
 }
 
-// uint32_t CongestionControl::AckInterval() const {
-//   return ack_interval_;
-// }
-
-boost::posix_time::time_duration CongestionControl::AckInterval() const {
-  return Parameters::ack_interval;
+uint32_t CongestionControl::AckInterval() const {
+  return ack_interval_;
 }
+
+//boost::posix_time::time_duration CongestionControl::AckInterval() const {
+//  return Parameters::ack_interval;
+//}
 
 }  // namespace detail
 

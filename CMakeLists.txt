@@ -51,8 +51,6 @@ INCLUDE(maidsafe_find_common)
 ###################################################################################################
 # Standard setup                                                                                  #
 ###################################################################################################
-SET(PROTO_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src)
-SET(PROTO_FILES "maidsafe/rudp/messages.proto")
 INCLUDE(maidsafe_standard_setup)
 HANDLE_VERSIONS(${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/version.h)
 
@@ -63,15 +61,9 @@ HANDLE_VERSIONS(${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/version.h)
 ####    CODE    ####
 FILE(GLOB SOURCE_FILES_RUDP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/*.cc")
 FILE(GLOB HEADER_FILES_RUDP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/*.h")
-FILE(GLOB PROTO_FILES_RUDP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/*.proto")
-FILE(GLOB SOURCE_PROTO_FILES_RUDP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/*.pb.cc")
-FILE(GLOB HEADER_PROTO_FILES_RUDP_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/*pb.h")
-SET(ALL_FILES_RUDP_DIR ${SOURCE_FILES_RUDP_DIR} ${HEADER_FILES_RUDP_DIR} ${PROTO_FILES_RUDP_DIR})
-LIST(REMOVE_ITEM SOURCE_FILES_RUDP_DIR ${SOURCE_PROTO_FILES_RUDP_DIR})
-LIST(REMOVE_ITEM HEADER_FILES_RUDP_DIR ${HEADER_PROTO_FILES_RUDP_DIR})
+SET(ALL_FILES_RUDP_DIR ${SOURCE_FILES_RUDP_DIR} ${HEADER_FILES_RUDP_DIR})
 SOURCE_GROUP("Main Source Files" FILES ${SOURCE_FILES_RUDP_DIR})
 SOURCE_GROUP("Main Header Files" FILES ${HEADER_FILES_RUDP_DIR})
-SOURCE_GROUP("Main Proto Files" FILES ${PROTO_FILES_RUDP_DIR} ${SOURCE_PROTO_FILES_RUDP_DIR} ${HEADER_PROTO_FILES_RUDP_DIR})
 
 FILE(GLOB SOURCE_FILES_RUDP_CORE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/*.cc")
 FILE(GLOB HEADER_FILES_RUDP_CORE_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/*.h")
@@ -97,7 +89,6 @@ SET(ALL_FILES
     ${ALL_FILES_RUDP_OPERATIONS_DIR}
     ${ALL_FILES_RUDP_PACKETS_DIR})
 SET(STYLE_RUDP ${ALL_FILES})
-LIST(REMOVE_ITEM STYLE_RUDP ${SOURCE_PROTO_FILES_RUDP_DIR} ${HEADER_PROTO_FILES_RUDP_DIR} ${PROTO_FILES_RUDP_DIR})
 
 ####    TESTS    ####
 FILE(GLOB SOURCE_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/*.cc")
@@ -138,7 +129,7 @@ SET(STYLE_RUDP ${STYLE_RUDP} ${ALL_TEST_FILES})
 MS_ADD_STATIC_LIBRARY(${MS_PROJECT_NAME} ${ALL_FILES})
 MS_ADD_EXECUTABLE(TESTrudp Tests ${ALL_TEST_FILES})
 
-TARGET_LINK_LIBRARIES(maidsafe_rudp_static maidsafe_common_static protobuf_static)
+TARGET_LINK_LIBRARIES(maidsafe_rudp_static maidsafe_common_static)
 TARGET_LINK_LIBRARIES(TESTrudp maidsafe_rudp_static gtest_static gmock_static)
 
 ###################################################################################################
