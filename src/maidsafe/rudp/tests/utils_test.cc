@@ -74,7 +74,12 @@ TEST(UtilsTest, BEH_EndpointIsValid) {
   catch(const boost::system::system_error &system_error) {
     error_code = system_error.code();
   }
-  EXPECT_EQ(error_code.value(), 10022);
+#ifdef WIN32
+  const int kErrorCodeValue(10022);
+#else
+  const int kErrorCodeValue(22);
+#endif
+  EXPECT_EQ(error_code.value(), kErrorCodeValue);
   error_code.clear();
 
   try {
@@ -83,7 +88,7 @@ TEST(UtilsTest, BEH_EndpointIsValid) {
   catch(const boost::system::system_error &system_error) {
     error_code = system_error.code();
   }
-  EXPECT_EQ(error_code.value(), 10022);
+  EXPECT_EQ(error_code.value(), kErrorCodeValue);
   error_code.clear();
 
   EXPECT_FALSE(IsValid(Endpoint()));

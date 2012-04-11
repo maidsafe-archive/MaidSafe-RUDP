@@ -141,10 +141,10 @@ int ManagedConnections::GetAvailableEndpoint(Endpoint *endpoint) {
     return kNullParameter;
   }
 
-  size_t transports_size(0);
+  int transports_size(0);
   {
     SharedLock shared_lock(shared_mutex_);
-    transports_size = transports_.size();
+    transports_size = static_cast<int>(transports_.size());
   }
 
   if (transports_size < kMaxTransports) {
