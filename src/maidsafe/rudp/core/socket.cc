@@ -111,7 +111,7 @@ void Socket::Close() {
     dispatcher_.RemoveSocket(session_.Id());
   }
   session_.Close();
-  peer_.SetEndpoint(ip::udp::endpoint());
+//  peer_.SetEndpoint(ip::udp::endpoint());
   peer_.SetId(0);
   tick_timer_.Cancel();
   waiting_connect_ec_ = asio::error::operation_aborted;

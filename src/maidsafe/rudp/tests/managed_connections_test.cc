@@ -90,8 +90,10 @@ void MessageReceived(const std::string &message) {
   DLOG(INFO) << "Received: " << message;
 }
 
-void ConnectionLost(const Endpoint &endpoint) {
+void ConnectionLost(const Endpoint &endpoint, boost::mutex *mutex, int *count) {
   DLOG(INFO) << "Lost connection to " << endpoint;
+  boost::mutex::scoped_lock lock(*mutex);
+  ++(*count);
 }
 
 TEST(ManagedConnectionsTest, BEH_Bootstrap) {
@@ -101,8 +103,10 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
 
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
-  ConnectionLostFunctor connection_lost_functor(std::bind(ConnectionLost,
-                                                          args::_1));
+  boost::mutex mutex;
+  int connection_lost_count(0);
+  ConnectionLostFunctor connection_lost_functor(
+      std::bind(ConnectionLost, args::_1, &mutex, &connection_lost_count));
 
   boost::thread t1(std::bind(&ManagedConnections::Bootstrap,
                              &managed_connections1,
@@ -126,7 +130,7 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
     Sleep(bptime::milliseconds(1));
 
   for (int i(0); i != 200; ++i) {
-    //Sleep(bptime::milliseconds(10));
+    Sleep(bptime::milliseconds(10));
     std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
     if (i % 2)
       managed_connections1.Send(endpoint2, message + " from 9000 to 11111");
@@ -134,11 +138,14 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
       managed_connections2.Send(endpoint1, message + " from 11111 to 9000");
   }
 
-//  DLOG(INFO) << "==================== REMOVING ENDPOINT 2 ====================";
-//  managed_connections1.Remove(endpoint2);
-//  DLOG(INFO) << "==================== REMOVING ENDPOINT 1 ====================";
-//  managed_connections2.Remove(endpoint1);
-  Sleep(bptime::milliseconds(1000));
+  DLOG(INFO) << "==================== REMOVING ENDPOINT 2 ====================";
+  managed_connections1.Remove(endpoint2);
+  boost::mutex::scoped_lock lock(mutex);
+  do {
+    lock.unlock();
+    Sleep(bptime::milliseconds(100));
+    lock.lock();
+  } while (connection_lost_count != 2);
 }
 
 
