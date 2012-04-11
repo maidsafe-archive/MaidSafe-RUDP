@@ -92,7 +92,7 @@ Endpoint ManagedConnections::StartNewTransport(
     Endpoint local_endpoint) {
   TransportAndSignalConnections transport_and_signals_connections;
   transport_and_signals_connections.transport =
-      std::make_shared<Transport>(asio_service_->service());
+      std::make_shared<Transport>(asio_service_);
 
   bool bootstrapping(!bootstrap_endpoints.empty());
   if (!bootstrapping) {

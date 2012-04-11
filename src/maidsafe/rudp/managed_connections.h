@@ -113,7 +113,7 @@ class ManagedConnections {
 //                      std::shared_ptr<Transport> transport);
 //  void RemoveEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint);
 
-  std::unique_ptr<AsioService> asio_service_;
+  std::shared_ptr<AsioService> asio_service_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
   std::vector<TransportAndSignalConnections> transports_;

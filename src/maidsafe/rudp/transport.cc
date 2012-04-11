@@ -32,9 +32,10 @@ namespace maidsafe {
 
 namespace rudp {
 
-Transport::Transport(asio::io_service &asio_service)          // NOLINT (Fraser)
-    : strand_(asio_service),
-      multiplexer_(new detail::Multiplexer(asio_service)),
+Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLINT (Fraser)
+    : asio_service_(asio_service),
+      strand_(asio_service->service()),
+      multiplexer_(new detail::Multiplexer(asio_service->service())),
       connections_(),
       this_endpoint_(),
       mutex_(),

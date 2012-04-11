@@ -125,8 +125,8 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
   while (kInvalidConnection == managed_connections2.Send(endpoint1, "Ping"));
     Sleep(bptime::milliseconds(1));
 
-  for (int i(0); i != 2000; ++i) {
-    Sleep(bptime::milliseconds(10));
+  for (int i(0); i != 200; ++i) {
+    //Sleep(bptime::milliseconds(10));
     std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
     if (i % 2)
       managed_connections1.Send(endpoint2, message + " from 9000 to 11111");
@@ -134,10 +134,11 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
       managed_connections2.Send(endpoint1, message + " from 11111 to 9000");
   }
 
-  DLOG(INFO) << "==================== REMOVING ENDPOINT 2 ====================";
-  managed_connections1.Remove(endpoint2);
-  DLOG(INFO) << "==================== REMOVING ENDPOINT 1 ====================";
-  managed_connections2.Remove(endpoint1);
+//  DLOG(INFO) << "==================== REMOVING ENDPOINT 2 ====================";
+//  managed_connections1.Remove(endpoint2);
+//  DLOG(INFO) << "==================== REMOVING ENDPOINT 1 ====================";
+//  managed_connections2.Remove(endpoint1);
+  Sleep(bptime::milliseconds(1000));
 }
 
 

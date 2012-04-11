@@ -20,10 +20,11 @@
 #include <string>
 #include <vector>
 
-#include "boost/asio/io_service.hpp"
 #include "boost/asio/strand.hpp"
 #include "boost/signals2/signal.hpp"
 #include "boost/thread/mutex.hpp"
+
+#include "maidsafe/common/asio_service.h"
 
 #include "maidsafe/rudp/common.h"
 #include "maidsafe/rudp/parameters.h"
@@ -57,7 +58,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
                                        std::shared_ptr<Transport>)>
                                           OnConnectionAdded, OnConnectionLost;
    
-  explicit Transport(boost::asio::io_service &asio_service);           // NOLINT (Fraser)
+  explicit Transport(std::shared_ptr<AsioService> asio_service);  // NOLINT (Fraser)
   virtual ~Transport();
 
   void Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
@@ -109,6 +110,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void RemoveConnection(ConnectionPtr connection);
   void DoRemoveConnection(ConnectionPtr connection);
 
+  std::shared_ptr<AsioService> asio_service_;
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
   
