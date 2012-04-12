@@ -66,6 +66,8 @@ TEST(SocketTest, BEH_Socket) {
   server_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1,
                                              &server_multiplexer));
 
+  client_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1,
+                                             &client_multiplexer));
 
   Socket server_socket(server_multiplexer);
   server_ec = asio::error::would_block;
@@ -74,16 +76,6 @@ TEST(SocketTest, BEH_Socket) {
   client_ec = asio::error::would_block;
   client_socket.AsyncConnect(server_endpoint, std::bind(&handler1, args::_1,
                                                         &client_ec));
-
-  do {
-    io_service.run_one();
-  } while (server_ec == asio::error::would_block);
-  ASSERT_TRUE(!server_ec);
-
-  server_ec = asio::error::would_block;
-  client_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1,
-                                             &client_multiplexer));
-
   server_socket.AsyncConnect(client_endpoint, std::bind(&handler1, args::_1,
                                                         &server_ec));
 
