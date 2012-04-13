@@ -11,6 +11,9 @@
  ******************************************************************************/
 
 #include "maidsafe/rudp/utils.h"
+
+#include "maidsafe/common/utils.h"
+
 #include "maidsafe/rudp/log.h"
 #include "maidsafe/rudp/network_interface.h"
 
@@ -112,6 +115,10 @@ bool IsValid(const Endpoint &endpoint) {
   return endpoint.port() > 1024U &&
          endpoint.port() < 49151U &&
          !endpoint.address().is_unspecified();
+}
+
+uint16_t GetRandomPort() {
+  return ((RandomUint32() % 48126) + 1025);
 }
 
 }  // namespace rudp

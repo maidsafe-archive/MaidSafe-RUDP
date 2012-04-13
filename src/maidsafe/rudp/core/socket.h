@@ -137,6 +137,12 @@ class Socket {
   template <typename ProbeHandler>
   void AsyncProbe(ProbeHandler handler) {
     ProbeOp<ProbeHandler> op(handler, &waiting_probe_ec_);
+    waiting_probe_ec_ = asio::error::operation_aborted;
+    waiting_probe_.cancel();
+    waiting_probe_.expires_at(boost::asio::deadline_timer::traits_type::now() +
+        bptime::seconds(10));
+    // TODO(Prakash) : need to put a timeout parameter for keep alive response.
+    waiting_probe_ec_ = asio::error::timed_out;
     waiting_probe_.async_wait(op);
     StartProbe();
   }

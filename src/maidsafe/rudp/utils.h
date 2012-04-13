@@ -44,6 +44,9 @@ std::vector<boost::asio::ip::address> GetLocalAddresses();
 // Returns true if 1024 < port < 49151 and the address is correctly specified.
 bool IsValid(const Endpoint &endpoint);
 
+// Returns a random port number in the valid range (1024 < port < 49151).
+uint16_t GetRandomPort();
+
 }  // namespace rudp
 
 }  // namespace maidsafe

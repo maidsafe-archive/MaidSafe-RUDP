@@ -64,9 +64,6 @@ Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
   waiting_connect_.expires_at(bptime::pos_infin);
   waiting_write_.expires_at(bptime::pos_infin);
   waiting_read_.expires_at(bptime::pos_infin);
-  // TODO(Prakash) : need to put a timeout parameter for keep alive response.
-  waiting_probe_.expires_at(boost::asio::deadline_timer::traits_type::now() +
-      bptime::seconds(10));
   waiting_flush_.expires_at(bptime::pos_infin);
 }
 
@@ -124,7 +121,7 @@ void Socket::Close() {
   waiting_read_.cancel();
   waiting_flush_ec_ = asio::error::operation_aborted;
   waiting_flush_.cancel();
-  waiting_probe_ec_ = asio::error::operation_aborted;
+  waiting_probe_ec_ = asio::error::shut_down;
   waiting_probe_.cancel();
 }
 
@@ -136,12 +133,11 @@ void Socket::StartConnect(const ip::udp::endpoint &remote) {
 }
 
 void Socket::StartProbe() {
-  BOOST_ASSERT(peer_.Endpoint() != ip::udp::endpoint());
-  BOOST_ASSERT(peer_.Id() != 0);
   if (!session_.IsConnected()) {
     waiting_probe_ec_ = boost::asio::error::not_connected;
     waiting_probe_.cancel();
     waiting_keepalive_sequence_number_ = 0;
+    return;
   }
   // Request packet sequence numbers must be odd
   waiting_keepalive_sequence_number_ = (RandomUint32() | 0x00000001);
