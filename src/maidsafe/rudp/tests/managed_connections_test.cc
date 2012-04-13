@@ -13,6 +13,8 @@
 #include <functional>
 #include <vector>
 #include <atomic>
+#include <future>
+#include <chrono>
 #include "boost/lexical_cast.hpp"
 
 #include "maidsafe/common/test.h"
@@ -51,7 +53,6 @@ TEST(ManagedConnectionsTest, API_BEH_Bootstrap) {
   Endpoint endpoint1(ip::address_v4::loopback(), 9000),
            endpoint2(ip::address_v4::loopback(), 11111),
            endpoint3(ip::address_v4::loopback(), 11112);
-
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
   boost::mutex mutex;
@@ -59,29 +60,23 @@ TEST(ManagedConnectionsTest, API_BEH_Bootstrap) {
   ConnectionLostFunctor connection_lost_functor(
       std::bind(ConnectionLost, args::_1, &connection_lost_count));
 
+  // get a future type (endpoint type)
+  auto a1 = std::async(std::launch::async,  // force launch in new thread
+            [&] { return managed_connections1.Bootstrap(std::vector<Endpoint>(1, endpoint2),
+                  message_received_functor,
+                  connection_lost_functor,
+                  endpoint1); } );
 
-  boost::thread t1(std::bind(&ManagedConnections::Bootstrap,
-                             &managed_connections1,
-                             std::vector<Endpoint>(1, endpoint2),
-                             message_received_functor,
-                             connection_lost_functor,
-                             endpoint1));
-  boost::thread t2(std::bind(&ManagedConnections::Bootstrap,
-                             &managed_connections2,
-                             std::vector<Endpoint>(1, endpoint1),
-                             message_received_functor,
-                             connection_lost_functor,
-                             endpoint2));
+  auto a2 = std::async(std::launch::async,
+            [&] { return managed_connections2.Bootstrap(std::vector<Endpoint>(1, endpoint1),
+                  message_received_functor,
+                  connection_lost_functor,
+                  endpoint2); } );
 
-  t1.join();
-  t2.join();
-  while (kInvalidConnection == managed_connections1.Send(endpoint2, "Ping"));
-    Sleep(bptime::milliseconds(1));
-  while (kInvalidConnection == managed_connections2.Send(endpoint1, "Ping"));
-    Sleep(bptime::milliseconds(1));
+  EXPECT_FALSE(a2.get().address().is_unspecified());  // wait for promise !
+  EXPECT_FALSE(a1.get().address().is_unspecified());  // wait for promise !
 
-
-  std::vector<Endpoint> end_vec = {endpoint3};
+  std::vector<Endpoint> end_vec {endpoint3};
   boost::asio::ip::udp::endpoint bootstrap_endpoint =
              managed_connections3.Bootstrap(end_vec,
                                             message_received_functor,
@@ -90,7 +85,6 @@ TEST(ManagedConnectionsTest, API_BEH_Bootstrap) {
 
   EXPECT_FALSE(bootstrap_endpoint.address().is_unspecified());
 
-  
   for (int i(0); i != 200; ++i) {
     Sleep(bptime::milliseconds(10));
     std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
@@ -105,7 +99,7 @@ TEST(ManagedConnectionsTest, API_BEH_Bootstrap) {
   boost::mutex::scoped_lock lock(mutex);
   do {
     lock.unlock();
-    Sleep(bptime::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     lock.lock();
   } while (connection_lost_count != 2);
 }
