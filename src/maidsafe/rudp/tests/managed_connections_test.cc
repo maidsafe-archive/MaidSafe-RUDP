@@ -12,7 +12,9 @@
 
 #include <functional>
 #include <vector>
-
+#include <atomic>
+#include <future>
+#include <chrono>
 #include "boost/lexical_cast.hpp"
 
 #include "maidsafe/common/test.h"
@@ -36,98 +38,52 @@ typedef boost::asio::ip::udp::endpoint Endpoint;
 
 namespace test {
 
-//void AddCallback(const ReturnCode &expected,
-//                 const ReturnCode &actual,
-//                 const uint32_t node) {
-//  EXPECT_EQ(expected, actual);
-//  DLOG(INFO) << "AddCallback called for Node-" << node
-//             << "  Result : " << actual;
-//}
-//
-//void LostCallback(const Endpoint& expected, const Endpoint& actual) {
-//  EXPECT_EQ(expected, actual);
-//  DLOG(INFO) << "LostCallback called for peer endpoint : " << actual.port;
-//}
-//
-//
-//void DoOnResponseReceived(const std::string &sent_request,
-//                          const ReturnCode& result,
-//                          std::string response) {
-//  DLOG(INFO) << " - Received response callback returned: (" << result
-//             << ") response: \"" << response << "\""
-//             <<  "sent_request = " << sent_request;
-//}
-//
-//void DoOnRequestReceived(const std::string &request,
-//                         const Info &/*info*/,
-//                         std::string *response,
-//                         Timeout *timeout) {
-//  Sleep(boost::posix_time::milliseconds(10));
-//  *response = " Response to request -" + request;
-//  *timeout = kDefaultInitialTimeout;
-//  DLOG(INFO) << " - Received request: \"" << request
-//             << "\".  Responding with \"" << *response << "\"";
-//}
-//
-//void DoOnManagedConnectionRequest(const std::string &request,
-//                                  const Info &info,
-//                                  std::string *response,
-//                                  Timeout *timeout,
-//                                  std::shared_ptr<ManagedConnections> mngd_conn,
-//                                  const uint32_t node) {
-//  Sleep(boost::posix_time::milliseconds(10));
-//  *timeout = kDefaultInitialTimeout;
-//  *timeout= boost::posix_time::pos_infin;
-//  *response = "Accepted";
-//  DLOG(INFO) << "Node - " << node
-//             << " - Received managed connection request: \"" << request
-//             << "\".  Responding with \"" << *response << "\"";
-//  mngd_conn->AcceptConnection(info.endpoint, true);
-//  DLOG(INFO) << " - Done AcceptConnection for Node - " << node;
-//}
 
 void MessageReceived(const std::string &message) {
   DLOG(INFO) << "Received: " << message;
 }
 
-void ConnectionLost(const Endpoint &endpoint, boost::mutex *mutex, int *count) {
+void ConnectionLost(const Endpoint &endpoint, std::atomic<int> *count) {
   DLOG(INFO) << "Lost connection to " << endpoint;
-  boost::mutex::scoped_lock lock(*mutex);
   ++(*count);
 }
 
-TEST(ManagedConnectionsTest, BEH_Bootstrap) {
-  ManagedConnections managed_connections1, managed_connections2;
+TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
+  ManagedConnections managed_connections1, managed_connections2, managed_connections3;
   Endpoint endpoint1(ip::address_v4::loopback(), 9000),
-           endpoint2(ip::address_v4::loopback(), 11111);
-
+           endpoint2(ip::address_v4::loopback(), 11111),
+           endpoint3(ip::address_v4::loopback(), 11112);
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
   boost::mutex mutex;
-  int connection_lost_count(0);
+  std::atomic<int> connection_lost_count(0);
   ConnectionLostFunctor connection_lost_functor(
-      std::bind(ConnectionLost, args::_1, &mutex, &connection_lost_count));
+      std::bind(ConnectionLost, args::_1, &connection_lost_count));
 
-  boost::thread t1(std::bind(&ManagedConnections::Bootstrap,
-                             &managed_connections1,
-                             std::vector<Endpoint>(1, endpoint2),
-                             message_received_functor,
-                             connection_lost_functor,
-                             endpoint1));
-  boost::thread t2(std::bind(&ManagedConnections::Bootstrap,
-                             &managed_connections2,
-                             std::vector<Endpoint>(1, endpoint1),
-                             message_received_functor,
-                             connection_lost_functor,
-                             endpoint2));
+  // get a future type (endpoint type)
+  auto a1 = std::async(std::launch::async,  // force launch in new thread
+            [&] { return managed_connections1.Bootstrap(std::vector<Endpoint>(1, endpoint2),
+                  message_received_functor,
+                  connection_lost_functor,
+                  endpoint1); } );
 
+  auto a2 = std::async(std::launch::async,
+            [&] { return managed_connections2.Bootstrap(std::vector<Endpoint>(1, endpoint1),
+                  message_received_functor,
+                  connection_lost_functor,
+                  endpoint2); } );
 
-  t1.join();
-  t2.join();
-  while (kInvalidConnection == managed_connections1.Send(endpoint2, "Ping"));
-    Sleep(bptime::milliseconds(1));
-  while (kInvalidConnection == managed_connections2.Send(endpoint1, "Ping"));
-    Sleep(bptime::milliseconds(1));
+  EXPECT_FALSE(a2.get().address().is_unspecified());  // wait for promise !
+  EXPECT_FALSE(a1.get().address().is_unspecified());  // wait for promise !
+
+  std::vector<Endpoint> end_vec(1, endpoint3);
+  boost::asio::ip::udp::endpoint bootstrap_endpoint =
+             managed_connections3.Bootstrap(end_vec,
+                                            message_received_functor,
+                                            connection_lost_functor,
+                                            endpoint3);
+
+  EXPECT_FALSE(bootstrap_endpoint.address().is_unspecified());
 
   for (int i(0); i != 200; ++i) {
     Sleep(bptime::milliseconds(10));
@@ -143,79 +99,10 @@ TEST(ManagedConnectionsTest, BEH_Bootstrap) {
   boost::mutex::scoped_lock lock(mutex);
   do {
     lock.unlock();
-    Sleep(bptime::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     lock.lock();
   } while (connection_lost_count != 2);
 }
-
-
-//TEST(ManagedConnectionsTest, BEH_OneToManyAddConnection) {
-//  const uint32_t kNetworkSize(10);
-//  Endpoint endpoints[kNetworkSize];
-//  std::shared_ptr<ManagedConnections> mngd_conns[kNetworkSize];
-//  boost::signals2::connection  managed_connection_request[kNetworkSize];
-//
-//  for (uint32_t i(0); i != kNetworkSize; ++i) {  // Init
-//    mngd_conns[i].reset(new ManagedConnections);
-//    EXPECT_EQ(kSuccess, mngd_conns[i]->Init(10));
-//    endpoints[i] = mngd_conns[i]->GetOurEndpoint();
-//    EXPECT_NE(0U, endpoints[i].port);
-//    Sleep(bptime::milliseconds(500));
-//    DLOG(INFO) << "Init Node - " << i;
-//  }
-//  for (uint32_t i(0); i != kNetworkSize; ++i) {  // Signal
-//    managed_connection_request[i] =
-//        mngd_conns[i]->on_message_received()->connect(
-//            std::bind(&DoOnManagedConnectionRequest, args::_1,  args::_2,
-//                      args::_3, args::_4, mngd_conns[i], i));
-//  }
-//
-//  for (uint32_t i(1); i != kNetworkSize; ++i) {  // AddConnection
-//    DLOG(INFO) << "Node - " << i;
-//    std::string node;
-//    std::stringstream out;
-//    out << "node_" << i;
-//    node = out.str();
-//    AddFunctor add_functor(std::bind(&AddCallback, kSuccess, args::_1, 0));
-//    mngd_conns[0]->AddConnection(endpoints[i], "validation_data_from 0",
-//                               add_functor);
-//  }
-//
-//  Sleep(bptime::milliseconds(10000));
-//
-//  for (uint32_t i(0); i != kNetworkSize; ++i) {  // Disconnect Signal
-//    managed_connection_request[i].disconnect();
-//  }
-//  DLOG(INFO) << "Testing Send() now ..........................................";
-//
-//
-//  for (uint32_t i(1); i != kNetworkSize; ++i) {  // Send
-//    auto on_message_received = mngd_conns[i]->on_message_received()->connect(
-//        std::bind(&DoOnRequestReceived, args::_1,  args::_2, args::_3,
-//                  args::_4));
-//    std::string sent_request("send_data from 1");
-//    ResponseFunctor response_functor = std::bind(&DoOnResponseReceived,
-//                                                 sent_request, args::_1,
-//                                                 args::_2);
-//    mngd_conns[0]->Send(endpoints[i], sent_request, response_functor);
-//  }
-//
-//  Sleep(bptime::milliseconds(30000));
-//
-//
-//  DLOG(INFO) << "Testing ConnectionLost ......................................";
-//
-//  for (uint32_t i(1); i != kNetworkSize; ++i) {  // LostConnection
-//    LostFunctor lost_functor(std::bind(&LostCallback, endpoints[0], args::_1));
-//    mngd_conns[i]->ConnectionLost(lost_functor);
-//  }
-//
-//
-//  for (uint32_t i(1); i != kNetworkSize; ++i) {  // LostConnection
-//    mngd_conns[0]->RemoveConnection(endpoints[i]);
-//  }
-//  Sleep(bptime::milliseconds(30000));
-//}
 
 }  // namespace test
 
