@@ -14,10 +14,10 @@
 #ifndef MAIDSAFE_RUDP_CORE_SLIDING_WINDOW_H_
 #define MAIDSAFE_RUDP_CORE_SLIDING_WINDOW_H_
 
+#include <cstdint>
 #include <cassert>
 #include <deque>
 
-#include <cstdint>
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/parameters.h"

@@ -14,10 +14,11 @@
 #ifndef MAIDSAFE_RUDP_CORE_DISPATCHER_H_
 #define MAIDSAFE_RUDP_CORE_DISPATCHER_H_
 
+#include <cstdint>
+
 #include <unordered_map>
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include <cstdint>
 
 namespace maidsafe {
 

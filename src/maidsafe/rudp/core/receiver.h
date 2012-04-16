@@ -14,13 +14,14 @@
 #ifndef MAIDSAFE_RUDP_CORE_RECEIVER_H_
 #define MAIDSAFE_RUDP_CORE_RECEIVER_H_
 
+#include <cstdint>
 #include <deque>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include <cstdint>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
+
 #include "maidsafe/rudp/packets/ack_packet.h"
 #include "maidsafe/rudp/packets/ack_of_ack_packet.h"
 #include "maidsafe/rudp/packets/data_packet.h"

@@ -14,8 +14,9 @@
 #ifndef MAIDSAFE_RUDP_CORE_PEER_H_
 #define MAIDSAFE_RUDP_CORE_PEER_H_
 
-#include "boost/asio/ip/udp.hpp"
 #include <cstdint>
+
+#include "boost/asio/ip/udp.hpp"
 #include "maidsafe/rudp/core/multiplexer.h"
 
 namespace maidsafe {

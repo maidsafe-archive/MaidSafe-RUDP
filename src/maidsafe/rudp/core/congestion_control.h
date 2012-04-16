@@ -14,9 +14,9 @@
 #ifndef MAIDSAFE_RUDP_CORE_CONGESTION_CONTROL_H_
 #define MAIDSAFE_RUDP_CORE_CONGESTION_CONTROL_H_
 
+#include <cstdint>
 #include <deque>
 
-#include <cstdint>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 
 #include "maidsafe/rudp/core/sliding_window.h"

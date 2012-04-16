@@ -133,6 +133,7 @@ void Socket::StartConnect(const ip::udp::endpoint &remote) {
 }
 
 void Socket::StartProbe() {
+  waiting_probe_ec_ = asio::error::operation_aborted;
   if (!session_.IsConnected()) {
     waiting_probe_ec_ = boost::asio::error::not_connected;
     waiting_probe_.cancel();

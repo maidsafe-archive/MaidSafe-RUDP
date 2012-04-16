@@ -44,8 +44,11 @@ class ProbeOp {
     return *this;
   }
 
-  void operator()(boost::system::error_code) {
-    handler_(*ec_);
+  void operator()(boost::system::error_code ec) {
+    if (asio::error::timed_out == ec)
+      handler_(ec);
+    else
+      handler_(*ec_);
   }
 
   friend void *asio_handler_allocate(size_t n, ProbeOp *op) {

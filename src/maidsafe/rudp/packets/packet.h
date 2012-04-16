@@ -14,8 +14,9 @@
 #ifndef MAIDSAFE_RUDP_PACKETS_PACKET_H_
 #define MAIDSAFE_RUDP_PACKETS_PACKET_H_
 
-#include "boost/asio/buffer.hpp"
 #include <cstdint>
+
+#include "boost/asio/buffer.hpp"
 
 namespace maidsafe {
 

@@ -14,6 +14,7 @@
 #ifndef MAIDSAFE_RUDP_CORE_SOCKET_H_
 #define MAIDSAFE_RUDP_CORE_SOCKET_H_
 
+#include <cstdint>
 #include <memory>
 #include <deque>
 
@@ -21,7 +22,6 @@
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include <cstdint>
 
 #include "maidsafe/rudp/packets/ack_packet.h"
 #include "maidsafe/rudp/packets/ack_of_ack_packet.h"
@@ -137,12 +137,9 @@ class Socket {
   template <typename ProbeHandler>
   void AsyncProbe(ProbeHandler handler) {
     ProbeOp<ProbeHandler> op(handler, &waiting_probe_ec_);
-    waiting_probe_ec_ = asio::error::operation_aborted;
-    waiting_probe_.cancel();
     waiting_probe_.expires_at(boost::asio::deadline_timer::traits_type::now() +
         bptime::seconds(10));
     // TODO(Prakash) : need to put a timeout parameter for keep alive response.
-    waiting_probe_ec_ = asio::error::timed_out;
     waiting_probe_.async_wait(op);
     StartProbe();
   }

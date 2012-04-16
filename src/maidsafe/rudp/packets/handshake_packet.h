@@ -14,12 +14,13 @@
 #ifndef MAIDSAFE_RUDP_PACKETS_HANDSHAKE_PACKET_H_
 #define MAIDSAFE_RUDP_PACKETS_HANDSHAKE_PACKET_H_
 
+#include <cstdint>
 #include <string>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/address.hpp"
-#include <cstdint>
 #include "boost/system/error_code.hpp"
+
 #include "maidsafe/rudp/packets/control_packet.h"
 
 namespace maidsafe {
