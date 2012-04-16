@@ -43,12 +43,12 @@ void MessageReceived(const std::string &message) {
   DLOG(INFO) << "Received: " << message;
 }
 
-void ConnectionLost(const Endpoint &endpoint, std::atomic_int *count) {
+void ConnectionLost(const Endpoint &endpoint, std::atomic<int> *count) {
   DLOG(INFO) << "Lost connection to " << endpoint;
   ++(*count);
 }
 
-TEST(ManagedConnectionsTest, API_BEH_Bootstrap) {
+TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
   ManagedConnections managed_connections1, managed_connections2, managed_connections3;
   Endpoint endpoint1(ip::address_v4::loopback(), 9000),
            endpoint2(ip::address_v4::loopback(), 11111),
@@ -56,7 +56,7 @@ TEST(ManagedConnectionsTest, API_BEH_Bootstrap) {
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
   boost::mutex mutex;
-  std::atomic_int connection_lost_count(0);
+  std::atomic<int> connection_lost_count(0);
   ConnectionLostFunctor connection_lost_functor(
       std::bind(ConnectionLost, args::_1, &connection_lost_count));
 
@@ -76,7 +76,7 @@ TEST(ManagedConnectionsTest, API_BEH_Bootstrap) {
   EXPECT_FALSE(a2.get().address().is_unspecified());  // wait for promise !
   EXPECT_FALSE(a1.get().address().is_unspecified());  // wait for promise !
 
-  std::vector<Endpoint> end_vec {endpoint3};
+  std::vector<Endpoint> end_vec(1, endpoint3);
   boost::asio::ip::udp::endpoint bootstrap_endpoint =
              managed_connections3.Bootstrap(end_vec,
                                             message_received_functor,
