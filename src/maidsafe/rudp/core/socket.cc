@@ -291,11 +291,11 @@ void Socket::HandleKeepalive(const KeepalivePacket &packet) {
         waiting_keepalive_sequence_number_ = 0;
         waiting_probe_ec_.clear();
         waiting_probe_.cancel();
-       return;
+        return;
       } else {
-        DLOG(ERROR) << "Socket " << session_.Id()
-                    << " ignoring unexpected keepalive response packet from "
-                    << peer_.Endpoint();
+        DLOG(INFO) << "Socket " << session_.Id()
+                   << " ignoring unexpected keepalive response packet from "
+                   << peer_.Endpoint();
       }
     } else {
       sender_.HandleKeepalive(packet);

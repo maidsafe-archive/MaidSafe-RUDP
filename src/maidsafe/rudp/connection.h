@@ -54,6 +54,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void Close();
   void StartReceiving();
   void StartSending(const std::string &data);
+  void StartProbing();
   Endpoint GetThisExternalEndpoint();
 
  private:
@@ -81,6 +82,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartWrite();
   void HandleWrite(const boost::system::error_code &ec);
 
+  void DoProbe(const boost::system::error_code &ec);
+  void HandleProbe(const boost::system::error_code &ec);
+
   void DispatchMessage();
   void EncodeData(const std::string &data);
 
@@ -89,10 +93,12 @@ class Connection : public std::enable_shared_from_this<Connection> {
   std::shared_ptr<detail::Multiplexer> multiplexer_;
   detail::Socket socket_;
   boost::asio::deadline_timer timer_;
+  boost::asio::deadline_timer probe_interval_timer_;
   boost::posix_time::ptime response_deadline_;
   boost::asio::ip::udp::endpoint remote_endpoint_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   size_t data_size_, data_received_;
+  uint8_t probe_retry_attempts_;
   Timeout timeout_for_response_;
   enum TimeoutState { kNoTimeout, kConnecting, kSending } timeout_state_;
 };

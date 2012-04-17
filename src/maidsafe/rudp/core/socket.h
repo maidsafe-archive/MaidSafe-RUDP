@@ -23,25 +23,29 @@
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
 
-#include "maidsafe/rudp/packets/ack_packet.h"
-#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
 #include "maidsafe/rudp/core/congestion_control.h"
+#include "maidsafe/rudp/core/peer.h"
+#include "maidsafe/rudp/core/receiver.h"
+#include "maidsafe/rudp/core/sender.h"
+#include "maidsafe/rudp/core/session.h"
+#include "maidsafe/rudp/core/tick_timer.h"
+
 #include "maidsafe/rudp/operations/connect_op.h"
-#include "maidsafe/rudp/packets/data_packet.h"
 #include "maidsafe/rudp/operations/flush_op.h"
 #include "maidsafe/rudp/operations/probe_op.h"
+#include "maidsafe/rudp/operations/read_op.h"
+#include "maidsafe/rudp/operations/tick_op.h"
+#include "maidsafe/rudp/operations/write_op.h"
+
+#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
+#include "maidsafe/rudp/packets/ack_packet.h"
+#include "maidsafe/rudp/packets/data_packet.h"
 #include "maidsafe/rudp/packets/handshake_packet.h"
 #include "maidsafe/rudp/packets/keepalive_packet.h"
 #include "maidsafe/rudp/packets/negative_ack_packet.h"
 #include "maidsafe/rudp/packets/shutdown_packet.h"
-#include "maidsafe/rudp/core/peer.h"
-#include "maidsafe/rudp/operations/read_op.h"
-#include "maidsafe/rudp/core/receiver.h"
-#include "maidsafe/rudp/core/sender.h"
-#include "maidsafe/rudp/core/session.h"
-#include "maidsafe/rudp/operations/tick_op.h"
-#include "maidsafe/rudp/core/tick_timer.h"
-#include "maidsafe/rudp/operations/write_op.h"
+
+#include "maidsafe/rudp/parameters.h"
 
 namespace maidsafe {
 
@@ -137,9 +141,7 @@ class Socket {
   template <typename ProbeHandler>
   void AsyncProbe(ProbeHandler handler) {
     ProbeOp<ProbeHandler> op(handler, &waiting_probe_ec_);
-    waiting_probe_.expires_at(boost::asio::deadline_timer::traits_type::now() +
-        bptime::seconds(10));
-    // TODO(Prakash) : need to put a timeout parameter for keep alive response.
+    waiting_probe_.expires_from_now(Parameters::keepalive_timeout);
     waiting_probe_.async_wait(op);
     StartProbe();
   }

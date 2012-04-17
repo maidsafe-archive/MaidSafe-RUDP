@@ -135,20 +135,30 @@ TEST(SocketTest, BEH_AsyncProbe) {
   Multiplexer server_multiplexer(io_service);
   ReturnCode result(kPendingResult);
   ip::udp::endpoint server_endpoint;
-  while (kSuccess != result) {
+  uint8_t attempts(0);
+  while ((kSuccess != result) && (attempts < 100)) {
     server_endpoint = ip::udp::endpoint(ip::address_v4::loopback(),
                                         GetRandomPort());
     result = server_multiplexer.Open(server_endpoint);
+    if (kSuccess != result)
+      server_multiplexer.Close();
+    ++attempts;
   }
+  ASSERT_EQ(kSuccess, result);
 
-  result = kPendingResult;
   Multiplexer client_multiplexer(io_service);
   ip::udp::endpoint client_endpoint;
-  while (kSuccess != result) {
+  result = kPendingResult;
+  attempts = 0;
+  while ((kSuccess != result) && (attempts < 100)) {
     client_endpoint = ip::udp::endpoint(ip::address_v4::loopback(),
                                         GetRandomPort());
     result = client_multiplexer.Open(client_endpoint);
+    if (kSuccess != result)
+        client_multiplexer.Close();
+    ++attempts;
   }
+  ASSERT_EQ(kSuccess, result);
 
   server_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1,
                                              &server_multiplexer));
@@ -243,6 +253,9 @@ TEST(SocketTest, BEH_AsyncProbe) {
     io_service.run_one();
   } while (client_ec == asio::error::would_block);
   EXPECT_EQ(asio::error::shut_down, client_ec);
+
+  server_multiplexer.Close();
+  client_multiplexer.Close();
 }
 
 }  // namespace test

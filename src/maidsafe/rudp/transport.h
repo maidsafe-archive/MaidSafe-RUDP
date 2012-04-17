@@ -57,7 +57,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef boost::signals2::signal<void(const Endpoint&,
                                        std::shared_ptr<Transport>)>
                                           OnConnectionAdded, OnConnectionLost;
-   
+
   explicit Transport(std::shared_ptr<AsioService> asio_service);  // NOLINT (Fraser)
   virtual ~Transport();
 
@@ -113,7 +113,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   std::shared_ptr<AsioService> asio_service_;
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
-  
+
   // Because the connections can be in an idle initial state with no pending
   // async operations (after calling PrepareSend()), they are kept alive with
   // a shared_ptr in this map, as well as in the async operation handlers.

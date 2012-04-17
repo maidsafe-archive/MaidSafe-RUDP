@@ -44,12 +44,14 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       multiplexer_(multiplexer),
       socket_(*multiplexer_),
       timer_(strand_.get_io_service()),
+      probe_interval_timer_(strand_.get_io_service()),
       response_deadline_(),
       remote_endpoint_(remote),
       send_buffer_(),
       receive_buffer_(),
       data_size_(0),
       data_received_(0),
+      probe_retry_attempts_(0),
       timeout_for_response_(Parameters::default_receive_timeout),
       timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
@@ -66,6 +68,7 @@ void Connection::Close() {
 }
 
 void Connection::DoClose() {
+  probe_interval_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     // We're still connected to the transport. We need to detach and then
     // start flushing the socket to attempt a graceful closure.
@@ -119,7 +122,8 @@ void Connection::CheckTimeout(const bs::error_code &ec) {
   if (timer_.expires_at() <= asio::deadline_timer::traits_type::now()) {
     // Time has run out.
     DLOG(ERROR) << "Closing connection to " << socket_.RemoteEndpoint() << " - "
-        << "timed out " << (timeout_state_ == kSending ? "send" : "connect") << "ing.";
+                << "timed out "
+                << (timeout_state_ == kSending ? "send" : "connect") << "ing.";
     DoClose();
   }
 
@@ -293,7 +297,6 @@ void Connection::DispatchMessage() {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     transport->SignalMessageReceived(std::string(receive_buffer_.begin(),
                                                  receive_buffer_.end()));
-//    std::cout << "RECEIVED " << std::string(receive_buffer_.begin(), receive_buffer_.end());
     StartReadSize();
   }
 }
@@ -362,7 +365,37 @@ Endpoint Connection::GetThisExternalEndpoint() {
                                                                           return Endpoint(ip::address_v4::loopback(), 11001);
 }
 
+void Connection::StartProbing() {
+  probe_interval_timer_.expires_from_now(Parameters::keepalive_interval);
+  probe_interval_timer_.async_wait(strand_.wrap(std::bind(&Connection::DoProbe,
+                                                shared_from_this(), args::_1)));
+}
 
+void Connection::DoProbe(const bs::error_code &ec) {
+  if ((asio::error::operation_aborted != ec) && !Stopped()) {
+    socket_.AsyncProbe(strand_.wrap(std::bind(&Connection::HandleProbe,
+                                              shared_from_this(), args::_1)));
+  }
+}
+
+void Connection::HandleProbe(const bs::error_code &ec) {
+  if (!ec) {
+    probe_retry_attempts_ = 0;
+    StartProbing();
+    return;
+  }
+
+  if (((asio::error::try_again == ec) || (asio::error::timed_out == ec) ||
+       (asio::error::operation_aborted == ec)) && (probe_retry_attempts_< 3)) {
+    ++probe_retry_attempts_;
+    bs::error_code ignored_ec;
+    DoProbe(ignored_ec);
+  } else {
+    DLOG(ERROR) << "Failed to probe " << socket_.RemoteEndpoint()
+                << " - " << ec.message();
+    DoClose();
+  }
+}
 
 }  // namespace rudp
 

@@ -67,7 +67,7 @@ struct Parameters {
   // Timeout defined for a Ack packet to be resent
   static Timeout default_ack_timeout;
 
-  // Timeout defined the fixed interval between Ack packets
+  // Timeout defined for the fixed interval between Ack packets
   static Timeout ack_interval;
 
   // Interval to calculate speed
@@ -78,6 +78,12 @@ struct Parameters {
 
   // Timeout during connection establishment
   static Timeout connect_timeout;
+
+  // Timeout defined for the fixed interval between sending Keepalive packets
+  static Timeout keepalive_interval;
+
+  // Timeout defined to receive Keepalive response packet.
+  static Timeout keepalive_timeout;
 
   // Defined connection types
   enum ConnectionType {
