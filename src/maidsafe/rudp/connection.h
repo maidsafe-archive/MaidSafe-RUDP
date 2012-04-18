@@ -54,7 +54,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void Close();
   void StartReceiving();
   void StartSending(const std::string &data);
-  void StartProbing();
   Endpoint GetThisExternalEndpoint();
 
  private:
@@ -82,6 +81,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartWrite();
   void HandleWrite(const boost::system::error_code &ec);
 
+  void StartProbing();
   void DoProbe(const boost::system::error_code &ec);
   void HandleProbe(const boost::system::error_code &ec);
 

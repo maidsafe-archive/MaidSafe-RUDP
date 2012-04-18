@@ -194,6 +194,7 @@ void Connection::HandleConnect(const bs::error_code &ec) {
   }
 
   StartReadSize();
+  StartProbing();
 }
 
 void Connection::StartReadSize() {
@@ -298,6 +299,7 @@ void Connection::DispatchMessage() {
     transport->SignalMessageReceived(std::string(receive_buffer_.begin(),
                                                  receive_buffer_.end()));
     StartReadSize();
+    StartProbing();
   }
 }
 
