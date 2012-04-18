@@ -45,7 +45,7 @@ class ProbeOp {
   }
 
   void operator()(boost::system::error_code ec) {
-    if (asio::error::timed_out == ec)
+    if (boost::asio::error::timed_out == ec)
       handler_(ec);
     else
       handler_(*ec_);
