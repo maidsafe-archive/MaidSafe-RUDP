@@ -40,7 +40,7 @@ class TickTimer;
 
 class Sender {
  public:
-  explicit Sender(Peer &peer,
+  explicit Sender(Peer &peer,                                 // NOLINT (Fraser)
                   TickTimer &tick_timer,
                   CongestionControl &congestion_control);
 

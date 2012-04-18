@@ -42,6 +42,8 @@ class Dispatcher {
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
                          const boost::asio::ip::udp::endpoint &endpoint);
 
+  boost::asio::ip::udp::endpoint GetAndClearBootstrappingEndpoint();
+
  private:
   // Disallow copying and assignment.
   Dispatcher(const Dispatcher&);
@@ -50,6 +52,9 @@ class Dispatcher {
   // Map of destination socket id to corresponding socket object.
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;
   SocketMap sockets_;
+
+  // Endpoint of peer attempting to bootstrap off this node.
+  boost::asio::ip::udp::endpoint bootstrapping_endpoint_;
 };
 
 }  // namespace detail

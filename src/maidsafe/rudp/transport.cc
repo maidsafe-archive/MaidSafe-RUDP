@@ -202,6 +202,19 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
   if (!multiplexer->IsOpen())
     return;
 
+  Endpoint bootstrapping_endpoint(multiplexer->GetBootstrappingEndpoint());
+  if (IsValid(bootstrapping_endpoint)) {
+    ConnectionPtr connection(
+        std::make_shared<Connection>(shared_from_this(),
+                                     strand_,
+                                     multiplexer_,
+                                     bootstrapping_endpoint));
+    connection->StartReceiving();
+    // TODO(Fraser#5#): 2012-04-18 - Drop this connection after 1 min.  Ensure
+    //                  when connection is dropped that ManagedConnections'
+    //                  connection_lost_functor is not called.
+  }
+
   StartDispatch();
 }
 

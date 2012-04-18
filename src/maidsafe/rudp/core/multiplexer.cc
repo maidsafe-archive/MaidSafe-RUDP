@@ -86,6 +86,10 @@ void Multiplexer::PrintSendError(const boost::asio::ip::udp::endpoint &endpoint,
   DLOG(ERROR) << "Error sending to << " << endpoint << " - " << ec.message();
 }
 
+boost::asio::ip::udp::endpoint Multiplexer::GetBootstrappingEndpoint() {
+  return dispatcher_.GetAndClearBootstrappingEndpoint();
+}
+
 }  // namespace detail
 
 }  // namespace rudp

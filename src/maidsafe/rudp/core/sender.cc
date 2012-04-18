@@ -32,7 +32,7 @@ namespace rudp {
 
 namespace detail {
 
-Sender::Sender(Peer &peer,
+Sender::Sender(Peer &peer,                                    // NOLINT (Fraser)
                TickTimer &tick_timer,
                CongestionControl &congestion_control)
   : peer_(peer),
