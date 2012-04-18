@@ -163,7 +163,7 @@ int ManagedConnections::GetAvailableEndpoint(Endpoint *endpoint) {
 
   // Get transport with least connections.
   {
-    uint32_t least_connections(Transport::kMaxConnections());
+    size_t least_connections(Transport::kMaxConnections());
     Endpoint chosen_endpoint;
     SharedLock shared_lock(shared_mutex_);
     std::for_each(

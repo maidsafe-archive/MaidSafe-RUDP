@@ -236,7 +236,7 @@ class Socket {
   boost::system::error_code waiting_read_ec_;
   size_t waiting_read_bytes_transferred_;
 
-  size_t waiting_keepalive_sequence_number_;
+  uint32_t waiting_keepalive_sequence_number_;
   boost::asio::deadline_timer waiting_probe_;
   boost::system::error_code waiting_probe_ec_;
 
