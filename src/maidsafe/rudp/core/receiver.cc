@@ -38,7 +38,7 @@ namespace rudp {
 
 namespace detail {
 
-Receiver::Receiver(Peer &peer,
+Receiver::Receiver(Peer &peer,                                // NOLINT (Fraser)
                    TickTimer &tick_timer,
                    CongestionControl &congestion_control)
   : peer_(peer),

@@ -31,7 +31,7 @@ namespace rudp {
 
 namespace detail {
 
-Dispatcher::Dispatcher() : sockets_() {}
+Dispatcher::Dispatcher() : sockets_(), bootstrapping_endpoint_() {}
 
 uint32_t Dispatcher::AddSocket(Socket *socket) {
   // Generate a new unique id for the socket.
@@ -68,6 +68,11 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
 
     if (socket_iter != sockets_.end()) {
       socket_iter->second->HandleReceiveFrom(data, endpoint);
+    } else if (id == 0) {
+      // This is a handshake packet on a bootstrapping socket
+      HandshakePacket handshake_packet;
+      if (handshake_packet.Decode(data))
+        bootstrapping_endpoint_ = endpoint;
     } else {
       const unsigned char *p = asio::buffer_cast<const unsigned char*>(data);
       DLOG(INFO) << "Received a packet \"0x" << std::hex
@@ -77,6 +82,16 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
     }
   } else {
     DLOG(ERROR) << "Received a non-RUDP packet from " << endpoint;
+  }
+}
+
+ip::udp::endpoint Dispatcher::GetAndClearBootstrappingEndpoint() {
+  if (bootstrapping_endpoint_.port()) {
+    ip::udp::endpoint endpoint(bootstrapping_endpoint_);
+    bootstrapping_endpoint_ = ip::udp::endpoint();
+    return endpoint;
+  } else {
+    return ip::udp::endpoint();
   }
 }
 

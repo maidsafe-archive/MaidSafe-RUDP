@@ -42,7 +42,7 @@ class TickTimer;
 
 class Receiver {
  public:
-  explicit Receiver(Peer &peer,
+  explicit Receiver(Peer &peer,                               // NOLINT (Fraser)
                     TickTimer &tick_timer,
                     CongestionControl &congestion_control);
 

@@ -76,6 +76,8 @@ class Multiplexer {
     return kSendFailure;
   }
 
+  boost::asio::ip::udp::endpoint GetBootstrappingEndpoint();
+
   friend class Socket;
 
  private:
