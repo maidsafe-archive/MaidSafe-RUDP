@@ -83,7 +83,6 @@ Endpoint ManagedConnections::Bootstrap(
     DLOG(ERROR) << "Failed to bootstrap managed connections.";
     return Endpoint();
   }
-
   return new_endpoint;
 }
 
