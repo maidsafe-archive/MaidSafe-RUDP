@@ -135,8 +135,8 @@ Endpoint ManagedConnections::StartNewTransport(
   return chosen_endpoint;
 }
 
-int ManagedConnections::GetAvailableEndpoint(Endpoint *endpoint) {
-  if (!endpoint) {
+int ManagedConnections::GetAvailableEndpoint(EndpointPair *endpoint_pair) {
+  if (!endpoint_pair) {
     DLOG(ERROR) << "Null parameter passed.";
     return kNullParameter;
   }
@@ -156,7 +156,8 @@ int ManagedConnections::GetAvailableEndpoint(Endpoint *endpoint) {
     Endpoint new_endpoint(StartNewTransport(std::vector<Endpoint>(),
                                             Endpoint()));
     if (IsValid(new_endpoint)) {
-      *endpoint = new_endpoint;
+      UniqueLock unique_lock(shared_mutex_);
+      *endpoint_pair = (*transports_.rbegin()).transport->this_endpoint_pair();
       return kSuccess;
     }
   }
@@ -164,25 +165,26 @@ int ManagedConnections::GetAvailableEndpoint(Endpoint *endpoint) {
   // Get transport with least connections.
   {
     size_t least_connections(Transport::kMaxConnections());
-    Endpoint chosen_endpoint;
+    EndpointPair chosen_endpoint_pair;
     SharedLock shared_lock(shared_mutex_);
     std::for_each(
         transports_.begin(),
         transports_.end(),
-        [&least_connections, &chosen_endpoint]
+        [&least_connections, &chosen_endpoint_pair]
             (const TransportAndSignalConnections &element) {
       if (element.transport->ConnectionsCount() < least_connections) {
         least_connections = element.transport->ConnectionsCount();
-        chosen_endpoint = element.transport->this_endpoint();
+        chosen_endpoint_pair = element.transport->this_endpoint_pair();
       }
     });
 
-    if (!IsValid(chosen_endpoint)) {
+    if (!IsValid(chosen_endpoint_pair.external) ||
+        !IsValid(chosen_endpoint_pair.local)) {
       DLOG(ERROR) << "All Transports are full.";
       return kFull;
     }
 
-    *endpoint = chosen_endpoint;
+    *endpoint_pair = chosen_endpoint_pair;
     return kSuccess;
   }
 }
@@ -197,10 +199,12 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
         transports_.begin(),
         transports_.end(),
         [&this_endpoint] (const TransportAndSignalConnections &element) {
-      return element.transport->this_endpoint() == this_endpoint;
+      return element.transport->this_endpoint_pair().external == this_endpoint
+             || element.transport->this_endpoint_pair().local == this_endpoint;
     });
     if (itr == transports_.end()) {
-      DLOG(ERROR) << "No Transports have endpoint " << this_endpoint;
+      DLOG(ERROR) << "No Transports have endpoint " << this_endpoint
+                  << " - ensure GetAvailableEndpoint has been called first.";
       return kInvalidTransport;
     }
 
