@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
+#include "boost/asio/ip/udp.hpp"
 #include "maidsafe/rudp/packets/handshake_packet.h"
 
 namespace maidsafe {
@@ -29,7 +30,9 @@ class TickTimer;
 
 class Session {
  public:
-  explicit Session(Peer &peer, TickTimer &tick_timer);  // NOLINT (Fraser)
+  explicit Session(Peer &peer,                                // NOLINT (Fraser)
+                   TickTimer &tick_timer,
+                   boost::asio::ip::udp::endpoint &this_external_endpoint);
 
 //  // Open the session as a client or server.
 //  enum Mode { kClient, kServer };
@@ -78,6 +81,9 @@ class Session {
 
   // The timer used to generate tick events.
   TickTimer &tick_timer_;
+
+  // This node's external endpoint as viewed by peer.
+  boost::asio::ip::udp::endpoint &this_external_endpoint_;
 
   // The local socket id.
   uint32_t id_;

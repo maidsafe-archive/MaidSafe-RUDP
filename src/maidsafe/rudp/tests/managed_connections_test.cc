@@ -62,7 +62,6 @@ TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
   ConnectionLostFunctor connection_lost_functor(
       std::bind(ConnectionLost, args::_1, &connection_lost_count));
 
-  // get a future type (endpoint type)
   auto a1 = std::async(std::launch::async, [&] {
       return managed_connections1.Bootstrap(std::vector<Endpoint>(1, endpoint2),
                                             message_received_functor,
@@ -75,8 +74,9 @@ TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                             connection_lost_functor,
                                             endpoint2);});  // NOLINT (Fraser)
 
-  EXPECT_FALSE(a2.get().address().is_unspecified());  // wait for promise !
-  EXPECT_FALSE(a1.get().address().is_unspecified());  // wait for promise !
+  EXPECT_FALSE(a2.get().address().is_unspecified());
+  EXPECT_FALSE(a1.get().address().is_unspecified());
+
 
   boost::asio::ip::udp::endpoint bootstrap_endpoint =
       managed_connections3.Bootstrap(std::vector<Endpoint>(1, endpoint1),

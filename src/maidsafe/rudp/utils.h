@@ -38,9 +38,6 @@ void IpNetToAscii(uint32_t address, char *ip_buffer);
 // Convert a dotted string format internet address into Ipv4 format.
 uint32_t IpAsciiToNet(const char *buffer);
 
-// Return all local addresses
-std::vector<boost::asio::ip::address> GetLocalAddresses();
-
 // Returns true if 1024 < port < 49151 and the address is correctly specified.
 bool IsValid(const Endpoint &endpoint);
 

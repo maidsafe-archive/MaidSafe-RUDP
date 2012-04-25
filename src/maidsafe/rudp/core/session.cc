@@ -20,6 +20,7 @@
 #include "maidsafe/rudp/core/sliding_window.h"
 #include "maidsafe/rudp/core/tick_timer.h"
 #include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/utils.h"
 
 namespace bptime = boost::posix_time;
 
@@ -30,9 +31,12 @@ namespace rudp {
 
 namespace detail {
 
-Session::Session(Peer &peer, TickTimer &tick_timer)  // NOLINT (Fraser)
+Session::Session(Peer &peer,                                  // NOLINT (Fraser)
+                 TickTimer &tick_timer,
+                 boost::asio::ip::udp::endpoint &this_external_endpoint)
     : peer_(peer),
       tick_timer_(tick_timer),
+      this_external_endpoint_(this_external_endpoint),
       id_(0),
       sending_sequence_number_(0),
       receiving_sequence_number_(0),
@@ -87,6 +91,17 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
     peer_connection_type_ = packet.ConnectionType();
     receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
     SendConnectionAccepted();
+    if (IsValid(packet.Endpoint())) {
+      if (!this_external_endpoint_.address().is_unspecified() &&
+          this_external_endpoint_ != packet.Endpoint()) {
+        DLOG(ERROR) << "External endpoint currently " << this_external_endpoint_
+                    << " - about to be set to " << packet.Endpoint();
+      }
+      this_external_endpoint_ = packet.Endpoint();
+    } else {
+      DLOG(ERROR) << "Invalid external endpoint in handshake: "
+                  << packet.Endpoint();
+    }
 //    }
   }
 }
@@ -104,7 +119,7 @@ void Session::SendConnectionRequest() {
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetSocketId(id_);
-  packet.SetIpAddress(peer_.Endpoint().address());
+  packet.SetEndpoint(peer_.Endpoint());
   packet.SetDestinationSocketId(0);
   packet.SetConnectionType(1);
 
@@ -118,7 +133,7 @@ void Session::SendConnectionRequest() {
 
 void Session::SendCookie() {
   HandshakePacket packet;
-  packet.SetIpAddress(peer_.Endpoint().address());
+  packet.SetEndpoint(peer_.Endpoint());
   packet.SetDestinationSocketId(peer_.Id());
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
@@ -139,7 +154,7 @@ void Session::SendCookie() {
 
 void Session::SendConnectionAccepted() {
   HandshakePacket packet;
-  packet.SetIpAddress(peer_.Endpoint().address());
+  packet.SetEndpoint(peer_.Endpoint());
   packet.SetDestinationSocketId(peer_.Id());
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);

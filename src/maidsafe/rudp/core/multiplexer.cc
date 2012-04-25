@@ -90,6 +90,20 @@ boost::asio::ip::udp::endpoint Multiplexer::GetBootstrappingEndpoint() {
   return dispatcher_.GetAndClearBootstrappingEndpoint();
 }
 
+boost::asio::ip::udp::endpoint Multiplexer::local_endpoint() const {
+  boost::system::error_code ec;
+  boost::asio::ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
+  if (ec) {
+    DLOG(ERROR) << ec.message();
+    return boost::asio::ip::udp::endpoint();
+  }
+  return local_endpoint;
+}
+
+boost::asio::ip::udp::endpoint Multiplexer::external_endpoint() const {
+  return external_endpoint_;
+}
+
 }  // namespace detail
 
 }  // namespace rudp

@@ -55,7 +55,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartReceiving();
   void StartSending(const std::string &data);
   void StartProbing();
-  Endpoint GetThisExternalEndpoint();
 
  private:
   Connection(const Connection&);

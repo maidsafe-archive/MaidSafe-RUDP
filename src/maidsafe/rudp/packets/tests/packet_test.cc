@@ -455,9 +455,11 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetConnectionType(0xdddddddd);
     handshake_packet_.SetSocketId(0xbbbbbbbb);
     handshake_packet_.SetSynCookie(0xaaaaaaaa);
-    handshake_packet_.SetIpAddress(
+    boost::asio::ip::udp::endpoint endpoint(
         boost::asio::ip::address::from_string(
-            "2001:db8:85a3:8d3:1319:8a2e:370:7348"));
+                           "2001:db8:85a3:8d3:1319:8a2e:370:7348"),
+        12345);
+    handshake_packet_.SetEndpoint(endpoint);
 
     char char_array[HandshakePacket::kPacketSize];
     boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
@@ -471,8 +473,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetConnectionType(0);
     handshake_packet_.SetSocketId(0);
     handshake_packet_.SetSynCookie(0);
-    handshake_packet_.SetIpAddress(
-        boost::asio::ip::address::from_string("123.234.231.134"));
+    handshake_packet_.SetEndpoint(boost::asio::ip::udp::endpoint());
 
     handshake_packet_.Decode(dbuffer);
 
@@ -484,9 +485,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0xdddddddd, handshake_packet_.ConnectionType());
     EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
     EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
-    EXPECT_EQ(boost::asio::ip::address::from_string(
-                  "2001:db8:85a3:8d3:1319:8a2e:370:7348"),
-              handshake_packet_.IpAddress());
+    EXPECT_EQ(endpoint, handshake_packet_.Endpoint());
   }
 }
 

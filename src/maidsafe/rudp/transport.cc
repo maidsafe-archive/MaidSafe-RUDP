@@ -20,6 +20,7 @@
 #include "maidsafe/rudp/connection.h"
 #include "maidsafe/rudp/log.h"
 #include "maidsafe/rudp/utils.h"
+#include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/socket.h"
 
@@ -36,7 +37,6 @@ Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLI
       strand_(asio_service->service()),
       multiplexer_(new detail::Multiplexer(asio_service->service())),
       connections_(),
-      this_endpoint_pair_(),
       mutex_(),
       on_message_(),
       on_connection_added_(),
@@ -89,13 +89,10 @@ void Transport::Bootstrap(
                                                           strand_,
                                                           multiplexer_, *itr));
     connection->StartReceiving();
-    this_endpoint_pair_.external = connection->GetThisExternalEndpoint();
-    // TODO(Fraser#5#): 2012-04-24 - Check local_endpoint is properly set.
-    this_endpoint_pair_.local = local_endpoint;
 
-//                                                                    check this_endpoint_
-    if (IsValid(this_endpoint_pair_.external) &&
-        IsValid(this_endpoint_pair_.local)) {
+                // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
+    if (IsValid(multiplexer_->external_endpoint()) &&
+        IsValid(multiplexer_->local_endpoint())) {
       *chosen_endpoint = *itr;
       return;
     }
@@ -178,8 +175,12 @@ void Transport::DoSend(ConnectionPtr connection, const std::string &message) {
   connection->StartSending(message);
 }
 
-EndpointPair Transport::this_endpoint_pair() const {
-  return this_endpoint_pair_;
+Endpoint Transport::external_endpoint() const {
+  return multiplexer_->external_endpoint();
+}
+
+Endpoint Transport::local_endpoint() const {
+  return multiplexer_->local_endpoint();
 }
 
 size_t Transport::ConnectionsCount() const {

@@ -157,7 +157,10 @@ int ManagedConnections::GetAvailableEndpoint(EndpointPair *endpoint_pair) {
                                             Endpoint()));
     if (IsValid(new_endpoint)) {
       UniqueLock unique_lock(shared_mutex_);
-      *endpoint_pair = (*transports_.rbegin()).transport->this_endpoint_pair();
+      endpoint_pair->external =
+          (*transports_.rbegin()).transport->external_endpoint();
+      endpoint_pair->local =
+          (*transports_.rbegin()).transport->local_endpoint();
       return kSuccess;
     }
   }
@@ -174,7 +177,8 @@ int ManagedConnections::GetAvailableEndpoint(EndpointPair *endpoint_pair) {
             (const TransportAndSignalConnections &element) {
       if (element.transport->ConnectionsCount() < least_connections) {
         least_connections = element.transport->ConnectionsCount();
-        chosen_endpoint_pair = element.transport->this_endpoint_pair();
+        chosen_endpoint_pair.external = element.transport->external_endpoint();
+        chosen_endpoint_pair.local = element.transport->local_endpoint();
       }
     });
 
@@ -199,8 +203,8 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
         transports_.begin(),
         transports_.end(),
         [&this_endpoint] (const TransportAndSignalConnections &element) {
-      return element.transport->this_endpoint_pair().external == this_endpoint
-             || element.transport->this_endpoint_pair().local == this_endpoint;
+      return element.transport->external_endpoint() == this_endpoint ||
+             element.transport->local_endpoint() == this_endpoint;
     });
     if (itr == transports_.end()) {
       DLOG(ERROR) << "No Transports have endpoint " << this_endpoint
