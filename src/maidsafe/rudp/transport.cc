@@ -91,6 +91,7 @@ void Transport::Bootstrap(
     connection->StartReceiving();
 
                 // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
+                                                                Sleep(bptime::seconds(1));
     if (IsValid(multiplexer_->external_endpoint()) &&
         IsValid(multiplexer_->local_endpoint())) {
       *chosen_endpoint = *itr;

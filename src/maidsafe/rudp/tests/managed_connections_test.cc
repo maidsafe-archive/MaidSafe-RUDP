@@ -24,6 +24,7 @@
 
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/utils.h"
 
 
 namespace args = std::placeholders;
@@ -52,9 +53,9 @@ void ConnectionLost(const Endpoint &endpoint, std::atomic<int> *count) {
 TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
   ManagedConnections managed_connections1, managed_connections2,
                      managed_connections3;
-  Endpoint endpoint1(ip::address_v4::loopback(), 9000),
-           endpoint2(ip::address_v4::loopback(), 11111),
-           endpoint3(ip::address_v4::loopback(), 23456);
+  Endpoint endpoint1(ip::address_v4::from_string("192.168.1.101"), 9000),
+           endpoint2(ip::address_v4::from_string("192.168.1.101"), 11111),
+           endpoint3(ip::address_v4::from_string("192.168.1.101"), 23456);
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
   boost::mutex mutex;
@@ -77,12 +78,10 @@ TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
   EXPECT_FALSE(a2.get().address().is_unspecified());
   EXPECT_FALSE(a1.get().address().is_unspecified());
 
-
   boost::asio::ip::udp::endpoint bootstrap_endpoint =
       managed_connections3.Bootstrap(std::vector<Endpoint>(1, endpoint1),
                                      message_received_functor,
-                                     connection_lost_functor,
-                                     endpoint3);
+                                     connection_lost_functor);
 
   EXPECT_FALSE(bootstrap_endpoint.address().is_unspecified());
 
@@ -100,6 +99,58 @@ TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
 
 
   DLOG(INFO) << "==================== REMOVING ENDPOINT 2 ====================";
+  managed_connections1.Remove(endpoint2);
+  boost::mutex::scoped_lock lock(mutex);
+  do {
+    lock.unlock();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    lock.lock();
+  } while (connection_lost_count != 2);
+}
+
+TEST(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
+  ManagedConnections managed_connections1, managed_connections2,
+                     managed_connections3;
+  Endpoint endpoint1(ip::address_v4::loopback(), 9000),
+           endpoint2(ip::address_v4::loopback(), 11111),
+           endpoint3(ip::address_v4::from_string("192.168.1.101"), 23456);
+  MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
+                                                            args::_1));
+  boost::mutex mutex;
+  std::atomic<int> connection_lost_count(0);
+  ConnectionLostFunctor connection_lost_functor(
+      std::bind(ConnectionLost, args::_1, &connection_lost_count));
+
+  auto a1 = std::async(std::launch::async, [&] {
+      return managed_connections1.Bootstrap(std::vector<Endpoint>(1, endpoint2),
+                                            message_received_functor,
+                                            connection_lost_functor,
+                                            endpoint1);});  // NOLINT (Fraser)
+
+  auto a2 = std::async(std::launch::async, [&] {
+      return managed_connections2.Bootstrap(std::vector<Endpoint>(1, endpoint1),
+                                            message_received_functor,
+                                            connection_lost_functor,
+                                            endpoint2);});  // NOLINT (Fraser)
+
+  EXPECT_FALSE(a2.get().address().is_unspecified());
+  EXPECT_FALSE(a1.get().address().is_unspecified());
+
+  boost::asio::ip::udp::endpoint bootstrap_endpoint =
+      managed_connections3.Bootstrap(std::vector<Endpoint>(1, endpoint1),
+                                     message_received_functor,
+                                     connection_lost_functor);
+
+  EXPECT_FALSE(bootstrap_endpoint.address().is_unspecified());
+
+  EndpointPair new_endpoint_pair, new_endpoint_pair1;
+  EXPECT_EQ(kSuccess, managed_connections1.GetAvailableEndpoint(&new_endpoint_pair));
+  EXPECT_TRUE(IsValid(new_endpoint_pair.external));
+  EXPECT_TRUE(IsValid(new_endpoint_pair.local));
+  EXPECT_EQ(kSuccess, managed_connections2.GetAvailableEndpoint(&new_endpoint_pair1));
+  EXPECT_TRUE(IsValid(new_endpoint_pair1.external));
+  EXPECT_TRUE(IsValid(new_endpoint_pair1.local));
+  
   managed_connections1.Remove(endpoint2);
   boost::mutex::scoped_lock lock(mutex);
   do {
