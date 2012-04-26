@@ -94,7 +94,7 @@ uint32_t IpAsciiToNet(const char *buffer) {
 
 bool IsValid(const Endpoint &endpoint) {
   return endpoint.port() > 1024U &&
-         endpoint.port() < 49151U &&
+                                                //         endpoint.port() < 49151U &&
          !endpoint.address().is_unspecified();
 }
 

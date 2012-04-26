@@ -66,13 +66,12 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
       return kBindError;
     }
   } else {
-    socket_.connect(ip::udp::endpoint(ip::address_v4::from_string("69.164.211.149"), 80), ec);
+    socket_.connect(ip::udp::endpoint(ip::address_v4::loopback(), 9000), ec);
     if (ec) {
       DLOG(ERROR) << "Multiplexer socket connect error: " << ec.message();
       return kConnectError;
     }
   }
-  std::cout << "STARTED MULTIPLEXER ON " << socket_.local_endpoint() << '\n';
 
   return kSuccess;
 }
