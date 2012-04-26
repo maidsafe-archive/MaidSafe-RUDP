@@ -48,13 +48,6 @@ TEST(UtilsTest, BEH_DecimalAndAscii) {
   EXPECT_EQ(dotted, reformed);
 }
 
-TEST(UtilsTest, BEH_NetworkInterfaces) {
-  std::vector<boost::asio::ip::address> all_local_ips(GetLocalAddresses());
-  EXPECT_FALSE(all_local_ips.empty());
-  for (size_t n = 0; n < all_local_ips.size(); ++n)
-    DLOG(INFO) << n << " - " << all_local_ips.at(n).to_string();
-}
-
 TEST(UtilsTest, BEH_EndpointIsValid) {
   EXPECT_FALSE(IsValid(Endpoint(
       boost::asio::ip::address::from_string("1.1.1.1"), 1024)));

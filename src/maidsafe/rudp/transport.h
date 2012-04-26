@@ -78,7 +78,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   // itself from ManagedConnections which will cause it to be destroyed.
   int CloseConnection(const Endpoint &peer_endpoint);
   int Send(const Endpoint &peer_endpoint, const std::string &message);
-  Endpoint this_endpoint() const;
+  Endpoint external_endpoint() const; 
+  Endpoint local_endpoint() const; 
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
 
@@ -118,7 +119,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
   // async operations (after calling PrepareSend()), they are kept alive with
   // a shared_ptr in this map, as well as in the async operation handlers.
   ConnectionSet connections_;
-  Endpoint this_endpoint_;
   mutable boost::mutex mutex_;
   OnMessage on_message_;
   OnConnectionAdded on_connection_added_;

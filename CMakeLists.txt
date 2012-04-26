@@ -129,7 +129,7 @@ SET(STYLE_RUDP ${STYLE_RUDP} ${ALL_TEST_FILES})
 MS_ADD_STATIC_LIBRARY(${MS_PROJECT_NAME} ${ALL_FILES})
 MS_ADD_EXECUTABLE(TESTrudp Tests ${ALL_TEST_FILES})
 
-TARGET_LINK_LIBRARIES(maidsafe_rudp_static maidsafe_common_static)
+TARGET_LINK_LIBRARIES(maidsafe_rudp_static glog_static maidsafe_common_static)
 TARGET_LINK_LIBRARIES(TESTrudp maidsafe_rudp_static gtest_static gmock_static)
 
 ###################################################################################################

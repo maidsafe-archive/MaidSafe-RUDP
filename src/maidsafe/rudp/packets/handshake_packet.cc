@@ -33,7 +33,7 @@ HandshakePacket::HandshakePacket()
     connection_type_(0),
     socket_id_(0),
     syn_cookie_(0),
-    ip_address_() {
+    endpoint_() {
   SetType(kPacketType);
 }
 
@@ -101,17 +101,25 @@ void HandshakePacket::SetSynCookie(uint32_t n) {
   syn_cookie_ = n;
 }
 
-asio::ip::address HandshakePacket::IpAddress() const {
-  if (ip_address_.is_v4_compatible())
-    return ip_address_.to_v4();
-  return ip_address_;
+//  asio::ip::address HandshakePacket::IpAddress() const {
+//    if (ip_address_.is_v4_compatible())
+//      return ip_address_.to_v4();
+//    return ip_address_;
+//  }
+
+//  void HandshakePacket::SetIpAddress(const asio::ip::address &address) {
+//    if (address.is_v4())
+//      ip_address_ = asio::ip::address_v6::v4_compatible(address.to_v4());
+//    else
+//      ip_address_ = address.to_v6();
+//  }
+
+asio::ip::udp::endpoint HandshakePacket::Endpoint() const {
+  return endpoint_;
 }
 
-void HandshakePacket::SetIpAddress(const asio::ip::address &address) {
-  if (address.is_v4())
-    ip_address_ = asio::ip::address_v6::v4_compatible(address.to_v4());
-  else
-    ip_address_ = address.to_v6();
+void HandshakePacket::SetEndpoint(const asio::ip::udp::endpoint &endpoint) {
+  endpoint_ = endpoint;
 }
 
 bool HandshakePacket::IsValid(const asio::const_buffer &buffer) {
@@ -143,7 +151,18 @@ bool HandshakePacket::Decode(const asio::const_buffer &buffer) {
 
   asio::ip::address_v6::bytes_type bytes;
   std::memcpy(&bytes[0], p + 32, 16);
-  ip_address_ = asio::ip::address_v6(bytes);
+  asio::ip::address_v6 ip_v6_address(bytes);
+
+  asio::ip::address ip_address;
+  if (ip_v6_address.is_v4_compatible())
+    ip_address = ip_v6_address.to_v4();
+  else
+    ip_address = ip_v6_address;
+
+  unsigned short port = p[48];
+  port = ((port << 8) | p[49]);
+
+  endpoint_ = asio::ip::udp::endpoint(ip_address, port);
 
   return true;
 }
@@ -169,8 +188,18 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer &buffer) const {
   EncodeUint32(socket_id_, p + 24);
   EncodeUint32(syn_cookie_, p + 28);
 
-  asio::ip::address_v6::bytes_type bytes = ip_address_.to_bytes();
+  boost::asio::ip::address_v6 ip_address;
+  if (endpoint_.address().is_v4()) {
+    ip_address =
+        asio::ip::address_v6::v4_compatible(endpoint_.address().to_v4());
+  } else {
+    ip_address = endpoint_.address().to_v6();
+  }
+  asio::ip::address_v6::bytes_type bytes = ip_address.to_bytes();
   std::memcpy(p + 32, &bytes[0], 16);
+
+  p[48] = ((endpoint_.port() >> 8) & 0xff);
+  p[49] = (endpoint_.port() & 0xff);
 
   return kPacketSize;
 }

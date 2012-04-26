@@ -43,6 +43,10 @@ typedef std::function<void(const std::string&)> MessageReceivedFunctor;
 typedef std::function<void(const boost::asio::ip::udp::endpoint&)>
     ConnectionLostFunctor;
 
+struct EndpointPair {
+  boost::asio::ip::udp::endpoint local, external;
+};
+
 
 class ManagedConnections {
  public:
@@ -62,13 +66,13 @@ class ManagedConnections {
       boost::asio::ip::udp::endpoint local_endpoint =
           boost::asio::ip::udp::endpoint());
 
-  // Returns one of the transport's external endpoints.  Returns kNoneAvailable
+  // Returns a transport's EndpointPair.  Returns kNoneAvailable
   // if there are no running Managed Connections.  In this case, Bootstrap must
   // be called to start new Managed Connections.  Returns kFull if all
   // Managed Connections already have the maximum number of running sockets.  If
   // there are less than kMaxTransports transports running, a new one will be
-  // started and if successful, this will be the returned endpoint.
-  int GetAvailableEndpoint(boost::asio::ip::udp::endpoint *endpoint);
+  // started and if successful, this will be the returned EndpointPair.
+  int GetAvailableEndpoint(EndpointPair *endpoint_pair);
 
   // Makes a new connection and sends the validation data to the peer which
   // runs its message_received_functor_ with the data.

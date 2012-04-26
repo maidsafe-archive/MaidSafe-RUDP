@@ -65,7 +65,14 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
       DLOG(ERROR) << "Multiplexer socket binding error: " << ec.message();
       return kBindError;
     }
+  } else {
+    socket_.connect(ip::udp::endpoint(ip::address_v4::from_string("69.164.211.149"), 80), ec);
+    if (ec) {
+      DLOG(ERROR) << "Multiplexer socket connect error: " << ec.message();
+      return kConnectError;
+    }
   }
+  std::cout << "STARTED MULTIPLEXER ON " << socket_.local_endpoint() << '\n';
 
   return kSuccess;
 }
@@ -88,6 +95,20 @@ void Multiplexer::PrintSendError(const boost::asio::ip::udp::endpoint &endpoint,
 
 boost::asio::ip::udp::endpoint Multiplexer::GetBootstrappingEndpoint() {
   return dispatcher_.GetAndClearBootstrappingEndpoint();
+}
+
+boost::asio::ip::udp::endpoint Multiplexer::local_endpoint() const {
+  boost::system::error_code ec;
+  boost::asio::ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
+  if (ec) {
+    DLOG(ERROR) << ec.message();
+    return boost::asio::ip::udp::endpoint();
+  }
+  return local_endpoint;
+}
+
+boost::asio::ip::udp::endpoint Multiplexer::external_endpoint() const {
+  return external_endpoint_;
 }
 
 }  // namespace detail

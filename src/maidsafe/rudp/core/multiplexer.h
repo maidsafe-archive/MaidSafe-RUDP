@@ -76,7 +76,11 @@ class Multiplexer {
     return kSendFailure;
   }
 
+  // Returns endpoint of peer requesting to bootstrap off this node.
   boost::asio::ip::udp::endpoint GetBootstrappingEndpoint();
+
+  boost::asio::ip::udp::endpoint local_endpoint() const;
+  boost::asio::ip::udp::endpoint external_endpoint() const;
 
   friend class Socket;
 
@@ -98,6 +102,10 @@ class Multiplexer {
 
   // Dispatcher keeps track of the active sockets.
   Dispatcher dispatcher_;
+
+  // This node's external endpoint - passed to session and set during
+  // handshaking.
+  boost::asio::ip::udp::endpoint external_endpoint_;
 };
 
 }  // namespace detail

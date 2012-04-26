@@ -18,7 +18,7 @@
 #include <string>
 
 #include "boost/asio/buffer.hpp"
-#include "boost/asio/ip/address.hpp"
+#include "boost/asio/ip/udp.hpp"
 #include "boost/system/error_code.hpp"
 
 #include "maidsafe/rudp/packets/control_packet.h"
@@ -31,7 +31,7 @@ namespace detail {
 
 class HandshakePacket : public ControlPacket {
  public:
-  enum { kPacketSize = ControlPacket::kHeaderSize + 48 };
+  enum { kPacketSize = ControlPacket::kHeaderSize + 50 };
   enum { kPacketType = 0 };
 
   HandshakePacket();
@@ -63,8 +63,8 @@ class HandshakePacket : public ControlPacket {
   uint32_t SynCookie() const;
   void SetSynCookie(uint32_t n);
 
-  boost::asio::ip::address IpAddress() const;
-  void SetIpAddress(const boost::asio::ip::address &address);
+  boost::asio::ip::udp::endpoint Endpoint() const;
+  void SetEndpoint(const boost::asio::ip::udp::endpoint &endpoint);
 
   static bool IsValid(const boost::asio::const_buffer &buffer);
   bool Decode(const boost::asio::const_buffer &buffer);
@@ -79,7 +79,7 @@ class HandshakePacket : public ControlPacket {
   uint32_t connection_type_;
   uint32_t socket_id_;
   uint32_t syn_cookie_;
-  boost::asio::ip::address_v6 ip_address_;
+  boost::asio::ip::udp::endpoint endpoint_;
 };
 
 }  // namespace detail

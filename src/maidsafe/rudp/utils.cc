@@ -15,7 +15,6 @@
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/log.h"
-#include "maidsafe/rudp/network_interface.h"
 
 namespace maidsafe {
 
@@ -91,24 +90,6 @@ uint32_t IpAsciiToNet(const char *buffer) {
     ++buffer;
   }
   return ret;
-}
-
-std::vector<boost::asio::ip::address> GetLocalAddresses() {
-  // get all network interfaces
-  std::vector<boost::asio::ip::address> ips;
-  boost::system::error_code ec;
-  std::vector<NetworkInterface> net_interfaces;
-  net_interfaces = NetworkInterface::LocalList(ec);
-  if (!ec) {
-    for (auto it = net_interfaces.begin(); it != net_interfaces.end(); ++it) {
-      if (!NetworkInterface::IsLoopback(it->destination) &&
-          !NetworkInterface::IsMulticast(it->destination) &&
-          !NetworkInterface::IsAny(it->destination)) {
-        ips.push_back(it->destination);
-      }
-    }
-  }
-  return ips;
 }
 
 bool IsValid(const Endpoint &endpoint) {

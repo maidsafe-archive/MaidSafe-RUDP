@@ -363,10 +363,6 @@ void Connection::HandleWrite(const bs::error_code &ec) {
 //  }
 }
 
-Endpoint Connection::GetThisExternalEndpoint() {
-                                                                          return Endpoint(ip::address_v4::loopback(), 11001);
-}
-
 void Connection::StartProbing() {
   probe_interval_timer_.expires_from_now(Parameters::keepalive_interval);
   probe_interval_timer_.async_wait(strand_.wrap(std::bind(&Connection::DoProbe,

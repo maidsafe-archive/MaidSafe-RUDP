@@ -139,20 +139,22 @@ bool SetupNetwork(const uint16_t &node_count,
     return false;
   }
 
-  Endpoint this_endpoint1, this_endpoint2;
+  EndpointPair this_endpoint_pair1, this_endpoint_pair2;
   EXPECT_EQ(kSuccess,
-            node1->managed_connection().GetAvailableEndpoint(&this_endpoint1));
+            node1->managed_connection().GetAvailableEndpoint(&this_endpoint_pair1));
   EXPECT_EQ(kSuccess,
-            node2->managed_connection().GetAvailableEndpoint(&this_endpoint2));
+            node2->managed_connection().GetAvailableEndpoint(&this_endpoint_pair2));
 
-  EXPECT_NE(Endpoint(), this_endpoint1);
-  EXPECT_NE(Endpoint(), this_endpoint2);
+  EXPECT_NE(Endpoint(), this_endpoint_pair1.local);
+  EXPECT_NE(Endpoint(), this_endpoint_pair1.external);
+  EXPECT_NE(Endpoint(), this_endpoint_pair2.local);
+  EXPECT_NE(Endpoint(), this_endpoint_pair2.external);
 
   EXPECT_EQ(kSuccess,
-            node1->managed_connection().Add(this_endpoint1, endpoint2,
+            node1->managed_connection().Add(this_endpoint_pair1.external, endpoint2,
                                             "validation_data"));
   EXPECT_EQ(kSuccess,
-            node2->managed_connection().Add(this_endpoint2, endpoint1,
+            node2->managed_connection().Add(this_endpoint_pair2.external, endpoint1,
                                             "validation_data"));
   nodes->emplace_back(node1);
   nodes->emplace_back(node2);
@@ -185,9 +187,9 @@ bool SetupNetwork(const uint16_t &node_count,
 TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
   ManagedConnections managed_connections1, managed_connections2,
                      managed_connections3;
-  Endpoint endpoint1(ip::address_v4::loopback(), 9000),
-           endpoint2(ip::address_v4::loopback(), 11111),
-           endpoint3(ip::address_v4::loopback(), 23456);
+  Endpoint endpoint1(ip::address_v4::from_string("192.168.1.101"), 9000),
+           endpoint2(ip::address_v4::from_string("192.168.1.101"), 11111),
+           endpoint3(ip::address_v4::from_string("192.168.1.101"), 23456);
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
   boost::mutex mutex;
@@ -195,7 +197,6 @@ TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
   ConnectionLostFunctor connection_lost_functor(
       std::bind(ConnectionLost, args::_1, &connection_lost_count));
 
-  // get a future type (endpoint type)
   auto a1 = std::async(std::launch::async, [&] {
       return managed_connections1.Bootstrap(std::vector<Endpoint>(1, endpoint2),
                                             message_received_functor,
@@ -208,14 +209,13 @@ TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                             connection_lost_functor,
                                             endpoint2);});  // NOLINT (Fraser)
 
-  EXPECT_FALSE(a2.get().address().is_unspecified());  // wait for promise !
-  EXPECT_FALSE(a1.get().address().is_unspecified());  // wait for promise !
+  EXPECT_FALSE(a2.get().address().is_unspecified());
+  EXPECT_FALSE(a1.get().address().is_unspecified());
 
   boost::asio::ip::udp::endpoint bootstrap_endpoint =
       managed_connections3.Bootstrap(std::vector<Endpoint>(1, endpoint1),
                                      message_received_functor,
-                                     connection_lost_functor,
-                                     endpoint3);
+                                     connection_lost_functor);
 
   EXPECT_FALSE(bootstrap_endpoint.address().is_unspecified());
 
@@ -335,7 +335,7 @@ TEST(ManagedConnectionsTest, BEH_API_Bootstrap_Parameters) {
                                       message_received_functor,
                                       ConnectionLostFunctor(),
                                       endpoint);
-    EXPECT_NE(Endpoint(), bootstrap_endpoint);
+    EXPECT_EQ(Endpoint(), bootstrap_endpoint);
   }
   {  // Invalid Endpoint
     ManagedConnections managed_connections;
@@ -345,7 +345,7 @@ TEST(ManagedConnectionsTest, BEH_API_Bootstrap_Parameters) {
                                       message_received_functor,
                                       connection_lost_functor,
                                       Endpoint());
-    EXPECT_NE(Endpoint(), bootstrap_endpoint);
+    EXPECT_EQ(Endpoint(), bootstrap_endpoint);
   }
   {  // Already in use Endpoint
     ManagedConnections managed_connections;
@@ -355,7 +355,7 @@ TEST(ManagedConnectionsTest, BEH_API_Bootstrap_Parameters) {
                                       message_received_functor,
                                       connection_lost_functor,
                                       bootstrap_endpoints->at(0));
-    EXPECT_NE(Endpoint(), bootstrap_endpoint);
+    EXPECT_EQ(Endpoint(), bootstrap_endpoint);
   }
   nodes.reset();
 }
@@ -373,28 +373,85 @@ TEST(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   std::atomic<int> connection_lost_count(0);
   ConnectionLostFunctor connection_lost_functor(
       std::bind(ConnectionLost, args::_1, &connection_lost_count));
-  ManagedConnections managed_connections;
-  Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
   {  //  Before Bootstrapping
-    Endpoint this_endpoint;
+    ManagedConnections managed_connections;
+    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
+    EndpointPair this_endpoint_pair;
     EXPECT_EQ(kNoneAvailable,
-              managed_connections.GetAvailableEndpoint(&this_endpoint));
-    EXPECT_EQ(Endpoint(), this_endpoint);
+              managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+    EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
+    EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
   }
-
-  Endpoint bootstrap_endpoint =
-      managed_connections.Bootstrap(*bootstrap_endpoints,
-                                    message_received_functor,
-                                    connection_lost_functor,
-                                    endpoint);
-  EXPECT_NE(Endpoint(), bootstrap_endpoint);
   {  //  After Bootstrapping
-    Endpoint this_endpoint;
+    ManagedConnections managed_connections;
+    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
+    Endpoint bootstrap_endpoint =
+        managed_connections.Bootstrap(*bootstrap_endpoints,
+                                      message_received_functor,
+                                      connection_lost_functor,
+                                      endpoint);
+    EXPECT_NE(Endpoint(), bootstrap_endpoint);
+    EndpointPair this_endpoint_pair;
     EXPECT_EQ(kSuccess,
-              managed_connections.GetAvailableEndpoint(&this_endpoint));
-    EXPECT_NE(Endpoint(), this_endpoint);
+              managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+    EXPECT_NE(Endpoint(), this_endpoint_pair.local);
+    EXPECT_NE(Endpoint(), this_endpoint_pair.external);
+    EXPECT_TRUE(IsValid(this_endpoint_pair.local));
+    EXPECT_TRUE(IsValid(this_endpoint_pair.external));
   }
   nodes.reset();
+}
+
+TEST(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint2) {
+  ManagedConnections managed_connections1, managed_connections2,
+                     managed_connections3;
+  Endpoint endpoint1(ip::address_v4::loopback(), 9000),
+           endpoint2(ip::address_v4::loopback(), 11111),
+           endpoint3(ip::address_v4::from_string("192.168.1.101"), 23456);
+  MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
+                                                            args::_1));
+  boost::mutex mutex;
+  std::atomic<int> connection_lost_count(0);
+  ConnectionLostFunctor connection_lost_functor(
+      std::bind(ConnectionLost, args::_1, &connection_lost_count));
+
+  auto a1 = std::async(std::launch::async, [&] {
+      return managed_connections1.Bootstrap(std::vector<Endpoint>(1, endpoint2),
+                                            message_received_functor,
+                                            connection_lost_functor,
+                                            endpoint1);});  // NOLINT (Fraser)
+
+  auto a2 = std::async(std::launch::async, [&] {
+      return managed_connections2.Bootstrap(std::vector<Endpoint>(1, endpoint1),
+                                            message_received_functor,
+                                            connection_lost_functor,
+                                            endpoint2);});  // NOLINT (Fraser)
+
+  EXPECT_FALSE(a2.get().address().is_unspecified());
+  EXPECT_FALSE(a1.get().address().is_unspecified());
+
+  boost::asio::ip::udp::endpoint bootstrap_endpoint =
+      managed_connections3.Bootstrap(std::vector<Endpoint>(1, endpoint1),
+                                     message_received_functor,
+                                     connection_lost_functor);
+
+  EXPECT_FALSE(bootstrap_endpoint.address().is_unspecified());
+
+  EndpointPair new_endpoint_pair, new_endpoint_pair1;
+  EXPECT_EQ(kSuccess, managed_connections1.GetAvailableEndpoint(&new_endpoint_pair));
+  EXPECT_TRUE(IsValid(new_endpoint_pair.external));
+  EXPECT_TRUE(IsValid(new_endpoint_pair.local));
+  EXPECT_EQ(kSuccess, managed_connections2.GetAvailableEndpoint(&new_endpoint_pair1));
+  EXPECT_TRUE(IsValid(new_endpoint_pair1.external));
+  EXPECT_TRUE(IsValid(new_endpoint_pair1.local));
+
+  managed_connections1.Remove(endpoint2);
+  boost::mutex::scoped_lock lock(mutex);
+  do {
+    lock.unlock();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    lock.lock();
+  } while (connection_lost_count != 2);
 }
 
 }  // namespace test
