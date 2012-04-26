@@ -53,9 +53,9 @@ void ConnectionLost(const Endpoint &endpoint, std::atomic<int> *count) {
 TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
   ManagedConnections managed_connections1, managed_connections2,
                      managed_connections3;
-  Endpoint endpoint1(ip::address_v4::from_string("192.168.1.101"), 9000),
-           endpoint2(ip::address_v4::from_string("192.168.1.101"), 11111),
-           endpoint3(ip::address_v4::from_string("192.168.1.101"), 23456);
+  Endpoint endpoint1(ip::address_v4::loopback(), 9000),
+           endpoint2(ip::address_v4::loopback(), 11111),
+           endpoint3(ip::address_v4::loopback(), 23456);
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
   boost::mutex mutex;
@@ -113,7 +113,7 @@ TEST(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
                      managed_connections3;
   Endpoint endpoint1(ip::address_v4::loopback(), 9000),
            endpoint2(ip::address_v4::loopback(), 11111),
-           endpoint3(ip::address_v4::from_string("192.168.1.101"), 23456);
+           endpoint3(ip::address_v4::loopback(), 23456);
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
   boost::mutex mutex;
