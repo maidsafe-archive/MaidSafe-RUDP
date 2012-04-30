@@ -37,6 +37,10 @@ namespace maidsafe {
 
 namespace rudp {
 
+namespace test {
+class ManagedConnectionsTest_BEH_API_Bootstrap_Test;
+}
+
 class Transport;
 
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
@@ -85,9 +89,10 @@ class ManagedConnections {
 
   int Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
            const std::string &message) const;
-  void Ping(const boost::asio::ip::udp::endpoint &peer_endpoint) const;
+  bool Ping(const boost::asio::ip::udp::endpoint &peer_endpoint) const;
 
   friend class Transport;
+  friend class test::ManagedConnectionsTest_BEH_API_Bootstrap_Test;
 
  private:
   typedef std::map<boost::asio::ip::udp::endpoint,
