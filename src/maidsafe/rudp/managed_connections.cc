@@ -243,8 +243,8 @@ int ManagedConnections::Send(const Endpoint &peer_endpoint,
   return (*itr).second->Send(peer_endpoint, message);
 }
 
-void ManagedConnections::Ping(const Endpoint &/*peer_endpoint*/) const {
-  // TODO(Fraser#5#): 2012-04-02 - Do async probe
+bool ManagedConnections::Ping(const Endpoint &peer_endpoint) const {
+  return TryConnectTo(std::vector<Endpoint>(1, peer_endpoint), false);
 }
 
 void ManagedConnections::OnMessageSlot(const std::string &message) {

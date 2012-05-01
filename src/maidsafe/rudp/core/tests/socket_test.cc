@@ -34,8 +34,16 @@ namespace detail {
 
 namespace test {
 
+namespace {
+
+uint16_t GetRandomPort() {
+  return ((RandomUint32() % 48126) + 1025);
+}
+
 const size_t kBufferSize = 1024 * 1024;
 const size_t kIterations = 50;
+
+}  // unnamed namespace
 
 void dispatch_handler(const bs::error_code &ec, Multiplexer *muxer) {
   if (!ec) muxer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, muxer));

@@ -188,8 +188,7 @@ TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
   ManagedConnections managed_connections1, managed_connections2,
                      managed_connections3;
   Endpoint endpoint1(ip::address_v4::loopback(), 9000),
-           endpoint2(ip::address_v4::loopback(), 11111),
-           endpoint3(ip::address_v4::loopback(), 23456);
+           endpoint2(ip::address_v4::loopback(), 11111);
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
   boost::mutex mutex;
@@ -217,17 +216,22 @@ TEST(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                      message_received_functor,
                                      connection_lost_functor);
 
-  EXPECT_FALSE(bootstrap_endpoint.address().is_unspecified());
+  EXPECT_EQ(endpoint1, bootstrap_endpoint);
+  ASSERT_EQ(2U, managed_connections1.connection_map_.size());
+  Endpoint endpoint3((*managed_connections1.connection_map_.rbegin()).first);
+                                                              std::cout << endpoint3 << std::endl;
+  std::string port3(boost::lexical_cast<std::string>(endpoint3.port()));
 
   for (int i(0); i != 200; ++i) {
     Sleep(bptime::milliseconds(10));
     std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
     if (i % 2) {
       managed_connections1.Send(endpoint2, message + " from 9000 to 11111");
-      managed_connections1.Send(endpoint3, message + " from 9000 to 23456");
+      managed_connections1.Send(endpoint3, message + " from 9000 to " + port3);
     } else {
       managed_connections2.Send(endpoint1, message + " from 11111 to 9000");
-      managed_connections3.Send(endpoint1, message + " from 23456 to 9000");
+      managed_connections3.Send(endpoint1,
+                                message + " from " + port3 + " to 9000");
     }
   }
 
