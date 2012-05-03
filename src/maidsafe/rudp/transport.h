@@ -78,8 +78,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   // itself from ManagedConnections which will cause it to be destroyed.
   int CloseConnection(const Endpoint &peer_endpoint);
   int Send(const Endpoint &peer_endpoint, const std::string &message);
-  Endpoint external_endpoint() const; 
-  Endpoint local_endpoint() const; 
+  Endpoint external_endpoint() const;
+  Endpoint local_endpoint() const;
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
 
