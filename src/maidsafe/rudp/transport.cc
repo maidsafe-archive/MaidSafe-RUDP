@@ -43,12 +43,10 @@ Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLI
       on_connection_added_(),
       on_connection_lost_(),
       bootstrap_endpoint_(),
-      bootstrap_disconnection_timer_(strand_.get_io_service()) {
-}
+      bootstrap_disconnection_timer_(asio_service->service()) {}
 
 Transport::~Transport() {
-  for (auto it = connections_.begin(); it != connections_.end(); ++it)
-    (*it)->Close();
+  Close();
 }
 
 void Transport::Bootstrap(
@@ -113,7 +111,7 @@ void Transport::Close() {
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
     (*it)->Close();
   if (multiplexer_)
-    strand_.dispatch(std::bind(&Transport::CloseMultiplexer, multiplexer_));
+    multiplexer_->Close();
   multiplexer_.reset();
 }
 
@@ -209,10 +207,6 @@ Endpoint Transport::bootstrap_endpoint() const {
 size_t Transport::ConnectionsCount() const {
   boost::mutex::scoped_lock lock(mutex_);
   return connections_.size();
-}
-
-void Transport::CloseMultiplexer(MultiplexerPtr multiplexer) {
-  multiplexer->Close();
 }
 
 void Transport::StartDispatch() {

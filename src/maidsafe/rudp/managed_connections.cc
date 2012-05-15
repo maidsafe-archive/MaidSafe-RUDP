@@ -83,7 +83,7 @@ Endpoint ManagedConnections::Bootstrap(
     DLOG(ERROR) << "You must provide at least one Bootstrap endpoint.";
     return Endpoint();
   }
-  bootstrap_endpoints_= bootstrap_endpoints;
+  bootstrap_endpoints_ = bootstrap_endpoints;
 
   asio_service_->Start(Parameters::thread_count);
 
@@ -134,6 +134,7 @@ Endpoint ManagedConnections::StartNewTransport(
     transport_and_signals_connections.on_connection_added_connection.disconnect();
     transport_and_signals_connections.on_connection_lost_connection.disconnect();
     transport_and_signals_connections.on_message_connection.disconnect();
+    transport_and_signals_connections.transport->Close();
     return Endpoint();
   }
 
