@@ -18,11 +18,12 @@
 #include <functional>
 
 #include "maidsafe/rudp/connection.h"
-#include "maidsafe/rudp/log.h"
-#include "maidsafe/rudp/utils.h"
-#include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/socket.h"
+#include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/managed_connections.h"
+#include "maidsafe/rudp/parameters.h"
+#include "maidsafe/rudp/utils.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;
@@ -40,7 +41,10 @@ Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLI
       mutex_(),
       on_message_(),
       on_connection_added_(),
-      on_connection_lost_() {}
+      on_connection_lost_(),
+      bootstrap_endpoint_(),
+      bootstrap_disconnection_timer_(strand_.get_io_service()) {
+}
 
 Transport::~Transport() {
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
@@ -88,17 +92,29 @@ void Transport::Bootstrap(
     ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(),
                                                           strand_,
                                                           multiplexer_, *itr));
+    connection->set_temporary(false);
     connection->StartReceiving();
 
                 // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
-                                                                Sleep(bptime::milliseconds((RandomUint32() % 100) + 1000));
+                                                                //Sleep(bptime::milliseconds((RandomUint32() % 100) + 1000));
+                                                                Sleep(bptime::seconds(1));
 
     if (IsValid(multiplexer_->external_endpoint()) &&
         IsValid(multiplexer_->local_endpoint())) {
-      *chosen_endpoint = *itr;
+      bootstrap_endpoint_ = *itr;
+      *chosen_endpoint = bootstrap_endpoint_;
       return;
     }
   }
+}
+
+void Transport::Close() {
+  bootstrap_disconnection_timer_.cancel();
+  for (auto it = connections_.begin(); it != connections_.end(); ++it)
+    (*it)->Close();
+  if (multiplexer_)
+    strand_.dispatch(std::bind(&Transport::CloseMultiplexer, multiplexer_));
+  multiplexer_.reset();
 }
 
 void Transport::Connect(const Endpoint &peer_endpoint,
@@ -125,6 +141,7 @@ void Transport::DoConnect(const Endpoint &peer_endpoint,
                                                         strand_,
                                                         multiplexer_,
                                                         peer_endpoint));
+  connection->set_temporary(false);
   connection->StartReceiving();
 
   if (opened_multiplexer)
@@ -185,6 +202,10 @@ Endpoint Transport::local_endpoint() const {
   return multiplexer_->local_endpoint();
 }
 
+Endpoint Transport::bootstrap_endpoint() const {
+  return bootstrap_endpoint_;
+}
+
 size_t Transport::ConnectionsCount() const {
   boost::mutex::scoped_lock lock(mutex_);
   return connections_.size();
@@ -205,7 +226,6 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
                                const boost::system::error_code &/*ec*/) {
   if (!multiplexer->IsOpen())
     return;
-
   Endpoint bootstrapping_endpoint(multiplexer->GetBootstrappingEndpoint());
   if (IsValid(bootstrapping_endpoint)) {
     ConnectionPtr connection(
@@ -213,12 +233,19 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
                                      strand_,
                                      multiplexer_,
                                      bootstrapping_endpoint));
+    connection->set_temporary(true);
     connection->StartReceiving();
     // TODO(Fraser#5#): 2012-04-18 - Drop this connection after 1 min.  Ensure
     //                  when connection is dropped that ManagedConnections'
     //                  connection_lost_functor is not called.
+    bootstrap_disconnection_timer_.expires_from_now(
+        Parameters::bootstrap_disconnection_timeout);
+    bootstrap_disconnection_timer_.async_wait(
+        std::bind(&Transport::DoCloseConnection,
+                  shared_from_this(), connection));
+    DLOG(INFO) << "Scheduled disconnection of bootstrapping connection to "
+               << connection->Socket().RemoteEndpoint();
   }
-
   StartDispatch();
 }
 
@@ -242,8 +269,9 @@ void Transport::InsertConnection(ConnectionPtr connection) {
 
 void Transport::DoInsertConnection(ConnectionPtr connection) {
   connections_.insert(connection);
-  on_connection_added_(connection->Socket().RemoteEndpoint(),
-                       shared_from_this());
+  if (!connection->temporary())
+    on_connection_added_(connection->Socket().RemoteEndpoint(),
+                         shared_from_this());
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection) {
@@ -252,12 +280,23 @@ void Transport::RemoveConnection(ConnectionPtr connection) {
 }
 
 void Transport::DoRemoveConnection(ConnectionPtr connection) {
+  if (connection->temporary())  // This is bootstrapping connection
+    return;
+
+  bool bootstraped_connection(false);
+  if (Endpoint() != bootstrap_endpoint_) {  // This is my bootstrapped connection
+    if (connection->Socket().RemoteEndpoint() == bootstrap_endpoint_) {
+      bootstraped_connection = true;
+      bootstrap_endpoint_ = Endpoint();
+    }
+  }
   connections_.erase(connection);
   if (connections_.empty()) {
     on_connection_lost_(connection->Socket().RemoteEndpoint(),
-                        shared_from_this());
+                        shared_from_this(), bootstraped_connection);
   } else {
-    on_connection_lost_(connection->Socket().RemoteEndpoint(), nullptr);
+    on_connection_lost_(connection->Socket().RemoteEndpoint(), nullptr,
+                        bootstraped_connection);
   }
 }
 

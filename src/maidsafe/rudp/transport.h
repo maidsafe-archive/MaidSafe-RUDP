@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "boost/asio/strand.hpp"
+#include "boost/asio/deadline_timer.hpp"
 #include "boost/signals2/signal.hpp"
 #include "boost/thread/mutex.hpp"
 
@@ -56,7 +57,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef boost::signals2::signal<void(const std::string&)> OnMessage;
   typedef boost::signals2::signal<void(const Endpoint&,
                                        std::shared_ptr<Transport>)>
-                                          OnConnectionAdded, OnConnectionLost;
+                                          OnConnectionAdded;
+  typedef boost::signals2::signal<void(const Endpoint&,
+                                       std::shared_ptr<Transport>,
+                                       const bool&)> OnConnectionLost;
 
   explicit Transport(std::shared_ptr<AsioService> asio_service);  // NOLINT (Fraser)
   virtual ~Transport();
@@ -80,8 +84,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
   int Send(const Endpoint &peer_endpoint, const std::string &message);
   Endpoint external_endpoint() const;
   Endpoint local_endpoint() const;
+  Endpoint bootstrap_endpoint() const;
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
+  void Close();
 
  private:
   Transport(const Transport&);
@@ -110,7 +116,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DoInsertConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection);
   void DoRemoveConnection(ConnectionPtr connection);
-
+  void RemoveBootstrapConnection(ConnectionPtr connection);
+  void DoRemoveBootstrapConnection(ConnectionPtr connection);
   std::shared_ptr<AsioService> asio_service_;
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
@@ -123,6 +130,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   OnMessage on_message_;
   OnConnectionAdded on_connection_added_;
   OnConnectionLost on_connection_lost_;
+  Endpoint bootstrap_endpoint_;
+  boost::asio::deadline_timer bootstrap_disconnection_timer_;
 };
 
 typedef std::shared_ptr<Transport> TransportPtr;

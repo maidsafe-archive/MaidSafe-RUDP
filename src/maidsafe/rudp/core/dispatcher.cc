@@ -58,14 +58,13 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
       socket_iter = std::find_if(
           sockets_.begin(),
           sockets_.end(),
-          [&endpoint](const SocketMap::value_type &socket_pair) {
+          [endpoint](const SocketMap::value_type &socket_pair) {
             return socket_pair.second->RemoteEndpoint() == endpoint;
           });
     } else {
       // This packet is intended for a specific connection.
       socket_iter = sockets_.find(id);
     }
-
     if (socket_iter != sockets_.end()) {
       socket_iter->second->HandleReceiveFrom(data, endpoint);
     } else if (id == 0) {

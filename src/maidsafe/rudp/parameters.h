@@ -85,6 +85,9 @@ struct Parameters {
   // Timeout defined to receive Keepalive response packet.
   static Timeout keepalive_timeout;
 
+  // Timeout defined to disconnect Bootstrapping connection.
+  static Timeout bootstrap_disconnection_timeout;
+
   // Defined connection types
   enum ConnectionType {
     kWireless = 0x0fffffff,

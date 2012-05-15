@@ -38,7 +38,8 @@ ManagedConnections::ManagedConnections()
       connection_lost_functor_(),
       transports_(),
       connection_map_(),
-      shared_mutex_() {}
+      shared_mutex_(),
+      bootstrap_endpoints_() {}
 
 ManagedConnections::~ManagedConnections() {
   UniqueLock unique_lock(shared_mutex_);
@@ -48,7 +49,9 @@ ManagedConnections::~ManagedConnections() {
     element.on_connection_lost_connection.disconnect();
     element.on_connection_added_connection.disconnect();
     element.on_message_connection.disconnect();
+    element.transport->Close();
   });
+  asio_service_->Stop();
 }
 
 Endpoint ManagedConnections::Bootstrap(
@@ -56,6 +59,15 @@ Endpoint ManagedConnections::Bootstrap(
     MessageReceivedFunctor message_received_functor,
     ConnectionLostFunctor connection_lost_functor,
     boost::asio::ip::udp::endpoint local_endpoint) {
+  {
+    SharedLock shared_lock(shared_mutex_);
+    if (!connection_map_.empty()) {
+      DLOG(ERROR) << "Already bootstrapped.";
+      return Endpoint();
+    }
+    BOOST_ASSERT(transports_.empty());
+  }
+
   if (!message_received_functor) {
     DLOG(ERROR) << "You must provide a valid MessageReceivedFunctor.";
     return Endpoint();
@@ -67,14 +79,11 @@ Endpoint ManagedConnections::Bootstrap(
   }
   connection_lost_functor_ = connection_lost_functor;
 
-  {
-    SharedLock shared_lock(shared_mutex_);
-    if (!connection_map_.empty()) {
-      DLOG(ERROR) << "Already bootstrapped.";
-      return Endpoint();
-    }
-    BOOST_ASSERT(transports_.empty());
+  if (bootstrap_endpoints.empty()) {
+    DLOG(ERROR) << "You must provide at least one Bootstrap endpoint.";
+    return Endpoint();
   }
+  bootstrap_endpoints_= bootstrap_endpoints;
 
   asio_service_->Start(Parameters::thread_count);
 
@@ -92,7 +101,6 @@ Endpoint ManagedConnections::StartNewTransport(
   TransportAndSignalConnections transport_and_signals_connections;
   transport_and_signals_connections.transport =
       std::make_shared<Transport>(asio_service_);
-
   bool bootstrapping(!bootstrap_endpoints.empty());
   if (!bootstrapping) {
     bootstrap_endpoints.reserve(kMaxTransports * Transport::kMaxConnections());
@@ -104,7 +112,8 @@ Endpoint ManagedConnections::StartNewTransport(
       bootstrap_endpoints.push_back(entry.first);
     });
   }
-
+  if (bootstrap_endpoints.empty())
+    bootstrap_endpoints = bootstrap_endpoints_;  // Last resort
   Endpoint chosen_endpoint;
   transport_and_signals_connections.transport->Bootstrap(
       bootstrap_endpoints,
@@ -113,7 +122,7 @@ Endpoint ManagedConnections::StartNewTransport(
       std::bind(&ManagedConnections::OnConnectionAddedSlot, this, args::_1,
                 args::_2),
       std::bind(&ManagedConnections::OnConnectionLostSlot, this, args::_1,
-                args::_2),
+                args::_2, args::_2),
       &chosen_endpoint,
       &transport_and_signals_connections.on_message_connection,
       &transport_and_signals_connections.on_connection_added_connection,
@@ -122,15 +131,14 @@ Endpoint ManagedConnections::StartNewTransport(
     SharedLock shared_lock(shared_mutex_);
     DLOG(WARNING) << "Failed to start a new Transport.  "
                   << connection_map_.size() << " currently running.";
+    transport_and_signals_connections.on_connection_added_connection.disconnect();
+    transport_and_signals_connections.on_connection_lost_connection.disconnect();
+    transport_and_signals_connections.on_message_connection.disconnect();
     return Endpoint();
   }
 
   UniqueLock unique_lock(shared_mutex_);
   transports_.push_back(transport_and_signals_connections);
-                                                                              //  if (bootstrapping) {
-                                                                              //    connection_map_.insert(std::make_pair(chosen_endpoint,
-                                                                              //                           transport_and_signals_connections.transport));
-                                                                              //  }
   return chosen_endpoint;
 }
 
@@ -205,16 +213,23 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
       return element.transport->external_endpoint() == this_endpoint ||
              element.transport->local_endpoint() == this_endpoint;
     });
+
     if (itr == transports_.end()) {
       DLOG(ERROR) << "No Transports have endpoint " << this_endpoint
                   << " - ensure GetAvailableEndpoint has been called first.";
       return kInvalidTransport;
     }
 
-    if (connection_map_.find(peer_endpoint) != connection_map_.end()) {
-      DLOG(ERROR) << "A managed connection to " << peer_endpoint
-                  << " already exists.";
-      return kConnectionAlreadyExists;
+    auto connection_map_itr = connection_map_.find(peer_endpoint);
+    if (connection_map_itr != connection_map_.end()) {
+      if (peer_endpoint == (*connection_map_itr).second->bootstrap_endpoint()) {
+        (*connection_map_itr).second->CloseConnection(peer_endpoint);
+        DLOG(INFO) << "Clearing bootstraped connection to " << peer_endpoint;
+      } else {
+        DLOG(ERROR) << "A managed connection to " << peer_endpoint
+                    << " already exists.";
+        return kConnectionAlreadyExists;
+      }
     }
   }
 
@@ -263,13 +278,19 @@ void ManagedConnections::OnConnectionAddedSlot(const Endpoint &peer_endpoint,
 }
 
 void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
-                                              TransportPtr transport) {
+                                              TransportPtr transport,
+                                              const bool &bootstraped_connection) {
   UniqueLock unique_lock(shared_mutex_);
   size_t result(connection_map_.erase(peer_endpoint));
   if (result == 1U) {
-    DLOG(INFO) << "Removed managed connection to " << peer_endpoint
-               << (transport ? " - also removing corresponding transport" : "");
-    connection_lost_functor_(peer_endpoint);
+    if (!bootstraped_connection) {
+      DLOG(INFO) << "Removed managed connection to " << peer_endpoint
+                 << (transport ? " - also removing corresponding transport" : "");
+      connection_lost_functor_(peer_endpoint);
+    } else {
+      DLOG(INFO) << "Removed bootstrap connection to " << peer_endpoint
+                 << (transport ? " - also removing corresponding transport" : "");
+    }
   } else {
     DLOG(ERROR) << "Was not connected to " << peer_endpoint;
   }
@@ -291,6 +312,7 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
   (*itr).on_message_connection.disconnect();
   (*itr).on_connection_added_connection.disconnect();
   (*itr).on_connection_lost_connection.disconnect();
+  (*itr).transport->Close();
   transports_.erase(itr);
 }
 

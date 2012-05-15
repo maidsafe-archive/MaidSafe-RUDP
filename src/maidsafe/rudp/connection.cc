@@ -53,6 +53,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       data_received_(0),
       probe_retry_attempts_(0),
       timeout_for_response_(Parameters::default_receive_timeout),
+      temporary_(false),
       timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
 }

@@ -66,6 +66,7 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
       return kBindError;
     }
   } else {
+    // TODO(Team): Replace below with valid address and replace connect with sending data if reqd.
     socket_.connect(ip::udp::endpoint(ip::address_v4::loopback(), 9000), ec);
     if (ec) {
       DLOG(ERROR) << "Multiplexer socket connect error: " << ec.message();

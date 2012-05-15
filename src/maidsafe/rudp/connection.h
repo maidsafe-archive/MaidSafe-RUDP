@@ -49,6 +49,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
              const boost::asio::ip::udp::endpoint &remote);
   ~Connection();
 
+  bool temporary() const { return temporary_; }
+  void set_temporary(const bool & temporary) { temporary_ = temporary; }
+
   detail::Socket &Socket();
 
   void Close();
@@ -99,6 +102,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   size_t data_size_, data_received_;
   uint8_t probe_retry_attempts_;
   Timeout timeout_for_response_;
+  bool temporary_;
   enum TimeoutState { kNoTimeout, kConnecting, kSending } timeout_state_;
 };
 

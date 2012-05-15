@@ -116,7 +116,8 @@ class ManagedConnections {
       const boost::asio::ip::udp::endpoint &peer_endpoint,
       std::shared_ptr<Transport> transport);
   void OnConnectionLostSlot(const boost::asio::ip::udp::endpoint &peer_endpoint,
-                            std::shared_ptr<Transport> transport);
+                            std::shared_ptr<Transport> transport,
+                            const bool &bootstraped_connection);
 //  void RemoveTransport(std::shared_ptr<Transport> transport);
 //  void InsertEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint,
 //                      std::shared_ptr<Transport> transport);
@@ -128,6 +129,7 @@ class ManagedConnections {
   std::vector<TransportAndSignalConnections> transports_;
   ConnectionMap connection_map_;
   mutable boost::shared_mutex shared_mutex_;
+  std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints_;
 };
 
 }  // namespace rudp
