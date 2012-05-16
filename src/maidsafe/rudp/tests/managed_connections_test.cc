@@ -23,10 +23,10 @@
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
-#include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/log.h"
+#include "maidsafe/rudp/return_codes.h"
+#include "maidsafe/rudp/tests/test_utils.h"
 #include "maidsafe/rudp/utils.h"
-
 
 namespace args = std::placeholders;
 namespace asio = boost::asio;
@@ -42,17 +42,6 @@ typedef boost::asio::ip::udp::endpoint Endpoint;
 namespace test {
 
 namespace {
-
-uint16_t GetRandomPort() {
-  static std::set<uint16_t> already_used_ports;
-  bool unique(false);
-  uint16_t port(0);
-  do {
-    port = (RandomUint32() % 48126) + 1025;
-    unique = (already_used_ports.insert(port)).second;
-  } while (!unique);
-  return port;
-}
 
 void MessageReceived(const std::string &message) {
   DLOG(INFO) << "Received: " << message;
@@ -238,18 +227,45 @@ class ManagedConnectionsTest : public testing::Test {
     }
     // Waiting for results
     for (uint16_t i = 0; i != node_count - 2; ++i) {
-      bool result = results.at(i).get().address().is_unspecified();
-      if (result) {
+      bool failed = results.at(i).get().address().is_unspecified();
+      if (failed) {
         nodes_.clear();
         bootstrap_endpoints_.clear();
         return false;
       }
     }
     // TODO(Prakash): Check for validation messages at each node
-    if (bootstrap_endpoints_.size() == node_count)
-      return true;
-    else
+    if (bootstrap_endpoints_.size() != node_count)
       return false;
+    // Adding nodes to each other
+    EndpointPair endpoint_pair1, endpoint_pair2;
+    for (uint16_t i = 2; i != node_count; ++i) {
+      for (uint16_t j = 2; j != node_count; ++j) {
+        if ((j > i)) {  //  connecting all combination of nodes
+          EXPECT_EQ(kSuccess,
+                    nodes_.at(i)->managed_connection().GetAvailableEndpoint(&endpoint_pair1));
+          EXPECT_EQ(kSuccess,
+                    nodes_.at(j)->managed_connection().GetAvailableEndpoint(&endpoint_pair2));
+          EXPECT_NE(Endpoint(), endpoint_pair1.local);
+          EXPECT_NE(Endpoint(), endpoint_pair1.external);
+          EXPECT_NE(Endpoint(), endpoint_pair2.local);
+          EXPECT_NE(Endpoint(), endpoint_pair2.external);
+          int return_code1 =
+              nodes_.at(i)->managed_connection().Add(endpoint_pair2.external, endpoint2,
+                                                     "validation_data");
+          int return_code2 =
+              nodes_.at(i)->managed_connection().Add(endpoint_pair2.external, endpoint2,
+                                                     "validation_data");
+          if (return_code1 != kSuccess && return_code2 != kSuccess) {
+            DLOG(ERROR) << "Failed to add node -" << i << " to node " << j;
+            nodes_.clear();
+            bootstrap_endpoints_.clear();
+            return false;
+          }
+        }
+      }
+    }
+    return true;
   }
 
   std::vector<Endpoint> bootstrap_endpoints() { return bootstrap_endpoints_; }
