@@ -32,7 +32,8 @@ namespace args = std::placeholders;
 namespace maidsafe {
 
 namespace rudp {
-
+static uint16_t g_count_transport;
+static uint16_t g_transport_id;
 Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLINT (Fraser)
     : asio_service_(asio_service),
       strand_(asio_service->service()),
@@ -43,10 +44,14 @@ Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLI
       on_connection_added_(),
       on_connection_lost_(),
       bootstrap_endpoint_(),
-      bootstrap_disconnection_timer_(asio_service->service()) {}
+      bootstrap_disconnection_timer_(asio_service->service()),
+      id(++g_transport_id) {
+DLOG(INFO) << "Transport created-" << id <<"--------------------------" << ++g_count_transport;
+  }
 
 Transport::~Transport() {
   Close();
+DLOG(INFO) << "Transport distroyed-" << id <<"---------------" << g_count_transport--;
 }
 
 void Transport::Bootstrap(
@@ -97,6 +102,8 @@ void Transport::Bootstrap(
                                                                 //Sleep(bptime::milliseconds((RandomUint32() % 100) + 1000));
                                                                 Sleep(bptime::seconds(1));
 
+ DLOG(INFO) << "multiplexer_->external_endpoint()" << multiplexer_->external_endpoint();
+ DLOG(INFO) << "multiplexer_->local_endpoint()" << multiplexer_->local_endpoint();
     if (IsValid(multiplexer_->external_endpoint()) &&
         IsValid(multiplexer_->local_endpoint())) {
       bootstrap_endpoint_ = *itr;
@@ -210,6 +217,7 @@ size_t Transport::ConnectionsCount() const {
 }
 
 void Transport::StartDispatch() {
+  DLOG(INFO) << "StartDispatch+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << id;
   auto handler = strand_.wrap(std::bind(&Transport::HandleDispatch,
                                         shared_from_this(),
                                         multiplexer_, args::_1));
@@ -222,6 +230,7 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
     return;
   Endpoint bootstrapping_endpoint(multiplexer->GetBootstrappingEndpoint());
   if (IsValid(bootstrapping_endpoint)) {
+    DLOG(INFO) << "HandleDispatch************************************** boot strapping " << id;
     ConnectionPtr connection(
         std::make_shared<Connection>(shared_from_this(),
                                      strand_,
@@ -232,13 +241,13 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
     // TODO(Fraser#5#): 2012-04-18 - Drop this connection after 1 min.  Ensure
     //                  when connection is dropped that ManagedConnections'
     //                  connection_lost_functor is not called.
-    bootstrap_disconnection_timer_.expires_from_now(
-        Parameters::bootstrap_disconnection_timeout);
-    bootstrap_disconnection_timer_.async_wait(
-        std::bind(&Transport::DoCloseConnection,
-                  shared_from_this(), connection));
-    DLOG(INFO) << "Scheduled disconnection of bootstrapping connection to "
-               << connection->Socket().RemoteEndpoint();
+    //bootstrap_disconnection_timer_.expires_from_now(
+    //    Parameters::bootstrap_disconnection_timeout);
+    //bootstrap_disconnection_timer_.async_wait(
+    //    std::bind(&Transport::DoCloseConnection,
+    //              shared_from_this(), connection));
+    //DLOG(INFO) << "Scheduled disconnection of bootstrapping connection to "
+    //           << connection->Socket().RemoteEndpoint();
   }
   StartDispatch();
 }

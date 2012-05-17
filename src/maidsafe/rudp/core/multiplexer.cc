@@ -38,6 +38,7 @@ Multiplexer::Multiplexer(asio::io_service &asio_service) //NOLINT
 Multiplexer::~Multiplexer() {}
 
 ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
+  DLOG(ERROR) << "¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬Multiplexer open endpoint: " << endpoint;
   if (socket_.is_open()) {
     DLOG(WARNING) << "Multiplexer already open.";
     return kAlreadyStarted;
@@ -59,7 +60,7 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
     return kSetOptionFailure;
   }
 
-  if (IsValid(endpoint)) {
+  if (!endpoint.address().is_unspecified()) {
     socket_.bind(endpoint, ec);
     if (ec) {
       DLOG(ERROR) << "Multiplexer socket binding error: " << ec.message();
@@ -67,7 +68,7 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
     }
   } else {
     // TODO(Team): Replace below with valid address and replace connect with sending data if reqd.
-    socket_.connect(ip::udp::endpoint(ip::address_v4::loopback(), 9000), ec);
+    socket_.connect(ip::udp::endpoint(ip::address_v4::from_string("8.8.8.8"), 9000), ec);
     if (ec) {
       DLOG(ERROR) << "Multiplexer socket connect error: " << ec.message();
       return kConnectError;

@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "boost/asio/ip/address.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/signals2/connection.hpp"
@@ -130,6 +131,7 @@ class ManagedConnections {
   ConnectionMap connection_map_;
   mutable boost::shared_mutex shared_mutex_;
   std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints_;
+  boost::asio::ip::address local_ip_;
 };
 
 }  // namespace rudp

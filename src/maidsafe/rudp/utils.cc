@@ -26,25 +26,6 @@ namespace rudp {
 
 namespace {
 
-bool TryConnect(ip::udp::endpoint peer_endpoint,
-                ip::address *local_ip) {
-  asio::io_service io_service;
-  ip::udp::socket socket(io_service);
-  try {
-    socket.connect(peer_endpoint);
-    if (socket.local_endpoint().address().is_unspecified())
-      return false;
-    if (local_ip)
-      *local_ip = socket.local_endpoint().address();
-    return true;
-  }
-  catch(const std::exception &e) {
-    DLOG(ERROR) << "Failed trying to connect to " << peer_endpoint << " - "
-                << e.what();
-    return false;
-  }
-}
-
 ip::udp::endpoint Resolve(
     ip::udp::resolver &resolver,
     std::pair<std::string, std::string> address_and_port) {
@@ -63,25 +44,50 @@ ip::udp::endpoint Resolve(
 
 }  // unnamed namespace
 
+ip::address GetLocalIp(ip::udp::endpoint peer_endpoint) {
+  asio::io_service io_service;
+  ip::udp::socket socket(io_service);
+  try {
+    socket.connect(peer_endpoint);
+    if (socket.local_endpoint().address().is_unspecified() ||
+        socket.local_endpoint().address().is_loopback())
+      return ip::address();
+    return socket.local_endpoint().address();
+  }
+  catch(const std::exception &e) {
+    DLOG(ERROR) << "Failed trying to connect to " << peer_endpoint << " - "
+                << e.what();
+    return ip::address();
+  }
+}
+
 bool TryConnectTo(std::vector<ip::udp::endpoint> peer_endpoints,
                   bool use_defaults,
                   ip::address *local_ip) {
+  ip::address retrieved_local_ip;
   if (!use_defaults) {
     if (peer_endpoints.empty()) {
       DLOG(ERROR) << "Invalid request.";
       return false;
     }
-    return TryConnect(*peer_endpoints.begin(), local_ip);
+    // TODO (Prakash): Send and receive to confirm peer is up.
+    retrieved_local_ip = GetLocalIp(*peer_endpoints.begin());
+    if (local_ip)
+      *local_ip = retrieved_local_ip;
+    return !retrieved_local_ip.is_unspecified();
   }
 
   // Try peers first
   auto itr(peer_endpoints.begin());
-  bool succeeded(false);
-  while (itr != peer_endpoints.end() && !succeeded)
-    succeeded = TryConnect(*(itr++), local_ip);
+  // TODO (Prakash): Send and receive to confirm peer is up.
+  while (itr != peer_endpoints.end() && retrieved_local_ip.is_unspecified())
+    retrieved_local_ip = GetLocalIp(*(itr++));
 
-  if (succeeded)
+  if (!retrieved_local_ip.is_unspecified()) {
+    if (local_ip)
+      *local_ip = retrieved_local_ip;
     return true;
+  }
 
   // Finally, try all defaults
   peer_endpoints.clear();
@@ -89,15 +95,12 @@ bool TryConnectTo(std::vector<ip::udp::endpoint> peer_endpoints,
   ip::udp::resolver resolver(io_service);
   ip::udp::endpoint default_endpoint(
       Resolve(resolver, std::make_pair("dash.maidsafe.net", "80")));
-  if (TryConnect(default_endpoint, local_ip))
-    return true;
+  // TODO (Prakash): Send and receive to confirm peer is up.
+  retrieved_local_ip = GetLocalIp(default_endpoint);
+  if (local_ip)
+    *local_ip = retrieved_local_ip;
 
-//  default_endpoint = Resolve(resolver,
-//                             std::make_pair("dash.maidsafe.net", "443"));
-//  if (TryConnect(default_endpoint, local_ip))
-//    return true;
-
-  return false;
+  return !retrieved_local_ip.is_unspecified();
 }
 
 bool IsValid(const Endpoint &endpoint) {

@@ -34,7 +34,7 @@ namespace args = std::placeholders;
 namespace maidsafe {
 
 namespace rudp {
-
+static int g_connection_count(0);
 Connection::Connection(const std::shared_ptr<Transport> &transport,
                        const asio::io_service::strand &strand,
                        const std::shared_ptr<detail::Multiplexer> &multiplexer,
@@ -56,9 +56,12 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       temporary_(false),
       timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
+    DLOG(ERROR) << "Connection::Connection() Constructor !!!!!!!!!!!!!!!!!!!!!!!!!!" << ++g_connection_count;
 }
 
-Connection::~Connection() {}
+Connection::~Connection() {
+  DLOG(ERROR) << "Connection::~Connection() !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << --g_connection_count;
+}
 
 detail::Socket &Connection::Socket() {
   return socket_;
@@ -69,6 +72,7 @@ void Connection::Close() {
 }
 
 void Connection::DoClose() {
+  DLOG(INFO) << "Connection::DoClose() ------------------------------------------------------------------------------------------";
   probe_interval_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     // We're still connected to the transport. We need to detach and then
@@ -168,15 +172,16 @@ void Connection::HandleTick() {
 }
 
 void Connection::StartConnect() {
+  DLOG(INFO) << "StartConnect()!!!!!" <<socket_.RemoteEndpoint() <<"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect,
                                         shared_from_this(), args::_1));
   socket_.AsyncConnect(remote_endpoint_, handler);
-
   timer_.expires_from_now(Parameters::connect_timeout);
   timeout_state_ = kConnecting;
 }
 
 void Connection::HandleConnect(const bs::error_code &ec) {
+  DLOG(INFO) << "HandleConnect!!!!!" <<socket_.RemoteEndpoint() <<"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
   if (Stopped()) {
     DLOG(WARNING) << "Connection to " << socket_.RemoteEndpoint()
                   << " already stopped.";
@@ -195,7 +200,7 @@ void Connection::HandleConnect(const bs::error_code &ec) {
   }
 
   StartReadSize();
-  StartProbing();
+//  StartProbing();
 }
 
 void Connection::StartReadSize() {
@@ -300,7 +305,7 @@ void Connection::DispatchMessage() {
     transport->SignalMessageReceived(std::string(receive_buffer_.begin(),
                                                  receive_buffer_.end()));
     StartReadSize();
-    StartProbing();
+//    StartProbing();
   }
 }
 
@@ -380,7 +385,7 @@ void Connection::DoProbe(const bs::error_code &ec) {
 void Connection::HandleProbe(const bs::error_code &ec) {
   if (!ec) {
     probe_retry_attempts_ = 0;
-    StartProbing();
+//    StartProbing();
     return;
   }
 

@@ -27,6 +27,12 @@ namespace maidsafe {
 
 namespace rudp {
 
+// Makes a udp socket connection to peer_endpoint.  Note, no data is sent, so
+// no information about the validity or availability of the peer is deduced.
+// If the retrieved local endpoint is unspecified or is the loopback address,
+// the function returns a default-constructed (invalid) address.
+boost::asio::ip::address GetLocalIp(boost::asio::ip::udp::endpoint peer_endpoint);
+
 // Tries to connect a socket to one of peer_endpoints.  If peer_endpoints is
 // empty, will then try to connect to one of the hard-coded default endpoints,
 // unless use_defaults is false.  The first successful connection attempt will
@@ -37,7 +43,7 @@ bool TryConnectTo(std::vector<boost::asio::ip::udp::endpoint> peer_endpoints,
                   boost::asio::ip::address *local_ip = nullptr);
 
 // Returns true if 1024 < port < 49151 and the address is correctly specified.
-bool IsValid(const Endpoint &endpoint);
+bool IsValid(const boost::asio::ip::udp::endpoint &endpoint);
 
 // // Convert an IP in ASCII format to IPv4 or IPv6 bytes
 // std::string IpAsciiToBytes(const std::string &decimal_ip);

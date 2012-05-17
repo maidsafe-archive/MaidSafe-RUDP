@@ -66,9 +66,11 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
       socket_iter = sockets_.find(id);
     }
     if (socket_iter != sockets_.end()) {
+      DLOG(INFO) << "//  This packet is intended for a specific connection. from" << endpoint;
       socket_iter->second->HandleReceiveFrom(data, endpoint);
     } else if (id == 0) {
       // This is a handshake packet on a bootstrapping socket
+      DLOG(INFO) << "// This is a handshake packet on a bootstrapping socket" << endpoint;
       HandshakePacket handshake_packet;
       if (handshake_packet.Decode(data))
         bootstrapping_endpoint_ = endpoint;

@@ -128,6 +128,7 @@ void Session::SendConnectionRequest() {
     DLOG(ERROR) << "Failed to send handshake to " << peer_.Endpoint();
 
   // Schedule another connection request.
+  DLOG(INFO) << "// ---------------------------Schedule another connection request." << peer_.Endpoint();
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 

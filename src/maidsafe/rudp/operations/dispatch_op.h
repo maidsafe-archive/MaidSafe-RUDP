@@ -19,7 +19,7 @@
 #include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
 #include "maidsafe/rudp/core/dispatcher.h"
-
+#include "maidsafe/rudp/log.h"
 namespace maidsafe {
 
 namespace rudp {
@@ -68,7 +68,7 @@ class DispatchOp {
   void operator()(const boost::system::error_code &ec,
                   size_t bytes_transferred) {
     boost::system::error_code local_ec = ec;
-
+    DLOG(INFO) << "<----------------------Received from" << *sender_endpoint_;
     while (!local_ec) {
       dispatcher_->HandleReceiveFrom(boost::asio::buffer(buffer_,
                                                          bytes_transferred),

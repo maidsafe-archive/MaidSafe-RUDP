@@ -52,6 +52,7 @@ class Multiplexer {
     DispatchOp<DispatchHandler> op(handler, &socket_,
                                    boost::asio::buffer(receive_buffer_),
                                    &sender_endpoint_, &dispatcher_);
+    DLOG(INFO) << "<----------------------Asynch Dispatch";
     socket_.async_receive_from(boost::asio::buffer(receive_buffer_),
                                sender_endpoint_, 0, op);
   }
@@ -68,8 +69,10 @@ class Multiplexer {
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
         PrintSendError(endpoint, ec);
+        DLOG(INFO) << "SendTo ---------------------->" <<endpoint << "failed";
         return kSendFailure;
       } else {
+        DLOG(INFO) << "SendTo ---------------------->" <<endpoint;
         return kSuccess;
       }
     }

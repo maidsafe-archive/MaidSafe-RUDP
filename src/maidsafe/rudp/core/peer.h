@@ -18,7 +18,7 @@
 
 #include "boost/asio/ip/udp.hpp"
 #include "maidsafe/rudp/core/multiplexer.h"
-
+#include "maidsafe/rudp/log.h"
 namespace maidsafe {
 
 namespace rudp {

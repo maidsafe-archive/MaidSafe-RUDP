@@ -87,6 +87,17 @@ Endpoint ManagedConnections::Bootstrap(
 
   asio_service_->Start(Parameters::thread_count);
 
+  if (IsValid(local_endpoint)) {
+    local_ip_ = local_endpoint.address();
+  } else {
+    local_ip_ = GetLocalIp(Endpoint(boost::asio::ip::address_v4::from_string("8.8.8.8"), 0));
+    if (local_ip_.is_unspecified()) {
+      DLOG(ERROR) << "Failed to retrieve local IP.";
+      return Endpoint();
+    }
+    local_endpoint = Endpoint(local_ip_, 0);
+  }
+
   Endpoint new_endpoint(StartNewTransport(bootstrap_endpoints, local_endpoint));
   if (!IsValid(new_endpoint)) {
     DLOG(ERROR) << "Failed to bootstrap managed connections.";
@@ -162,14 +173,18 @@ int ManagedConnections::GetAvailableEndpoint(EndpointPair *endpoint_pair) {
     }
 
     Endpoint new_endpoint(StartNewTransport(std::vector<Endpoint>(),
-                                            Endpoint()));
+                                            Endpoint(local_ip_, 0)));
     if (IsValid(new_endpoint)) {
       UniqueLock unique_lock(shared_mutex_);
       endpoint_pair->external =
           (*transports_.rbegin()).transport->external_endpoint();
       endpoint_pair->local =
           (*transports_.rbegin()).transport->local_endpoint();
+      DLOG(ERROR) << "Started a new Transport.!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
       return kSuccess;
+    } else {
+      DLOG(ERROR) << "Failed to start a new Transport.!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
+      return kTransportStartFailure;
     }
   }
 
