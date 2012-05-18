@@ -119,6 +119,15 @@ class TestNode {
                                          local_endpoint);
   }
 
+  int GetAvailableEndpoint(EndpointPair *endpoint_pair) {
+    return managed_connection_.GetAvailableEndpoint(endpoint_pair);
+  }
+
+  int Add(const Endpoint &this_endpoint, const Endpoint &peer_endpoint,
+          const std::string &validation_data) {
+    return  managed_connection_.Add(this_endpoint, peer_endpoint, validation_data);
+  }
+
   void reset() {
     std::lock_guard<std::mutex> guard(mutex_);
     connection_lost_endpoints_.clear();
@@ -191,22 +200,21 @@ class ManagedConnectionsTest : public testing::Test {
     if (result1 || result2) {
       return false;
     }
-//    EndpointPair this_endpoint_pair1, this_endpoint_pair2;
-//    EXPECT_EQ(kSuccess,
-//              node1->managed_connection().GetAvailableEndpoint(&this_endpoint_pair1));
-//    EXPECT_EQ(kSuccess,
-//              node2->managed_connection().GetAvailableEndpoint(&this_endpoint_pair2));
-//    EXPECT_NE(Endpoint(), this_endpoint_pair1.local);
-//    EXPECT_NE(Endpoint(), this_endpoint_pair1.external);
-//    EXPECT_NE(Endpoint(), this_endpoint_pair2.local);
-//    EXPECT_NE(Endpoint(), this_endpoint_pair2.external);
-//   //TODO(Prakash): Uncomment below after add is fixed
-//    EXPECT_EQ(kSuccess,
-//              node1->managed_connection().Add(this_endpoint_pair1.external, endpoint2,
-//                                            "validation_data"));
-//    EXPECT_EQ(kSuccess,
-//              node2->managed_connection().Add(this_endpoint_pair2.external, endpoint1,
-//                                            "validation_data"));
+    EndpointPair this_endpoint_pair1, this_endpoint_pair2;
+    EXPECT_EQ(kSuccess,
+              node1->managed_connection().GetAvailableEndpoint(&this_endpoint_pair1));
+    EXPECT_EQ(kSuccess,
+              node2->managed_connection().GetAvailableEndpoint(&this_endpoint_pair2));
+    EXPECT_NE(Endpoint(), this_endpoint_pair1.local);
+    EXPECT_NE(Endpoint(), this_endpoint_pair1.external);
+    EXPECT_NE(Endpoint(), this_endpoint_pair2.local);
+    EXPECT_NE(Endpoint(), this_endpoint_pair2.external);
+    EXPECT_EQ(kSuccess,
+              node1->managed_connection().Add(this_endpoint_pair1.external, endpoint2,
+                                            "validation_data"));
+    EXPECT_EQ(kSuccess,
+              node2->managed_connection().Add(this_endpoint_pair2.external, endpoint1,
+                                            "validation_data"));
     nodes_.push_back(node1);
     nodes_.push_back(node2);
     bootstrap_endpoints_.emplace_back(endpoint1);
@@ -238,55 +246,42 @@ class ManagedConnectionsTest : public testing::Test {
     if (bootstrap_endpoints_.size() != node_count)
       return false;
     // Adding nodes to each other
-    //EndpointPair endpoint_pair1, endpoint_pair2;
-    //for (uint16_t i = 2; i != node_count; ++i) {
-    //  for (uint16_t j = 2; j != node_count; ++j) {
-    //    if ((j > i)) {  //  connecting all combination of nodes
-    //      EXPECT_EQ(kSuccess,
-    //                nodes_.at(i)->managed_connection().GetAvailableEndpoint(&endpoint_pair1));
-    //      EXPECT_EQ(kSuccess,
-    //                nodes_.at(j)->managed_connection().GetAvailableEndpoint(&endpoint_pair2));
-    //      EXPECT_NE(Endpoint(), endpoint_pair1.local);
-    //      EXPECT_NE(Endpoint(), endpoint_pair1.external);
-    //      EXPECT_NE(Endpoint(), endpoint_pair2.local);
-    //      EXPECT_NE(Endpoint(), endpoint_pair2.external);
-    //      int return_code1 =
-    //          nodes_.at(i)->managed_connection().Add(endpoint_pair2.external, endpoint2,
-    //                                                 "validation_data");
-    //      int return_code2 =
-    //          nodes_.at(i)->managed_connection().Add(endpoint_pair2.external, endpoint2,
-    //                                                 "validation_data");
-    //      if (return_code1 != kSuccess && return_code2 != kSuccess) {
-    //        DLOG(ERROR) << "Failed to add node -" << i << " to node " << j;
-    //        nodes_.clear();
-    //        bootstrap_endpoints_.clear();
-    //        return false;
-    //      }
-    //    }
-    //  }
-    //}
+    EndpointPair endpoint_pair1, endpoint_pair2;
+    for (uint16_t i = 2; i != node_count; ++i) {
+      for (uint16_t j = 2; j != node_count; ++j) {
+        if ((j > i)) {  //  connecting all combination of nodes
+          EXPECT_EQ(kSuccess,
+                    nodes_.at(i)->managed_connection().GetAvailableEndpoint(&endpoint_pair1));
+          EXPECT_EQ(kSuccess,
+                    nodes_.at(j)->managed_connection().GetAvailableEndpoint(&endpoint_pair2));
+          EXPECT_NE(Endpoint(), endpoint_pair1.local);
+          EXPECT_NE(Endpoint(), endpoint_pair1.external);
+          EXPECT_NE(Endpoint(), endpoint_pair2.local);
+          EXPECT_NE(Endpoint(), endpoint_pair2.external);
+          int return_code1 =
+              nodes_.at(i)->managed_connection().Add(endpoint_pair1.external,
+                                                     endpoint_pair2.external,
+                                                     "validation_data");
+          int return_code2 =
+              nodes_.at(i)->managed_connection().Add(endpoint_pair2.external,
+                                                     endpoint_pair1.external,
+                                                     "validation_data");
+          if (return_code1 != kSuccess && return_code2 != kSuccess) {
+            DLOG(ERROR) << "Failed to add node -" << i << " to node " << j;
+            nodes_.clear();
+            bootstrap_endpoints_.clear();
+            return false;
+          }
+        }
+      }
+    }
     return true;
   }
 
   std::vector<Endpoint> bootstrap_endpoints() { return bootstrap_endpoints_; }
 
-  std::future<std::vector<std::string>> GetFutureForMessages(const Endpoint &endpoint,
-                                                             const uint16_t &message_count) {
-    std::lock_guard<std::mutex> guard(mutex_);
-    auto itr = std::find_if(nodes_.begin(), nodes_.end(), [endpoint](TestNodePtr node)->bool
-                { return (endpoint == node->local_endpoint()); }); //NOLINT (Prakash)
-    return (*itr)->GetFutureForMessages(message_count);
-  }
-
-  void Reset(const Endpoint endpoint) {
-    std::vector<TestNodePtr>::iterator itr;
-    {
-    std::lock_guard<std::mutex> guard(mutex_);
-    itr = std::find_if(nodes_.begin(), nodes_.end(),
-            [endpoint](TestNodePtr node)->bool { return (endpoint == node->local_endpoint()); }); //NOLINT (Prakash)
-    }
-    if (nodes_.end() != itr)
-      return (*itr)->reset();
+  std::vector<TestNodePtr> & nodes() {
+    return nodes_;
   }
 
  private:
@@ -405,7 +400,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Add) {
-  const uint8_t kNetworkSize(4);
+  const uint8_t kNetworkSize(2);
   ASSERT_TRUE(SetupNetwork(kNetworkSize));
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
@@ -419,31 +414,40 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
               managed_connections.Add(random_this_endpoint, bootstrap_endpoints().at(1),
                                       "validation_data"));
   }
-
-  Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
   Endpoint bootstrap_endpoint =
       managed_connections.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints().at(0)),
                                     message_received_functor,
-                                    connection_lost_functor,
-                                    endpoint);
+                                    connection_lost_functor);
   EXPECT_EQ(bootstrap_endpoints().at(0), bootstrap_endpoint);
-  EndpointPair this_endpoint_pair;
   {  // Valid
-    Endpoint peer(bootstrap_endpoints().at(1));
+    EndpointPair this_endpoint_pair;
+    EndpointPair peer_endpoint_pair;
+    EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(&peer_endpoint_pair));
     EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+
     EXPECT_NE(Endpoint(), this_endpoint_pair.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair.external);
     EXPECT_TRUE(IsValid(this_endpoint_pair.local));
     EXPECT_TRUE(IsValid(this_endpoint_pair.external));
-    auto future_messages_at_peer(GetFutureForMessages(peer, 1));
+    EXPECT_NE(Endpoint(), peer_endpoint_pair.local);
+    EXPECT_NE(Endpoint(), peer_endpoint_pair.external);
+    EXPECT_TRUE(IsValid(peer_endpoint_pair.local));
+    EXPECT_TRUE(IsValid(peer_endpoint_pair.external));
+    auto future_messages_at_peer(this->nodes().at(0)->GetFutureForMessages(1));
     EXPECT_EQ(kSuccess,
-              managed_connections.Add(this_endpoint_pair.external, peer, "validation_data"));
+              this->nodes().at(0)->Add(peer_endpoint_pair.external, this_endpoint_pair.external,
+                                       "validation_data"));
+    EXPECT_EQ(kSuccess,
+              managed_connections.Add(this_endpoint_pair.external, peer_endpoint_pair.external,
+                                      "validation_data"));
     auto messages(future_messages_at_peer.get());
     ASSERT_EQ(1, messages.size());
     EXPECT_EQ("validation_data", messages.at(0));
-    Reset(peer);
+
+    this->nodes().at(0)->reset();
   }
   {  // Invalid peer endpoint
+    EndpointPair this_endpoint_pair;
     EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
     EXPECT_NE(Endpoint(), this_endpoint_pair.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair.external);
@@ -456,23 +460,24 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
     EXPECT_NE(kSuccess,
               managed_connections.Add(Endpoint(), bootstrap_endpoints().at(1), "validation_data"));
   }
-  {  // Unavailable peer endpoint
-    EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
-    EXPECT_NE(Endpoint(), this_endpoint_pair.local);
-    EXPECT_NE(Endpoint(), this_endpoint_pair.external);
-    EXPECT_TRUE(IsValid(this_endpoint_pair.local));
-    EXPECT_TRUE(IsValid(this_endpoint_pair.external));
-    Endpoint unavailable_endpoint(ip::address_v4::loopback(), GetRandomPort());
-    EXPECT_NE(kSuccess,
-              managed_connections.Add(this_endpoint_pair.external, unavailable_endpoint,
-                                      "validation_data"));
-  }
-  {  // Unavailable this endpoint
-    Endpoint unavailable_endpoint(ip::address_v4::loopback(), GetRandomPort());
-    EXPECT_NE(kSuccess,
-              managed_connections.Add(unavailable_endpoint, bootstrap_endpoints().at(2),
-                                      "validation_data"));
-  }
+  //{  // Unavailable peer endpoint
+  //  EndpointPair this_endpoint_pair;
+  //  EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+  //  EXPECT_NE(Endpoint(), this_endpoint_pair.local);
+  //  EXPECT_NE(Endpoint(), this_endpoint_pair.external);
+  //  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
+  //  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
+  //  Endpoint unavailable_endpoint(ip::address_v4::loopback(), GetRandomPort());
+  //  EXPECT_NE(kSuccess,
+  //            managed_connections.Add(this_endpoint_pair.external, unavailable_endpoint,
+  //                                    "validation_data"));
+  //}
+  //{  // Unavailable this endpoint
+  //  Endpoint unavailable_endpoint(ip::address_v4::loopback(), GetRandomPort());
+  //  EXPECT_NE(kSuccess,
+  //            managed_connections.Add(unavailable_endpoint, bootstrap_endpoints().at(2),
+  //                                    "validation_data"));
+  //}
   EXPECT_EQ(0, connection_lost_count);
 }
 
@@ -501,22 +506,34 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   managed_connections.Remove(bootstrap_endpoints().at(1));
   ASSERT_EQ(0, connection_lost_count);
 
+  // Add
   EndpointPair this_endpoint_pair;
-  for (auto i(1); i< kNetworkSize; ++i) {
-    Endpoint peer(bootstrap_endpoints().at(i));
-    EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
-    EXPECT_NE(Endpoint(), this_endpoint_pair.local);
-    EXPECT_NE(Endpoint(), this_endpoint_pair.external);
-    EXPECT_TRUE(IsValid(this_endpoint_pair.local));
-    EXPECT_TRUE(IsValid(this_endpoint_pair.external));
-    auto future_messages_at_peer(GetFutureForMessages(peer, 1));
-    EXPECT_EQ(kSuccess,
-              managed_connections.Add(this_endpoint_pair.external, peer, "validation_data"));
-    auto messages(future_messages_at_peer.get());
-    ASSERT_EQ(1, messages.size());
-    EXPECT_EQ("validation_data", messages.at(0));
-    Reset(peer);
-  }
+  EndpointPair peer_endpoint_pair;
+  EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(&peer_endpoint_pair));
+  EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+
+  EXPECT_NE(Endpoint(), this_endpoint_pair.local);
+  EXPECT_NE(Endpoint(), this_endpoint_pair.external);
+  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
+  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
+  EXPECT_NE(Endpoint(), peer_endpoint_pair.local);
+  EXPECT_NE(Endpoint(), peer_endpoint_pair.external);
+  EXPECT_TRUE(IsValid(peer_endpoint_pair.local));
+  EXPECT_TRUE(IsValid(peer_endpoint_pair.external));
+  auto future_messages_at_peer(this->nodes().at(0)->GetFutureForMessages(1));
+  EXPECT_EQ(kSuccess,
+            this->nodes().at(0)->Add(peer_endpoint_pair.external, this_endpoint_pair.external,
+                                     "validation_data"));
+  EXPECT_EQ(kSuccess,
+            managed_connections.Add(this_endpoint_pair.external, peer_endpoint_pair.external,
+                                    "validation_data"));
+
+  auto messages(future_messages_at_peer.get());
+  ASSERT_EQ(1, messages.size());
+  EXPECT_EQ("validation_data", messages.at(0));
+
+  this->nodes().at(0)->reset();
+
   // InValid endpoint
   managed_connections.Remove(Endpoint());
   ASSERT_EQ(0, connection_lost_count);
@@ -526,11 +543,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   ASSERT_EQ(0, connection_lost_count);
 
   // Valid
-  managed_connections.Remove(bootstrap_endpoints().at(1));
+  managed_connections.Remove(peer_endpoint_pair.external);
   WaitForCount(1, &connection_lost_count);
 
   // Already removed endpoint
-  managed_connections.Remove(bootstrap_endpoints().at(1));
+  managed_connections.Remove(peer_endpoint_pair.external);
   ASSERT_EQ(1, connection_lost_count);
 }
 
@@ -550,21 +567,30 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
                                     endpoint);
   EXPECT_EQ(bootstrap_endpoints().at(0), bootstrap_endpoint);
   EndpointPair this_endpoint_pair;
-  for (auto i(1); i< kNetworkSize; ++i) {
-    Endpoint peer(bootstrap_endpoints().at(i));
-    EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
-    EXPECT_NE(Endpoint(), this_endpoint_pair.local);
-    EXPECT_NE(Endpoint(), this_endpoint_pair.external);
-    EXPECT_TRUE(IsValid(this_endpoint_pair.local));
-    EXPECT_TRUE(IsValid(this_endpoint_pair.external));
-    auto future_messages_at_peer(GetFutureForMessages(peer, 1));
-    EXPECT_EQ(kSuccess,
-              managed_connections.Add(this_endpoint_pair.external, peer, "validation_data"));
-    auto messages(future_messages_at_peer.get());
-    ASSERT_EQ(1, messages.size());
-    EXPECT_EQ("validation_data", messages.at(0));
-    Reset(peer);
-  }
+  EndpointPair peer_endpoint_pair;
+  EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(&peer_endpoint_pair));
+  EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+
+  EXPECT_NE(Endpoint(), this_endpoint_pair.local);
+  EXPECT_NE(Endpoint(), this_endpoint_pair.external);
+  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
+  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
+  EXPECT_NE(Endpoint(), peer_endpoint_pair.local);
+  EXPECT_NE(Endpoint(), peer_endpoint_pair.external);
+  EXPECT_TRUE(IsValid(peer_endpoint_pair.local));
+  EXPECT_TRUE(IsValid(peer_endpoint_pair.external));
+  auto future_messages_at_peer(this->nodes().at(0)->GetFutureForMessages(1));
+  EXPECT_EQ(kSuccess,
+            this->nodes().at(0)->Add(peer_endpoint_pair.external, this_endpoint_pair.external,
+                                     "validation_data"));
+  EXPECT_EQ(kSuccess,
+            managed_connections.Add(this_endpoint_pair.external, peer_endpoint_pair.external,
+                                    "validation_data"));
+  auto messages(future_messages_at_peer.get());
+  ASSERT_EQ(1, messages.size());
+  EXPECT_EQ("validation_data", messages.at(0));
+
+  this->nodes().at(0)->reset();
 
   // Invalid endpoint
   EXPECT_NE(kSuccess, managed_connections.Send(Endpoint(), "message"));
@@ -574,23 +600,22 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
             managed_connections.Send(Endpoint(ip::address_v4::loopback(), GetRandomPort()),
             "message"));
   { // Valid
-    Endpoint peer(bootstrap_endpoints().at(0));
-    auto future_messages_at_peer(GetFutureForMessages(peer, 1));
-    EXPECT_EQ(kSuccess, managed_connections.Send(peer, "message"));
+    DLOG(ERROR) << "SENDING NOW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
+    auto future_messages_at_peer(this->nodes().at(0)->GetFutureForMessages(1));
+    EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external, "message"));
     auto messages(future_messages_at_peer.get());
     ASSERT_EQ(1, messages.size());
     EXPECT_EQ("message", messages.at(0));
-    Reset(peer);
+    this->nodes().at(0)->reset();
   }
   { // Valid large messages
-    Endpoint peer(bootstrap_endpoints().at(0));
     std::string sent_message(std::move(RandomString(1024 * 1024)));
-    auto future_messages_at_peer(GetFutureForMessages(peer, 1));
-    EXPECT_EQ(kSuccess, managed_connections.Send(peer, sent_message));
+    auto future_messages_at_peer(this->nodes().at(0)->GetFutureForMessages(1));
+    EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external, sent_message));
     auto messages(future_messages_at_peer.get());
     ASSERT_EQ(1, messages.size());
     EXPECT_EQ(sent_message, messages.at(0));
-    Reset(peer);
+    this->nodes().at(0)->reset();
   }
 }
 

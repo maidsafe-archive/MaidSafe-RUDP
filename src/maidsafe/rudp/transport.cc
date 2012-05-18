@@ -96,7 +96,7 @@ void Transport::Bootstrap(
                                                           strand_,
                                                           multiplexer_, *itr));
     connection->set_temporary(false);
-    connection->StartReceiving();
+    connection->StartConnecting("");
 
                 // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
                                                                 //Sleep(bptime::milliseconds((RandomUint32() % 100) + 1000));
@@ -147,12 +147,10 @@ void Transport::DoConnect(const Endpoint &peer_endpoint,
                                                         multiplexer_,
                                                         peer_endpoint));
   connection->set_temporary(false);
-  connection->StartReceiving();
+  connection->StartConnecting(validation_data);
 
   if (opened_multiplexer)
     StartDispatch();
-
-  connection->StartSending(validation_data);
 }
 
 int Transport::CloseConnection(const Endpoint &peer_endpoint) {
@@ -217,7 +215,6 @@ size_t Transport::ConnectionsCount() const {
 }
 
 void Transport::StartDispatch() {
-  DLOG(INFO) << "StartDispatch+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << id;
   auto handler = strand_.wrap(std::bind(&Transport::HandleDispatch,
                                         shared_from_this(),
                                         multiplexer_, args::_1));
@@ -237,7 +234,7 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
                                      multiplexer_,
                                      bootstrapping_endpoint));
     connection->set_temporary(true);
-    connection->StartReceiving();
+    connection->StartConnecting("");
     // TODO(Fraser#5#): 2012-04-18 - Drop this connection after 1 min.  Ensure
     //                  when connection is dropped that ManagedConnections'
     //                  connection_lost_functor is not called.

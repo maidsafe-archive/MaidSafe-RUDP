@@ -47,6 +47,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       probe_interval_timer_(strand_.get_io_service()),
       response_deadline_(),
       remote_endpoint_(remote),
+      validation_data_(),
       send_buffer_(),
       receive_buffer_(),
       data_size_(0),
@@ -72,7 +73,6 @@ void Connection::Close() {
 }
 
 void Connection::DoClose() {
-  DLOG(INFO) << "Connection::DoClose() ------------------------------------------------------------------------------------------";
   probe_interval_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     // We're still connected to the transport. We need to detach and then
@@ -89,12 +89,15 @@ void Connection::DoClose() {
   }
 }
 
-void Connection::StartReceiving() {
-  strand_.dispatch(std::bind(&Connection::DoStartReceiving,
+void Connection::StartConnecting(const std::string &data) {
+  if (!data.empty()) {
+    validation_data_ = data;
+  }
+  strand_.dispatch(std::bind(&Connection::DoStartConnecting,
                              shared_from_this()));
 }
 
-void Connection::DoStartReceiving() {
+void Connection::DoStartConnecting() {
   StartTick();
   StartConnect();
   bs::error_code ignored_ec;
@@ -199,8 +202,14 @@ void Connection::HandleConnect(const bs::error_code &ec) {
     transport->InsertConnection(shared_from_this());
   }
 
-  StartReadSize();
 //  StartProbing();
+  if (!validation_data_.empty()) {
+    EncodeData(validation_data_);
+    validation_data_.clear();
+    StartWrite();
+  } else {
+    StartReadSize();
+  }
 }
 
 void Connection::StartReadSize() {
@@ -363,7 +372,7 @@ void Connection::HandleWrite(const bs::error_code &ec) {
 //  }
   // Start receiving response
 //  if (timeout_for_response_ != bptime::seconds(0)) {
-                                                                    //  StartReadSize();
+  StartReadSize();
 //  } else {
 //    DoClose();
 //  }

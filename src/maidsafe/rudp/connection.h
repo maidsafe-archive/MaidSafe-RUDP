@@ -55,7 +55,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   detail::Socket &Socket();
 
   void Close();
-  void StartReceiving();
+  void StartConnecting(const std::string &data);
   void StartSending(const std::string &data);
 
  private:
@@ -63,7 +63,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   Connection &operator=(const Connection&);
 
   void DoClose();
-  void DoStartReceiving();
+  void DoStartConnecting();
 
   void CheckTimeout(const boost::system::error_code &ec);
   bool Stopped() const;
@@ -98,6 +98,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   boost::asio::deadline_timer probe_interval_timer_;
   boost::posix_time::ptime response_deadline_;
   boost::asio::ip::udp::endpoint remote_endpoint_;
+  std::string validation_data_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   size_t data_size_, data_received_;
   uint8_t probe_retry_attempts_;

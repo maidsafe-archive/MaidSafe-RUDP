@@ -221,6 +221,15 @@ int ManagedConnections::GetAvailableEndpoint(EndpointPair *endpoint_pair) {
 int ManagedConnections::Add(const Endpoint &this_endpoint,
                             const Endpoint &peer_endpoint,
                             const std::string &validation_data) {
+  if (!IsValid(this_endpoint)) {
+    DLOG(ERROR) << "Invalid this_endpoint passed.";
+    return kInvalidEndpoint;
+  }
+  if (!IsValid(peer_endpoint)) {
+    DLOG(ERROR) << "Invalid peer_endpoint passed.";
+    return kInvalidEndpoint;
+  }
+
   std::vector<TransportAndSignalConnections>::iterator itr;
   {
     SharedLock shared_lock(shared_mutex_);

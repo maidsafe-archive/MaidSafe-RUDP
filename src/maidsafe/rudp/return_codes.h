@@ -67,8 +67,9 @@ enum ReturnCode {
   kNullParameter = -350102,
   kInvalidTransport = -350103,
   kInvalidConnection = -350104,
-  kConnectionAlreadyExists = -350105,
-  kTransportStartFailure = -350106,
+  kInvalidEndpoint = -350105,
+  kConnectionAlreadyExists = -350106,
+  kTransportStartFailure = -350107,
 
   // Upper limit of values for this enum.
   kReturnCodeLimit = -359999
