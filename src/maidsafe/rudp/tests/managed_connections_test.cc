@@ -314,8 +314,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap_Parameters) {
     Endpoint bootstrap_endpoint =
         managed_connections.Bootstrap(bootstrap_endpoints(),
                                       message_received_functor,
-                                      connection_lost_functor,
-                                      endpoint);
+                                      connection_lost_functor);
     EXPECT_NE(Endpoint(), bootstrap_endpoint);
   }
   {  // All invalid
@@ -323,80 +322,49 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap_Parameters) {
     Endpoint bootstrap_endpoint =
       managed_connections.Bootstrap(std::vector<Endpoint>(),
                                     MessageReceivedFunctor(),
-                                    ConnectionLostFunctor(),
-                                    Endpoint());
+                                    ConnectionLostFunctor());
     EXPECT_EQ(Endpoint(), bootstrap_endpoint);
   }
   {  // Invalid bootstrap_endpoints
     ManagedConnections managed_connections;
-    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
     Endpoint bootstrap_endpoint =
         managed_connections.Bootstrap(std::vector<Endpoint>(),
                                       message_received_functor,
-                                      connection_lost_functor,
-                                      endpoint);
+                                      connection_lost_functor);
     EXPECT_EQ(Endpoint(), bootstrap_endpoint);
   }
   {  // Empty bootstrap_endpoints
     ManagedConnections managed_connections;
-    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
     std::vector<Endpoint> empty_bootstrap_endpoints;
     Endpoint bootstrap_endpoint =
         managed_connections.Bootstrap(empty_bootstrap_endpoints,
                                       message_received_functor,
-                                      connection_lost_functor,
-                                      endpoint);
+                                      connection_lost_functor);
     EXPECT_EQ(Endpoint(), bootstrap_endpoint);
   }
   {  // Unavailable bootstrap_endpoints
     ManagedConnections managed_connections;
-    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort()),
-             endpoint2(ip::address_v4::loopback(), GetRandomPort());
+    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
     Endpoint bootstrap_endpoint =
-        managed_connections.Bootstrap(std::vector<Endpoint>(1, endpoint2),
+        managed_connections.Bootstrap(std::vector<Endpoint>(1, endpoint),
                                       message_received_functor,
-                                      connection_lost_functor,
-                                      endpoint);
+                                      connection_lost_functor);
     EXPECT_EQ(Endpoint(), bootstrap_endpoint);
   }
   {  // Invalid MessageReceivedFunctor
     ManagedConnections managed_connections;
-    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
     Endpoint bootstrap_endpoint =
         managed_connections.Bootstrap(bootstrap_endpoints(),
                                       MessageReceivedFunctor(),
-                                      connection_lost_functor,
-                                      endpoint);
+                                      connection_lost_functor);
     EXPECT_EQ(Endpoint(), bootstrap_endpoint);
   }
   {  // Invalid ConnectionLostFunctor
     ManagedConnections managed_connections;
-    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
     Endpoint bootstrap_endpoint =
         managed_connections.Bootstrap(bootstrap_endpoints(),
                                       message_received_functor,
-                                      ConnectionLostFunctor(),
-                                      endpoint);
-    EXPECT_EQ(Endpoint(), bootstrap_endpoint);
-  }
-  {  // Invalid Endpoint
-    ManagedConnections managed_connections;
-    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
-    Endpoint bootstrap_endpoint =
-        managed_connections.Bootstrap(bootstrap_endpoints(),
-                                      message_received_functor,
-                                      connection_lost_functor,
-                                      Endpoint());
-    EXPECT_EQ(Endpoint(), bootstrap_endpoint);
-  }
-  {  // Already in use Endpoint
-    ManagedConnections managed_connections;
-    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
-    Endpoint bootstrap_endpoint =
-        managed_connections.Bootstrap(bootstrap_endpoints(),
-                                      message_received_functor,
-                                      connection_lost_functor,
-                                      bootstrap_endpoints().at(0));
+                                      ConnectionLostFunctor());
     EXPECT_EQ(Endpoint(), bootstrap_endpoint);
   }
   EXPECT_EQ(0, connection_lost_count);
@@ -405,37 +373,29 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap_Parameters) {
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   const uint8_t kNetworkSize(2);
   ASSERT_TRUE(SetupNetwork(kNetworkSize));
-  DLOG(INFO) << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%";
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
   std::atomic<int> connection_lost_count(0);
   ConnectionLostFunctor connection_lost_functor(
       std::bind(ConnectionLost, args::_1, &connection_lost_count));
-  //{  //  Before Bootstrapping
-  //  ManagedConnections managed_connections;
-  //  Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
-  //  EndpointPair this_endpoint_pair;
-  //  EXPECT_EQ(kNoneAvailable,
-  //            managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
-  //  EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
-  //  EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
-  //}
+  {  //  Before Bootstrapping
+    ManagedConnections managed_connections;
+    EndpointPair this_endpoint_pair;
+    EXPECT_EQ(kNoneAvailable,
+              managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+    EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
+    EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
+  }
   {  //  After Bootstrapping
     ManagedConnections managed_connections;
-    //Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
     Endpoint bootstrap_endpoint =
         managed_connections.Bootstrap(bootstrap_endpoints(),
                                       message_received_functor,
-                                      connection_lost_functor/*,
-                                      endpoint*/);
+                                      connection_lost_functor);
     EXPECT_NE(Endpoint(), bootstrap_endpoint);
-  DLOG(INFO) << "%%%%%%%%%%%%%%%%%%%%%%%%%%%Bootstrapping done %%%%%%%%%%%%%%%%%%%";
-  std::this_thread::sleep_for(std::chrono::seconds(10));
-
     EndpointPair this_endpoint_pair;
     EXPECT_EQ(kSuccess,
               managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
-DLOG(INFO) << "%%%%%%%%%%%%%%%%%%%%%%%%%%%GetAvailableEndpoint done %%%%%%%%%%%%%%%%%%%";
     EXPECT_NE(Endpoint(), this_endpoint_pair.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair.external);
     EXPECT_TRUE(IsValid(this_endpoint_pair.local));
