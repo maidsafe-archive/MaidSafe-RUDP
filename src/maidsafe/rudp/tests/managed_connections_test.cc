@@ -128,7 +128,7 @@ class TestNode {
     return  managed_connection_.Add(this_endpoint, peer_endpoint, validation_data);
   }
 
-  void reset() {
+  void reset_count() {
     std::lock_guard<std::mutex> guard(mutex_);
     connection_lost_endpoints_.clear();
     messages_.clear();
@@ -444,7 +444,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
     ASSERT_EQ(1, messages.size());
     EXPECT_EQ("validation_data", messages.at(0));
 
-    this->nodes().at(0)->reset();
+    this->nodes().at(0)->reset_count();
   }
   {  // Invalid peer endpoint
     EndpointPair this_endpoint_pair;
@@ -532,7 +532,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   ASSERT_EQ(1, messages.size());
   EXPECT_EQ("validation_data", messages.at(0));
 
-  this->nodes().at(0)->reset();
+  this->nodes().at(0)->reset_count();
 
   // InValid endpoint
   managed_connections.Remove(Endpoint());
@@ -552,7 +552,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Send) {
-  const uint8_t kNetworkSize(4);
+  const uint8_t kNetworkSize(2);
   ASSERT_TRUE(SetupNetwork(kNetworkSize));
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived, args::_1));
   std::atomic<int> connection_lost_count(0);
@@ -590,7 +590,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
   ASSERT_EQ(1, messages.size());
   EXPECT_EQ("validation_data", messages.at(0));
 
-  this->nodes().at(0)->reset();
+  this->nodes().at(0)->reset_count();
 
   // Invalid endpoint
   EXPECT_NE(kSuccess, managed_connections.Send(Endpoint(), "message"));
@@ -600,22 +600,21 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
             managed_connections.Send(Endpoint(ip::address_v4::loopback(), GetRandomPort()),
             "message"));
   { // Valid
-    DLOG(ERROR) << "SENDING NOW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
     auto future_messages_at_peer(this->nodes().at(0)->GetFutureForMessages(1));
     EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external, "message"));
     auto messages(future_messages_at_peer.get());
     ASSERT_EQ(1, messages.size());
     EXPECT_EQ("message", messages.at(0));
-    this->nodes().at(0)->reset();
+    this->nodes().at(0)->reset_count();
   }
   { // Valid large messages
-    std::string sent_message(std::move(RandomString(1024 * 1024)));
+    std::string sent_message(std::move(RandomString(8 * 1024 * 1024)));
     auto future_messages_at_peer(this->nodes().at(0)->GetFutureForMessages(1));
     EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external, sent_message));
     auto messages(future_messages_at_peer.get());
     ASSERT_EQ(1, messages.size());
     EXPECT_EQ(sent_message, messages.at(0));
-    this->nodes().at(0)->reset();
+    this->nodes().at(0)->reset_count();
   }
 }
 

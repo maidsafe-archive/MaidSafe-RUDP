@@ -213,7 +213,11 @@ void Connection::HandleConnect(const bs::error_code &ec) {
 }
 
 void Connection::StartReadSize() {
-  assert(!Stopped());
+  if (Stopped()) {
+    DLOG(ERROR) << "Failed to start read size from " << socket_.RemoteEndpoint()
+                << " - connection stopped.";
+    return;
+  }
 
   receive_buffer_.clear();
   receive_buffer_.resize(sizeof(DataSize));
@@ -346,7 +350,8 @@ void Connection::StartWrite() {
                      strand_.wrap(std::bind(&Connection::HandleWrite,
                                             shared_from_this(), args::_1)));
   timer_.expires_from_now(Parameters::speed_calculate_inverval);
-  timeout_state_ = kSending;
+  if (kConnecting != timeout_state_)
+    timeout_state_ = kSending;
 }
 
 void Connection::HandleWrite(const bs::error_code &ec) {
@@ -362,20 +367,14 @@ void Connection::HandleWrite(const bs::error_code &ec) {
     DoClose();
   }
 
+  // If this is completion of sending validation data, we need to start the read cycle.
+  if (kConnecting == timeout_state_) {
+    StartReadSize();
+  }
+
   // Once data sent out, stop the timer for the sending procedure
   timer_.expires_at(boost::posix_time::pos_infin);
   timeout_state_ = kNoTimeout;
-//  // For managed connection, write op doesn't continue to read response.
-//  if (managed_ && write_complete_functor_) {
-//    write_complete_functor_(kSuccess);
-//    return;
-//  }
-  // Start receiving response
-//  if (timeout_for_response_ != bptime::seconds(0)) {
-  StartReadSize();
-//  } else {
-//    DoClose();
-//  }
 }
 
 void Connection::StartProbing() {
