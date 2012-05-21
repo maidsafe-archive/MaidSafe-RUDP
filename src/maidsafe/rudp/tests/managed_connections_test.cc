@@ -210,15 +210,17 @@ class ManagedConnectionsTest : public testing::Test {
     EXPECT_NE(Endpoint(), this_endpoint_pair2.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair2.external);
     EXPECT_EQ(kSuccess,
-              node1->managed_connection().Add(this_endpoint_pair1.external, endpoint2,
-                                            "validation_data"));
+              node1->managed_connection().Add(this_endpoint_pair1.external,
+                                              this_endpoint_pair2.external,
+                                              "validation_data"));
     EXPECT_EQ(kSuccess,
-              node2->managed_connection().Add(this_endpoint_pair2.external, endpoint1,
-                                            "validation_data"));
+              node2->managed_connection().Add(this_endpoint_pair2.external,
+                                              this_endpoint_pair1.external,
+                                              "validation_data"));
     nodes_.push_back(node1);
     nodes_.push_back(node2);
-    bootstrap_endpoints_.emplace_back(endpoint1);
-    bootstrap_endpoints_.emplace_back(endpoint2);
+    bootstrap_endpoints_.push_back(endpoint1);
+    bootstrap_endpoints_.push_back(endpoint2);
 
     DLOG(INFO) << "Setting up remaining " << (node_count - 2) << " nodes";
     // Setting up remaining (node_count - 2) nodes
@@ -226,12 +228,11 @@ class ManagedConnectionsTest : public testing::Test {
     results.reserve(node_count - 2);
     for (uint16_t i = 0; i != node_count - 2; ++i) {
       TestNodePtr node(std::make_shared<TestNode>(i+2));
-      Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
+      Endpoint endpoint = Endpoint();
       results.emplace_back(
           std::async(std::launch::async, &TestNode::Bootstrap, node,
                      bootstrap_endpoints_, endpoint));
       nodes_.push_back(node);
-      bootstrap_endpoints_.emplace_back(endpoint);
     }
     // Waiting for results
     for (uint16_t i = 0; i != node_count - 2; ++i) {
@@ -243,8 +244,7 @@ class ManagedConnectionsTest : public testing::Test {
       }
     }
     // TODO(Prakash): Check for validation messages at each node
-    if (bootstrap_endpoints_.size() != node_count)
-      return false;
+
     // Adding nodes to each other
     EndpointPair endpoint_pair1, endpoint_pair2;
     for (uint16_t i = 2; i != node_count; ++i) {
@@ -273,6 +273,7 @@ class ManagedConnectionsTest : public testing::Test {
             return false;
           }
         }
+        bootstrap_endpoints_.push_back(endpoint_pair1.external);
       }
     }
     return true;
@@ -291,7 +292,7 @@ class ManagedConnectionsTest : public testing::Test {
 };
 
 TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap_Network) {
-  ASSERT_TRUE(SetupNetwork(4));
+  ASSERT_TRUE(SetupNetwork(10));
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap_Parameters) {
@@ -420,6 +421,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
                                     connection_lost_functor);
   EXPECT_EQ(bootstrap_endpoints().at(0), bootstrap_endpoint);
   {  // Valid
+    this->nodes().at(0)->reset_count();
     EndpointPair this_endpoint_pair;
     EndpointPair peer_endpoint_pair;
     EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(&peer_endpoint_pair));
@@ -482,7 +484,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
-  const uint8_t kNetworkSize(5);
+  const uint8_t kNetworkSize(4);
   ASSERT_TRUE(SetupNetwork(kNetworkSize));
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived, args::_1));
   std::atomic<int> connection_lost_count(0);
@@ -507,6 +509,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   ASSERT_EQ(0, connection_lost_count);
 
   // Add
+  this->nodes().at(0)->reset_count();
   EndpointPair this_endpoint_pair;
   EndpointPair peer_endpoint_pair;
   EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(&peer_endpoint_pair));
@@ -566,6 +569,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
                                     connection_lost_functor,
                                     endpoint);
   EXPECT_EQ(bootstrap_endpoints().at(0), bootstrap_endpoint);
+  this->nodes().at(0)->reset_count();
   EndpointPair this_endpoint_pair;
   EndpointPair peer_endpoint_pair;
   EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(&peer_endpoint_pair));

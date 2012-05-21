@@ -113,7 +113,10 @@ class TestNode {
 
   int Add(const Endpoint &this_endpoint, const Endpoint &peer_endpoint,
           const std::string &validation_data) {
-    connected_endpoints_.push_back(peer_endpoint);
+    {
+      std::lock_guard<std::mutex> guard(mutex_);
+      connected_endpoints_.push_back(peer_endpoint);
+    }
     return  managed_connection_.Add(this_endpoint, peer_endpoint, validation_data);
   }
 
@@ -206,26 +209,10 @@ class ManagedConnectionsFuncTest : public testing::Test {
     if (result1 || result2) {
       return false;
     }
-//    EndpointPair this_endpoint_pair1, this_endpoint_pair2;
-//    EXPECT_EQ(kSuccess,
-//              node1->managed_connection().GetAvailableEndpoint(&this_endpoint_pair1));
-//    EXPECT_EQ(kSuccess,
-//              node2->managed_connection().GetAvailableEndpoint(&this_endpoint_pair2));
-//    EXPECT_NE(Endpoint(), this_endpoint_pair1.local);
-//    EXPECT_NE(Endpoint(), this_endpoint_pair1.external);
-//    EXPECT_NE(Endpoint(), this_endpoint_pair2.local);
-//    EXPECT_NE(Endpoint(), this_endpoint_pair2.external);
-//   //TODO(Prakash): Uncomment below after add is fixed
-//    EXPECT_EQ(kSuccess,
-//              node1->managed_connection().Add(this_endpoint_pair1.external, endpoint2,
-//                                            "validation_data"));
-//    EXPECT_EQ(kSuccess,
-//              node2->managed_connection().Add(this_endpoint_pair2.external, endpoint1,
-//                                            "validation_data"));
     nodes_.push_back(node1);
     nodes_.push_back(node2);
-    bootstrap_endpoints_.emplace_back(endpoint1);
-    bootstrap_endpoints_.emplace_back(endpoint2);
+    bootstrap_endpoints_.push_back(endpoint1);
+    bootstrap_endpoints_.push_back(endpoint2);
 
     DLOG(INFO) << "Setting up remaining " << (node_count - 2) << " nodes";
     // Setting up remaining (node_count - 2) nodes
@@ -233,12 +220,11 @@ class ManagedConnectionsFuncTest : public testing::Test {
     results.reserve(node_count - 2);
     for (uint16_t i = 0; i != node_count - 2; ++i) {
       TestNodePtr node(std::make_shared<TestNode>(i+2));
-      Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
+      Endpoint endpoint = Endpoint();
       results.emplace_back(
           std::async(std::launch::async, &TestNode::Bootstrap, node,
                      bootstrap_endpoints_, endpoint));
       nodes_.push_back(node);
-      bootstrap_endpoints_.emplace_back(endpoint);
     }
     // Waiting for results
     for (uint16_t i = 0; i != node_count - 2; ++i) {
@@ -250,28 +236,23 @@ class ManagedConnectionsFuncTest : public testing::Test {
       }
     }
     // TODO(Prakash): Check for validation messages at each node
-    if (bootstrap_endpoints_.size() != node_count)
-      return false;
+    bootstrap_endpoints_.clear();
     // Adding nodes to each other
     EndpointPair endpoint_pair1, endpoint_pair2;
-    for (uint16_t i = 2; i != node_count; ++i) {
-      for (uint16_t j = 2; j != node_count; ++j) {
+    for (uint16_t i = 0; i != node_count; ++i) {
+      for (uint16_t j = 0; j != node_count; ++j) {
         if ((j > i)) {  //  connecting all combination of nodes
-          EXPECT_EQ(kSuccess,
-                    nodes_.at(i)->managed_connection().GetAvailableEndpoint(&endpoint_pair1));
-          EXPECT_EQ(kSuccess,
-                    nodes_.at(j)->managed_connection().GetAvailableEndpoint(&endpoint_pair2));
+          EXPECT_EQ(kSuccess, nodes_.at(i)->GetAvailableEndpoint(&endpoint_pair1));
+          EXPECT_EQ(kSuccess, nodes_.at(j)->GetAvailableEndpoint(&endpoint_pair2));
           EXPECT_NE(Endpoint(), endpoint_pair1.local);
           EXPECT_NE(Endpoint(), endpoint_pair1.external);
           EXPECT_NE(Endpoint(), endpoint_pair2.local);
           EXPECT_NE(Endpoint(), endpoint_pair2.external);
-          int return_code1 =
-              nodes_.at(i)->managed_connection().Add(endpoint_pair2.external, endpoint2,
-                                                     "validation_data");
-          int return_code2 =
-              nodes_.at(i)->managed_connection().Add(endpoint_pair2.external, endpoint2,
-                                                     "validation_data");
-          if (return_code1 != kSuccess && return_code2 != kSuccess) {
+          int return_code1 =  nodes_.at(i)->Add(endpoint_pair1.external, endpoint_pair2.external,
+                                                "validation_data");
+          int return_code2 = nodes_.at(j)->Add(endpoint_pair2.external, endpoint_pair1.external,
+                                               "validation_data");
+          if (return_code1 != kSuccess || return_code2 != kSuccess) {
             DLOG(ERROR) << "Failed to add node -" << i << " to node " << j;
             nodes_.clear();
             bootstrap_endpoints_.clear();
@@ -279,6 +260,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
           }
         }
       }
+      bootstrap_endpoints_.push_back(endpoint_pair1.external);
     }
     return true;
   }
@@ -301,7 +283,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Sending messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      std::vector<Endpoint> peers(nodes_.at(0)->connected_endpoints());
+      std::vector<Endpoint> peers(nodes_.at(i)->connected_endpoints());
+      DLOG(INFO)<< "// Size of peers---" << peers.size();
       std::for_each(peers.begin(), peers.end(), [&](const Endpoint& peer) {
         for (uint16_t j = 0; j != num_messages; ++j)
           EXPECT_EQ(kSuccess, nodes_.at(i)->Send(peer, sent_messages.at(i)));
@@ -332,53 +315,53 @@ class ManagedConnectionsFuncTest : public testing::Test {
   uint16_t network_size_;
 };
 
-TEST_F(ManagedConnectionsFuncTest, FUNC_API_Bootstrap_NetworkSmallMessages) {
-  ASSERT_FALSE(SetupNetwork(4));
+TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkSmallMessages) {
+  ASSERT_TRUE(SetupNetwork(4));
   RunNetworkTest(1, 1024);
 }
 
-TEST_F(ManagedConnectionsFuncTest, FUNC_API_Bootstrap_Network256KBMessages) {
-  ASSERT_FALSE(SetupNetwork(4));
+TEST_F(ManagedConnectionsFuncTest, FUNC_API_Network256KBMessages) {
+  ASSERT_TRUE(SetupNetwork(4));
   RunNetworkTest(1, 1024 * 1024 * 256);
 }
 
-TEST_F(ManagedConnectionsFuncTest, FUNC_API_Bootstrap_Network512KBMessages) {
-  ASSERT_FALSE(SetupNetwork(4));
+TEST_F(ManagedConnectionsFuncTest, FUNC_API_Network512KBMessages) {
+  ASSERT_TRUE(SetupNetwork(4));
   RunNetworkTest(1, 1024 * 1024 * 512);
 }
 
-TEST_F(ManagedConnectionsFuncTest, FUNC_API_Bootstrap_Network1MBMessages) {
-  ASSERT_FALSE(SetupNetwork(4));
+TEST_F(ManagedConnectionsFuncTest, FUNC_API_Network1MBMessages) {
+  ASSERT_TRUE(SetupNetwork(4));
   RunNetworkTest(1, 1024 * 1024);
 }
 
-TEST_F(ManagedConnectionsFuncTest, FUNC_API_Bootstrap_Network2MBMessages) {
-  ASSERT_FALSE(SetupNetwork(4));
+TEST_F(ManagedConnectionsFuncTest, FUNC_API_Network2MBMessages) {
+  ASSERT_TRUE(SetupNetwork(4));
   RunNetworkTest(1, 1024 * 1024 * 2);
 }
 
-TEST_F(ManagedConnectionsFuncTest, FUNC_API_Bootstrap_NetworkMultipleSmallMessages) {
-  ASSERT_FALSE(SetupNetwork(4));
+TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultipleSmallMessages) {
+  ASSERT_TRUE(SetupNetwork(4));
   RunNetworkTest(10, 1024);
 }
 
-TEST_F(ManagedConnectionsFuncTest, FUNC_API_Bootstrap_NetworkMultiple256KBMessages) {
-  ASSERT_FALSE(SetupNetwork(4));
+TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple256KBMessages) {
+  ASSERT_TRUE(SetupNetwork(4));
   RunNetworkTest(10, 1024 * 1024 * 256);
 }
 
-TEST_F(ManagedConnectionsFuncTest, FUNC_API_Bootstrap_NetworkMultiple512KBMessages) {
-  ASSERT_FALSE(SetupNetwork(4));
+TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple512KBMessages) {
+  ASSERT_TRUE(SetupNetwork(4));
   RunNetworkTest(10, 1024 * 1024 * 512);
 }
 
-TEST_F(ManagedConnectionsFuncTest, FUNC_API_Bootstrap_NetworkMultiple1MBMessages) {
-  ASSERT_FALSE(SetupNetwork(4));
+TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple1MBMessages) {
+  ASSERT_TRUE(SetupNetwork(4));
   RunNetworkTest(10, 1024 * 1024);
 }
 
-TEST_F(ManagedConnectionsFuncTest, FUNC_API_Bootstrap_NetworkMultiple2MBMessages) {
-  ASSERT_FALSE(SetupNetwork(4));
+TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple2MBMessages) {
+  ASSERT_TRUE(SetupNetwork(4));
   RunNetworkTest(10, 1024 * 1024 * 2);
 }
 
