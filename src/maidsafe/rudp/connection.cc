@@ -129,7 +129,7 @@ void Connection::CheckTimeout(const bs::error_code &ec) {
     DLOG(ERROR) << "Closing connection to " << socket_.RemoteEndpoint() << " - "
                 << "timed out "
                 << (timeout_state_ == kSending ? "send" : "connect") << "ing.";
-    DoClose();
+    return DoClose();
   }
 
   // Keep processing timeouts until the socket is completely closed.
@@ -162,7 +162,7 @@ void Connection::HandleTick() {
 //                                                                                        if (socket_.IsSlowTransmission(sent_length)) {
 //                                                                                          DLOG(WARNING) << "Connection to " << socket_.RemoteEndpoint()
 //                                                                                                        << " has slow transmission - closing now.";
-//                                                                                          DoClose();
+//                                                                                          return DoClose();
 //                                                                                        }
   }
   // We need to keep ticking during a graceful shutdown.
@@ -189,7 +189,7 @@ void Connection::HandleConnect(const bs::error_code &ec) {
   if (ec) {
     DLOG(ERROR) << "Failed to connect to " << socket_.RemoteEndpoint()
                 << " - " << ec.message();
-    DoClose();
+    return DoClose();
   }
 
   if (std::shared_ptr<Transport> transport = transport_.lock())
@@ -230,13 +230,13 @@ void Connection::HandleReadSize(const bs::error_code &ec) {
   if (ec) {
     DLOG(ERROR) << "Failed to read size from " << socket_.RemoteEndpoint()
                 << " - " << ec.message();
-    DoClose();
+    return DoClose();
   }
 
   if (Stopped()) {
     DLOG(ERROR) << "Failed to read size from " << socket_.RemoteEndpoint()
                 << " - connection stopped.";
-    DoClose();
+    return DoClose();
   }
 
   DataSize size = (((((receive_buffer_.at(0) << 8) |
@@ -253,9 +253,9 @@ void Connection::HandleReadSize(const bs::error_code &ec) {
 
 void Connection::StartReadData() {
   if (Stopped()) {
-    DLOG(ERROR) << "Failed to read size from " << socket_.RemoteEndpoint()
+    DLOG(ERROR) << "Failed to read data from " << socket_.RemoteEndpoint()
                 << " - connection stopped.";
-    DoClose();
+    return DoClose();
   }
 
   size_t buffer_size = data_received_;
@@ -274,13 +274,13 @@ void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
   if (ec) {
     DLOG(ERROR) << "Failed to read data from " << socket_.RemoteEndpoint()
                 << " - " << ec.message();
-    DoClose();
+    return DoClose();
   }
 
   if (Stopped()) {
     DLOG(ERROR) << "Failed to read data from " << socket_.RemoteEndpoint()
                 << " - connection stopped.";
-    DoClose();
+    return DoClose();
   }
 
   data_received_ += length;
@@ -300,7 +300,7 @@ void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
     if (socket_.IsSlowTransmission(length)) {
       DLOG(WARNING) << "Connection to " << socket_.RemoteEndpoint()
                     << " has slow transmission - closing now.";
-      DoClose();
+      return DoClose();
     }
     StartReadData();
   }
@@ -322,8 +322,7 @@ void Connection::EncodeData(const std::string &data) {
           static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
     DLOG(ERROR) << "Data size " << msg_size << " bytes (exceeds limit of "
                 << ManagedConnections::kMaxMessageSize() << ")";
-    DoClose();
-    return;
+    return DoClose();
   }
 
   send_buffer_.clear();
@@ -336,7 +335,7 @@ void Connection::StartWrite() {
   if (Stopped()) {
     DLOG(ERROR) << "Failed to write to " << socket_.RemoteEndpoint()
                 << " - connection stopped.";
-    DoClose();
+    return DoClose();
   }
 
   socket_.AsyncWrite(asio::buffer(send_buffer_),
@@ -351,19 +350,18 @@ void Connection::HandleWrite(const bs::error_code &ec) {
   if (ec) {
     DLOG(ERROR) << "Failed to write to " << socket_.RemoteEndpoint()
                 << " - " << ec.message();
-    DoClose();
+    return DoClose();
   }
 
   if (Stopped()) {
     DLOG(ERROR) << "Failed to write to " << socket_.RemoteEndpoint()
                 << " - connection stopped.";
-    DoClose();
+    return DoClose();
   }
 
   // If this is completion of sending validation data, we need to start the read cycle.
-  if (kConnecting == timeout_state_) {
+  if (kConnecting == timeout_state_)
     StartReadSize();
-  }
 
   // Once data sent out, stop the timer for the sending procedure
   timer_.expires_at(boost::posix_time::pos_infin);
@@ -398,7 +396,7 @@ void Connection::HandleProbe(const bs::error_code &ec) {
   } else {
     DLOG(ERROR) << "Failed to probe " << socket_.RemoteEndpoint()
                 << " - " << ec.message();
-    DoClose();
+    return DoClose();
   }
 }
 
