@@ -32,8 +32,7 @@ namespace args = std::placeholders;
 namespace maidsafe {
 
 namespace rudp {
-static uint16_t g_count_transport;
-static uint16_t g_transport_id;
+
 Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLINT (Fraser)
     : asio_service_(asio_service),
       strand_(asio_service->service()),
@@ -44,14 +43,10 @@ Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLI
       on_connection_added_(),
       on_connection_lost_(),
       bootstrap_endpoint_(),
-      bootstrap_disconnection_timer_(asio_service->service()),
-      id(++g_transport_id) {
-DLOG(INFO) << "Transport created-" << id <<"--------------------------" << ++g_count_transport;
-  }
+      bootstrap_disconnection_timer_(asio_service->service()) {}
 
 Transport::~Transport() {
   Close();
-DLOG(INFO) << "Transport distroyed-" << id <<"---------------" << g_count_transport--;
 }
 
 void Transport::Bootstrap(
@@ -100,10 +95,9 @@ void Transport::Bootstrap(
 
                 // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
                                                                 //Sleep(bptime::milliseconds((RandomUint32() % 100) + 1000));
+                                                              while (!IsValid(multiplexer_->external_endpoint()) || !IsValid(multiplexer_->local_endpoint()))
                                                                 Sleep(bptime::seconds(1));
 
- DLOG(INFO) << "multiplexer_->external_endpoint()" << multiplexer_->external_endpoint();
- DLOG(INFO) << "multiplexer_->local_endpoint()" << multiplexer_->local_endpoint();
     if (IsValid(multiplexer_->external_endpoint()) &&
         IsValid(multiplexer_->local_endpoint())) {
       bootstrap_endpoint_ = *itr;
@@ -227,7 +221,6 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
     return;
   Endpoint bootstrapping_endpoint(multiplexer->GetBootstrappingEndpoint());
   if (IsValid(bootstrapping_endpoint)) {
-    DLOG(INFO) << "HandleDispatch************************************** boot strapping " << id;
     ConnectionPtr connection(
         std::make_shared<Connection>(shared_from_this(),
                                      strand_,

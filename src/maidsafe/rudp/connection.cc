@@ -57,12 +57,9 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       temporary_(false),
       timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
-    DLOG(ERROR) << "Connection::Connection() Constructor !!!!!!!!!!!!!!!!!!!!!!!!!!" << ++g_connection_count;
 }
 
-Connection::~Connection() {
-  DLOG(ERROR) << "Connection::~Connection() !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << --g_connection_count;
-}
+Connection::~Connection() {}
 
 detail::Socket &Connection::Socket() {
   return socket_;
@@ -175,7 +172,6 @@ void Connection::HandleTick() {
 }
 
 void Connection::StartConnect() {
-  DLOG(INFO) << "StartConnect()!!!!!" <<socket_.RemoteEndpoint() <<"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect,
                                         shared_from_this(), args::_1));
   socket_.AsyncConnect(remote_endpoint_, handler);
@@ -184,7 +180,6 @@ void Connection::StartConnect() {
 }
 
 void Connection::HandleConnect(const bs::error_code &ec) {
-  DLOG(INFO) << "HandleConnect!!!!!" <<socket_.RemoteEndpoint() <<"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
   if (Stopped()) {
     DLOG(WARNING) << "Connection to " << socket_.RemoteEndpoint()
                   << " already stopped.";
@@ -197,10 +192,8 @@ void Connection::HandleConnect(const bs::error_code &ec) {
     DoClose();
   }
 
-  if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    DLOG(INFO) << "Inserting connection to " << Socket().RemoteEndpoint();
+  if (std::shared_ptr<Transport> transport = transport_.lock())
     transport->InsertConnection(shared_from_this());
-  }
 
 //  StartProbing();
   if (!validation_data_.empty()) {

@@ -31,7 +31,9 @@ namespace rudp {
 // no information about the validity or availability of the peer is deduced.
 // If the retrieved local endpoint is unspecified or is the loopback address,
 // the function returns a default-constructed (invalid) address.
-boost::asio::ip::address GetLocalIp(boost::asio::ip::udp::endpoint peer_endpoint);
+boost::asio::ip::address GetLocalIp(
+    boost::asio::ip::udp::endpoint peer_endpoint =
+        Endpoint(boost::asio::ip::address_v4::from_string("8.8.8.8"), 0));
 
 // Tries to connect a socket to one of peer_endpoints.  If peer_endpoints is
 // empty, will then try to connect to one of the hard-coded default endpoints,

@@ -130,7 +130,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
   OnConnectionLost on_connection_lost_;
   Endpoint bootstrap_endpoint_;
   boost::asio::deadline_timer bootstrap_disconnection_timer_;
-  int id;
 };
 
 typedef std::shared_ptr<Transport> TransportPtr;

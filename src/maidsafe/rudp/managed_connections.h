@@ -77,7 +77,7 @@ class ManagedConnections {
   // Managed Connections already have the maximum number of running sockets.  If
   // there are less than kMaxTransports transports running, a new one will be
   // started and if successful, this will be the returned EndpointPair.
-  int GetAvailableEndpoint(EndpointPair *endpoint_pair);
+  int GetAvailableEndpoint(EndpointPair &endpoint_pair);
 
   // Makes a new connection and sends the validation data to the peer which
   // runs its message_received_functor_ with the data.

@@ -38,7 +38,6 @@ Multiplexer::Multiplexer(asio::io_service &asio_service) //NOLINT
 Multiplexer::~Multiplexer() {}
 
 ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
-  DLOG(ERROR) << "¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬Multiplexer open endpoint: " << endpoint;
   if (socket_.is_open()) {
     DLOG(WARNING) << "Multiplexer already open.";
     return kAlreadyStarted;

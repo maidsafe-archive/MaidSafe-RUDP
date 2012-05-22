@@ -92,11 +92,6 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
     receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
     SendConnectionAccepted();
     if (IsValid(packet.Endpoint())) {
-      if (!this_external_endpoint_.address().is_unspecified() &&
-          this_external_endpoint_ != packet.Endpoint()) {
-        DLOG(ERROR) << "External endpoint currently " << this_external_endpoint_
-                    << " - about to be set to " << packet.Endpoint();
-      }
       this_external_endpoint_ = packet.Endpoint();
     } else {
       DLOG(ERROR) << "Invalid external endpoint in handshake: "
@@ -128,7 +123,6 @@ void Session::SendConnectionRequest() {
     DLOG(ERROR) << "Failed to send handshake to " << peer_.Endpoint();
 
   // Schedule another connection request.
-  DLOG(INFO) << "// ---------------------------Schedule another connection request." << peer_.Endpoint();
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 

@@ -119,7 +119,7 @@ class TestNode {
                                          local_endpoint);
   }
 
-  int GetAvailableEndpoint(EndpointPair *endpoint_pair) {
+  int GetAvailableEndpoint(EndpointPair &endpoint_pair) {
     return managed_connection_.GetAvailableEndpoint(endpoint_pair);
   }
 
@@ -187,8 +187,8 @@ class ManagedConnectionsTest : public testing::Test {
     // Setting up first two nodes
     TestNodePtr node1(std::make_shared<TestNode>(1));
     TestNodePtr node2(std::make_shared<TestNode>(2));
-    Endpoint endpoint1(ip::address_v4::loopback(), GetRandomPort()),
-             endpoint2(ip::address_v4::loopback(), GetRandomPort());
+    Endpoint endpoint1(GetLocalIp(), GetRandomPort()),
+             endpoint2(GetLocalIp(), GetRandomPort());
     auto a1 = std::async(std::launch::async, &TestNode::Bootstrap, node1,
                          std::vector<Endpoint>(1, endpoint2), endpoint1);
     auto a2 = std::async(std::launch::async, &TestNode::Bootstrap, node2,
@@ -202,9 +202,9 @@ class ManagedConnectionsTest : public testing::Test {
     }
     EndpointPair this_endpoint_pair1, this_endpoint_pair2;
     EXPECT_EQ(kSuccess,
-              node1->managed_connection().GetAvailableEndpoint(&this_endpoint_pair1));
+              node1->managed_connection().GetAvailableEndpoint(this_endpoint_pair1));
     EXPECT_EQ(kSuccess,
-              node2->managed_connection().GetAvailableEndpoint(&this_endpoint_pair2));
+              node2->managed_connection().GetAvailableEndpoint(this_endpoint_pair2));
     EXPECT_NE(Endpoint(), this_endpoint_pair1.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair1.external);
     EXPECT_NE(Endpoint(), this_endpoint_pair2.local);
@@ -251,9 +251,9 @@ class ManagedConnectionsTest : public testing::Test {
       for (uint16_t j = 2; j != node_count; ++j) {
         if ((j > i)) {  //  connecting all combination of nodes
           EXPECT_EQ(kSuccess,
-                    nodes_.at(i)->managed_connection().GetAvailableEndpoint(&endpoint_pair1));
+                    nodes_.at(i)->managed_connection().GetAvailableEndpoint(endpoint_pair1));
           EXPECT_EQ(kSuccess,
-                    nodes_.at(j)->managed_connection().GetAvailableEndpoint(&endpoint_pair2));
+                    nodes_.at(j)->managed_connection().GetAvailableEndpoint(endpoint_pair2));
           EXPECT_NE(Endpoint(), endpoint_pair1.local);
           EXPECT_NE(Endpoint(), endpoint_pair1.external);
           EXPECT_NE(Endpoint(), endpoint_pair2.local);
@@ -306,7 +306,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap_Parameters) {
       std::bind(ConnectionLost, args::_1, &connection_lost_count));
   {  // Valid
     ManagedConnections managed_connections;
-    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
+    Endpoint endpoint(GetLocalIp(), GetRandomPort());
     Endpoint bootstrap_endpoint =
         managed_connections.Bootstrap(bootstrap_endpoints(),
                                       message_received_functor,
@@ -340,7 +340,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap_Parameters) {
   }
   {  // Unavailable bootstrap_endpoints
     ManagedConnections managed_connections;
-    Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
+    Endpoint endpoint(GetLocalIp(), GetRandomPort());
     Endpoint bootstrap_endpoint =
         managed_connections.Bootstrap(std::vector<Endpoint>(1, endpoint),
                                       message_received_functor,
@@ -378,7 +378,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
     ManagedConnections managed_connections;
     EndpointPair this_endpoint_pair;
     EXPECT_EQ(kNoneAvailable,
-              managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+              managed_connections.GetAvailableEndpoint(this_endpoint_pair));
     EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
     EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
   }
@@ -391,7 +391,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
     EXPECT_NE(Endpoint(), bootstrap_endpoint);
     EndpointPair this_endpoint_pair;
     EXPECT_EQ(kSuccess,
-              managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+              managed_connections.GetAvailableEndpoint(this_endpoint_pair));
     EXPECT_NE(Endpoint(), this_endpoint_pair.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair.external);
     EXPECT_TRUE(IsValid(this_endpoint_pair.local));
@@ -410,7 +410,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
       std::bind(ConnectionLost, args::_1, &connection_lost_count));
   ManagedConnections managed_connections;
   {  // Before bootstrapping
-    Endpoint random_this_endpoint(ip::address_v4::loopback(), GetRandomPort());
+    Endpoint random_this_endpoint(GetLocalIp(), GetRandomPort());
     EXPECT_NE(kSuccess,
               managed_connections.Add(random_this_endpoint, bootstrap_endpoints().at(1),
                                       "validation_data"));
@@ -424,8 +424,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
     this->nodes().at(0)->reset_count();
     EndpointPair this_endpoint_pair;
     EndpointPair peer_endpoint_pair;
-    EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(&peer_endpoint_pair));
-    EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+    EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(peer_endpoint_pair));
+    EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(this_endpoint_pair));
 
     EXPECT_NE(Endpoint(), this_endpoint_pair.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair.external);
@@ -450,7 +450,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   }
   {  // Invalid peer endpoint
     EndpointPair this_endpoint_pair;
-    EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+    EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(this_endpoint_pair));
     EXPECT_NE(Endpoint(), this_endpoint_pair.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair.external);
     EXPECT_TRUE(IsValid(this_endpoint_pair.local));
@@ -464,18 +464,18 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   }
   //{  // Unavailable peer endpoint
   //  EndpointPair this_endpoint_pair;
-  //  EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+  //  EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(this_endpoint_pair));
   //  EXPECT_NE(Endpoint(), this_endpoint_pair.local);
   //  EXPECT_NE(Endpoint(), this_endpoint_pair.external);
   //  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
   //  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
-  //  Endpoint unavailable_endpoint(ip::address_v4::loopback(), GetRandomPort());
+  //  Endpoint unavailable_endpoint(GetLocalIp(), GetRandomPort());
   //  EXPECT_NE(kSuccess,
   //            managed_connections.Add(this_endpoint_pair.external, unavailable_endpoint,
   //                                    "validation_data"));
   //}
   //{  // Unavailable this endpoint
-  //  Endpoint unavailable_endpoint(ip::address_v4::loopback(), GetRandomPort());
+  //  Endpoint unavailable_endpoint(GetLocalIp(), GetRandomPort());
   //  EXPECT_NE(kSuccess,
   //            managed_connections.Add(unavailable_endpoint, bootstrap_endpoints().at(2),
   //                                    "validation_data"));
@@ -496,7 +496,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   managed_connections.Remove(bootstrap_endpoints().at(1));
   ASSERT_EQ(0, connection_lost_count);
 
-  Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
+  Endpoint endpoint(GetLocalIp(), GetRandomPort());
   Endpoint bootstrap_endpoint =
       managed_connections.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints().at(0)),
                                     message_received_functor,
@@ -512,8 +512,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   this->nodes().at(0)->reset_count();
   EndpointPair this_endpoint_pair;
   EndpointPair peer_endpoint_pair;
-  EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(&peer_endpoint_pair));
-  EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+  EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(peer_endpoint_pair));
+  EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(this_endpoint_pair));
 
   EXPECT_NE(Endpoint(), this_endpoint_pair.local);
   EXPECT_NE(Endpoint(), this_endpoint_pair.external);
@@ -542,7 +542,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   ASSERT_EQ(0, connection_lost_count);
 
   // Unknown endpoint
-  managed_connections.Remove(Endpoint(ip::address_v4::loopback(), GetRandomPort()));
+  managed_connections.Remove(Endpoint(GetLocalIp(), GetRandomPort()));
   ASSERT_EQ(0, connection_lost_count);
 
   // Valid
@@ -562,7 +562,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
   ConnectionLostFunctor connection_lost_functor(
       std::bind(ConnectionLost, args::_1, &connection_lost_count));
   ManagedConnections managed_connections;
-  Endpoint endpoint(ip::address_v4::loopback(), GetRandomPort());
+  Endpoint endpoint(GetLocalIp(), GetRandomPort());
   Endpoint bootstrap_endpoint =
       managed_connections.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints().at(0)),
                                     message_received_functor,
@@ -572,8 +572,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
   this->nodes().at(0)->reset_count();
   EndpointPair this_endpoint_pair;
   EndpointPair peer_endpoint_pair;
-  EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(&peer_endpoint_pair));
-  EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(&this_endpoint_pair));
+  EXPECT_EQ(kSuccess, this->nodes().at(0)->GetAvailableEndpoint(peer_endpoint_pair));
+  EXPECT_EQ(kSuccess, managed_connections.GetAvailableEndpoint(this_endpoint_pair));
 
   EXPECT_NE(Endpoint(), this_endpoint_pair.local);
   EXPECT_NE(Endpoint(), this_endpoint_pair.external);
@@ -601,7 +601,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
 
   // Unavailable endpoint
   EXPECT_NE(kSuccess,
-            managed_connections.Send(Endpoint(ip::address_v4::loopback(), GetRandomPort()),
+            managed_connections.Send(Endpoint(GetLocalIp(), GetRandomPort()),
             "message"));
   { // Valid
     auto future_messages_at_peer(this->nodes().at(0)->GetFutureForMessages(1));
@@ -614,7 +614,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
   { // Valid large messages
     std::string sent_message(std::move(RandomString(8 * 1024 * 1024)));
     auto future_messages_at_peer(this->nodes().at(0)->GetFutureForMessages(1));
-    EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external, sent_message));
+    EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external, sent_message));       
     auto messages(future_messages_at_peer.get());
     ASSERT_EQ(1, messages.size());
     EXPECT_EQ(sent_message, messages.at(0));
@@ -626,8 +626,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
 TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   ManagedConnections managed_connections1, managed_connections2,
                      managed_connections3;
-  Endpoint endpoint1(ip::address_v4::loopback(), 9000),
-           endpoint2(ip::address_v4::loopback(), 11111);
+  Endpoint endpoint1(GetLocalIp(), GetRandomPort()),
+           endpoint2(GetLocalIp(), GetRandomPort());
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
   boost::mutex mutex;
@@ -659,23 +659,22 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   ASSERT_EQ(2U, managed_connections1.connection_map_.size());
   Endpoint endpoint3((*managed_connections1.connection_map_.rbegin()).first);
                                                               std::cout << endpoint3 << std::endl;
+  std::string port1(boost::lexical_cast<std::string>(endpoint1.port()));
+  std::string port2(boost::lexical_cast<std::string>(endpoint2.port()));
   std::string port3(boost::lexical_cast<std::string>(endpoint3.port()));
 
   for (int i(0); i != 200; ++i) {
     Sleep(bptime::milliseconds(10));
     std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
     if (i % 2) {
-      managed_connections1.Send(endpoint2, message + " from 9000 to 11111");
-      managed_connections1.Send(endpoint3, message + " from 9000 to " + port3);
+      managed_connections1.Send(endpoint2, message + " from " + port1 + " to " + port2);
+      managed_connections1.Send(endpoint3, message + " from " + port1 + " to " + port3);
     } else {
-      managed_connections2.Send(endpoint1, message + " from 11111 to 9000");
-      managed_connections3.Send(endpoint1,
-                                message + " from " + port3 + " to 9000");
+      managed_connections2.Send(endpoint1, message + " from " + port2 + " to " + port1);
+      managed_connections3.Send(endpoint1, message + " from " + port3 + " to " + port1);
     }
   }
 
-
-  DLOG(INFO) << "==================== REMOVING ENDPOINT 2 ====================";
   managed_connections1.Remove(endpoint2);
   boost::mutex::scoped_lock lock(mutex);
   do {
@@ -688,9 +687,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint2) {
   ManagedConnections managed_connections1, managed_connections2,
                      managed_connections3;
-  Endpoint endpoint1(ip::address_v4::loopback(), 9000),
-           endpoint2(ip::address_v4::loopback(), 11111),
-           endpoint3(ip::address_v4::loopback(), 23456);
+  Endpoint endpoint1(GetLocalIp(), GetRandomPort()),
+           endpoint2(GetLocalIp(), GetRandomPort()),
+           endpoint3(GetLocalIp(), GetRandomPort());
   MessageReceivedFunctor message_received_functor(std::bind(MessageReceived,
                                                             args::_1));
   boost::mutex mutex;
@@ -721,10 +720,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint2) {
   EXPECT_FALSE(bootstrap_endpoint.address().is_unspecified());
 
   EndpointPair new_endpoint_pair, new_endpoint_pair1;
-  EXPECT_EQ(kSuccess, managed_connections1.GetAvailableEndpoint(&new_endpoint_pair));
+  EXPECT_EQ(kSuccess, managed_connections1.GetAvailableEndpoint(new_endpoint_pair));
   EXPECT_TRUE(IsValid(new_endpoint_pair.external));
   EXPECT_TRUE(IsValid(new_endpoint_pair.local));
-  EXPECT_EQ(kSuccess, managed_connections2.GetAvailableEndpoint(&new_endpoint_pair1));
+  EXPECT_EQ(kSuccess, managed_connections2.GetAvailableEndpoint(new_endpoint_pair1));
   EXPECT_TRUE(IsValid(new_endpoint_pair1.external));
   EXPECT_TRUE(IsValid(new_endpoint_pair1.local));
 

@@ -8,7 +8,7 @@
  *                                                                             *
  *  You are not free to copy, amend or otherwise use this source code without  *
  *  the explicit written permission of the board of directors of MaidSafe.net. *
- ******************************************************************************/
+ ******************************************************************************/                    
 
 #include "maidsafe/rudp/managed_connections.h"
 
@@ -107,11 +107,12 @@ class TestNode {
                                          local_endpoint);
   }
 
-  int GetAvailableEndpoint(EndpointPair *endpoint_pair) {
+  int GetAvailableEndpoint(EndpointPair &endpoint_pair) {
     return managed_connection_.GetAvailableEndpoint(endpoint_pair);
   }
 
-  int Add(const Endpoint &this_endpoint, const Endpoint &peer_endpoint,
+  int Add(const Endpoint &this_endpoint,
+          const Endpoint &peer_endpoint,
           const std::string &validation_data) {
     {
       std::lock_guard<std::mutex> guard(mutex_);
@@ -142,7 +143,7 @@ class TestNode {
 
   int GetReceivedMessageCount(const std::string &message) {
     std::lock_guard<std::mutex> guard(mutex_);
-    return std::count(messages_.begin(), messages_.end(), message);
+    return static_cast<int>(std::count(messages_.begin(), messages_.end(), message));
   }
 
  protected:
@@ -196,8 +197,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
     // Setting up first two nodes
     TestNodePtr node1(std::make_shared<TestNode>(1));
     TestNodePtr node2(std::make_shared<TestNode>(2));
-    Endpoint endpoint1(ip::address_v4::loopback(), GetRandomPort()),
-             endpoint2(ip::address_v4::loopback(), GetRandomPort());
+    Endpoint endpoint1(GetLocalIp(), GetRandomPort()),
+             endpoint2(GetLocalIp(), GetRandomPort());
     auto a1 = std::async(std::launch::async, &TestNode::Bootstrap, node1,
                          std::vector<Endpoint>(1, endpoint2), endpoint1);
     auto a2 = std::async(std::launch::async, &TestNode::Bootstrap, node2,
@@ -242,8 +243,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
     for (uint16_t i = 0; i != node_count; ++i) {
       for (uint16_t j = 0; j != node_count; ++j) {
         if ((j > i)) {  //  connecting all combination of nodes
-          EXPECT_EQ(kSuccess, nodes_.at(i)->GetAvailableEndpoint(&endpoint_pair1));
-          EXPECT_EQ(kSuccess, nodes_.at(j)->GetAvailableEndpoint(&endpoint_pair2));
+          EXPECT_EQ(kSuccess, nodes_.at(i)->GetAvailableEndpoint(endpoint_pair1));
+          EXPECT_EQ(kSuccess, nodes_.at(j)->GetAvailableEndpoint(endpoint_pair2));
           EXPECT_NE(Endpoint(), endpoint_pair1.local);
           EXPECT_NE(Endpoint(), endpoint_pair1.external);
           EXPECT_NE(Endpoint(), endpoint_pair2.local);

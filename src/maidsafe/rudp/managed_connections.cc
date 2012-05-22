@@ -92,8 +92,8 @@ Endpoint ManagedConnections::Bootstrap(
   } else {
     // TODO(Prakash): FIXME, Temporarily adding loopback address for tests to pass.
     // Need to fix GetLocalIp().
-                                                         local_ip_ = boost::asio::ip::address_v4::loopback();
-    //local_ip_ = GetLocalIp(Endpoint(boost::asio::ip::address_v4::from_string("8.8.8.8"), 0));
+//                                                         local_ip_ = boost::asio::ip::address_v4::loopback();
+    local_ip_ = GetLocalIp();
     if (local_ip_.is_unspecified()) {
       DLOG(ERROR) << "Failed to retrieve local IP.";
       return Endpoint();
@@ -156,12 +156,7 @@ Endpoint ManagedConnections::StartNewTransport(
   return chosen_endpoint;
 }
 
-int ManagedConnections::GetAvailableEndpoint(EndpointPair *endpoint_pair) {
-  if (!endpoint_pair) {
-    DLOG(ERROR) << "Null parameter passed.";
-    return kNullParameter;
-  }
-
+int ManagedConnections::GetAvailableEndpoint(EndpointPair &endpoint_pair) {
   int transports_size(0);
   {
     SharedLock shared_lock(shared_mutex_);
@@ -178,14 +173,12 @@ int ManagedConnections::GetAvailableEndpoint(EndpointPair *endpoint_pair) {
                                             Endpoint(local_ip_, 0)));
     if (IsValid(new_endpoint)) {
       UniqueLock unique_lock(shared_mutex_);
-      endpoint_pair->external =
+      endpoint_pair.external =
           (*transports_.rbegin()).transport->external_endpoint();
-      endpoint_pair->local =
+      endpoint_pair.local =
           (*transports_.rbegin()).transport->local_endpoint();
-      DLOG(ERROR) << "Started a new Transport.!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
       return kSuccess;
     } else {
-      DLOG(ERROR) << "Failed to start a new Transport.!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
       return kTransportStartFailure;
     }
   }
@@ -193,27 +186,25 @@ int ManagedConnections::GetAvailableEndpoint(EndpointPair *endpoint_pair) {
   // Get transport with least connections.
   {
     size_t least_connections(Transport::kMaxConnections());
-    EndpointPair chosen_endpoint_pair;
     SharedLock shared_lock(shared_mutex_);
     std::for_each(
         transports_.begin(),
         transports_.end(),
-        [&least_connections, &chosen_endpoint_pair]
-            (const TransportAndSignalConnections &element) {
+        [&](const TransportAndSignalConnections &element) {
       if (element.transport->ConnectionsCount() < least_connections) {
         least_connections = element.transport->ConnectionsCount();
-        chosen_endpoint_pair.external = element.transport->external_endpoint();
-        chosen_endpoint_pair.local = element.transport->local_endpoint();
+        endpoint_pair.external = element.transport->external_endpoint();
+        endpoint_pair.local = element.transport->local_endpoint();
       }
     });
 
-    if (!IsValid(chosen_endpoint_pair.external) ||
-        !IsValid(chosen_endpoint_pair.local)) {
+    if (!IsValid(endpoint_pair.external) || !IsValid(endpoint_pair.local)) {
       DLOG(ERROR) << "All Transports are full.";
+      endpoint_pair.external = Endpoint();
+      endpoint_pair.local = Endpoint();
       return kFull;
     }
 
-    *endpoint_pair = chosen_endpoint_pair;
     return kSuccess;
   }
 }
@@ -251,7 +242,6 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
     if (connection_map_itr != connection_map_.end()) {
       if (peer_endpoint == (*connection_map_itr).second->bootstrap_endpoint()) {
         (*connection_map_itr).second->CloseConnection(peer_endpoint);
-        DLOG(INFO) << "Clearing bootstraped connection to " << peer_endpoint;
       } else {
         DLOG(ERROR) << "A managed connection to " << peer_endpoint
                     << " already exists.";
