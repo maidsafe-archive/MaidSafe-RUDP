@@ -27,6 +27,12 @@
 
 #include "maidsafe/common/asio_service.h"
 
+#include "maidsafe/rudp/version.h"
+
+#if MAIDSAFE_RUDP_VERSION != 100
+#  error This API is not compatible with the installed library.\
+    Please update the maidsafe_rudp library.
+#endif
 
 namespace maidsafe {
 

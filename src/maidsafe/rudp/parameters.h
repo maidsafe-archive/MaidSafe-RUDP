@@ -15,7 +15,12 @@
 
 #include <cstdint>
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
+#include "maidsafe/rudp/version.h"
 
+#if MAIDSAFE_RUDP_VERSION != 100
+#  error This API is not compatible with the installed library.\
+    Please update the maidsafe_rudp library.
+#endif
 
 namespace maidsafe {
 
