@@ -117,4 +117,5 @@ include(maidsafe_standard_flags)
 ###################################################################################################
 add_style_test(${STYLE_RUDP})
 add_gtests(TESTrudp)
+add_project_experimental()
 test_summary_output()
