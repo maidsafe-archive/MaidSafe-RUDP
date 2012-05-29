@@ -93,10 +93,18 @@ void Transport::Bootstrap(
     connection->set_temporary(false);
     connection->StartConnecting("");
 
-                // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
-                                                                //Sleep(bptime::milliseconds((RandomUint32() % 100) + 1000));
-                                                              while (!IsValid(multiplexer_->external_endpoint()) || !IsValid(multiplexer_->local_endpoint()))
-                                                                Sleep(bptime::seconds(1));
+ // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
+                                             //Sleep(bptime::milliseconds((RandomUint32() % 100) + 1000));
+    int count(0);
+    while (!IsValid(multiplexer_->external_endpoint()) ||
+           !IsValid(multiplexer_->local_endpoint())) {
+        if (count > 3) {
+           DLOG(ERROR) << "Timed out waiting for connection";
+           break;
+        }
+           Sleep(bptime::seconds(1));
+           ++count;
+    }
 
     if (IsValid(multiplexer_->external_endpoint()) &&
         IsValid(multiplexer_->local_endpoint())) {
