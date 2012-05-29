@@ -51,6 +51,7 @@ ManagedConnections::~ManagedConnections() {
     element.on_message_connection.disconnect();
     element.transport->Close();
   });
+ // TODO(dirvine) this causes a hang as threads do not finish
   asio_service_->Stop();
 }
 
