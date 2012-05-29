@@ -199,9 +199,9 @@ class ManagedConnectionsFuncTest : public testing::Test {
     TestNodePtr node2(std::make_shared<TestNode>(2));
     Endpoint endpoint1(GetLocalIp(), GetRandomPort()),
              endpoint2(GetLocalIp(), GetRandomPort());
-    auto a1 = std::async(std::launch::async, &TestNode::Bootstrap, node1,
+    auto a1 = std::async(std::launch::async, &TestNode::Bootstrap, node1.get(),
                          std::vector<Endpoint>(1, endpoint2), endpoint1);
-    auto a2 = std::async(std::launch::async, &TestNode::Bootstrap, node2,
+    auto a2 = std::async(std::launch::async, &TestNode::Bootstrap, node2.get(),
                          std::vector<Endpoint>(1, endpoint1), endpoint2);
     bool result1 = a1.get().address().is_unspecified();
     bool result2 = a2.get().address().is_unspecified();
@@ -223,8 +223,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
       TestNodePtr node(std::make_shared<TestNode>(i+2));
       Endpoint endpoint = Endpoint();
       results.emplace_back(
-          std::async(std::launch::async, &TestNode::Bootstrap, node,
-                     bootstrap_endpoints_, endpoint));
+          std::async(std::launch::async, [=] () {return node->Bootstrap(bootstrap_endpoints_,
+                                                                        endpoint); }));
       nodes_.push_back(node);
     }
     // Waiting for results
