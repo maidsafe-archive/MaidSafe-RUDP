@@ -97,11 +97,6 @@ class TestNode {
     return messages_;
   }
 
-  Endpoint local_endpoint() {
-    std::lock_guard<std::mutex> guard(mutex_);
-    return local_endpoint_;
-  }
-
   ManagedConnections& managed_connection() {
     return managed_connection_;
   }
@@ -112,7 +107,6 @@ class TestNode {
         std::bind(&TestNode::MessageReceived, this, args::_1);
     ConnectionLostFunctor connection_lost_functor =
         std::bind(&TestNode::ConnectionLost, this, args::_1);
-    local_endpoint_ = local_endpoint;
     return managed_connection_.Bootstrap(bootstrap_endpoints,
                                          message_received_functor,
                                          connection_lost_functor,
@@ -156,7 +150,6 @@ class TestNode {
  private:
   uint32_t node_id_;
   std::mutex mutex_;
-  Endpoint local_endpoint_;
   std::vector<Endpoint> connection_lost_endpoints_;
   std::vector<std::string> messages_;
   ManagedConnections managed_connection_;
@@ -266,8 +259,8 @@ class ManagedConnectionsTest : public testing::Test {
               nodes_.at(i)->managed_connection().Add(endpoint_pair2.external,
                                                      endpoint_pair1.external,
                                                      "validation_data");
-          if (return_code1 != kSuccess && return_code2 != kSuccess) {
-            DLOG(ERROR) << "Failed to add node -" << i << " to node " << j;
+          if (return_code1 != kSuccess || return_code2 != kSuccess) {
+            DLOG(ERROR) << "Failed to add node -" << i << " and " << j;
             nodes_.clear();
             bootstrap_endpoints_.clear();
             return false;
