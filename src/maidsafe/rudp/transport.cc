@@ -32,7 +32,7 @@ namespace args = std::placeholders;
 namespace maidsafe {
 
 namespace rudp {
-
+int g_transport_id(1);
 Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLINT (Fraser)
     : asio_service_(asio_service),
       strand_(asio_service->service()),
@@ -42,7 +42,7 @@ Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLI
       on_message_(),
       on_connection_added_(),
       on_connection_lost_(),
-      bootstrap_endpoint_(),
+      bootstrap_endpoint_(), id(g_transport_id++),
       bootstrap_disconnection_timer_(asio_service->service()) {}
 
 Transport::~Transport() {
@@ -91,6 +91,7 @@ void Transport::Bootstrap(
                                                           strand_,
                                                           multiplexer_, *itr));
     connection->set_temporary(false);
+    connection->set_bootstrapping(true);
     connection->StartConnecting("");
 
  // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
@@ -229,6 +230,7 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
     return;
   Endpoint bootstrapping_endpoint(multiplexer->GetBootstrappingEndpoint());
   if (IsValid(bootstrapping_endpoint)) {
+    DLOG(INFO) << "GetBootstrappingEndpoint called with valid ep!!! transport -" << id << "ep - " <<bootstrapping_endpoint;
     ConnectionPtr connection(
         std::make_shared<Connection>(shared_from_this(),
                                      strand_,
@@ -269,6 +271,7 @@ void Transport::InsertConnection(ConnectionPtr connection) {
 }
 
 void Transport::DoInsertConnection(ConnectionPtr connection) {
+  DLOG(INFO) << "DoInsertConnection with" << connection->Socket().RemoteEndpoint();
   connections_.insert(connection);
   if (!connection->temporary())
     on_connection_added_(connection->Socket().RemoteEndpoint(),

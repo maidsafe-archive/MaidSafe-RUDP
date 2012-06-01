@@ -101,6 +101,11 @@ bool Socket::IsOpen() const {
   return session_.IsOpen();
 }
 
+void Socket::set_bootstrapping(const bool &bootstraping) {
+  BOOST_ASSERT(!session_.IsOpen());
+  session_.set_bootstrapping(bootstraping);
+}
+
 void Socket::Close() {
   if (session_.IsOpen()) {
     sender_.NotifyClose();

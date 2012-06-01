@@ -58,7 +58,10 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartConnecting(const std::string &data);
   void StartSending(const std::string &data);
 
- private:
+  // Set connection opened for bootstraping. This needs to be called before StartConnecting.
+  void set_bootstrapping(const bool &bootstraping);
+
+private:
   Connection(const Connection&);
   Connection &operator=(const Connection&);
 

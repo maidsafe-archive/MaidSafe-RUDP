@@ -151,6 +151,11 @@ Endpoint ManagedConnections::StartNewTransport(
   }
 
   UniqueLock unique_lock(shared_mutex_);
+  DLOG(INFO) << "Inserting transport in vector - transport id "
+             <<transport_and_signals_connections.transport->id
+             << ", chosen_endpoint - " << chosen_endpoint
+             << ", local endpoint - " << transport_and_signals_connections.transport->local_endpoint()
+             << ", chosen_endpoint - " << transport_and_signals_connections.transport->external_endpoint();
   transports_.push_back(transport_and_signals_connections);
   return chosen_endpoint;
 }
@@ -249,6 +254,8 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
     }
   }
 
+  DLOG(INFO) << "Add::Connecting "<< (*itr).transport->external_endpoint()
+             << " to  " <<   peer_endpoint;
   (*itr).transport->Connect(peer_endpoint, validation_data);
   return kSuccess;
 }

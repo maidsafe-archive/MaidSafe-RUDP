@@ -178,8 +178,8 @@ class ManagedConnectionsTest : public testing::Test {
     bootstrap_endpoints_.clear();
 
     // Setting up first two nodes
-    TestNodePtr node1(std::make_shared<TestNode>(1));
-    TestNodePtr node2(std::make_shared<TestNode>(2));
+    TestNodePtr node1(std::make_shared<TestNode>(0));
+    TestNodePtr node2(std::make_shared<TestNode>(1));
     Endpoint endpoint1(GetLocalIp(), GetRandomPort()),
              endpoint2(GetLocalIp(), GetRandomPort());
     auto a1 = std::async(std::launch::async, &TestNode::Bootstrap, node1.get(),
@@ -193,28 +193,34 @@ class ManagedConnectionsTest : public testing::Test {
     if (result1 || result2) {
       return false;
     }
+    DLOG(INFO) << "Calling GetAvailableEndpoint on 0";
     EndpointPair this_endpoint_pair1, this_endpoint_pair2;
     EXPECT_EQ(kSuccess,
               node1->managed_connection().GetAvailableEndpoint(this_endpoint_pair1));
+    DLOG(INFO) << "Calling GetAvailableEndpoint on 1";
     EXPECT_EQ(kSuccess,
               node2->managed_connection().GetAvailableEndpoint(this_endpoint_pair2));
     EXPECT_NE(Endpoint(), this_endpoint_pair1.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair1.external);
     EXPECT_NE(Endpoint(), this_endpoint_pair2.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair2.external);
+    DLOG(INFO) << "Calling Add on 0" << this_endpoint_pair1.external << " to"
+               << this_endpoint_pair2.external;
+
     EXPECT_EQ(kSuccess,
               node1->managed_connection().Add(this_endpoint_pair1.external,
                                               this_endpoint_pair2.external,
-                                              "validation_data"));
+                                              "0's validation_data"));
+    DLOG(INFO) << "Calling Add on 1" << this_endpoint_pair2.external << " to"
+               << this_endpoint_pair1.external;
     EXPECT_EQ(kSuccess,
               node2->managed_connection().Add(this_endpoint_pair2.external,
                                               this_endpoint_pair1.external,
-                                              "validation_data"));
+                                              "1's validation_data"));
     nodes_.push_back(node1);
     nodes_.push_back(node2);
     bootstrap_endpoints_.push_back(endpoint1);
     bootstrap_endpoints_.push_back(endpoint2);
-
     DLOG(INFO) << "Setting up remaining " << (node_count - 2) << " nodes";
     // Setting up remaining (node_count - 2) nodes
     std::vector<std::future<Endpoint>> results;
@@ -243,20 +249,26 @@ class ManagedConnectionsTest : public testing::Test {
     for (uint16_t i = 2; i != node_count; ++i) {
       for (uint16_t j = 2; j != node_count; ++j) {
         if ((j > i)) {  //  connecting all combination of nodes
+          DLOG(INFO) << "Calling GetAvailableEndpoint on " << i;
           EXPECT_EQ(kSuccess,
                     nodes_.at(i)->managed_connection().GetAvailableEndpoint(endpoint_pair1));
+          DLOG(INFO) << "Calling GetAvailableEndpoint on " << j;
           EXPECT_EQ(kSuccess,
                     nodes_.at(j)->managed_connection().GetAvailableEndpoint(endpoint_pair2));
           EXPECT_NE(Endpoint(), endpoint_pair1.local);
           EXPECT_NE(Endpoint(), endpoint_pair1.external);
           EXPECT_NE(Endpoint(), endpoint_pair2.local);
           EXPECT_NE(Endpoint(), endpoint_pair2.external);
+          DLOG(INFO) << "Calling Add on " << i << endpoint_pair1.external << " to"
+                     << endpoint_pair2.external;
           int return_code1 =
               nodes_.at(i)->managed_connection().Add(endpoint_pair1.external,
                                                      endpoint_pair2.external,
                                                      "validation_data");
+          DLOG(INFO) << "Calling Add on " << j << endpoint_pair2.external << " to"
+                     << endpoint_pair1.external;
           int return_code2 =
-              nodes_.at(i)->managed_connection().Add(endpoint_pair2.external,
+              nodes_.at(j)->managed_connection().Add(endpoint_pair2.external,
                                                      endpoint_pair1.external,
                                                      "validation_data");
           if (return_code1 != kSuccess || return_code2 != kSuccess) {
@@ -285,7 +297,7 @@ class ManagedConnectionsTest : public testing::Test {
 };
 
 TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap_Network) {
-  ASSERT_TRUE(SetupNetwork(10));
+  ASSERT_TRUE(SetupNetwork(4));
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap_Parameters) {

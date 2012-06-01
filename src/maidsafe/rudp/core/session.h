@@ -65,6 +65,9 @@ class Session {
   // Handle a tick in the system time.
   void HandleTick();
 
+  // Set session opened for bootstraping
+  void set_bootstrapping(const bool &bootstraping);
+
  private:
   // Disallow copying and assignment.
   Session(const Session&);
@@ -99,6 +102,9 @@ class Session {
 
   // The state of the session.
   enum State { kClosed, kProbing, kHandshaking, kConnected } state_;
+
+  // This is session opened for bootstraping.
+  bool bootstraping_;
 };
 
 }  // namespace detail

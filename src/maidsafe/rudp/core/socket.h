@@ -146,6 +146,9 @@ class Socket {
     StartProbe();
   }
 
+  // Set socket opened for bootstraping. This needs to be called before AsyncConnect
+  void set_bootstrapping(const bool &bootstraping);
+
   friend class Dispatcher;
 
  private:

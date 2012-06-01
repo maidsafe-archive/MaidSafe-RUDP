@@ -55,6 +55,7 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
   if (Packet::DecodeDestinationSocketId(&id, data)) {
     if (id == 0) {
       // This is a handshake packet on a newly-added socket
+      DLOG(INFO) << "/ This is a handshake packet on a newly-added socket" << endpoint;
       socket_iter = std::find_if(
           sockets_.begin(),
           sockets_.end(),
@@ -63,12 +64,14 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
           });
     } else {
       // This packet is intended for a specific connection.
+      DLOG(INFO) << "// This packet is intended for a specific connection from." << endpoint;
       socket_iter = sockets_.find(id);
     }
     if (socket_iter != sockets_.end()) {
       socket_iter->second->HandleReceiveFrom(data, endpoint);
-    } else if (id == 0) {
+    } else if (id == 0xffffffff) {
       // This is a handshake packet on a bootstrapping socket
+      DLOG(INFO) << "// This is a handshake packet on a bootstrapping socket!!!!!" << endpoint;
       HandshakePacket handshake_packet;
       if (handshake_packet.Decode(data))
         bootstrapping_endpoint_ = endpoint;

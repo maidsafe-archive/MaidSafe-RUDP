@@ -69,6 +69,10 @@ void Connection::Close() {
   strand_.dispatch(std::bind(&Connection::DoClose, shared_from_this()));
 }
 
+void Connection::set_bootstrapping(const bool &bootstrapping) {
+  socket_.set_bootstrapping(bootstrapping);
+}
+
 void Connection::DoClose() {
   probe_interval_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
@@ -174,6 +178,7 @@ void Connection::HandleTick() {
 void Connection::StartConnect() {
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect,
                                         shared_from_this(), args::_1));
+  if (std::shared_ptr<Transport> transport = transport_.lock()) DLOG(INFO) << "StartConnect connecting" << transport->local_endpoint() << "to ..." << remote_endpoint_  << validation_data_;
   socket_.AsyncConnect(remote_endpoint_, handler);
   timer_.expires_from_now(Parameters::connect_timeout);
   timeout_state_ = kConnecting;
@@ -191,13 +196,14 @@ void Connection::HandleConnect(const bs::error_code &ec) {
                 << " - " << ec.message();
     return DoClose();
   }
-
+  DLOG(INFO) << "HandleConnect connected to ..." << socket_.RemoteEndpoint() << validation_data_;
   if (std::shared_ptr<Transport> transport = transport_.lock())
     transport->InsertConnection(shared_from_this());
 
 //  StartProbing();
   if (!validation_data_.empty()) {
     EncodeData(validation_data_);
+    DLOG(INFO) <<"Clearing validation data and sending now !!!!!!!!!!" << validation_data_ <<socket_.RemoteEndpoint();
     validation_data_.clear();
     StartWrite();
   } else {
