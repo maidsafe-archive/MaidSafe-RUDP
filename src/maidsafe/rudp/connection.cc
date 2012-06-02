@@ -16,7 +16,8 @@
 #include <algorithm>
 #include <array>  // NOLINT
 #include <functional>
-
+#include <thread>
+#include <chrono>
 #include "boost/asio/read.hpp"
 #include "boost/asio/write.hpp"
 
@@ -34,7 +35,7 @@ namespace args = std::placeholders;
 namespace maidsafe {
 
 namespace rudp {
-static int g_connection_count(0);
+
 Connection::Connection(const std::shared_ptr<Transport> &transport,
                        const asio::io_service::strand &strand,
                        const std::shared_ptr<detail::Multiplexer> &multiplexer,
@@ -90,12 +91,13 @@ void Connection::DoClose() {
   }
 }
 
-void Connection::StartConnecting(const std::string &data) {
+void Connection::StartConnecting(const std::string data) {
   if (!data.empty()) {
     validation_data_ = data;
   }
-  strand_.dispatch(std::bind(&Connection::DoStartConnecting,
-                             shared_from_this()));
+  // TODO FIXME(dirvine) this should not be required
+  std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+    strand_.dispatch([this] {Connection::DoStartConnecting(); } );
 }
 
 void Connection::DoStartConnecting() {
@@ -108,7 +110,7 @@ void Connection::DoStartConnecting() {
 void Connection::StartSending(const std::string &data) {
   EncodeData(data);
   timeout_for_response_ = Parameters::default_send_timeout;
-  strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this()));
+  strand_.dispatch([this] { Connection::StartWrite(); });
 }
 
 void Connection::CheckTimeout(const bs::error_code &ec) {
@@ -137,8 +139,8 @@ void Connection::CheckTimeout(const bs::error_code &ec) {
   }
 
   // Keep processing timeouts until the socket is completely closed.
-  timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckTimeout,
-                                           shared_from_this(), args::_1)));
+  timer_.async_wait(strand_.wrap([this] (const boost::system::error_code &ec)
+                                    { Connection::CheckTimeout(ec); }));
 }
 
 bool Connection::Stopped() const {
@@ -146,17 +148,16 @@ bool Connection::Stopped() const {
 }
 
 void Connection::StartTick() {
-  auto handler = strand_.wrap(std::bind(&Connection::HandleTick,
-                                        shared_from_this()));
-  socket_.AsyncTick(handler);
+    socket_.AsyncTick(strand_.wrap([this] (const boost::system::error_code &ec)
+                                      { Connection::HandleTick(ec); }));
 }
 
 // During sending : average one tick every 1.22ms (range from 1.1 to 1.4)
 // 1.22ms = 1ms (congestion_control.SendDelay()) + system variant process time
 // During receiving : averagle one tick every 140ms
 // 140ms=100ms(congestion_control.ReceiveDelay()) + system variant process time
-void Connection::HandleTick() {
-  if (!socket_.IsOpen())
+void Connection::HandleTick(const boost::system::error_code &ec) {
+  if (!socket_.IsOpen() && ec)
     return;
   if (timeout_state_ == kSending) {
     uint32_t sent_length = socket_.SentLength();

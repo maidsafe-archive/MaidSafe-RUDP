@@ -237,7 +237,9 @@ class ManagedConnectionsTest : public testing::Test {
     for (uint16_t i = 0; i != node_count - 2; ++i) {
       bool failed = results.at(i).get().address().is_unspecified();
       if (failed) {
-        nodes_.clear();
+//        for(auto node: nodes_)
+//            node.reset();
+//            nodes_.clear();
         bootstrap_endpoints_.clear();
         return false;
       }
