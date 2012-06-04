@@ -16,29 +16,6 @@
 
 
 int main(int argc, char **argv) {
-  // Initialising logging
-  maidsafe::InitLogging(argv[0]);
-
-  // Choose to direct output to stderr instead of logfiles.
-  FLAGS_logtostderr = true;
-
-  // Choose to direct output to stderr as well as to logfiles.
-  FLAGS_alsologtostderr = false;
-
-  // Prepend the log prefix to the start of each log line
-  FLAGS_log_prefix = true;
-
-  // Logfiles are written into this directory instead of the default logging one
-  boost::system::error_code error_code;
-  FLAGS_log_dir = boost::filesystem::temp_directory_path(error_code).string();
-
-  // Show all VLOG(m) messages for m <= this.
-  FLAGS_v = 0;
-
-  // Log messages at or above this level. Severity levels are INFO, WARNING,
-  // ERROR, and FATAL (0 to 3 respectively).
-  FLAGS_ms_logging_common = google::INFO;
-  FLAGS_ms_logging_rudp = google::INFO;
 
   testing::InitGoogleTest(&argc, argv);
   int result(RUN_ALL_TESTS());
