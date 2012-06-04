@@ -34,8 +34,7 @@ namespace maidsafe {
 namespace rudp {
 int g_transport_id(1);
 Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLINT (Fraser)
-    : id(g_transport_id++),
-      asio_service_(asio_service),
+    : asio_service_(asio_service),
       strand_(asio_service->service()),
       multiplexer_(new detail::Multiplexer(asio_service->service())),
       connections_(),
@@ -43,7 +42,7 @@ Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLI
       on_message_(),
       on_connection_added_(),
       on_connection_lost_(),
-      bootstrap_endpoint_(),
+      bootstrap_endpoint_(), id(g_transport_id++),
       bootstrap_disconnection_timer_(asio_service->service()) {}
 
 Transport::~Transport() {

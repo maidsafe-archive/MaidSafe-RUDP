@@ -55,7 +55,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   detail::Socket &Socket();
 
   void Close();
-  void StartConnecting(const std::string data);
+  void StartConnecting(const std::string &data);
   void StartSending(const std::string &data);
 
   // Set connection opened for bootstraping. This needs to be called before StartConnecting.
@@ -72,7 +72,7 @@ private:
   bool Stopped() const;
 
   void StartTick();
-  void HandleTick(const boost::system::error_code &ec);
+  void HandleTick();
 
   void StartConnect();
   void HandleConnect(const boost::system::error_code &ec);
