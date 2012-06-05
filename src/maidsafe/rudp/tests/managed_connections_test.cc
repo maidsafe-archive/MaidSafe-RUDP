@@ -20,10 +20,10 @@
 
 #include "boost/lexical_cast.hpp"
 
+#include "maidsafe/common/log.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
-#include "maidsafe/rudp/log.h"
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 #include "maidsafe/rudp/utils.h"
