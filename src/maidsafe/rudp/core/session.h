@@ -104,7 +104,7 @@ class Session {
   enum State { kClosed, kProbing, kHandshaking, kConnected } state_;
 
   // This is session opened for bootstraping.
-  bool bootstraping_;
+  bool bootstrapping_;
 };
 
 }  // namespace detail

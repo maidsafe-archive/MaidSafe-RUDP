@@ -26,6 +26,7 @@
 
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/tests/test_utils.h"
+#include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/utils.h"
 
 namespace args = std::placeholders;
@@ -296,11 +297,11 @@ class ManagedConnectionsTest : public testing::Test {
   std::vector<Endpoint> bootstrap_endpoints_;
 };
 
-TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap_Network) {
+TEST_F(ManagedConnectionsTest, BEH_API_BootstrapNetwork) {
   ASSERT_TRUE(SetupNetwork(4));
 }
 
-TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap_Parameters) {
+TEST_F(ManagedConnectionsTest, BEH_API_BootstrapParameters) {
   const uint8_t kNetworkSize(2);
   ASSERT_TRUE(SetupNetwork(kNetworkSize));
 
@@ -654,6 +655,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
 
   EXPECT_FALSE(a2.get().address().is_unspecified());
   EXPECT_FALSE(a1.get().address().is_unspecified());
+  ASSERT_EQ(1U, managed_connections1.connection_map_.size());
+  ASSERT_EQ(1U, managed_connections2.connection_map_.size());
 
   boost::asio::ip::udp::endpoint bootstrap_endpoint =
       managed_connections3.Bootstrap(std::vector<Endpoint>(1, endpoint1),
@@ -661,9 +664,12 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                      connection_lost_functor);
 
   EXPECT_EQ(endpoint1, bootstrap_endpoint);
-  ASSERT_EQ(2U, managed_connections1.connection_map_.size());
-  Endpoint endpoint3((*managed_connections1.connection_map_.rbegin()).first);
-                                                              std::cout << endpoint3 << std::endl;
+  ASSERT_EQ(1U, managed_connections1.connection_map_.size());
+  ASSERT_EQ(1U, managed_connections2.connection_map_.size());
+  ASSERT_EQ(1U, managed_connections3.connection_map_.size());
+  ASSERT_EQ(1U, managed_connections3.transports_.size());
+
+  Endpoint endpoint3((*managed_connections3.transports_.begin()).transport->local_endpoint());
   std::string port1(boost::lexical_cast<std::string>(endpoint1.port()));
   std::string port2(boost::lexical_cast<std::string>(endpoint2.port()));
   std::string port3(boost::lexical_cast<std::string>(endpoint3.port()));
@@ -673,20 +679,20 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
     std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
     if (i % 2) {
       managed_connections1.Send(endpoint2, message + " from " + port1 + " to " + port2);
-      managed_connections1.Send(endpoint3, message + " from " + port1 + " to " + port3);
+//      managed_connections1.Send(endpoint3, message + " from " + port1 + " to " + port3);
     } else {
       managed_connections2.Send(endpoint1, message + " from " + port2 + " to " + port1);
       managed_connections3.Send(endpoint1, message + " from " + port3 + " to " + port1);
     }
   }
 
-  managed_connections1.Remove(endpoint2);
-  boost::mutex::scoped_lock lock(mutex);
-  do {
-    lock.unlock();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    lock.lock();
-  } while (connection_lost_count != 2);
+//  managed_connections3.Remove(endpoint1);
+//  boost::mutex::scoped_lock lock(mutex);
+//  do {
+//    lock.unlock();
+//    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//    lock.lock();
+//  } while (connection_lost_count != 1);
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint2) {

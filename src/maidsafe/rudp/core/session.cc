@@ -43,7 +43,7 @@ Session::Session(Peer &peer,                                  // NOLINT (Fraser)
       receiving_sequence_number_(0),
       peer_connection_type_(0),
       state_(kClosed),
-      bootstraping_(false) {}
+      bootstrapping_(false) {}
 
 void Session::Open(uint32_t id, uint32_t sequence_number) {
   assert(id != 0);
@@ -112,18 +112,18 @@ void Session::HandleTick() {
 }
 
 void Session::set_bootstrapping(const bool &bootstraping) {
-  bootstraping_ = bootstraping;
+  bootstrapping_ = bootstraping;
 }
 
 void Session::SendConnectionRequest() {
-  DLOG(ERROR) << "SendConnectionRequest " <<  bootstraping_ << peer_.Endpoint();
+  DLOG(INFO) << "SendConnectionRequest (bootstrapping: " << std::boolalpha << bootstrapping_ << ") to " << peer_.Endpoint();
   HandshakePacket packet;
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetSocketId(id_);
   packet.SetEndpoint(peer_.Endpoint());
   // For bootstrapping
-  if (bootstraping_)
+  if (bootstrapping_)
     packet.SetDestinationSocketId(0xffffffff);
   else
     packet.SetDestinationSocketId(0);

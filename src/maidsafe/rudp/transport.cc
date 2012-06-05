@@ -231,7 +231,7 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
     return;
   Endpoint bootstrapping_endpoint(multiplexer->GetBootstrappingEndpoint());
   if (IsValid(bootstrapping_endpoint)) {
-    DLOG(INFO) << "GetBootstrappingEndpoint called with valid ep!!! transport -" << id << "ep - " <<bootstrapping_endpoint;
+    DLOG(INFO) << "GetBootstrappingEndpoint called with valid ep!!! transport " << id << " ep - " << bootstrapping_endpoint;
     ConnectionPtr connection(
         std::make_shared<Connection>(shared_from_this(),
                                      strand_,
@@ -272,7 +272,7 @@ void Transport::InsertConnection(ConnectionPtr connection) {
 }
 
 void Transport::DoInsertConnection(ConnectionPtr connection) {
-  DLOG(INFO) << "DoInsertConnection with" << connection->Socket().RemoteEndpoint();
+  DLOG(INFO) << "DoInsertConnection with " << connection->Socket().RemoteEndpoint();
   connections_.insert(connection);
   if (!connection->temporary())
     on_connection_added_(connection->Socket().RemoteEndpoint(),

@@ -179,7 +179,7 @@ void Connection::HandleTick() {
 void Connection::StartConnect() {
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect,
                                         shared_from_this(), args::_1));
-  if (std::shared_ptr<Transport> transport = transport_.lock()) DLOG(INFO) << "StartConnect connecting" << transport->local_endpoint() << "to ..." << remote_endpoint_  << validation_data_;
+  if (std::shared_ptr<Transport> transport = transport_.lock()) DLOG(INFO) << "StartConnect connecting " << transport->local_endpoint() << " to " << remote_endpoint_ << validation_data_;
   socket_.AsyncConnect(remote_endpoint_, handler);
   timer_.expires_from_now(Parameters::connect_timeout);
   timeout_state_ = kConnecting;

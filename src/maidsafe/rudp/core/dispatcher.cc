@@ -55,26 +55,29 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
   if (Packet::DecodeDestinationSocketId(&id, data)) {
     if (id == 0) {
       // This is a handshake packet on a newly-added socket
-      DLOG(INFO) << "/ This is a handshake packet on a newly-added socket" << endpoint;
+      DLOG(INFO) << "This is a handshake packet on a newly-added socket from " << endpoint;
       socket_iter = std::find_if(
           sockets_.begin(),
           sockets_.end(),
           [endpoint](const SocketMap::value_type &socket_pair) {
             return socket_pair.second->RemoteEndpoint() == endpoint;
           });
-    } else {
-      // This packet is intended for a specific connection.
-      DLOG(INFO) << "// This packet is intended for a specific connection from." << endpoint;
-      socket_iter = sockets_.find(id);
-    }
-    if (socket_iter != sockets_.end()) {
-      socket_iter->second->HandleReceiveFrom(data, endpoint);
     } else if (id == 0xffffffff) {
       // This is a handshake packet on a bootstrapping socket
-      DLOG(INFO) << "// This is a handshake packet on a bootstrapping socket!!!!!" << endpoint;
+      DLOG(INFO) << "This is a handshake packet on a bootstrapping socket from " << endpoint;
       HandshakePacket handshake_packet;
-      if (handshake_packet.Decode(data))
+      if (handshake_packet.Decode(data)) {
         bootstrapping_endpoint_ = endpoint;
+        return;
+      }
+    } else {
+      // This packet is intended for a specific connection.
+      DLOG(INFO) << "This packet is intended for a specific connection from " << endpoint;
+      socket_iter = sockets_.find(id);
+    }
+
+    if (socket_iter != sockets_.end()) {
+      socket_iter->second->HandleReceiveFrom(data, endpoint);
     } else {
       const unsigned char *p = asio::buffer_cast<const unsigned char*>(data);
       DLOG(INFO) << "Received a packet \"0x" << std::hex

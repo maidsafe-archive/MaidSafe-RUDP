@@ -52,7 +52,6 @@ ManagedConnections::~ManagedConnections() {
     element.on_message_connection.disconnect();
     element.transport->Close();
   });
- // TODO(dirvine) this causes a hang as threads do not finish
   asio_service_->Stop();
 }
 
@@ -153,10 +152,10 @@ Endpoint ManagedConnections::StartNewTransport(
 
   UniqueLock unique_lock(shared_mutex_);
   DLOG(INFO) << "Inserting transport in vector - transport id "
-             <<transport_and_signals_connections.transport->id
+             << transport_and_signals_connections.transport->id
              << ", chosen_endpoint - " << chosen_endpoint
              << ", local endpoint - " << transport_and_signals_connections.transport->local_endpoint()
-             << ", chosen_endpoint - " << transport_and_signals_connections.transport->external_endpoint();
+             << ", external_endpoint - " << transport_and_signals_connections.transport->external_endpoint();
   transports_.push_back(transport_and_signals_connections);
   return chosen_endpoint;
 }
