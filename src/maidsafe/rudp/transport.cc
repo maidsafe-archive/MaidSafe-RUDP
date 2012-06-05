@@ -17,10 +17,11 @@
 #include <cassert>
 #include <functional>
 
+#include "maidsafe/common/log.h"
+
 #include "maidsafe/rudp/connection.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/socket.h"
-#include "maidsafe/rudp/log.h"
 #include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/utils.h"

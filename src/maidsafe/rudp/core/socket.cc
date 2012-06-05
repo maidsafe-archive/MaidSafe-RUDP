@@ -19,9 +19,9 @@
 
 #include "boost/assert.hpp"
 
+#include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
 
-#include "maidsafe/rudp/log.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 
 namespace asio = boost::asio;

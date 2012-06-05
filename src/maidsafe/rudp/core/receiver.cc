@@ -20,13 +20,13 @@
 
 #include "boost/assert.hpp"
 
+#include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/core/congestion_control.h"
 #include "maidsafe/rudp/packets/negative_ack_packet.h"
 #include "maidsafe/rudp/core/peer.h"
 #include "maidsafe/rudp/core/tick_timer.h"
-#include "maidsafe/rudp/log.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;

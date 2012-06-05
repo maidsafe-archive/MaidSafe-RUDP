@@ -15,11 +15,12 @@
 
 #include <cassert>
 
+#include "maidsafe/common/log.h"
+
 #include "maidsafe/rudp/packets/data_packet.h"
 #include "maidsafe/rudp/core/peer.h"
 #include "maidsafe/rudp/core/sliding_window.h"
 #include "maidsafe/rudp/core/tick_timer.h"
-#include "maidsafe/rudp/log.h"
 #include "maidsafe/rudp/utils.h"
 
 namespace bptime = boost::posix_time;

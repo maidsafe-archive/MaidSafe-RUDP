@@ -12,7 +12,7 @@
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
 #include "maidsafe/common/test.h"
-#include "maidsafe/rudp/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/rudp/core/sliding_window.h"
 
 namespace maidsafe {

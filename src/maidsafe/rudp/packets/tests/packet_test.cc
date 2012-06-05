@@ -11,8 +11,8 @@
  ******************************************************************************/
 
 #include "maidsafe/common/test.h"
+#include "maidsafe/common/log.h"
 
-#include "maidsafe/rudp/log.h"
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/packets/data_packet.h"
 #include "maidsafe/rudp/packets/control_packet.h"

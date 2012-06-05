@@ -15,8 +15,8 @@
 #include <vector>
 
 #include "maidsafe/common/test.h"
+#include "maidsafe/common/log.h"
 
-#include "maidsafe/rudp/log.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/utils.h"

@@ -12,9 +12,8 @@
 
 #include "maidsafe/rudp/utils.h"
 
+#include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
-
-#include "maidsafe/rudp/log.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;

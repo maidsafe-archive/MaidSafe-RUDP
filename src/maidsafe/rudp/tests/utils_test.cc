@@ -15,7 +15,7 @@
 #include <set>
 #include "boost/scoped_array.hpp"
 #include "maidsafe/common/test.h"
-#include "maidsafe/rudp/log.h"
+#include "maidsafe/common/log.h"
 #include "maidsafe/rudp/utils.h"
 
 namespace maidsafe {

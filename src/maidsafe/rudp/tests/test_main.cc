@@ -11,11 +11,14 @@
  ******************************************************************************/
 
 #include "boost/filesystem.hpp"
+#include "maidsafe/common/log.h"
 #include "maidsafe/common/test.h"
-#include "maidsafe/rudp/log.h"
 
 
 int main(int argc, char **argv) {
+  maidsafe::log::Logging::instance().SetLogLevel(maidsafe::log::INFO);
+  maidsafe::log::Logging::instance().SetFilter("rudp, common");
+  maidsafe::log::Logging::instance().SetColour(true);
 
   testing::InitGoogleTest(&argc, argv);
   int result(RUN_ALL_TESTS());

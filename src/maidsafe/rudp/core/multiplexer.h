@@ -19,6 +19,9 @@
 
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
+
+#include "maidsafe/common/log.h"
+
 #include "maidsafe/rudp/operations/dispatch_op.h"
 #include "maidsafe/rudp/core/dispatcher.h"
 #include "maidsafe/rudp/packets/packet.h"
@@ -67,7 +70,7 @@ class Multiplexer {
       boost::system::error_code ec;
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
-        PrintSendError(endpoint, ec);
+        DLOG(ERROR) << "Error sending to << " << endpoint << " - " << ec.message();
         return kSendFailure;
       } else {
         return kSuccess;
@@ -88,10 +91,6 @@ class Multiplexer {
   // Disallow copying and assignment.
   Multiplexer(const Multiplexer&);
   Multiplexer &operator=(const Multiplexer&);
-
-  // Allow use of logging without #including log.h in this header.
-  void PrintSendError(const boost::asio::ip::udp::endpoint &endpoint,
-                      boost::system::error_code ec) const;
 
   // The UDP socket used for all RUDP protocol communication.
   boost::asio::ip::udp::socket socket_;

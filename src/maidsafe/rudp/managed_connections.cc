@@ -15,8 +15,9 @@
 #include <functional>
 #include <iterator>
 
+#include "maidsafe/common/log.h"
+
 #include "maidsafe/rudp/common.h"
-#include "maidsafe/rudp/log.h"
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/utils.h"

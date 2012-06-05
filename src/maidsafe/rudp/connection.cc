@@ -20,7 +20,8 @@
 #include "boost/asio/read.hpp"
 #include "boost/asio/write.hpp"
 
-#include "maidsafe/rudp/log.h"
+#include "maidsafe/common/log.h"
+
 #include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/core/multiplexer.h"

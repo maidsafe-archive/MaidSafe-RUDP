@@ -17,7 +17,6 @@
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/utils.h"
-#include "maidsafe/rudp/log.h"
 
 namespace asio = boost::asio;
 namespace ip = boost::asio::ip;
@@ -86,11 +85,6 @@ void Multiplexer::Close() {
   socket_.close(ec);
   if (ec)
     DLOG(WARNING) << "Multiplexer closing error: " << ec.message();
-}
-
-void Multiplexer::PrintSendError(const boost::asio::ip::udp::endpoint &endpoint,
-                                 boost::system::error_code ec) const {
-  DLOG(ERROR) << "Error sending to << " << endpoint << " - " << ec.message();
 }
 
 boost::asio::ip::udp::endpoint Multiplexer::GetBootstrappingEndpoint() {
