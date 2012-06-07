@@ -13,5 +13,7 @@
 #include "maidsafe/common/test.h"
 
 int main(int argc, char **argv) {
-  return ExecuteMain(argc, argv, maidsafe::log::kInfo);
+  maidsafe::log::Filter filter;
+  filter["*"] = maidsafe::log::kInfo;
+  return ExecuteMain(argc, argv, filter);
 }
