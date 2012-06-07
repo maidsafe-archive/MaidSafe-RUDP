@@ -266,11 +266,11 @@ void Socket::HandleReceiveFrom(const asio::const_buffer &data,
     } else if (shutdown_packet.Decode(data)) {
       Close();
     } else {
-      DLOG(ERROR) << "Socket " << session_.Id()
+      LOG(kError) << "Socket " << session_.Id()
                   << " ignoring invalid packet from " << endpoint;
     }
   } else {
-    DLOG(ERROR) << "Socket " << session_.Id()
+    LOG(kError) << "Socket " << session_.Id()
                 << " ignoring spurious packet from " << endpoint;
   }
 }
@@ -298,7 +298,7 @@ void Socket::HandleKeepalive(const KeepalivePacket &packet) {
         waiting_probe_.cancel();
         return;
       } else {
-        DLOG(INFO) << "Socket " << session_.Id()
+        LOG(kInfo) << "Socket " << session_.Id()
                    << " ignoring unexpected keepalive response packet from "
                    << peer_.Endpoint();
       }

@@ -45,11 +45,11 @@ namespace test {
 namespace {
 
 void MessageReceived(const std::string &message) {
-  DLOG(INFO) << "Received: " << message;
+  LOG(kInfo) << "Received: " << message;
 }
 
 void ConnectionLost(const Endpoint &endpoint, std::atomic<int> *count) {
-  DLOG(INFO) << "Lost connection to " << endpoint;
+  LOG(kInfo) << "Lost connection to " << endpoint;
   ++(*count);
 }
 
@@ -76,14 +76,14 @@ class TestNode {
         message_promise_() {}
 
   void MessageReceived(const std::string &message) {
-    DLOG(INFO) << node_id_ << " -- Received: " << message.substr(0, 10);
+    LOG(kInfo) << node_id_ << " -- Received: " << message.substr(0, 10);
     std::lock_guard<std::mutex> guard(mutex_);
     messages_.emplace_back(message);
     SetPromiseIfDone();
   }
 
   void ConnectionLost(const Endpoint &endpoint) {
-    DLOG(INFO) << node_id_ << " -- Lost connection to " << endpoint;
+    LOG(kInfo) << node_id_ << " -- Lost connection to " << endpoint;
     std::lock_guard<std::mutex> guard(mutex_);
     connection_lost_endpoints_.emplace_back(endpoint);
   }
@@ -194,25 +194,25 @@ class ManagedConnectionsTest : public testing::Test {
     if (result1 || result2) {
       return false;
     }
-    DLOG(INFO) << "Calling GetAvailableEndpoint on 0";
+    LOG(kInfo) << "Calling GetAvailableEndpoint on 0";
     EndpointPair this_endpoint_pair1, this_endpoint_pair2;
     EXPECT_EQ(kSuccess,
               node1->managed_connection().GetAvailableEndpoint(this_endpoint_pair1));
-    DLOG(INFO) << "Calling GetAvailableEndpoint on 1";
+    LOG(kInfo) << "Calling GetAvailableEndpoint on 1";
     EXPECT_EQ(kSuccess,
               node2->managed_connection().GetAvailableEndpoint(this_endpoint_pair2));
     EXPECT_NE(Endpoint(), this_endpoint_pair1.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair1.external);
     EXPECT_NE(Endpoint(), this_endpoint_pair2.local);
     EXPECT_NE(Endpoint(), this_endpoint_pair2.external);
-    DLOG(INFO) << "Calling Add on 0" << this_endpoint_pair1.external << " to"
+    LOG(kInfo) << "Calling Add on 0" << this_endpoint_pair1.external << " to"
                << this_endpoint_pair2.external;
 
     EXPECT_EQ(kSuccess,
               node1->managed_connection().Add(this_endpoint_pair1.external,
                                               this_endpoint_pair2.external,
                                               "0's validation_data"));
-    DLOG(INFO) << "Calling Add on 1" << this_endpoint_pair2.external << " to"
+    LOG(kInfo) << "Calling Add on 1" << this_endpoint_pair2.external << " to"
                << this_endpoint_pair1.external;
     EXPECT_EQ(kSuccess,
               node2->managed_connection().Add(this_endpoint_pair2.external,
@@ -222,7 +222,7 @@ class ManagedConnectionsTest : public testing::Test {
     nodes_.push_back(node2);
     bootstrap_endpoints_.push_back(endpoint1);
     bootstrap_endpoints_.push_back(endpoint2);
-    DLOG(INFO) << "Setting up remaining " << (node_count - 2) << " nodes";
+    LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
     // Setting up remaining (node_count - 2) nodes
     std::vector<std::future<Endpoint>> results;
     results.reserve(node_count - 2);
@@ -250,30 +250,30 @@ class ManagedConnectionsTest : public testing::Test {
     for (uint16_t i = 2; i != node_count; ++i) {
       for (uint16_t j = 2; j != node_count; ++j) {
         if ((j > i)) {  //  connecting all combination of nodes
-          DLOG(INFO) << "Calling GetAvailableEndpoint on " << i;
+          LOG(kInfo) << "Calling GetAvailableEndpoint on " << i;
           EXPECT_EQ(kSuccess,
                     nodes_.at(i)->managed_connection().GetAvailableEndpoint(endpoint_pair1));
-          DLOG(INFO) << "Calling GetAvailableEndpoint on " << j;
+          LOG(kInfo) << "Calling GetAvailableEndpoint on " << j;
           EXPECT_EQ(kSuccess,
                     nodes_.at(j)->managed_connection().GetAvailableEndpoint(endpoint_pair2));
           EXPECT_NE(Endpoint(), endpoint_pair1.local);
           EXPECT_NE(Endpoint(), endpoint_pair1.external);
           EXPECT_NE(Endpoint(), endpoint_pair2.local);
           EXPECT_NE(Endpoint(), endpoint_pair2.external);
-          DLOG(INFO) << "Calling Add on " << i << endpoint_pair1.external << " to"
+          LOG(kInfo) << "Calling Add on " << i << endpoint_pair1.external << " to"
                      << endpoint_pair2.external;
           int return_code1 =
               nodes_.at(i)->managed_connection().Add(endpoint_pair1.external,
                                                      endpoint_pair2.external,
                                                      "validation_data");
-          DLOG(INFO) << "Calling Add on " << j << endpoint_pair2.external << " to"
+          LOG(kInfo) << "Calling Add on " << j << endpoint_pair2.external << " to"
                      << endpoint_pair1.external;
           int return_code2 =
               nodes_.at(j)->managed_connection().Add(endpoint_pair2.external,
                                                      endpoint_pair1.external,
                                                      "validation_data");
           if (return_code1 != kSuccess || return_code2 != kSuccess) {
-            DLOG(ERROR) << "Failed to add node -" << i << " and " << j;
+            LOG(kError) << "Failed to add node -" << i << " and " << j;
             nodes_.clear();
             bootstrap_endpoints_.clear();
             return false;

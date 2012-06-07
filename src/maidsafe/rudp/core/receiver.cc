@@ -70,7 +70,7 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer &data) {
        (n != unread_packets_.End()) && (ptr < end);
        n = unread_packets_.Next(n)) {
     UnreadPacket &p = unread_packets_[n];
-//        DLOG(ERROR) << "Unread packet: " << p.packet.PacketSequenceNumber() << " size = "
+//        LOG(kError) << "Unread packet: " << p.packet.PacketSequenceNumber() << " size = "
 //                    << p.packet.Data().size();
     if (p.lost) {
       break;
@@ -81,13 +81,13 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer &data) {
       ptr += length;
       p.bytes_read += length;
       if (p.packet.Data().size() == p.bytes_read) {
-//                  DLOG(ERROR) << "Removing packet: " << p.packet.PacketSequenceNumber();
+//                  LOG(kError) << "Removing packet: " << p.packet.PacketSequenceNumber();
         unread_packets_.Remove();
       } else {
-//                  DLOG(ERROR) << "NOT Removing packet: " << p.packet.PacketSequenceNumber() << " - length = " << length;
+//                  LOG(kError) << "NOT Removing packet: " << p.packet.PacketSequenceNumber() << " - length = " << length;
       }
     } else {
-//                      DLOG(ERROR) << "Removing packet: " << p.packet.PacketSequenceNumber();
+//                      LOG(kError) << "Removing packet: " << p.packet.PacketSequenceNumber();
       unread_packets_.Remove();
     }
   }
@@ -122,7 +122,7 @@ void Receiver::HandleData(const DataPacket &packet) {
       p.bytes_read = 0;
     }
   } else {
-    DLOG(WARNING) << "Ignoring incoming packet with seqnum " << seqnum << " and data " << packet.Data();
+    LOG(kWarning) << "Ignoring incoming packet with seqnum " << seqnum << " and data " << packet.Data();
   }
 
   if (seqnum % congestion_control_.AckInterval() == 0) {

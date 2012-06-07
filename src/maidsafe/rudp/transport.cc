@@ -75,7 +75,7 @@ void Transport::Bootstrap(
 
   ReturnCode result = multiplexer_->Open(local_endpoint);
   if (result != kSuccess) {
-    DLOG(ERROR) << "Failed to open multiplexer.  Result: " << result;
+    LOG(kError) << "Failed to open multiplexer.  Result: " << result;
     return;
   }
 
@@ -85,7 +85,7 @@ void Transport::Bootstrap(
        itr != bootstrap_endpoints.end();
        ++itr) {
     if (!IsValid(*itr)) {
-      DLOG(ERROR) << *itr << " is an invalid endpoint.";
+      LOG(kError) << *itr << " is an invalid endpoint.";
       continue;
     }
     ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(),
@@ -101,7 +101,7 @@ void Transport::Bootstrap(
     while (!IsValid(multiplexer_->external_endpoint()) ||
            !IsValid(multiplexer_->local_endpoint())) {
         if (count > 3) {
-           DLOG(ERROR) << "Timed out waiting for connection";
+           LOG(kError) << "Timed out waiting for connection";
            break;
         }
            Sleep(bptime::seconds(1));
@@ -140,7 +140,7 @@ void Transport::DoConnect(const Endpoint &peer_endpoint,
     ReturnCode result =
         multiplexer_->Open(Endpoint(peer_endpoint.protocol(), 0));
     if (result != kSuccess) {
-      DLOG(ERROR) << "Failed to open multiplexer.  Error " << result;
+      LOG(kError) << "Failed to open multiplexer.  Error " << result;
       return;
     }
     opened_multiplexer = true;
@@ -166,7 +166,7 @@ int Transport::CloseConnection(const Endpoint &peer_endpoint) {
                                  peer_endpoint;
                         }));
   if (itr == connections_.end()) {
-    DLOG(WARNING) << "Not currently connected to " << peer_endpoint;
+    LOG(kWarning) << "Not currently connected to " << peer_endpoint;
     return kInvalidConnection;
   }
 
@@ -188,7 +188,7 @@ int Transport::Send(const Endpoint &peer_endpoint, const std::string &message) {
                                  peer_endpoint;
                         }));
   if (itr == connections_.end()) {
-    DLOG(WARNING) << "Not currently connected to " << peer_endpoint;
+    LOG(kWarning) << "Not currently connected to " << peer_endpoint;
     return kInvalidConnection;
   }
 
@@ -231,7 +231,7 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
     return;
   Endpoint bootstrapping_endpoint(multiplexer->GetBootstrappingEndpoint());
   if (IsValid(bootstrapping_endpoint)) {
-    DLOG(INFO) << "GetBootstrappingEndpoint called with valid ep!!! transport " << id << " ep - " << bootstrapping_endpoint;
+    LOG(kInfo) << "GetBootstrappingEndpoint called with valid ep!!! transport " << id << " ep - " << bootstrapping_endpoint;
     ConnectionPtr connection(
         std::make_shared<Connection>(shared_from_this(),
                                      strand_,
@@ -247,7 +247,7 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
     //bootstrap_disconnection_timer_.async_wait(
     //    std::bind(&Transport::DoCloseConnection,
     //              shared_from_this(), connection));
-    //DLOG(INFO) << "Scheduled disconnection of bootstrapping connection to "
+    //LOG(kInfo) << "Scheduled disconnection of bootstrapping connection to "
     //           << connection->Socket().RemoteEndpoint();
   }
   StartDispatch();
@@ -272,7 +272,7 @@ void Transport::InsertConnection(ConnectionPtr connection) {
 }
 
 void Transport::DoInsertConnection(ConnectionPtr connection) {
-  DLOG(INFO) << "DoInsertConnection with " << connection->Socket().RemoteEndpoint();
+  LOG(kInfo) << "DoInsertConnection with " << connection->Socket().RemoteEndpoint();
   connections_.insert(connection);
   if (!connection->temporary())
     on_connection_added_(connection->Socket().RemoteEndpoint(),

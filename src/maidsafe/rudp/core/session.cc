@@ -96,7 +96,7 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
     if (IsValid(packet.Endpoint())) {
       this_external_endpoint_ = packet.Endpoint();
     } else {
-      DLOG(ERROR) << "Invalid external endpoint in handshake: "
+      LOG(kError) << "Invalid external endpoint in handshake: "
                   << packet.Endpoint();
     }
 //    }
@@ -116,7 +116,7 @@ void Session::set_bootstrapping(const bool &bootstraping) {
 }
 
 void Session::SendConnectionRequest() {
-  DLOG(INFO) << "SendConnectionRequest (bootstrapping: " << std::boolalpha << bootstrapping_ << ") to " << peer_.Endpoint();
+  LOG(kInfo) << "SendConnectionRequest (bootstrapping: " << std::boolalpha << bootstrapping_ << ") to " << peer_.Endpoint();
   HandshakePacket packet;
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
@@ -131,7 +131,7 @@ void Session::SendConnectionRequest() {
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
-    DLOG(ERROR) << "Failed to send handshake to " << peer_.Endpoint();
+    LOG(kError) << "Failed to send handshake to " << peer_.Endpoint();
 
   // Schedule another connection request.
   tick_timer_.TickAfter(bptime::milliseconds(250));
@@ -152,7 +152,7 @@ void Session::SendCookie() {
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
-    DLOG(ERROR) << "Failed to send cookie to " << peer_.Endpoint();
+    LOG(kError) << "Failed to send cookie to " << peer_.Endpoint();
 
   // Schedule another cookie send.
   tick_timer_.TickAfter(bptime::milliseconds(250));
@@ -173,7 +173,7 @@ void Session::SendConnectionAccepted() {
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
-    DLOG(ERROR) << "Failed to send connection_accepted to " << peer_.Endpoint();
+    LOG(kError) << "Failed to send connection_accepted to " << peer_.Endpoint();
 }
 
 }  // namespace detail

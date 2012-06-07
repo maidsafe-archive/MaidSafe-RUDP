@@ -70,7 +70,7 @@ class Multiplexer {
       boost::system::error_code ec;
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
-        DLOG(ERROR) << "Error sending to << " << endpoint << " - " << ec.message();
+        LOG(kError) << "Error sending to << " << endpoint << " - " << ec.message();
         return kSendFailure;
       } else {
         return kSuccess;

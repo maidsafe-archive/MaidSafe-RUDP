@@ -35,7 +35,7 @@ ip::udp::endpoint Resolve(
     return *resolver.resolve(query);
   }
   catch(const std::exception &e) {
-    DLOG(ERROR) << "Failed resolving " << address_and_port.first << ":"
+    LOG(kError) << "Failed resolving " << address_and_port.first << ":"
                 << address_and_port.second << " - " << e.what();
     return ip::udp::endpoint();
   }
@@ -54,7 +54,7 @@ ip::address GetLocalIp(ip::udp::endpoint peer_endpoint) {
     return socket.local_endpoint().address();
   }
   catch(const std::exception &e) {
-    DLOG(ERROR) << "Failed trying to connect to " << peer_endpoint << " - "
+    LOG(kError) << "Failed trying to connect to " << peer_endpoint << " - "
                 << e.what();
     return ip::address();
   }
@@ -66,7 +66,7 @@ bool TryConnectTo(std::vector<ip::udp::endpoint> peer_endpoints,
   ip::address retrieved_local_ip;
   if (!use_defaults) {
     if (peer_endpoints.empty()) {
-      DLOG(ERROR) << "Invalid request.";
+      LOG(kError) << "Invalid request.";
       return false;
     }
     // TODO (Prakash): Send and receive to confirm peer is up.
@@ -121,7 +121,7 @@ bool IsValid(const Endpoint &endpoint) {
 //     }
 //   }
 //   catch(const std::exception &e) {
-//     DLOG(ERROR) << e.what() << " - Decimal IP: " << decimal_ip;
+//     LOG(kError) << e.what() << " - Decimal IP: " << decimal_ip;
 //   }
 //   return "";
 // }
@@ -143,7 +143,7 @@ bool IsValid(const Endpoint &endpoint) {
 //     }
 //   }
 //   catch(const std::exception &e) {
-//     DLOG(ERROR) << e.what();
+//     LOG(kError) << e.what();
 //   }
 //   return "";
 // }

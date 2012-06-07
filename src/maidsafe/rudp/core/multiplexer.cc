@@ -38,7 +38,7 @@ Multiplexer::~Multiplexer() {}
 
 ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
   if (socket_.is_open()) {
-    DLOG(WARNING) << "Multiplexer already open.";
+    LOG(kWarning) << "Multiplexer already open.";
     return kAlreadyStarted;
   }
 
@@ -46,7 +46,7 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
   socket_.open(endpoint.protocol(), ec);
 
   if (ec) {
-    DLOG(ERROR) << "Multiplexer socket opening error: " << ec.message();
+    LOG(kError) << "Multiplexer socket opening error: " << ec.message();
     return kInvalidAddress;
   }
 
@@ -54,21 +54,21 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
   socket_.io_control(nbio, ec);
 
   if (ec) {
-    DLOG(ERROR) << "Multiplexer setting option error: " << ec.message();
+    LOG(kError) << "Multiplexer setting option error: " << ec.message();
     return kSetOptionFailure;
   }
 
   if (!endpoint.address().is_unspecified()) {
     socket_.bind(endpoint, ec);
     if (ec) {
-      DLOG(ERROR) << "Multiplexer socket binding error: " << ec.message();
+      LOG(kError) << "Multiplexer socket binding error: " << ec.message();
       return kBindError;
     }
   } else {
     // TODO(Team): Replace below with valid address and replace connect with sending data if reqd.
     socket_.connect(ip::udp::endpoint(ip::address_v4::from_string("8.8.8.8"), 9000), ec);
     if (ec) {
-      DLOG(ERROR) << "Multiplexer socket connect error: " << ec.message();
+      LOG(kError) << "Multiplexer socket connect error: " << ec.message();
       return kConnectError;
     }
   }
@@ -84,7 +84,7 @@ void Multiplexer::Close() {
   bs::error_code ec;
   socket_.close(ec);
   if (ec)
-    DLOG(WARNING) << "Multiplexer closing error: " << ec.message();
+    LOG(kWarning) << "Multiplexer closing error: " << ec.message();
 }
 
 boost::asio::ip::udp::endpoint Multiplexer::GetBootstrappingEndpoint() {
@@ -95,7 +95,7 @@ boost::asio::ip::udp::endpoint Multiplexer::local_endpoint() const {
   boost::system::error_code ec;
   boost::asio::ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
   if (ec) {
-    DLOG(ERROR) << ec.message();
+    LOG(kError) << ec.message();
     return boost::asio::ip::udp::endpoint();
   }
   return local_endpoint;

@@ -54,7 +54,7 @@ class TestNode {
         message_promise_() {}
 
   void MessageReceived(const std::string &message) {
-    DLOG(INFO) << node_id_ << " -- Received: " << message.substr(0, 10);
+    LOG(kInfo) << node_id_ << " -- Received: " << message.substr(0, 10);
     std::lock_guard<std::mutex> guard(mutex_);
     if ("validation_data" == message)
       ++validation_data_count_;
@@ -64,7 +64,7 @@ class TestNode {
   }
 
   void ConnectionLost(const Endpoint &endpoint) {
-    DLOG(INFO) << node_id_ << " -- Lost connection to " << endpoint;
+    LOG(kInfo) << node_id_ << " -- Lost connection to " << endpoint;
     std::lock_guard<std::mutex> guard(mutex_);
     connection_lost_endpoints_.emplace_back(endpoint);
     SetPromiseIfDone();
@@ -215,7 +215,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
     bootstrap_endpoints_.push_back(endpoint1);
     bootstrap_endpoints_.push_back(endpoint2);
 
-    DLOG(INFO) << "Setting up remaining " << (node_count - 2) << " nodes";
+    LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
     // Setting up remaining (node_count - 2) nodes
     std::vector<std::future<Endpoint>> results;
     results.reserve(node_count - 2);
@@ -254,7 +254,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
           int return_code2 = nodes_.at(j)->Add(endpoint_pair2.external, endpoint_pair1.external,
                                                "validation_data");
           if (return_code1 != kSuccess || return_code2 != kSuccess) {
-            DLOG(ERROR) << "Failed to add node -" << i << " to node " << j;
+            LOG(kError) << "Failed to add node -" << i << " to node " << j;
             nodes_.clear();
             bootstrap_endpoints_.clear();
             return false;
@@ -285,7 +285,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
     // Sending messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       std::vector<Endpoint> peers(nodes_.at(i)->connected_endpoints());
-      DLOG(INFO)<< "// Size of peers---" << peers.size();
+      LOG(kInfo)<< "// Size of peers---" << peers.size();
       std::for_each(peers.begin(), peers.end(), [&](const Endpoint& peer) {
         for (uint16_t j = 0; j != num_messages; ++j)
           EXPECT_EQ(kSuccess, nodes_.at(i)->Send(peer, sent_messages.at(i)));

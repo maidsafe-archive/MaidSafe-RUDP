@@ -42,7 +42,7 @@
 //                         const size_t &index,
 //                         ReceivedMessages *received_messages) {
 //    std::string index_str(boost::lexical_cast<std::string>(index));
-//    DLOG(INFO) << "Transport " << index << " received: " << message;
+//    LOG(kInfo) << "Transport " << index << " received: " << message;
 //    response->assign("Transport " + index_str + " reply to \"" + message + "\"");
 //    *timeout = bptime::seconds(10);
 //    boost::mutex::scoped_lock lock(*mutex);
@@ -55,7 +55,7 @@
 //               const size_t &index,
 //               ReceivedErrors *received_errors) {
 //    std::string index_str(boost::lexical_cast<std::string>(index));
-//    DLOG(INFO) << "Transport " << index << " received error: " << result
+//    LOG(kInfo) << "Transport " << index << " received error: " << result
 //               << " from " << endpoint.ip << ":" << endpoint.port;
 //    boost::mutex::scoped_lock lock(*mutex);
 //    received_errors->at(index).push_back(std::make_pair(result, endpoint));
