@@ -34,7 +34,7 @@ const int kMaxTransports(10);
 }  // unnamed namespace
 
 ManagedConnections::ManagedConnections()
-    : asio_service_(new AsioService),
+    : asio_service_(new AsioService(Parameters::thread_count)),
       message_received_functor_(),
       connection_lost_functor_(),
       transports_(),
@@ -86,7 +86,7 @@ Endpoint ManagedConnections::Bootstrap(
   }
   bootstrap_endpoints_ = bootstrap_endpoints;
 
-  asio_service_->Start(Parameters::thread_count);
+  asio_service_->Start();
 
   if (IsValid(local_endpoint)) {
     local_ip_ = local_endpoint.address();
