@@ -32,15 +32,12 @@ namespace maidsafe {
 
 namespace rudp {
 
-namespace test {
-class ManagedConnectionsTest_BEH_API_Bootstrap_Test;
-}
+namespace test { class ManagedConnectionsTest_BEH_API_Bootstrap_Test; }
 
 class Transport;
 
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
-typedef std::function<void(const boost::asio::ip::udp::endpoint&)>
-    ConnectionLostFunctor;
+typedef std::function<void(const boost::asio::ip::udp::endpoint&)> ConnectionLostFunctor;
 
 struct EndpointPair {
   boost::asio::ip::udp::endpoint local, external;
@@ -62,8 +59,7 @@ class ManagedConnections {
       const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
       MessageReceivedFunctor message_received_functor,
       ConnectionLostFunctor connection_lost_functor,
-      boost::asio::ip::udp::endpoint local_endpoint =
-          boost::asio::ip::udp::endpoint());
+      boost::asio::ip::udp::endpoint local_endpoint = boost::asio::ip::udp::endpoint());
 
   // Returns a transport's EndpointPair.  Returns kNoneAvailable
   // if there are no running Managed Connections.  In this case, Bootstrap must
@@ -90,8 +86,7 @@ class ManagedConnections {
   friend class test::ManagedConnectionsTest_BEH_API_Bootstrap_Test;
 
  private:
-  typedef std::map<boost::asio::ip::udp::endpoint,
-                   std::shared_ptr<Transport>> ConnectionMap;
+  typedef std::map<boost::asio::ip::udp::endpoint, std::shared_ptr<Transport>> ConnectionMap;
 
   struct TransportAndSignalConnections {
     std::shared_ptr<Transport> transport;
@@ -107,12 +102,10 @@ class ManagedConnections {
       boost::asio::ip::udp::endpoint local_endpoint);
 
   void OnMessageSlot(const std::string &message);
-  void OnConnectionAddedSlot(
-      const boost::asio::ip::udp::endpoint &peer_endpoint,
-      std::shared_ptr<Transport> transport);
+  void OnConnectionAddedSlot(const boost::asio::ip::udp::endpoint &peer_endpoint,
+                             std::shared_ptr<Transport> transport);
   void OnConnectionLostSlot(const boost::asio::ip::udp::endpoint &peer_endpoint,
-                            std::shared_ptr<Transport> transport,
-                            const bool &bootstraped_connection);
+                            std::shared_ptr<Transport> transport);
 //  void RemoveTransport(std::shared_ptr<Transport> transport);
 //  void InsertEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint,
 //                      std::shared_ptr<Transport> transport);

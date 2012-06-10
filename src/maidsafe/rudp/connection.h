@@ -49,17 +49,12 @@ class Connection : public std::enable_shared_from_this<Connection> {
              const boost::asio::ip::udp::endpoint &remote);
   ~Connection();
 
-  bool temporary() const { return temporary_; }
-  void set_temporary(const bool & temporary) { temporary_ = temporary; }
-
   detail::Socket &Socket();
 
   void Close();
-  void StartConnecting(const std::string &data);
+  void StartConnecting(const std::string &validation_data, bool temporary);
   void StartSending(const std::string &data);
-
-  // Set connection opened for bootstraping. This needs to be called before StartConnecting.
-  void set_bootstrapping(const bool &bootstraping);
+                                                                                                    std::string conn_id_;
 
 private:
   Connection(const Connection&);

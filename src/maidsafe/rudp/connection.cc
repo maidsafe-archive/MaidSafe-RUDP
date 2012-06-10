@@ -25,6 +25,7 @@
 #include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/core/multiplexer.h"
+#include "maidsafe/rudp/core/session.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;
@@ -35,7 +36,7 @@ namespace args = std::placeholders;
 namespace maidsafe {
 
 namespace rudp {
-static int g_connection_count(0);
+
 Connection::Connection(const std::shared_ptr<Transport> &transport,
                        const asio::io_service::strand &strand,
                        const std::shared_ptr<detail::Multiplexer> &multiplexer,
@@ -58,9 +59,14 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       temporary_(false),
       timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
+                                                                            static std::atomic<int> count(0);
+                                                                            conn_id_ = "Connection " + boost::lexical_cast<std::string>(count++);
+                                                                            LOG(kVerbose) << conn_id_ << " constructor";
 }
 
-Connection::~Connection() {}
+Connection::~Connection() {
+                                                                      LOG(kVerbose) << conn_id_ << " destructor";
+}
 
 detail::Socket &Connection::Socket() {
   return socket_;
@@ -70,19 +76,15 @@ void Connection::Close() {
   strand_.dispatch(std::bind(&Connection::DoClose, shared_from_this()));
 }
 
-void Connection::set_bootstrapping(const bool &bootstrapping) {
-  socket_.set_bootstrapping(bootstrapping);
-}
-
 void Connection::DoClose() {
+                                                                        LOG(kVerbose) << conn_id_ << " DoClose";
   probe_interval_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     // We're still connected to the transport. We need to detach and then
     // start flushing the socket to attempt a graceful closure.
     transport->RemoveConnection(shared_from_this());
     transport_.reset();
-    socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose,
-                                              shared_from_this())));
+    socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose, shared_from_this())));
     timer_.expires_from_now(Parameters::speed_calculate_inverval);
   } else {
     // We've already had a go at graceful closure. Just tear down the socket.
@@ -91,12 +93,12 @@ void Connection::DoClose() {
   }
 }
 
-void Connection::StartConnecting(const std::string &data) {
-  if (!data.empty()) {
-    validation_data_ = data;
-  }
-  strand_.dispatch(std::bind(&Connection::DoStartConnecting,
-                             shared_from_this()));
+void Connection::StartConnecting(const std::string &validation_data,
+                                 bool temporary) {
+                                                                                    //  if (!data.empty())
+  temporary_ = temporary;
+  validation_data_ = validation_data;
+  strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this()));
 }
 
 void Connection::DoStartConnecting() {
@@ -179,8 +181,13 @@ void Connection::HandleTick() {
 void Connection::StartConnect() {
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect,
                                         shared_from_this(), args::_1));
-  if (std::shared_ptr<Transport> transport = transport_.lock()) LOG(kInfo) << "StartConnect connecting " << transport->local_endpoint() << " to " << remote_endpoint_ << validation_data_;
-  socket_.AsyncConnect(remote_endpoint_, handler);
+  if (std::shared_ptr<Transport> transport = transport_.lock()) LOG(kVerbose) << conn_id_ << " StartConnect connecting " << transport->local_endpoint() << " to " << remote_endpoint_ << validation_data_;
+  detail::Session::Mode open_mode(detail::Session::kNormal);
+  if (validation_data_.empty()) {
+    open_mode = (temporary_ ? detail::Session::kBootstrapAndDrop :
+                              detail::Session::kBootstrapAndKeep);
+  }
+  socket_.AsyncConnect(remote_endpoint_, handler, open_mode);
   timer_.expires_from_now(Parameters::connect_timeout);
   timeout_state_ = kConnecting;
 }
@@ -197,14 +204,14 @@ void Connection::HandleConnect(const bs::error_code &ec) {
                 << " - " << ec.message();
     return DoClose();
   }
-  LOG(kInfo) << "HandleConnect connected to ..." << socket_.RemoteEndpoint() << validation_data_;
+                           LOG(kVerbose) << conn_id_ << " HandleConnect connected to ..." << socket_.RemoteEndpoint() << validation_data_;
   if (std::shared_ptr<Transport> transport = transport_.lock())
     transport->InsertConnection(shared_from_this());
 
 //  StartProbing();
   if (!validation_data_.empty()) {
     EncodeData(validation_data_);
-    LOG(kInfo) <<"Clearing validation data and sending now !!!!!!!!!!" << validation_data_ <<socket_.RemoteEndpoint();
+                              LOG(kVerbose) << conn_id_ << " Clearing validation data and sending now !!!!!!!!!!" << validation_data_ <<socket_.RemoteEndpoint();
     validation_data_.clear();
     StartWrite();
   } else {

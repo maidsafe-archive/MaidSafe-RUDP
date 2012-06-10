@@ -31,12 +31,20 @@ namespace rudp {
 
 namespace detail {
 
-Dispatcher::Dispatcher() : sockets_(), bootstrapping_endpoint_() {}
+Dispatcher::Dispatcher() : sockets_(), joining_peer_endpoint_() {
+                                                                                static std::atomic<int> count(0);
+                                                                                disp_id_ = "Dispatcher " + boost::lexical_cast<std::string>(count++);
+                                                                                LOG(kVerbose) << disp_id_ << " constructor";
+}
+
+                                                                                                            Dispatcher::~Dispatcher() {
+                                                                                                              LOG(kVerbose) << disp_id_ << " destructor";
+                                                                                                            }
 
 uint32_t Dispatcher::AddSocket(Socket *socket) {
   // Generate a new unique id for the socket.
   uint32_t id = 0;
-  while (id == 0 || sockets_.count(id) != 0)
+  while (id == 0 || id == 0xffffffff || sockets_.find(id) != sockets_.end())
     id = RandomUint32();
 
   sockets_[id] = socket;
@@ -51,11 +59,11 @@ void Dispatcher::RemoveSocket(uint32_t id) {
 void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
                                    const ip::udp::endpoint &endpoint) {
   uint32_t id(0);
-  SocketMap::iterator socket_iter(sockets_.end());
   if (Packet::DecodeDestinationSocketId(&id, data)) {
+    SocketMap::const_iterator socket_iter(sockets_.end());
     if (id == 0) {
       // This is a handshake packet on a newly-added socket
-      LOG(kInfo) << "This is a handshake packet on a newly-added socket from " << endpoint;
+                                    LOG(kInfo) << "This is a handshake packet on a newly-added socket from " << endpoint;
       socket_iter = std::find_if(
           sockets_.begin(),
           sockets_.end(),
@@ -63,16 +71,23 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
             return socket_pair.second->RemoteEndpoint() == endpoint;
           });
     } else if (id == 0xffffffff) {
-      // This is a handshake packet on a bootstrapping socket
-      LOG(kInfo) << "This is a handshake packet on a bootstrapping socket from " << endpoint;
-      HandshakePacket handshake_packet;
-      if (handshake_packet.Decode(data)) {
-        bootstrapping_endpoint_ = endpoint;
-        return;
+      if (sockets_.size() == 1U && endpoint == (*sockets_.begin()).second->RemoteEndpoint()) {
+        // This is a handshake packet from a peer replying to this node's join attempt,
+        // or from a peer starting a zero state network with this node
+        LOG(kInfo) << "This is a handshake packet from " << endpoint << " which is replying to a join request, or starting a new network";
+        socket_iter = sockets_.begin();
+      } else {
+        // This is a handshake packet from a peer trying to join the network
+        LOG(kInfo) << "This is a handshake packet from " << endpoint << " which is trying to join the network";
+        HandshakePacket handshake_packet;
+        if (handshake_packet.Decode(data)) {
+          joining_peer_endpoint_ = endpoint;
+          return;
+        }
       }
     } else {
       // This packet is intended for a specific connection.
-      LOG(kInfo) << "This packet is intended for a specific connection from " << endpoint;
+                                        //      LOG(kInfo) << "This packet is intended for a specific connection from " << endpoint;
       socket_iter = sockets_.find(id);
     }
 
@@ -80,20 +95,18 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
       socket_iter->second->HandleReceiveFrom(data, endpoint);
     } else {
       const unsigned char *p = asio::buffer_cast<const unsigned char*>(data);
-      LOG(kInfo) << "Received a packet \"0x" << std::hex
-                 << static_cast<int>(*p) << std::dec
-                 << "\" for unknown connection "
-                 << id << " from " << endpoint;
+      LOG(kInfo) << "Received a packet \"0x" << std::hex << static_cast<int>(*p) << std::dec
+                 << "\" for unknown connection " << id << " from " << endpoint;
     }
   } else {
     LOG(kError) << "Received a non-RUDP packet from " << endpoint;
   }
 }
 
-ip::udp::endpoint Dispatcher::GetAndClearBootstrappingEndpoint() {
-  if (bootstrapping_endpoint_.port()) {
-    ip::udp::endpoint endpoint(bootstrapping_endpoint_);
-    bootstrapping_endpoint_ = ip::udp::endpoint();
+ip::udp::endpoint Dispatcher::GetAndClearJoiningPeerEndpoint() {
+  if (joining_peer_endpoint_.port()) {
+    ip::udp::endpoint endpoint(joining_peer_endpoint_);
+    joining_peer_endpoint_ = ip::udp::endpoint();
     return endpoint;
   } else {
     return ip::udp::endpoint();

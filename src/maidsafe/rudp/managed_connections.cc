@@ -113,10 +113,9 @@ Endpoint ManagedConnections::StartNewTransport(
     std::vector<Endpoint> bootstrap_endpoints,
     Endpoint local_endpoint) {
   TransportAndSignalConnections transport_and_signals_connections;
-  transport_and_signals_connections.transport =
-      std::make_shared<Transport>(asio_service_);
-  bool bootstrapping(!bootstrap_endpoints.empty());
-  if (!bootstrapping) {
+  transport_and_signals_connections.transport = std::make_shared<Transport>(asio_service_);
+  bool bootstrap_off_existing_connection(bootstrap_endpoints.empty());
+  if (bootstrap_off_existing_connection) {
     bootstrap_endpoints.reserve(kMaxTransports * Transport::kMaxConnections());
     SharedLock shared_lock(shared_mutex_);
     std::for_each(
@@ -132,9 +131,10 @@ Endpoint ManagedConnections::StartNewTransport(
   transport_and_signals_connections.transport->Bootstrap(
       bootstrap_endpoints,
       local_endpoint,
+      bootstrap_off_existing_connection,
       boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
       boost::bind(&ManagedConnections::OnConnectionAddedSlot, this, _1, _2),
-      boost::bind(&ManagedConnections::OnConnectionLostSlot, this, _1, _2, _3),
+      boost::bind(&ManagedConnections::OnConnectionLostSlot, this, _1, _2),
       &chosen_endpoint,
       &transport_and_signals_connections.on_message_connection,
       &transport_and_signals_connections.on_connection_added_connection,
@@ -151,10 +151,8 @@ Endpoint ManagedConnections::StartNewTransport(
   }
 
   UniqueLock unique_lock(shared_mutex_);
-  LOG(kInfo) << "Inserting transport in vector - transport id "
-             << transport_and_signals_connections.transport->id
-             << ", chosen_endpoint - " << chosen_endpoint
-             << ", local endpoint - " << transport_and_signals_connections.transport->local_endpoint()
+  LOG(kInfo) << "Inserting " << transport_and_signals_connections.transport->trans_id_ << " in vector"
+             << ", chosen_endpoint - " << chosen_endpoint << ", local endpoint - " << transport_and_signals_connections.transport->local_endpoint()
              << ", external_endpoint - " << transport_and_signals_connections.transport->external_endpoint();
   transports_.push_back(transport_and_signals_connections);
   return chosen_endpoint;
@@ -173,8 +171,7 @@ int ManagedConnections::GetAvailableEndpoint(EndpointPair &endpoint_pair) {
       return kNoneAvailable;
     }
 
-    Endpoint new_endpoint(StartNewTransport(std::vector<Endpoint>(),
-                                            Endpoint(local_ip_, 0)));
+    Endpoint new_endpoint(StartNewTransport(std::vector<Endpoint>(), Endpoint(local_ip_, 0)));
     if (IsValid(new_endpoint)) {
       UniqueLock unique_lock(shared_mutex_);
       endpoint_pair.external =
@@ -245,7 +242,9 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
     auto connection_map_itr = connection_map_.find(peer_endpoint);
     if (connection_map_itr != connection_map_.end()) {
       if (peer_endpoint == (*connection_map_itr).second->bootstrap_endpoint()) {
-        (*connection_map_itr).second->CloseConnection(peer_endpoint);
+                                // TODO(Fraser#5#): 2012-06-10 - Change this connection from temp to permanent
+        return (*itr).transport->Send(peer_endpoint, validation_data);
+//        (*connection_map_itr).second->CloseConnection(peer_endpoint);
       } else {
         LOG(kError) << "A managed connection to " << peer_endpoint
                     << " already exists.";
@@ -255,7 +254,7 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
   }
 
   LOG(kInfo) << "Add::Connecting "<< (*itr).transport->external_endpoint()
-             << " to  " <<   peer_endpoint;
+             << " to  " << peer_endpoint;
   (*itr).transport->Connect(peer_endpoint, validation_data);
   return kSuccess;
 }
@@ -295,25 +294,19 @@ void ManagedConnections::OnConnectionAddedSlot(const Endpoint &peer_endpoint,
   UniqueLock unique_lock(shared_mutex_);
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
   if (result.second)
-    LOG(kInfo) << "Added managed connection to " << peer_endpoint;
+    LOG(kInfo) << "+++++++++++++++++++++++++++++++++++ Added managed connection to " << peer_endpoint;
   else
     LOG(kError) << "Already connected to " << peer_endpoint;
 }
 
 void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
-                                              TransportPtr transport,
-                                              const bool &bootstraped_connection) {
+                                              TransportPtr transport) {
   UniqueLock unique_lock(shared_mutex_);
   size_t result(connection_map_.erase(peer_endpoint));
   if (result == 1U) {
-    if (!bootstraped_connection) {
-      LOG(kInfo) << "Removed managed connection to " << peer_endpoint
-                 << (transport ? " - also removing corresponding transport" : "");
-      connection_lost_functor_(peer_endpoint);
-    } else {
-      LOG(kInfo) << "Removed bootstrap connection to " << peer_endpoint
-                 << (transport ? " - also removing corresponding transport" : "");
-    }
+    LOG(kInfo) << "Removed managed connection to " << peer_endpoint
+               << (transport ? " - also removing corresponding transport" : "");
+    connection_lost_functor_(peer_endpoint);
   } else {
     LOG(kError) << "Was not connected to " << peer_endpoint;
   }

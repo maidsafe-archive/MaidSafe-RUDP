@@ -33,7 +33,7 @@ namespace args = std::placeholders;
 namespace maidsafe {
 
 namespace rudp {
-int g_transport_id(1);
+
 Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLINT (Fraser)
     : asio_service_(asio_service),
       strand_(asio_service->service()),
@@ -43,16 +43,22 @@ Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLI
       on_message_(),
       on_connection_added_(),
       on_connection_lost_(),
-      bootstrap_endpoint_(), id(g_transport_id++),
-      bootstrap_disconnection_timer_(asio_service->service()) {}
+      bootstrap_connection_(),
+      bootstrap_disconnection_timer_(asio_service->service()) {
+                                                                                static std::atomic<int> count(0);
+                                                                                trans_id_ = "Transport " + boost::lexical_cast<std::string>(count++);
+                                                                                LOG(kVerbose) << trans_id_ << " constructor";
+}
 
 Transport::~Transport() {
+                                                                                LOG(kVerbose) << trans_id_ << " destructor";
   Close();
 }
 
 void Transport::Bootstrap(
     const std::vector<Endpoint> &bootstrap_endpoints,
     Endpoint local_endpoint,
+    bool bootstrap_off_existing_connection,
     const OnMessage::slot_type &on_message_slot,
     const OnConnectionAdded::slot_type &on_connection_added_slot,
     const OnConnectionLost::slot_type &on_connection_lost_slot,
@@ -81,49 +87,47 @@ void Transport::Bootstrap(
 
   StartDispatch();
 
-  for (auto itr(bootstrap_endpoints.begin());
-       itr != bootstrap_endpoints.end();
-       ++itr) {
+  for (auto itr(bootstrap_endpoints.begin()); itr != bootstrap_endpoints.end(); ++itr) {
     if (!IsValid(*itr)) {
       LOG(kError) << *itr << " is an invalid endpoint.";
       continue;
     }
-    ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(),
-                                                          strand_,
-                                                          multiplexer_, *itr));
-    connection->set_temporary(false);
-    connection->set_bootstrapping(true);
-    connection->StartConnecting("");
+    bootstrap_connection_ = std::make_shared<Connection>(shared_from_this(), strand_,
+                                                         multiplexer_, *itr);
+    bootstrap_connection_->StartConnecting("", bootstrap_off_existing_connection);
 
  // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
                                              //Sleep(bptime::milliseconds((RandomUint32() % 100) + 1000));
     int count(0);
     while (!IsValid(multiplexer_->external_endpoint()) ||
            !IsValid(multiplexer_->local_endpoint())) {
-        if (count > 3) {
-           LOG(kError) << "Timed out waiting for connection";
-           break;
-        }
-           Sleep(bptime::seconds(1));
-           ++count;
+      if (count > 50) {
+         LOG(kError) << "Timed out waiting for connection. External endpoint: "
+                     << multiplexer_->external_endpoint() << "  Local endpoint: "
+                     << multiplexer_->local_endpoint();
+         break;
+      }
+      Sleep(bptime::milliseconds(100));
+      ++count;
     }
 
-    if (IsValid(multiplexer_->external_endpoint()) &&
-        IsValid(multiplexer_->local_endpoint())) {
-      bootstrap_endpoint_ = *itr;
-      *chosen_endpoint = bootstrap_endpoint_;
+    if (IsValid(multiplexer_->external_endpoint()) && IsValid(multiplexer_->local_endpoint())) {
+      assert(*itr == bootstrap_connection_->Socket().RemoteEndpoint());
+      *chosen_endpoint = *itr;
       return;
     }
   }
 }
 
 void Transport::Close() {
+                                                                                LOG(kVerbose) << trans_id_ << " closing.";
   bootstrap_disconnection_timer_.cancel();
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
     (*it)->Close();
   if (multiplexer_)
     multiplexer_->Close();
   multiplexer_.reset();
+                                                                                LOG(kVerbose) << trans_id_ << " closed.";
 }
 
 void Transport::Connect(const Endpoint &peer_endpoint,
@@ -150,8 +154,7 @@ void Transport::DoConnect(const Endpoint &peer_endpoint,
                                                         strand_,
                                                         multiplexer_,
                                                         peer_endpoint));
-  connection->set_temporary(false);
-  connection->StartConnecting(validation_data);
+  connection->StartConnecting(validation_data, false);
 
   if (opened_multiplexer)
     StartDispatch();
@@ -210,7 +213,8 @@ Endpoint Transport::local_endpoint() const {
 }
 
 Endpoint Transport::bootstrap_endpoint() const {
-  return bootstrap_endpoint_;
+  return (bootstrap_connection_ ?
+          bootstrap_connection_->Socket().RemoteEndpoint() : Endpoint());
 }
 
 size_t Transport::ConnectionsCount() const {
@@ -229,26 +233,29 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
                                const boost::system::error_code &/*ec*/) {
   if (!multiplexer->IsOpen())
     return;
-  Endpoint bootstrapping_endpoint(multiplexer->GetBootstrappingEndpoint());
-  if (IsValid(bootstrapping_endpoint)) {
-    LOG(kInfo) << "GetBootstrappingEndpoint called with valid ep!!! transport " << id << " ep - " << bootstrapping_endpoint;
-    ConnectionPtr connection(
-        std::make_shared<Connection>(shared_from_this(),
-                                     strand_,
-                                     multiplexer_,
-                                     bootstrapping_endpoint));
-    connection->set_temporary(true);
-    connection->StartConnecting("");
-    // TODO(Fraser#5#): 2012-04-18 - Drop this connection after 1 min.  Ensure
-    //                  when connection is dropped that ManagedConnections'
-    //                  connection_lost_functor is not called.
-    //bootstrap_disconnection_timer_.expires_from_now(
-    //    Parameters::bootstrap_disconnection_timeout);
-    //bootstrap_disconnection_timer_.async_wait(
-    //    std::bind(&Transport::DoCloseConnection,
-    //              shared_from_this(), connection));
-    //LOG(kInfo) << "Scheduled disconnection of bootstrapping connection to "
-    //           << connection->Socket().RemoteEndpoint();
+  Endpoint joining_peer_endpoint(multiplexer->GetJoiningPeerEndpoint());
+  if (IsValid(joining_peer_endpoint)) {
+            LOG(kVerbose) << trans_id_ << " GetJoiningPeerEndpoint called with valid endpoint: " << joining_peer_endpoint;
+    if (bootstrap_endpoint() == joining_peer_endpoint) {
+                                                                                LOG(kVerbose) << "Zero state network.";
+    } else {
+      ConnectionPtr connection(
+          std::make_shared<Connection>(shared_from_this(),
+                                       strand_,
+                                       multiplexer_,
+                                       joining_peer_endpoint));
+      connection->StartConnecting("", false);
+      // TODO(Fraser#5#): 2012-04-18 - Drop this connection after 1 min.  Ensure
+      //                  when connection is dropped that ManagedConnections'
+      //                  connection_lost_functor is not called.
+      //bootstrap_disconnection_timer_.expires_from_now(
+      //    Parameters::bootstrap_disconnection_timeout);
+      //bootstrap_disconnection_timer_.async_wait(
+      //    std::bind(&Transport::DoCloseConnection,
+      //              shared_from_this(), connection));
+      //LOG(kInfo) << "Scheduled disconnection of bootstrapping connection to "
+      //           << connection->Socket().RemoteEndpoint();
+    }
   }
   StartDispatch();
 }
@@ -272,36 +279,31 @@ void Transport::InsertConnection(ConnectionPtr connection) {
 }
 
 void Transport::DoInsertConnection(ConnectionPtr connection) {
-  LOG(kInfo) << "DoInsertConnection with " << connection->Socket().RemoteEndpoint();
+                              LOG(kVerbose) << trans_id_ << " DoInsertConnection with " << connection->Socket().RemoteEndpoint();
   connections_.insert(connection);
-  if (!connection->temporary())
-    on_connection_added_(connection->Socket().RemoteEndpoint(),
-                         shared_from_this());
+                                                                              //if (!connection->temporary())
+  on_connection_added_(connection->Socket().RemoteEndpoint(), shared_from_this());
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection) {
-  strand_.dispatch(std::bind(&Transport::DoRemoveConnection,
-                             shared_from_this(), connection));
+  strand_.dispatch(std::bind(&Transport::DoRemoveConnection, shared_from_this(), connection));
 }
 
 void Transport::DoRemoveConnection(ConnectionPtr connection) {
-  if (connection->temporary())  // This is bootstrapping connection
-    return;
+                                                                                                  //if (connection->temporary())  // This is bootstrapping connection
+                                                                                                  //  return;
 
-  bool bootstraped_connection(false);
-  if (Endpoint() != bootstrap_endpoint_) {  // This is my bootstrapped connection
-    if (connection->Socket().RemoteEndpoint() == bootstrap_endpoint_) {
-      bootstraped_connection = true;
-      bootstrap_endpoint_ = Endpoint();
-    }
-  }
+  //if (Endpoint() != bootstrap_endpoint_) {  // This is my bootstrapped connection
+  //  if (connection->Socket().RemoteEndpoint() == bootstrap_endpoint_) {
+  //    bootstraped_connection = true;
+  //    bootstrap_endpoint_ = Endpoint();
+  //  }
+  //}
   connections_.erase(connection);
   if (connections_.empty()) {
-    on_connection_lost_(connection->Socket().RemoteEndpoint(),
-                        shared_from_this(), bootstraped_connection);
+    on_connection_lost_(connection->Socket().RemoteEndpoint(), shared_from_this());
   } else {
-    on_connection_lost_(connection->Socket().RemoteEndpoint(), nullptr,
-                        bootstraped_connection);
+    on_connection_lost_(connection->Socket().RemoteEndpoint(), nullptr);
   }
 }
 

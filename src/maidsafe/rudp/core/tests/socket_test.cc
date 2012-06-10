@@ -46,11 +46,13 @@ const size_t kIterations = 50;
 }  // unnamed namespace
 
 void dispatch_handler(const bs::error_code &ec, Multiplexer *muxer) {
-  if (!ec) muxer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, muxer));
+  if (!ec)
+    muxer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, muxer));
 }
 
 void tick_handler(const bs::error_code &ec, Socket *sock) {
-  if (!ec) sock->AsyncTick(std::bind(&tick_handler, args::_1, sock));
+  if (!ec)
+    sock->AsyncTick(std::bind(&tick_handler, args::_1, sock));
 }
 
 void handler1(const bs::error_code &ec, bs::error_code *out_ec) {
@@ -84,10 +86,12 @@ TEST(SocketTest, BEH_Socket) {
 
   Socket client_socket(client_multiplexer);
   client_ec = asio::error::would_block;
-  client_socket.AsyncConnect(server_endpoint, std::bind(&handler1, args::_1,
-                                                        &client_ec));
-  server_socket.AsyncConnect(client_endpoint, std::bind(&handler1, args::_1,
-                                                        &server_ec));
+  client_socket.AsyncConnect(server_endpoint,
+                             std::bind(&handler1, args::_1, &client_ec),
+                             Session::kNormal);
+  server_socket.AsyncConnect(client_endpoint,
+                             std::bind(&handler1, args::_1, &server_ec),
+                             Session::kNormal);
 
   do {
     io_service.run_one();
@@ -115,8 +119,7 @@ TEST(SocketTest, BEH_Socket) {
 
     do {
       io_service.run_one();
-    } while (server_ec == asio::error::would_block ||
-             client_ec == asio::error::would_block);
+    } while (server_ec == asio::error::would_block || client_ec == asio::error::would_block);
     ASSERT_TRUE(!server_ec);
     ASSERT_TRUE(!client_ec);
   }
@@ -129,8 +132,7 @@ TEST(SocketTest, BEH_Socket) {
 
   do {
     io_service.run_one();
-  } while (server_ec == asio::error::would_block ||
-           client_ec == asio::error::would_block);
+  } while (server_ec == asio::error::would_block || client_ec == asio::error::would_block);
   ASSERT_TRUE(!server_ec);
   ASSERT_TRUE(!client_ec);
 }
@@ -145,8 +147,7 @@ TEST(SocketTest, BEH_AsyncProbe) {
   ip::udp::endpoint server_endpoint;
   uint8_t attempts(0);
   while ((kSuccess != result) && (attempts < 100)) {
-    server_endpoint = ip::udp::endpoint(ip::address_v4::loopback(),
-                                        GetRandomPort());
+    server_endpoint = ip::udp::endpoint(ip::address_v4::loopback(), GetRandomPort());
     result = server_multiplexer.Open(server_endpoint);
     if (kSuccess != result)
       server_multiplexer.Close();
@@ -159,20 +160,16 @@ TEST(SocketTest, BEH_AsyncProbe) {
   result = kPendingResult;
   attempts = 0;
   while ((kSuccess != result) && (attempts < 100)) {
-    client_endpoint = ip::udp::endpoint(ip::address_v4::loopback(),
-                                        GetRandomPort());
+    client_endpoint = ip::udp::endpoint(ip::address_v4::loopback(), GetRandomPort());
     result = client_multiplexer.Open(client_endpoint);
     if (kSuccess != result)
-        client_multiplexer.Close();
+      client_multiplexer.Close();
     ++attempts;
   }
   ASSERT_EQ(kSuccess, result);
 
-  server_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1,
-                                             &server_multiplexer));
-
-  client_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1,
-                                             &client_multiplexer));
+  server_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1, &server_multiplexer));
+  client_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1, &client_multiplexer));
 
   Socket client_socket(client_multiplexer);
   Socket server_socket(server_multiplexer);
@@ -189,15 +186,16 @@ TEST(SocketTest, BEH_AsyncProbe) {
   server_ec = asio::error::would_block;
   client_ec = asio::error::would_block;
 
-  client_socket.AsyncConnect(server_endpoint, std::bind(&handler1, args::_1,
-                                                        &client_ec));
-  server_socket.AsyncConnect(client_endpoint, std::bind(&handler1, args::_1,
-                                                        &server_ec));
+  client_socket.AsyncConnect(server_endpoint,
+                             std::bind(&handler1, args::_1, &client_ec),
+                             Session::kNormal);
+  server_socket.AsyncConnect(client_endpoint,
+                             std::bind(&handler1, args::_1, &server_ec),
+                             Session::kNormal);
 
   do {
     io_service.run_one();
-  } while (server_ec == asio::error::would_block ||
-           client_ec == asio::error::would_block);
+  } while (server_ec == asio::error::would_block || client_ec == asio::error::would_block);
   ASSERT_TRUE(!server_ec);
   ASSERT_TRUE(server_socket.IsOpen());
   ASSERT_TRUE(!client_ec);
@@ -212,8 +210,7 @@ TEST(SocketTest, BEH_AsyncProbe) {
 
   do {
     io_service.run_one();
-  } while (server_ec == asio::error::would_block ||
-           client_ec == asio::error::would_block);
+  } while (server_ec == asio::error::would_block || client_ec == asio::error::would_block);
   ASSERT_TRUE(!server_ec);
   ASSERT_TRUE(!client_ec);
 
@@ -232,8 +229,7 @@ TEST(SocketTest, BEH_AsyncProbe) {
   server_socket.AsyncProbe(std::bind(&handler1, args::_1, &server_ec));
   do {
     io_service.run_one();
-  } while (client_ec == asio::error::would_block ||
-           server_ec == asio::error::would_block);
+  } while (client_ec == asio::error::would_block || server_ec == asio::error::would_block);
   EXPECT_TRUE(!client_ec);
   EXPECT_TRUE(!server_ec);
 

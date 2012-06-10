@@ -14,6 +14,7 @@
 
 #include <cassert>
 
+                                                                                            #include "boost/lexical_cast.hpp"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/utils.h"
@@ -32,9 +33,15 @@ Multiplexer::Multiplexer(asio::io_service &asio_service) //NOLINT
   : socket_(asio_service),
     receive_buffer_(Parameters::max_size),
     sender_endpoint_(),
-    dispatcher_() {}
+    dispatcher_() {
+                                                                                                    static std::atomic<int> count(0);
+                                                                                                    mux_id_ = "Mux " + boost::lexical_cast<std::string>(count++);
+                                                                                                    LOG(kVerbose) << mux_id_ << " constructor";
+}
 
-Multiplexer::~Multiplexer() {}
+Multiplexer::~Multiplexer() {
+                                                                                                              LOG(kVerbose) << mux_id_ << " destructor";
+}
 
 ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
   if (socket_.is_open()) {
@@ -87,8 +94,8 @@ void Multiplexer::Close() {
     LOG(kWarning) << "Multiplexer closing error: " << ec.message();
 }
 
-boost::asio::ip::udp::endpoint Multiplexer::GetBootstrappingEndpoint() {
-  return dispatcher_.GetAndClearBootstrappingEndpoint();
+boost::asio::ip::udp::endpoint Multiplexer::GetJoiningPeerEndpoint() {
+  return dispatcher_.GetAndClearJoiningPeerEndpoint();
 }
 
 boost::asio::ip::udp::endpoint Multiplexer::local_endpoint() const {

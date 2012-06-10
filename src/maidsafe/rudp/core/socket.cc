@@ -65,9 +65,13 @@ Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
   waiting_write_.expires_at(bptime::pos_infin);
   waiting_read_.expires_at(bptime::pos_infin);
   waiting_flush_.expires_at(bptime::pos_infin);
+                                                                            static std::atomic<int> count(0);
+                                                                            sock_id_ = "Socket " + boost::lexical_cast<std::string>(count++);
+                                                                            LOG(kVerbose) << sock_id_ << " constructor";
 }
 
 Socket::~Socket() {
+                                                                                LOG(kVerbose) << sock_id_ << " destructor (IsOpen: " << std::boolalpha << IsOpen() << ")";
   if (IsOpen())
     dispatcher_.RemoveSocket(session_.Id());
 }
@@ -101,12 +105,8 @@ bool Socket::IsOpen() const {
   return session_.IsOpen();
 }
 
-void Socket::set_bootstrapping(const bool &bootstraping) {
-  BOOST_ASSERT(!session_.IsOpen());
-  session_.set_bootstrapping(bootstraping);
-}
-
 void Socket::Close() {
+  LOG(kVerbose) << sock_id_ << " Closing (session is open: " << std::boolalpha << session_.IsOpen() << ")";
   if (session_.IsOpen()) {
     sender_.NotifyClose();
     congestion_control_.OnClose();
@@ -130,11 +130,12 @@ void Socket::Close() {
   waiting_probe_.cancel();
 }
 
-void Socket::StartConnect(const ip::udp::endpoint &remote) {
+void Socket::StartConnect(const ip::udp::endpoint &remote, Session::Mode open_mode) {
   peer_.SetEndpoint(remote);
   peer_.SetId(0);  // Assigned when handshake response is received.
   session_.Open(dispatcher_.AddSocket(this),
-                sender_.GetNextPacketSequenceNumber());
+                sender_.GetNextPacketSequenceNumber(),
+                open_mode);
 }
 
 void Socket::StartProbe() {
@@ -235,6 +236,7 @@ void Socket::StartFlush() {
 }
 
 void Socket::ProcessFlush() {
+//  if ((sender_.Flushed() && receiver_.Flushed()) || !session_.IsConnected()) {
   if (sender_.Flushed() && receiver_.Flushed()) {
     waiting_flush_ec_.clear();
     waiting_flush_.cancel();
@@ -266,18 +268,23 @@ void Socket::HandleReceiveFrom(const asio::const_buffer &data,
     } else if (shutdown_packet.Decode(data)) {
       Close();
     } else {
-      LOG(kError) << "Socket " << session_.Id()
-                  << " ignoring invalid packet from " << endpoint;
+      LOG(kError) << "Socket " << session_.Id() << " ignoring invalid packet from " << endpoint;
     }
   } else {
-    LOG(kError) << "Socket " << session_.Id()
-                << " ignoring spurious packet from " << endpoint;
+    LOG(kError) << "Socket " << session_.Id() << " ignoring spurious packet from " << endpoint;
   }
 }
 
 void Socket::HandleHandshake(const HandshakePacket &packet) {
   bool was_connected = session_.IsConnected();
   session_.HandleHandshake(packet);
+
+  if (!session_.IsOpen()) {
+    sender_.NotifyClose();
+    dispatcher_.RemoveSocket(session_.Id());
+    return Close();
+  }
+
   if (!was_connected && session_.IsConnected()) {
     congestion_control_.OnOpen(sender_.GetNextPacketSequenceNumber(),
                                session_.ReceivingSequenceNumber());

@@ -55,18 +55,15 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
  public:
   typedef boost::signals2::signal<void(const std::string&)> OnMessage;
-  typedef boost::signals2::signal<void(const Endpoint&,
-                                       std::shared_ptr<Transport>)>
-                                          OnConnectionAdded;
-  typedef boost::signals2::signal<void(const Endpoint&,
-                                       std::shared_ptr<Transport>,
-                                       const bool&)> OnConnectionLost;
+  typedef boost::signals2::signal<
+      void(const Endpoint&, std::shared_ptr<Transport>)> OnConnectionAdded, OnConnectionLost;
 
   explicit Transport(std::shared_ptr<AsioService> asio_service);  // NOLINT (Fraser)
   virtual ~Transport();
 
   void Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
                  Endpoint local_endpoint,
+                 bool bootstrap_off_existing_connection,
                  const OnMessage::slot_type &on_message_slot,
                  const OnConnectionAdded::slot_type &on_connection_added_slot,
                  const OnConnectionLost::slot_type &on_connection_lost_slot,
@@ -88,7 +85,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
   void Close();
-  int id;
+                                                                                                std::string trans_id_;
  private:
   Transport(const Transport&);
   Transport &operator=(const Transport&);
@@ -128,7 +125,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   OnMessage on_message_;
   OnConnectionAdded on_connection_added_;
   OnConnectionLost on_connection_lost_;
-  Endpoint bootstrap_endpoint_;
+  ConnectionPtr bootstrap_connection_;
   boost::asio::deadline_timer bootstrap_disconnection_timer_;
 };
 

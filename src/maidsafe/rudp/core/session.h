@@ -30,16 +30,16 @@ class TickTimer;
 
 class Session {
  public:
+  enum Mode { kNormal, kBootstrapAndDrop, kBootstrapAndKeep };
+
   explicit Session(Peer &peer,                                // NOLINT (Fraser)
                    TickTimer &tick_timer,
                    boost::asio::ip::udp::endpoint &this_external_endpoint);
 
-//  // Open the session as a client or server.
-//  enum Mode { kClient, kServer };
-//  void Open(uint32_t id, uint32_t sequence_number, Mode mode);
+  ~Session();
 
   // Open the session.
-  void Open(uint32_t id, uint32_t sequence_number);
+  void Open(uint32_t id, uint32_t sequence_number, Mode mode);
 
   // Get whether the session is already open. May not be connected.
   bool IsOpen() const;
@@ -64,9 +64,7 @@ class Session {
 
   // Handle a tick in the system time.
   void HandleTick();
-
-  // Set session opened for bootstraping
-  void set_bootstrapping(const bool &bootstraping);
+                                                                                                    std::string session_id_;
 
  private:
   // Disallow copying and assignment.
@@ -97,14 +95,14 @@ class Session {
   // The initial sequence number for packets received in this session.
   uint32_t receiving_sequence_number_;
 
-  // The peer's connection type
+  // The peer's connection type.
   uint32_t peer_connection_type_;
+
+  // The open mode of the session.
+  Mode mode_;
 
   // The state of the session.
   enum State { kClosed, kProbing, kHandshaking, kConnected } state_;
-
-  // This is session opened for bootstraping.
-  bool bootstrapping_;
 };
 
 }  // namespace detail

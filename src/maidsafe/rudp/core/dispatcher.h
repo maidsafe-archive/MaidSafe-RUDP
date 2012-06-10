@@ -31,6 +31,7 @@ class Socket;
 class Dispatcher {
  public:
   Dispatcher();
+                                                                                                        ~Dispatcher();
 
   // Add a socket. Returns a new unique id for the socket.
   uint32_t AddSocket(Socket *socket);
@@ -42,7 +43,8 @@ class Dispatcher {
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
                          const boost::asio::ip::udp::endpoint &endpoint);
 
-  boost::asio::ip::udp::endpoint GetAndClearBootstrappingEndpoint();
+  boost::asio::ip::udp::endpoint GetAndClearJoiningPeerEndpoint();
+                                                                                                    std::string disp_id_;
 
  private:
   // Disallow copying and assignment.
@@ -53,8 +55,8 @@ class Dispatcher {
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;
   SocketMap sockets_;
 
-  // Endpoint of peer attempting to bootstrap off this node.
-  boost::asio::ip::udp::endpoint bootstrapping_endpoint_;
+  // Endpoint of peer attempting to join the network via this node.
+  boost::asio::ip::udp::endpoint joining_peer_endpoint_;
 };
 
 }  // namespace detail
