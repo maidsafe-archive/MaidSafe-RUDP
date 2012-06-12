@@ -121,8 +121,10 @@ class TestNode {
     return  managed_connection_.Add(this_endpoint, peer_endpoint, validation_data);
   }
 
-  int Send(const boost::asio::ip::udp::endpoint &peer_endpoint, const std::string &message) {
-    return managed_connection_.Send(peer_endpoint, message);
+  int Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
+           const std::string &message,
+           const MessageSentFunctor &message_sent_functor) {
+    return managed_connection_.Send(peer_endpoint, message, message_sent_functor);
   }
 
   void reset() {
@@ -288,7 +290,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
       LOG(kInfo)<< "// Size of peers---" << peers.size();
       std::for_each(peers.begin(), peers.end(), [&](const Endpoint& peer) {
         for (uint16_t j = 0; j != num_messages; ++j)
-          EXPECT_EQ(kSuccess, nodes_.at(i)->Send(peer, sent_messages.at(i)));
+          EXPECT_EQ(kSuccess, nodes_.at(i)->Send(peer, sent_messages.at(i), MessageSentFunctor()));
       });
     }
     // Waiting for all results (promises)

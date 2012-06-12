@@ -38,6 +38,7 @@ class Transport;
 
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
 typedef std::function<void(const boost::asio::ip::udp::endpoint&)> ConnectionLostFunctor;
+typedef std::function<void(bool)> MessageSentFunctor;
 
 struct EndpointPair {
   boost::asio::ip::udp::endpoint local, external;
@@ -78,8 +79,11 @@ class ManagedConnections {
   // Drops the connection with peer.
   void Remove(const boost::asio::ip::udp::endpoint &peer_endpoint);
 
+  // Sends the message to the peer.  If the message is sent successfully, the
+  // message_sent_functor is executed with input of true.
   int Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
-           const std::string &message) const;
+           const std::string &message,
+           MessageSentFunctor message_sent_functor) const;
   bool Ping(const boost::asio::ip::udp::endpoint &peer_endpoint) const;
 
   friend class Transport;

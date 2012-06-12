@@ -270,7 +270,8 @@ void ManagedConnections::Remove(const Endpoint &peer_endpoint) {
 }
 
 int ManagedConnections::Send(const Endpoint &peer_endpoint,
-                             const std::string &message) const {
+                             const std::string &message,
+                             MessageSentFunctor message_sent_functor) const {
   SharedLock shared_lock(shared_mutex_);
   auto itr(connection_map_.find(peer_endpoint));
   if (itr == connection_map_.end()) {

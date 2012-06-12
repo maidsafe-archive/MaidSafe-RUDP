@@ -558,15 +558,18 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
   this->nodes_.at(0)->ResetCount();
 
   // Invalid endpoint
-  EXPECT_NE(kSuccess, managed_connections.Send(Endpoint(), "message"));
+  EXPECT_NE(kSuccess, managed_connections.Send(Endpoint(), "message", MessageSentFunctor()));
 
   // Unavailable endpoint
   EXPECT_NE(kSuccess,
             managed_connections.Send(Endpoint(GetLocalIp(), GetRandomPort()),
-            "message"));
+                                     "message",
+                                     MessageSentFunctor()));
   {  // Valid
     auto future_messages_at_peer(this->nodes_.at(0)->GetFutureForMessages(1));
-    EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external, "message"));
+    EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external,
+                                                 "message",
+                                                 MessageSentFunctor()));
     auto messages(future_messages_at_peer.get());
     ASSERT_EQ(1, messages.size());
     EXPECT_EQ("message", messages.at(0));
@@ -575,7 +578,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
   {  // Valid large messages
     std::string sent_message(std::move(RandomString(8 * 1024 * 1024)));
     auto future_messages_at_peer(this->nodes_.at(0)->GetFutureForMessages(1));
-    EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external, sent_message));       
+    EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external,
+                                                 sent_message,
+                                                 MessageSentFunctor()));       
     auto messages(future_messages_at_peer.get());
     ASSERT_EQ(1, messages.size());
     EXPECT_EQ(sent_message, messages.at(0));
@@ -627,11 +632,19 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
     Sleep(bptime::milliseconds(10));
     std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
     if (i % 2) {
-      managed_connections1.Send(endpoint2, message + " from " + port1 + " to " + port2);
-      managed_connections1.Send(endpoint3, message + " from " + port1 + " to " + port3);
+      managed_connections1.Send(endpoint2,
+                                message + " from " + port1 + " to " + port2,
+                                MessageSentFunctor());
+      managed_connections1.Send(endpoint3,
+                                message + " from " + port1 + " to " + port3,
+                                MessageSentFunctor());
     } else {
-      managed_connections2.Send(endpoint1, message + " from " + port2 + " to " + port1);
-      managed_connections3.Send(endpoint1, message + " from " + port3 + " to " + port1);
+      managed_connections2.Send(endpoint1,
+                                message + " from " + port2 + " to " + port1,
+                                MessageSentFunctor());
+      managed_connections3.Send(endpoint1,
+                                message + " from " + port3 + " to " + port1,
+                                MessageSentFunctor());
     }
   }
 
