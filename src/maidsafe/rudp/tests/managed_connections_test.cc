@@ -607,8 +607,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   ASSERT_EQ(1U, managed_connections1.connection_map_.size());
   ASSERT_EQ(1U, managed_connections2.connection_map_.size());
 
-  std::cout << "\n\n\n===============================================================================\n\n\n";
-
   boost::asio::ip::udp::endpoint bootstrap_endpoint =
       managed_connections3.Bootstrap(std::vector<Endpoint>(1, endpoint1),
                                      message_received_functor_,
@@ -625,8 +623,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   std::string port2(boost::lexical_cast<std::string>(endpoint2.port()));
   std::string port3(boost::lexical_cast<std::string>(endpoint3.port()));
 
-  std::cout << "\n\n\n===============================================================================\n\n\n";
-
   for (int i(0); i != 200; ++i) {
     Sleep(bptime::milliseconds(10));
     std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
@@ -638,10 +634,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
       managed_connections3.Send(endpoint1, message + " from " + port3 + " to " + port1);
     }
   }
-                                                                              Sleep(bptime::milliseconds(1000));
 
-  std::cout << "\n\n\n===============================================================================\n\n\n";
-
+  std::cout << "=========================================================================================\n";
 
   managed_connections3.Remove(endpoint1);
   do {

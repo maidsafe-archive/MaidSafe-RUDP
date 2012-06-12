@@ -105,6 +105,11 @@ bool Socket::IsOpen() const {
   return session_.IsOpen();
 }
 
+void Socket::NotifyClose() {
+  if (session_.IsOpen())
+    sender_.NotifyClose();
+}
+
 void Socket::Close() {
   LOG(kVerbose) << sock_id_ << " Closing (session is open: " << std::boolalpha << session_.IsOpen() << ")";
   if (session_.IsOpen()) {
@@ -128,6 +133,7 @@ void Socket::Close() {
   waiting_flush_.cancel();
   waiting_probe_ec_ = asio::error::shut_down;
   waiting_probe_.cancel();
+                                                                          LOG(kVerbose) << sock_id_ << " Closed";
 }
 
 void Socket::StartConnect(const ip::udp::endpoint &remote, Session::Mode open_mode) {

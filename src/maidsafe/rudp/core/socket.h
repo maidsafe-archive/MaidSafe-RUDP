@@ -72,6 +72,9 @@ class Socket {
   // Returns whether the connection is open.
   bool IsOpen() const;
 
+  // Notify the peer that the socket is about to close.
+  void NotifyClose();
+
   // Close the socket and cancel pending asynchronous operations.
   void Close();
 

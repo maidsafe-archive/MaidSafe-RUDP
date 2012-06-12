@@ -15,6 +15,7 @@
 #include <cassert>
 
                                                                                             #include "boost/lexical_cast.hpp"
+                                                                                            #include "maidsafe/common/utils.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/utils.h"
@@ -88,6 +89,7 @@ bool Multiplexer::IsOpen() const {
 }
 
 void Multiplexer::Close() {
+                                                                                                              LOG(kVerbose) << mux_id_ << " closing";
   bs::error_code ec;
   socket_.close(ec);
   if (ec)
