@@ -150,14 +150,16 @@ class TestNode {
 
  protected:
   void SetPromiseIfDone() {
-    if (promised_ && messages_.size() >= total_message_count_expectation_) {
-      message_promise_.set_value(true);
-      promised_ = false;
-      total_message_count_expectation_ = 0;
-    } else if (connection_lost_endpoints_.size() != 0) {
-      message_promise_.set_value(true);
-      promised_ = false;
-      total_message_count_expectation_ = 0;
+    if (promised_) {
+      if (messages_.size() >= total_message_count_expectation_) {
+        message_promise_.set_value(true);
+        promised_ = false;
+        total_message_count_expectation_ = 0;
+      } else if (connection_lost_endpoints_.size() != 0) {
+        message_promise_.set_value(true);
+        promised_ = false;
+        total_message_count_expectation_ = 0;
+      }
     }
   }
 
@@ -197,8 +199,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
     bootstrap_endpoints_.clear();
 
     // Setting up first two nodes
-    TestNodePtr node1(std::make_shared<TestNode>(1));
-    TestNodePtr node2(std::make_shared<TestNode>(2));
+    TestNodePtr node1(std::make_shared<TestNode>(0));
+    TestNodePtr node2(std::make_shared<TestNode>(1));
     Endpoint endpoint1(GetLocalIp(), GetRandomPort()),
              endpoint2(GetLocalIp(), GetRandomPort());
     auto a1 = std::async(std::launch::async, &TestNode::Bootstrap, node1.get(),
@@ -212,6 +214,14 @@ class ManagedConnectionsFuncTest : public testing::Test {
     if (result1 || result2) {
       return false;
     }
+    LOG(kInfo) << "Calling Add from " << endpoint1 << " to " << endpoint2;
+    EXPECT_EQ(kSuccess,
+              node1->managed_connection().Add(endpoint1, endpoint2,
+                                              "0's validation_data"));
+    LOG(kInfo) << "Calling Add from " << endpoint2 << " to " << endpoint1;
+    EXPECT_EQ(kSuccess,
+              node2->managed_connection().Add(endpoint2, endpoint1,
+                                              "1's validation_data"));
     nodes_.push_back(node1);
     nodes_.push_back(node2);
     bootstrap_endpoints_.push_back(endpoint1);
@@ -270,6 +280,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
   // Each node sending n messsages to all other connected nodes.
   void RunNetworkTest(const uint16_t &num_messages, const int &messages_size) {
+                                                                              std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // to allow actual connection between nodes
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
     std::vector<std::string> sent_messages;
     std::vector<std::future<bool>> futures;
@@ -296,8 +307,14 @@ class ManagedConnectionsFuncTest : public testing::Test {
     // Waiting for all results (promises)
     std::vector<bool> results;
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      results.push_back(futures.at(i).get());
-      EXPECT_TRUE(results.at(i));
+      if (futures.at(i).wait_for(std::chrono::milliseconds(1000)) ==
+        std::future_status::timeout) {
+        LOG(kError) << "Timed out !!!!!!!!!!";
+        results.push_back(false);
+      } else {
+        results.push_back(futures.at(i).get());
+        EXPECT_TRUE(results.at(i));
+      }
     }
     // Check messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
