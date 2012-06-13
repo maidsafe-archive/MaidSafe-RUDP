@@ -44,10 +44,9 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
     : transport_(transport),
       strand_(strand),
       multiplexer_(multiplexer),
-      socket_(*multiplexer_),
+      socket_(strand_, *multiplexer_),
       timer_(strand_.get_io_service()),
       probe_interval_timer_(strand_.get_io_service()),
-      response_deadline_(),
       remote_endpoint_(remote),
       validation_data_(),
       send_buffer_(),
@@ -149,6 +148,7 @@ bool Connection::Stopped() const {
 }
 
 void Connection::StartTick() {
+                                                                            LOG(kVerbose) << conn_id_ << " Ticking";
   auto handler = strand_.wrap(std::bind(&Connection::HandleTick, shared_from_this()));
   socket_.AsyncTick(handler);
 }
@@ -159,11 +159,12 @@ void Connection::StartTick() {
 // 140ms=100ms(congestion_control.ReceiveDelay()) + system variant process time
 void Connection::HandleTick() {
   if (!socket_.IsOpen())
-    return;
+    return DoClose();
   if (timeout_state_ == kSending) {
     uint32_t sent_length = socket_.SentLength();
     if (sent_length > 0)
       timer_.expires_from_now(Parameters::speed_calculate_inverval);
+
     // If transmission speed is too slow, the socket shall be forced closed
 //                                                                                        if (socket_.IsSlowTransmission(sent_length)) {
 //                                                                                          LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint()
@@ -172,6 +173,7 @@ void Connection::HandleTick() {
 //                                                                                        }
   }
   // We need to keep ticking during a graceful shutdown.
+                                                            LOG(kInfo) << conn_id_ << " Timer expires at " << timer_.expires_at();
   if (socket_.IsOpen()) {
     StartTick();
   }
@@ -230,8 +232,7 @@ void Connection::StartReadSize() {
                                                                               //  receive_buffer_.clear();
   receive_buffer_.resize(sizeof(DataSize));
   socket_.AsyncRead(asio::buffer(receive_buffer_), sizeof(DataSize),
-                    strand_.wrap(std::bind(&Connection::HandleReadSize,
-                                           shared_from_this(), args::_1)));
+                    std::bind(&Connection::HandleReadSize, shared_from_this(), args::_1));
 
   timer_.expires_at(boost::posix_time::pos_infin);
 //  boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
@@ -280,12 +281,9 @@ void Connection::StartReadData() {
   buffer_size += std::min(static_cast<size_t> (socket_.BestReadBufferSize()),
                           data_size_ - data_received_);
   receive_buffer_.resize(buffer_size);
-  asio::mutable_buffer data_buffer =
-      asio::buffer(receive_buffer_) + data_received_;
+  asio::mutable_buffer data_buffer = asio::buffer(receive_buffer_) + data_received_;
   socket_.AsyncRead(asio::buffer(data_buffer), 1,
-                    strand_.wrap(std::bind(&Connection::HandleReadData,
-                                           shared_from_this(),
-                                           args::_1, args::_2)));
+                    std::bind(&Connection::HandleReadData, shared_from_this(), args::_1, args::_2));
 }
 
 void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
@@ -361,8 +359,7 @@ void Connection::StartWrite() {
   }
 
   socket_.AsyncWrite(asio::buffer(send_buffer_),
-                     strand_.wrap(std::bind(&Connection::HandleWrite,
-                                            shared_from_this(), args::_1)));
+                     std::bind(&Connection::HandleWrite, shared_from_this(), args::_1));
   timer_.expires_from_now(Parameters::speed_calculate_inverval);
   if (kConnecting != timeout_state_)
     timeout_state_ = kSending;

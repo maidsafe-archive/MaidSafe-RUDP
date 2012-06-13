@@ -118,6 +118,7 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
 }
 
 void Session::HandleTick() {
+                                                                        LOG(kVerbose) << session_id_ << " Ticking.";
   if (state_ == kProbing) {
     SendConnectionRequest();
   } else if (state_ == kHandshaking) {

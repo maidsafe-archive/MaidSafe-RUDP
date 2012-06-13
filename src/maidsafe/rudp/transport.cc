@@ -274,8 +274,7 @@ void Transport::DoSignalMessageReceived(const std::string &message) {
 }
 
 void Transport::InsertConnection(ConnectionPtr connection) {
-  strand_.dispatch(std::bind(&Transport::DoInsertConnection,
-                             shared_from_this(), connection));
+  strand_.dispatch(std::bind(&Transport::DoInsertConnection, shared_from_this(), connection));
 }
 
 void Transport::DoInsertConnection(ConnectionPtr connection) {

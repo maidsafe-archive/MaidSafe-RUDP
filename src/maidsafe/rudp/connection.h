@@ -94,7 +94,6 @@ private:
   detail::Socket socket_;
   boost::asio::deadline_timer timer_;
   boost::asio::deadline_timer probe_interval_timer_;
-  boost::posix_time::ptime response_deadline_;
   boost::asio::ip::udp::endpoint remote_endpoint_;
   std::string validation_data_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;

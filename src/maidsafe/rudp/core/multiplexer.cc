@@ -94,6 +94,7 @@ void Multiplexer::Close() {
   socket_.close(ec);
   if (ec)
     LOG(kWarning) << "Multiplexer closing error: " << ec.message();
+  assert(!IsOpen());
 }
 
 boost::asio::ip::udp::endpoint Multiplexer::GetJoiningPeerEndpoint() {

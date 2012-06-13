@@ -629,7 +629,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   std::string port3(boost::lexical_cast<std::string>(endpoint3.port()));
 
   for (int i(0); i != 200; ++i) {
-    Sleep(bptime::milliseconds(10));
+//    Sleep(bptime::milliseconds(10));
     std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
     if (i % 2) {
       managed_connections1.Send(endpoint2,
@@ -648,12 +648,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
     }
   }
 
-  std::cout << "=========================================================================================\n";
+  Sleep(boost::posix_time::milliseconds(200));
 
   managed_connections3.Remove(endpoint1);
+  int count(0);
   do {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  } while (connection_lost_count_ != 2);
+    ++count;
+  } while (connection_lost_count_ != 2 && count != 20);
+  ASSERT_EQ(connection_lost_count_, 2);
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint2) {

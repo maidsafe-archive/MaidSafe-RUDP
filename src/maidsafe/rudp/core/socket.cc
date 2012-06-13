@@ -36,8 +36,9 @@ namespace rudp {
 
 namespace detail {
 
-Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
+Socket::Socket(const asio::io_service::strand &strand, Multiplexer &multiplexer)  // NOLINT (Fraser)
   : dispatcher_(multiplexer.dispatcher_),
+    strand_(strand),
     peer_(multiplexer),
     tick_timer_(multiplexer.socket_.get_io_service()),
     session_(peer_, tick_timer_, multiplexer.external_endpoint_),
@@ -246,6 +247,8 @@ void Socket::ProcessFlush() {
   if (sender_.Flushed() && receiver_.Flushed()) {
     waiting_flush_ec_.clear();
     waiting_flush_.cancel();
+  } else if (!session_.IsConnected()) {
+    LOG(kError) << sock_id_ << std::boolalpha << " Sender flushed: " << sender_.Flushed() << "  Receiver flushed: " << receiver_.Flushed();
   }
 }
 
@@ -324,26 +327,32 @@ void Socket::HandleKeepalive(const KeepalivePacket &packet) {
 void Socket::HandleData(const DataPacket &packet) {
   if (session_.IsConnected()) {
     receiver_.HandleData(packet);
-    ProcessRead();
-    ProcessWrite();
+    strand_.dispatch([this] {
+      ProcessRead();
+      ProcessWrite();
+    });
   }
 }
 
 void Socket::HandleAck(const AckPacket &packet) {
   if (session_.IsConnected()) {
     sender_.HandleAck(packet);
-    ProcessRead();
-    ProcessWrite();
-    ProcessFlush();
+    strand_.dispatch([this] {
+      ProcessRead();
+      ProcessWrite();
+      ProcessFlush();
+    });
   }
 }
 
 void Socket::HandleAckOfAck(const AckOfAckPacket &packet) {
   if (session_.IsConnected()) {
     receiver_.HandleAckOfAck(packet);
-    ProcessRead();
-    ProcessWrite();
-    ProcessFlush();
+    strand_.dispatch([this] {
+      ProcessRead();
+      ProcessWrite();
+      ProcessFlush();
+    });
   }
 }
 
@@ -354,12 +363,15 @@ void Socket::HandleNegativeAck(const NegativeAckPacket &packet) {
 }
 
 void Socket::HandleTick() {
+  LOG(kVerbose) << sock_id_ << " Ticking.  IsConnected: " << std::boolalpha << session_.IsConnected();
   if (session_.IsConnected()) {
     sender_.HandleTick();
     receiver_.HandleTick();
-    ProcessRead();
-    ProcessWrite();
-    ProcessFlush();
+    strand_.dispatch([this] {
+      ProcessRead();
+      ProcessWrite();
+      ProcessFlush();
+    });
   } else {
     session_.HandleTick();
   }

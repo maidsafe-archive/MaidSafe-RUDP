@@ -21,6 +21,7 @@
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
+#include "boost/asio/strand.hpp"
 #include "boost/asio/ip/udp.hpp"
 
 #include "maidsafe/rudp/core/congestion_control.h"
@@ -57,7 +58,7 @@ class Dispatcher;
 
 class Socket {
  public:
-  explicit Socket(Multiplexer &multiplexer);  // NOLINT (Fraser)
+  Socket(const boost::asio::io_service::strand &strand, Multiplexer &multiplexer);  // NOLINT (Fraser)
   ~Socket();
 
   // Get the unique identifier that has been assigned to the socket.
@@ -116,10 +117,12 @@ class Socket {
   template <typename WriteHandler>
   void AsyncWrite(const boost::asio::const_buffer &data,
                   WriteHandler handler) {
-    WriteOp<WriteHandler> op(handler, &waiting_write_ec_,
-                             &waiting_write_bytes_transferred_);
-    waiting_write_.async_wait(op);
-    StartWrite(data);
+    strand_.wrap([=] {
+      WriteOp<WriteHandler> op(handler, &waiting_write_ec_,
+                               &waiting_write_bytes_transferred_);
+      waiting_write_.async_wait(op);
+      StartWrite(data);
+    });
   }
 
   // Initiate an asynchronous operation to read data.
@@ -127,10 +130,12 @@ class Socket {
   void AsyncRead(const boost::asio::mutable_buffer &data,
                  size_t transfer_at_least,
                  ReadHandler handler) {
-    ReadOp<ReadHandler> op(handler, &waiting_read_ec_,
-                           &waiting_read_bytes_transferred_);
-    waiting_read_.async_wait(op);
-    StartRead(data, transfer_at_least);
+    strand_.wrap([=] {
+      ReadOp<ReadHandler> op(handler, &waiting_read_ec_,
+                             &waiting_read_bytes_transferred_);
+      waiting_read_.async_wait(op);
+      StartRead(data, transfer_at_least);
+    });
   }
 
   // Initiate an asynchronous operation to flush all outbound data.
@@ -197,6 +202,10 @@ class Socket {
 
   // The dispatcher that holds this sockets registration.
   Dispatcher &dispatcher_;
+
+  // Strand passed down from Transport to protect access to the buffers
+  // during read/write operations.
+  boost::asio::io_service::strand strand_;
 
   // The remote peer with which we are communicating.
   Peer peer_;

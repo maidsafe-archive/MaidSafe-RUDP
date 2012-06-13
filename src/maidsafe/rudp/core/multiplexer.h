@@ -52,6 +52,7 @@ class Multiplexer {
   // Asynchronously receive a single packet and dispatch it.
   template <typename DispatchHandler>
   void AsyncDispatch(DispatchHandler handler) {
+                                                                            LOG(kVerbose) << mux_id_ << " Ticking";
     DispatchOp<DispatchHandler> op(handler, &socket_,
                                    boost::asio::buffer(receive_buffer_),
                                    &sender_endpoint_, &dispatcher_);
