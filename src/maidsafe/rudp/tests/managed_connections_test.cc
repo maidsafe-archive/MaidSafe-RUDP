@@ -629,7 +629,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   std::string port3(boost::lexical_cast<std::string>(endpoint3.port()));
 
   for (int i(0); i != 200; ++i) {
-//    Sleep(bptime::milliseconds(10));
+    Sleep(bptime::milliseconds(1));
     std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
     if (i % 2) {
       managed_connections1.Send(endpoint2,

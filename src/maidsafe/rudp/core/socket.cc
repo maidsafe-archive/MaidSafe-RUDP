@@ -36,9 +36,8 @@ namespace rudp {
 
 namespace detail {
 
-Socket::Socket(const asio::io_service::strand &strand, Multiplexer &multiplexer)  // NOLINT (Fraser)
+Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
   : dispatcher_(multiplexer.dispatcher_),
-    strand_(strand),
     peer_(multiplexer),
     tick_timer_(multiplexer.socket_.get_io_service()),
     session_(peer_, tick_timer_, multiplexer.external_endpoint_),
@@ -166,6 +165,7 @@ void Socket::StartProbe() {
 }
 
 void Socket::StartWrite(const asio::const_buffer &data) {
+  std::lock_guard<std::mutex> lock(mutex_);
   // Check for a no-op write.
   if (asio::buffer_size(data) == 0) {
     waiting_write_ec_.clear();
@@ -202,6 +202,7 @@ void Socket::ProcessWrite() {
 
 void Socket::StartRead(const asio::mutable_buffer &data,
                        size_t transfer_at_least) {
+  std::lock_guard<std::mutex> lock(mutex_);
   // Check for a no-read write.
   if (asio::buffer_size(data) == 0) {
     waiting_read_ec_.clear();
@@ -325,34 +326,31 @@ void Socket::HandleKeepalive(const KeepalivePacket &packet) {
 }
 
 void Socket::HandleData(const DataPacket &packet) {
+  std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     receiver_.HandleData(packet);
-    strand_.dispatch([this] {
-      ProcessRead();
-      ProcessWrite();
-    });
+    ProcessRead();
+    ProcessWrite();
   }
 }
 
 void Socket::HandleAck(const AckPacket &packet) {
+  std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     sender_.HandleAck(packet);
-    strand_.dispatch([this] {
-      ProcessRead();
-      ProcessWrite();
-      ProcessFlush();
-    });
+    ProcessRead();
+    ProcessWrite();
+    ProcessFlush();
   }
 }
 
 void Socket::HandleAckOfAck(const AckOfAckPacket &packet) {
+  std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     receiver_.HandleAckOfAck(packet);
-    strand_.dispatch([this] {
-      ProcessRead();
-      ProcessWrite();
-      ProcessFlush();
-    });
+    ProcessRead();
+    ProcessWrite();
+    ProcessFlush();
   }
 }
 
@@ -363,15 +361,14 @@ void Socket::HandleNegativeAck(const NegativeAckPacket &packet) {
 }
 
 void Socket::HandleTick() {
+  std::lock_guard<std::mutex> lock(mutex_);
   LOG(kVerbose) << sock_id_ << " Ticking.  IsConnected: " << std::boolalpha << session_.IsConnected();
   if (session_.IsConnected()) {
     sender_.HandleTick();
     receiver_.HandleTick();
-    strand_.dispatch([this] {
-      ProcessRead();
-      ProcessWrite();
-      ProcessFlush();
-    });
+    ProcessRead();
+    ProcessWrite();
+    ProcessFlush();
   } else {
     session_.HandleTick();
   }

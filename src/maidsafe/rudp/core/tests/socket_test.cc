@@ -81,12 +81,10 @@ TEST(SocketTest, BEH_Socket) {
   client_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1,
                                              &client_multiplexer));
 
-  asio::strand server_strand(io_service);
-  Socket server_socket(server_strand, server_multiplexer);
+  Socket server_socket(server_multiplexer);
   server_ec = asio::error::would_block;
 
-  asio::strand client_strand(io_service);
-  Socket client_socket(client_strand, client_multiplexer);
+  Socket client_socket(client_multiplexer);
   client_ec = asio::error::would_block;
   client_socket.AsyncConnect(server_endpoint,
                              std::bind(&handler1, args::_1, &client_ec),
@@ -173,10 +171,8 @@ TEST(SocketTest, BEH_AsyncProbe) {
   server_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1, &server_multiplexer));
   client_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1, &client_multiplexer));
 
-  asio::strand client_strand(io_service);
-  Socket client_socket(client_strand, client_multiplexer);
-  asio::strand server_strand(io_service);
-  Socket server_socket(server_strand, server_multiplexer);
+  Socket client_socket(client_multiplexer);
+  Socket server_socket(server_multiplexer);
 
   // Probing when not connected
   client_ec = asio::error::would_block;
