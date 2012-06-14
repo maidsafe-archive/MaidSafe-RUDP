@@ -242,9 +242,8 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
     auto connection_map_itr = connection_map_.find(peer_endpoint);
     if (connection_map_itr != connection_map_.end()) {
       if (peer_endpoint == (*connection_map_itr).second->bootstrap_endpoint()) {
-                                // TODO(Fraser#5#): 2012-06-10 - Change this connection from temp to permanent
-        return (*itr).transport->Send(peer_endpoint, validation_data);
-//        (*connection_map_itr).second->CloseConnection(peer_endpoint);
+        (*itr).transport->Send(peer_endpoint, validation_data, MessageSentFunctor());
+        return kSuccess;
       } else {
         LOG(kError) << "A managed connection to " << peer_endpoint
                     << " already exists.";
@@ -269,16 +268,18 @@ void ManagedConnections::Remove(const Endpoint &peer_endpoint) {
   (*itr).second->CloseConnection(peer_endpoint);
 }
 
-int ManagedConnections::Send(const Endpoint &peer_endpoint,
-                             const std::string &message,
-                             MessageSentFunctor message_sent_functor) const {
+void ManagedConnections::Send(const Endpoint &peer_endpoint,
+                              const std::string &message,
+                              MessageSentFunctor message_sent_functor) const {
   SharedLock shared_lock(shared_mutex_);
   auto itr(connection_map_.find(peer_endpoint));
   if (itr == connection_map_.end()) {
     LOG(kError) << "Can't send to " << peer_endpoint << " - not in map.";
-    return kInvalidConnection;
+    if (message_sent_functor)
+      asio_service_->service().dispatch([message_sent_functor] { message_sent_functor(false); });
+    return;
   }
-  return (*itr).second->Send(peer_endpoint, message);
+  (*itr).second->Send(peer_endpoint, message, message_sent_functor);
 }
 
 bool ManagedConnections::Ping(const Endpoint &peer_endpoint) const {

@@ -94,7 +94,9 @@ void Transport::Bootstrap(
     }
     bootstrap_connection_ = std::make_shared<Connection>(shared_from_this(), strand_,
                                                          multiplexer_, *itr);
-    bootstrap_connection_->StartConnecting("", bootstrap_off_existing_connection);
+    bootstrap_connection_->StartConnecting("", bootstrap_off_existing_connection ?
+                                               bptime::time_duration() :
+                                               Parameters::bootstrap_disconnection_timeout);
 
  // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
                                              //Sleep(bptime::milliseconds((RandomUint32() % 100) + 1000));
@@ -154,7 +156,7 @@ void Transport::DoConnect(const Endpoint &peer_endpoint,
                                                         strand_,
                                                         multiplexer_,
                                                         peer_endpoint));
-  connection->StartConnecting(validation_data, false);
+  connection->StartConnecting(validation_data, bptime::pos_infin);
 
   if (opened_multiplexer)
     StartDispatch();
@@ -182,7 +184,9 @@ void Transport::DoCloseConnection(ConnectionPtr connection) {
   connection->Close();
 }
 
-int Transport::Send(const Endpoint &peer_endpoint, const std::string &message) {
+void Transport::Send(const Endpoint &peer_endpoint,
+                     const std::string &message,
+                     const MessageSentFunctor &message_sent_functor) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(std::find_if(connections_.begin(),
                         connections_.end(),
@@ -192,16 +196,19 @@ int Transport::Send(const Endpoint &peer_endpoint, const std::string &message) {
                         }));
   if (itr == connections_.end()) {
     LOG(kWarning) << "Not currently connected to " << peer_endpoint;
-    return kInvalidConnection;
+    if (message_sent_functor)
+      asio_service_->service().dispatch([message_sent_functor] { message_sent_functor(false); });
+    return;
   }
 
   strand_.dispatch(std::bind(&Transport::DoSend, shared_from_this(),
-                             *itr, message));
-  return kSuccess;
+                             *itr, message, message_sent_functor));
 }
 
-void Transport::DoSend(ConnectionPtr connection, const std::string &message) {
-  connection->StartSending(message);
+void Transport::DoSend(ConnectionPtr connection,
+                       const std::string &message,
+                       const MessageSentFunctor &message_sent_functor) {
+  connection->StartSending(message, message_sent_functor);
 }
 
 Endpoint Transport::external_endpoint() const {
@@ -244,17 +251,7 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
                                        strand_,
                                        multiplexer_,
                                        joining_peer_endpoint));
-      connection->StartConnecting("", false);
-      // TODO(Fraser#5#): 2012-04-18 - Drop this connection after 1 min.  Ensure
-      //                  when connection is dropped that ManagedConnections'
-      //                  connection_lost_functor is not called.
-      //bootstrap_disconnection_timer_.expires_from_now(
-      //    Parameters::bootstrap_disconnection_timeout);
-      //bootstrap_disconnection_timer_.async_wait(
-      //    std::bind(&Transport::DoCloseConnection,
-      //              shared_from_this(), connection));
-      //LOG(kInfo) << "Scheduled disconnection of bootstrapping connection to "
-      //           << connection->Socket().RemoteEndpoint();
+      connection->StartConnecting("", Parameters::bootstrap_disconnection_timeout);
     }
   }
   StartDispatch();

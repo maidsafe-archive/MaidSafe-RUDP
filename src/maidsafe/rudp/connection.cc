@@ -55,7 +55,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       data_received_(0),
       probe_retry_attempts_(0),
       timeout_for_response_(Parameters::default_receive_timeout),
-      temporary_(false),
+      lifespan_(bptime::pos_infin),
       timeout_state_(kNoTimeout) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
                                                                             static std::atomic<int> count(0);
@@ -96,9 +96,8 @@ void Connection::DoClose() {
 }
 
 void Connection::StartConnecting(const std::string &validation_data,
-                                 bool temporary) {
-                                                                                    //  if (!data.empty())
-  temporary_ = temporary;
+                                 const boost::posix_time::time_duration &lifespan) {
+  lifespan_ = lifespan;
   validation_data_ = validation_data;
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this()));
 }
@@ -110,10 +109,11 @@ void Connection::DoStartConnecting() {
   CheckTimeout(ignored_ec);
 }
 
-void Connection::StartSending(const std::string &data) {
+void Connection::StartSending(const std::string &data,
+                              const MessageSentFunctor &message_sent_functor) {
   EncodeData(data);
   timeout_for_response_ = Parameters::default_send_timeout;
-  strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this()));
+  strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), message_sent_functor));
 }
 
 void Connection::CheckTimeout(const bs::error_code &ec) {
@@ -153,10 +153,6 @@ void Connection::StartTick() {
   socket_.AsyncTick(handler);
 }
 
-// During sending : average one tick every 1.22ms (range from 1.1 to 1.4)
-// 1.22ms = 1ms (congestion_control.SendDelay()) + system variant process time
-// During receiving : averagle one tick every 140ms
-// 140ms=100ms(congestion_control.ReceiveDelay()) + system variant process time
 void Connection::HandleTick() {
   if (!socket_.IsOpen())
     return DoClose();
@@ -184,8 +180,8 @@ void Connection::StartConnect() {
   if (std::shared_ptr<Transport> transport = transport_.lock()) LOG(kVerbose) << conn_id_ << " StartConnect connecting " << transport->local_endpoint() << " to " << remote_endpoint_ << validation_data_;
   detail::Session::Mode open_mode(detail::Session::kNormal);
   if (validation_data_.empty()) {
-    open_mode = (temporary_ ? detail::Session::kBootstrapAndDrop :
-                              detail::Session::kBootstrapAndKeep);
+    open_mode = ((lifespan_ > bptime::time_duration()) ? detail::Session::kBootstrapAndKeep :
+                                                         detail::Session::kBootstrapAndDrop);
   }
   socket_.AsyncConnect(remote_endpoint_, handler, open_mode);
   timer_.expires_from_now(Parameters::connect_timeout);
@@ -215,7 +211,7 @@ void Connection::HandleConnect(const bs::error_code &ec) {
     EncodeData(validation_data_);
                               LOG(kVerbose) << conn_id_ << " Clearing validation data and sending now !!!!!!!!!!" << validation_data_ <<socket_.RemoteEndpoint();
     validation_data_.clear();
-    StartWrite();
+    StartWrite(MessageSentFunctor());
   } else {
     StartReadSize();
   }
@@ -351,21 +347,25 @@ void Connection::EncodeData(const std::string &data) {
   send_buffer_.insert(send_buffer_.end(), data.begin(), data.end());
 }
 
-void Connection::StartWrite() {
+void Connection::StartWrite(const MessageSentFunctor &message_sent_functor) {
   if (Stopped()) {
     LOG(kError) << "Failed to write to " << socket_.RemoteEndpoint()
                 << " - connection stopped.";
+    if (message_sent_functor)
+      message_sent_functor(false);
     return DoClose();
   }
 
   socket_.AsyncWrite(asio::buffer(send_buffer_),
-                     std::bind(&Connection::HandleWrite, shared_from_this(), args::_1));
+                     std::bind(&Connection::HandleWrite, shared_from_this(),
+                               args::_1, message_sent_functor));
   timer_.expires_from_now(Parameters::speed_calculate_inverval);
   if (kConnecting != timeout_state_)
     timeout_state_ = kSending;
 }
 
-void Connection::HandleWrite(const bs::error_code &ec) {
+void Connection::HandleWrite(const bs::error_code &ec,
+                             const MessageSentFunctor &message_sent_functor) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped()) {
@@ -373,12 +373,16 @@ void Connection::HandleWrite(const bs::error_code &ec) {
                   << " - " << ec.message();
     }
 #endif
+    if (message_sent_functor)
+      message_sent_functor(false);
     return DoClose();
   }
 
   if (Stopped()) {
     LOG(kError) << "Failed to write to " << socket_.RemoteEndpoint()
                 << " - connection stopped.";
+    if (message_sent_functor)
+      message_sent_functor(false);
     return DoClose();
   }
 
@@ -389,6 +393,9 @@ void Connection::HandleWrite(const bs::error_code &ec) {
   // Once data sent out, stop the timer for the sending procedure
   timer_.expires_at(boost::posix_time::pos_infin);
   timeout_state_ = kNoTimeout;
+
+  if (message_sent_functor)
+    message_sent_functor(true);
 }
 
 void Connection::StartProbing() {

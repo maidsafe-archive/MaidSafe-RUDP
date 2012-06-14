@@ -362,7 +362,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
     EXPECT_TRUE(IsValid(this_endpoint_pair.local));
     EXPECT_TRUE(IsValid(this_endpoint_pair.external));
   }
-  EXPECT_EQ(0, connection_lost_count_);
+  EXPECT_EQ(1, connection_lost_count_);
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Add) {
@@ -400,8 +400,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
     auto future_messages_at_peer(this->nodes_.at(0)->GetFutureForMessages(1));
     EXPECT_EQ(kSuccess,
               this->nodes_.at(0)->managed_connection().Add(peer_endpoint_pair.external,
-                                                            this_endpoint_pair.external,
-                                                            "validation_data"));
+                                                           this_endpoint_pair.external,
+                                                           "validation_data"));
     EXPECT_EQ(kSuccess,
               managed_connections.Add(this_endpoint_pair.external,
                                       peer_endpoint_pair.external,
@@ -545,8 +545,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
   auto future_messages_at_peer(this->nodes_.at(0)->GetFutureForMessages(1));
   EXPECT_EQ(kSuccess,
             this->nodes_.at(0)->managed_connection().Add(peer_endpoint_pair.external,
-                                                          this_endpoint_pair.external,
-                                                          "validation_data"));
+                                                         this_endpoint_pair.external,
+                                                         "validation_data"));
   EXPECT_EQ(kSuccess,
             managed_connections.Add(this_endpoint_pair.external,
                                     peer_endpoint_pair.external,
@@ -557,33 +557,70 @@ TEST_F(ManagedConnectionsTest, BEH_API_Send) {
 
   this->nodes_.at(0)->ResetCount();
 
+  bool result_of_send(true), result_arrived(false);
+  std::condition_variable cond_var;
+  std::mutex mutex;
+  MessageSentFunctor message_sent_functor([&](bool result_in) {
+    std::lock_guard<std::mutex> lock(mutex);
+    result_of_send = result_in;
+    result_arrived = true;
+    cond_var.notify_one();
+  });
+
   // Invalid endpoint
-  EXPECT_NE(kSuccess, managed_connections.Send(Endpoint(), "message", MessageSentFunctor()));
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    managed_connections.Send(Endpoint(), "message", message_sent_functor);
+    ASSERT_TRUE(cond_var.wait_for(lock,
+                                  std::chrono::milliseconds(100),
+                                  [&result_arrived]() { return result_arrived; }));
+    ASSERT_FALSE(result_of_send);
+  }
 
   // Unavailable endpoint
-  EXPECT_NE(kSuccess,
-            managed_connections.Send(Endpoint(GetLocalIp(), GetRandomPort()),
-                                     "message",
-                                     MessageSentFunctor()));
+  {
+    result_of_send = true;
+    result_arrived = false;
+    std::unique_lock<std::mutex> lock(mutex);
+    managed_connections.Send(Endpoint(GetLocalIp(), GetRandomPort()),
+                             "message",
+                             message_sent_functor);
+    ASSERT_TRUE(cond_var.wait_for(lock,
+                                  std::chrono::milliseconds(100),
+                                  [&result_arrived]() { return result_arrived; }));
+    ASSERT_FALSE(result_of_send);
+  }
+
   {  // Valid
+    result_of_send = false;
+    result_arrived = false;
+    std::unique_lock<std::mutex> lock(mutex);
     auto future_messages_at_peer(this->nodes_.at(0)->GetFutureForMessages(1));
-    EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external,
-                                                 "message",
-                                                 MessageSentFunctor()));
+    managed_connections.Send(peer_endpoint_pair.external, "message", message_sent_functor);
     auto messages(future_messages_at_peer.get());
     ASSERT_EQ(1, messages.size());
     EXPECT_EQ("message", messages.at(0));
+    ASSERT_TRUE(cond_var.wait_for(lock,
+                                  std::chrono::milliseconds(100),
+                                  [&result_arrived]() { return result_arrived; }));
+    ASSERT_TRUE(result_of_send);
     this->nodes_.at(0)->ResetCount();
   }
+
   {  // Valid large messages
+    result_of_send = false;
+    result_arrived = false;
+    std::unique_lock<std::mutex> lock(mutex);
     std::string sent_message(std::move(RandomString(8 * 1024 * 1024)));
     auto future_messages_at_peer(this->nodes_.at(0)->GetFutureForMessages(1));
-    EXPECT_EQ(kSuccess, managed_connections.Send(peer_endpoint_pair.external,
-                                                 sent_message,
-                                                 MessageSentFunctor()));       
+    managed_connections.Send(peer_endpoint_pair.external, sent_message, message_sent_functor);
     auto messages(future_messages_at_peer.get());
     ASSERT_EQ(1, messages.size());
     EXPECT_EQ(sent_message, messages.at(0));
+    ASSERT_TRUE(cond_var.wait_for(lock,
+                                  std::chrono::milliseconds(100),
+                                  [&result_arrived]() { return result_arrived; }));
+    ASSERT_TRUE(result_of_send);
     this->nodes_.at(0)->ResetCount();
   }
 }
@@ -648,7 +685,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
     }
   }
 
-  Sleep(boost::posix_time::milliseconds(200));
+  Sleep(boost::posix_time::milliseconds(10000));
 
   managed_connections3.Remove(endpoint1);
   int count(0);

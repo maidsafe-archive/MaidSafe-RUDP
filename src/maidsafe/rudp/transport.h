@@ -15,6 +15,7 @@
 #define MAIDSAFE_RUDP_TRANSPORT_H_
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <set>
 #include <string>
@@ -78,7 +79,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
   // size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
   int CloseConnection(const Endpoint &peer_endpoint);
-  int Send(const Endpoint &peer_endpoint, const std::string &message);
+  void Send(const Endpoint &peer_endpoint,
+            const std::string &message,
+            const std::function<void(bool)> &message_sent_functor);
   Endpoint external_endpoint() const;
   Endpoint local_endpoint() const;
   Endpoint bootstrap_endpoint() const;
@@ -98,7 +101,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DoConnect(const Endpoint &peer_endpoint,
                  const std::string &validation_data);
   void DoCloseConnection(ConnectionPtr connection);
-  void DoSend(ConnectionPtr connection, const std::string &message);
+  void DoSend(ConnectionPtr connection,
+              const std::string &message,
+              const std::function<void(bool)> &message_sent_functor);
 
   void StartDispatch();
   void HandleDispatch(MultiplexerPtr multiplexer,

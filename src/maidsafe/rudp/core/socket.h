@@ -117,7 +117,7 @@ class Socket {
   template <typename WriteHandler>
   void AsyncWrite(const boost::asio::const_buffer &data,
                   WriteHandler handler) {
-    strand_.wrap([=] {
+    strand_.dispatch([=] {
       WriteOp<WriteHandler> op(handler, &waiting_write_ec_,
                                &waiting_write_bytes_transferred_);
       waiting_write_.async_wait(op);
@@ -130,7 +130,7 @@ class Socket {
   void AsyncRead(const boost::asio::mutable_buffer &data,
                  size_t transfer_at_least,
                  ReadHandler handler) {
-    strand_.wrap([=] {
+    strand_.dispatch([=] {
       ReadOp<ReadHandler> op(handler, &waiting_read_ec_,
                              &waiting_read_bytes_transferred_);
       waiting_read_.async_wait(op);

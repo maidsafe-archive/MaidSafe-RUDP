@@ -81,9 +81,9 @@ class ManagedConnections {
 
   // Sends the message to the peer.  If the message is sent successfully, the
   // message_sent_functor is executed with input of true.
-  int Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
-           const std::string &message,
-           MessageSentFunctor message_sent_functor) const;
+  void Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
+            const std::string &message,
+            MessageSentFunctor message_sent_functor) const;
   bool Ping(const boost::asio::ip::udp::endpoint &peer_endpoint) const;
 
   friend class Transport;

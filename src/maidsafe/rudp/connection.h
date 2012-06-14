@@ -14,6 +14,7 @@
 #ifndef MAIDSAFE_RUDP_CONNECTION_H_
 #define MAIDSAFE_RUDP_CONNECTION_H_
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -52,8 +53,11 @@ class Connection : public std::enable_shared_from_this<Connection> {
   detail::Socket &Socket();
 
   void Close();
-  void StartConnecting(const std::string &validation_data, bool temporary);
-  void StartSending(const std::string &data);
+  // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
+  // after lifespan has passed.
+  void StartConnecting(const std::string &validation_data,
+                       const boost::posix_time::time_duration &lifespan);
+  void StartSending(const std::string &data, const std::function<void(bool)> &message_sent_functor);
                                                                                                     std::string conn_id_;
 
 private:
@@ -78,8 +82,9 @@ private:
   void StartReadData();
   void HandleReadData(const boost::system::error_code &ec, size_t length);
 
-  void StartWrite();
-  void HandleWrite(const boost::system::error_code &ec);
+  void StartWrite(const std::function<void(bool)> &message_sent_functor);
+  void HandleWrite(const boost::system::error_code &ec,
+                   const std::function<void(bool)> &message_sent_functor);
 
   void StartProbing();
   void DoProbe(const boost::system::error_code &ec);
@@ -100,8 +105,8 @@ private:
   size_t data_size_, data_received_;
   uint8_t probe_retry_attempts_;
   Timeout timeout_for_response_;
-  bool temporary_;
-  enum TimeoutState { kNoTimeout, kConnecting, kSending } timeout_state_;
+  boost::posix_time::time_duration lifespan_;
+  enum TimeoutState { kNoTimeout, kConnecting, kSending, kReceiving } timeout_state_;
 };
 
 }  // namespace rudp
