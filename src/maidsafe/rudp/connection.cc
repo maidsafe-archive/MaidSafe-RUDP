@@ -44,7 +44,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
     : transport_(transport),
       strand_(strand),
       multiplexer_(multiplexer),
-      socket_(strand_, *multiplexer_),
+      socket_(*multiplexer_),
       timer_(strand_.get_io_service()),
       probe_interval_timer_(strand_.get_io_service()),
       remote_endpoint_(remote),
@@ -228,7 +228,8 @@ void Connection::StartReadSize() {
                                                                               //  receive_buffer_.clear();
   receive_buffer_.resize(sizeof(DataSize));
   socket_.AsyncRead(asio::buffer(receive_buffer_), sizeof(DataSize),
-                    std::bind(&Connection::HandleReadSize, shared_from_this(), args::_1));
+                    strand_.wrap(std::bind(&Connection::HandleReadSize,
+                                           shared_from_this(), args::_1)));
 
   timer_.expires_at(boost::posix_time::pos_infin);
 //  boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
@@ -279,7 +280,8 @@ void Connection::StartReadData() {
   receive_buffer_.resize(buffer_size);
   asio::mutable_buffer data_buffer = asio::buffer(receive_buffer_) + data_received_;
   socket_.AsyncRead(asio::buffer(data_buffer), 1,
-                    std::bind(&Connection::HandleReadData, shared_from_this(), args::_1, args::_2));
+                    strand_.wrap(std::bind(&Connection::HandleReadData, shared_from_this(),
+                                           args::_1, args::_2)));
 }
 
 void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
