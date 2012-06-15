@@ -30,9 +30,14 @@ namespace maidsafe {
 namespace rudp {
 
 namespace detail {
+
+typedef int32_t DataSize;
+
 class Multiplexer;
 class Socket;
+
 }  // namespace detail
+
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic push

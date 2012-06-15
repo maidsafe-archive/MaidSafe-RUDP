@@ -41,6 +41,7 @@ typedef std::function<void(const boost::asio::ip::udp::endpoint&)> ConnectionLos
 typedef std::function<void(bool)> MessageSentFunctor;
 
 struct EndpointPair {
+  EndpointPair() : local(), external() {}
   boost::asio::ip::udp::endpoint local, external;
 };
 

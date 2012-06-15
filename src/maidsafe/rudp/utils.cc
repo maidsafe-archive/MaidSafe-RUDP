@@ -102,7 +102,7 @@ bool TryConnectTo(std::vector<ip::udp::endpoint> peer_endpoints,
   return !retrieved_local_ip.is_unspecified();
 }
 
-bool IsValid(const Endpoint &endpoint) {
+bool IsValid(const ip::udp::endpoint &endpoint) {
   return endpoint.port() > 1024U && !endpoint.address().is_unspecified();
 }
 

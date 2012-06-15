@@ -57,7 +57,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       timeout_for_response_(Parameters::default_receive_timeout),
       lifespan_(bptime::pos_infin),
       timeout_state_(kNoTimeout) {
-  static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
+  static_assert((sizeof(detail::DataSize)) == 4, "DataSize must be 4 bytes.");
                                                                             static std::atomic<int> count(0);
                                                                             conn_id_ = "Connection " + boost::lexical_cast<std::string>(count++);
                                                                             LOG(kVerbose) << conn_id_ << " constructor";
@@ -226,8 +226,8 @@ void Connection::StartReadSize() {
   //}
 
                                                                               //  receive_buffer_.clear();
-  receive_buffer_.resize(sizeof(DataSize));
-  socket_.AsyncRead(asio::buffer(receive_buffer_), sizeof(DataSize),
+  receive_buffer_.resize(sizeof(detail::DataSize));
+  socket_.AsyncRead(asio::buffer(receive_buffer_), sizeof(detail::DataSize),
                     strand_.wrap(std::bind(&Connection::HandleReadSize,
                                            shared_from_this(), args::_1)));
 
@@ -256,8 +256,8 @@ void Connection::HandleReadSize(const bs::error_code &ec) {
     return DoClose();
   }
 
-  DataSize size = (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) |
-                       receive_buffer_.at(2)) << 8) | receive_buffer_.at(3);
+  detail::DataSize size = (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) |
+                           receive_buffer_.at(2)) << 8) | receive_buffer_.at(3);
 
   data_size_ = size;
   data_received_ = 0;
@@ -335,7 +335,7 @@ void Connection::DispatchMessage() {
 
 void Connection::EncodeData(const std::string &data) {
   // Serialize message to internal buffer
-  DataSize msg_size = static_cast<DataSize>(data.size());
+  detail::DataSize msg_size = static_cast<detail::DataSize>(data.size());
   if (static_cast<size_t>(msg_size) >
           static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
     LOG(kError) << "Data size " << msg_size << " bytes (exceeds limit of "

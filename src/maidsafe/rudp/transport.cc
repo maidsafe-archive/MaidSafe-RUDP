@@ -34,6 +34,10 @@ namespace maidsafe {
 
 namespace rudp {
 
+namespace {
+typedef boost::asio::ip::udp::endpoint Endpoint;
+}  // unnamed namespace
+
 Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLINT (Fraser)
     : asio_service_(asio_service),
       strand_(asio_service->service()),

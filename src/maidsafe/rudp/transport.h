@@ -23,12 +23,12 @@
 
 #include "boost/asio/strand.hpp"
 #include "boost/asio/deadline_timer.hpp"
+#include "boost/asio/ip/udp.hpp"
 #include "boost/signals2/signal.hpp"
 #include "boost/thread/mutex.hpp"
 
 #include "maidsafe/common/asio_service.h"
 
-#include "maidsafe/rudp/common.h"
 #include "maidsafe/rudp/parameters.h"
 
 
@@ -57,34 +57,35 @@ class Transport : public std::enable_shared_from_this<Transport> {
  public:
   typedef boost::signals2::signal<void(const std::string&)> OnMessage;
   typedef boost::signals2::signal<
-      void(const Endpoint&, std::shared_ptr<Transport>)> OnConnectionAdded, OnConnectionLost;
+      void(const boost::asio::ip::udp::endpoint&,
+           std::shared_ptr<Transport>)> OnConnectionAdded, OnConnectionLost;
 
   explicit Transport(std::shared_ptr<AsioService> asio_service);  // NOLINT (Fraser)
   virtual ~Transport();
 
-  void Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
-                 Endpoint local_endpoint,
+  void Bootstrap(const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
+                 boost::asio::ip::udp::endpoint local_endpoint,
                  bool bootstrap_off_existing_connection,
                  const OnMessage::slot_type &on_message_slot,
                  const OnConnectionAdded::slot_type &on_connection_added_slot,
                  const OnConnectionLost::slot_type &on_connection_lost_slot,
-                 Endpoint *chosen_endpoint,
+                 boost::asio::ip::udp::endpoint *chosen_endpoint,
                  boost::signals2::connection *on_message_connection,
                  boost::signals2::connection *on_connection_added_connection,
                  boost::signals2::connection *on_connection_lost_connection);
-  void Connect(const Endpoint &peer_endpoint,
+  void Connect(const boost::asio::ip::udp::endpoint &peer_endpoint,
                const std::string &validation_data);
   // Returns kSuccess if the connection existed and was closed.  Returns
   // kInvalidConnection if the connection didn't exist.  If this causes the
   // size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
-  int CloseConnection(const Endpoint &peer_endpoint);
-  void Send(const Endpoint &peer_endpoint,
+  int CloseConnection(const boost::asio::ip::udp::endpoint &peer_endpoint);
+  void Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
             const std::string &message,
             const std::function<void(bool)> &message_sent_functor);
-  Endpoint external_endpoint() const;
-  Endpoint local_endpoint() const;
-  Endpoint bootstrap_endpoint() const;
+  boost::asio::ip::udp::endpoint external_endpoint() const;
+  boost::asio::ip::udp::endpoint local_endpoint() const;
+  boost::asio::ip::udp::endpoint bootstrap_endpoint() const;
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
   void Close();
@@ -98,7 +99,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::shared_ptr<Connection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionSet;
 
-  void DoConnect(const Endpoint &peer_endpoint,
+  void DoConnect(const boost::asio::ip::udp::endpoint &peer_endpoint,
                  const std::string &validation_data);
   void DoCloseConnection(ConnectionPtr connection);
   void DoSend(ConnectionPtr connection,

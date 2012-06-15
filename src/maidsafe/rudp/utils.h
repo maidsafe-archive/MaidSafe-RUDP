@@ -20,8 +20,6 @@
 #include "boost/asio/ip/address.hpp"
 #include "boost/asio/ip/udp.hpp"
 
-#include "maidsafe/rudp/common.h"
-
 
 namespace maidsafe {
 
@@ -33,7 +31,7 @@ namespace rudp {
 // the function returns a default-constructed (invalid) address.
 boost::asio::ip::address GetLocalIp(
     boost::asio::ip::udp::endpoint peer_endpoint =
-        Endpoint(boost::asio::ip::address_v4::from_string("8.8.8.8"), 0));
+        boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::from_string("8.8.8.8"), 0));
 
 // Tries to connect a socket to one of peer_endpoints.  If peer_endpoints is
 // empty, will then try to connect to one of the hard-coded default endpoints,

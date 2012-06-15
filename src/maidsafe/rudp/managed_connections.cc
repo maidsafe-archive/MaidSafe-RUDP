@@ -17,7 +17,6 @@
 
 #include "maidsafe/common/log.h"
 
-#include "maidsafe/rudp/common.h"
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/utils.h"
@@ -30,7 +29,15 @@ namespace maidsafe {
 namespace rudp {
 
 namespace {
+
+typedef boost::asio::ip::udp::endpoint Endpoint;
+typedef boost::shared_lock<boost::shared_mutex> SharedLock;
+typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
+typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
+typedef boost::upgrade_to_unique_lock<boost::shared_mutex> UpgradeToUniqueLock;
+
 const int kMaxTransports(10);
+
 }  // unnamed namespace
 
 ManagedConnections::ManagedConnections()
@@ -84,7 +91,6 @@ Endpoint ManagedConnections::Bootstrap(
     LOG(kError) << "You must provide at least one Bootstrap endpoint.";
     return Endpoint();
   }
-  bootstrap_endpoints_ = bootstrap_endpoints;
 
   asio_service_->Start();
 
@@ -106,6 +112,8 @@ Endpoint ManagedConnections::Bootstrap(
     LOG(kError) << "Failed to bootstrap managed connections.";
     return Endpoint();
   }
+
+  bootstrap_endpoints_ = bootstrap_endpoints;
   return new_endpoint;
 }
 
