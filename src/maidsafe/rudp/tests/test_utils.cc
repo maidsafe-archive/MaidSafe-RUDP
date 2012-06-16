@@ -168,7 +168,7 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
   return managed_connections_->Bootstrap(
       bootstrap_endpoints,
       [&](const std::string &message) {
-        LOG(kInfo) << kId_ << " -- Received: " << message.substr(0, 20);
+        LOG(kInfo) << kId_ << " -- Received: " << message.substr(0, 30);
         std::lock_guard<std::mutex> guard(mutex_);
         messages_.emplace_back(message);
         SetPromiseIfDone();

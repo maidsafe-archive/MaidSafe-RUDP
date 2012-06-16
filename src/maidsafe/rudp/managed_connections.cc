@@ -176,6 +176,7 @@ int ManagedConnections::GetAvailableEndpoint(EndpointPair &endpoint_pair) {
   if (transports_size < kMaxTransports) {
     if (transports_size == 0) {
       LOG(kError) << "No running Transports.";
+      endpoint_pair.external = endpoint_pair.local = Endpoint();
       return kNoneAvailable;
     }
 
@@ -188,6 +189,7 @@ int ManagedConnections::GetAvailableEndpoint(EndpointPair &endpoint_pair) {
           (*transports_.rbegin()).transport->local_endpoint();
       return kSuccess;
     } else {
+      endpoint_pair.external = endpoint_pair.local = Endpoint();
       return kTransportStartFailure;
     }
   }
@@ -209,8 +211,7 @@ int ManagedConnections::GetAvailableEndpoint(EndpointPair &endpoint_pair) {
 
     if (!IsValid(endpoint_pair.external) || !IsValid(endpoint_pair.local)) {
       LOG(kError) << "All Transports are full.";
-      endpoint_pair.external = Endpoint();
-      endpoint_pair.local = Endpoint();
+      endpoint_pair.external = endpoint_pair.local = Endpoint();
       return kFull;
     }
 

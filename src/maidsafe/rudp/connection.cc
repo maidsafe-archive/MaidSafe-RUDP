@@ -177,7 +177,8 @@ void Connection::HandleTick() {
 
 void Connection::StartConnect() {
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(), args::_1));
-  if (std::shared_ptr<Transport> transport = transport_.lock()) LOG(kVerbose) << conn_id_ << " StartConnect connecting " << transport->local_endpoint() << " to " << remote_endpoint_ << validation_data_;
+  if (std::shared_ptr<Transport> transport = transport_.lock()) LOG(kVerbose) << conn_id_ << " StartConnect connecting "
+                                                          << transport->local_endpoint() << " to " << remote_endpoint_ << "   " << validation_data_;
   detail::Session::Mode open_mode(detail::Session::kNormal);
   if (validation_data_.empty()) {
     open_mode = ((lifespan_ > bptime::time_duration()) ? detail::Session::kBootstrapAndKeep :
@@ -202,14 +203,14 @@ void Connection::HandleConnect(const bs::error_code &ec) {
     return DoClose();
   }
 
-                           LOG(kVerbose) << conn_id_ << " HandleConnect connected to ..." << socket_.RemoteEndpoint() << validation_data_;
+                           LOG(kVerbose) << conn_id_ << " HandleConnect connected to " << socket_.RemoteEndpoint() << "   " << validation_data_;
   if (std::shared_ptr<Transport> transport = transport_.lock())
     transport->InsertConnection(shared_from_this());
 
 //  StartProbing();
   if (!validation_data_.empty()) {
     EncodeData(validation_data_);
-                              LOG(kVerbose) << conn_id_ << " Clearing validation data and sending now !!!!!!!!!!" << validation_data_ <<socket_.RemoteEndpoint();
+                              LOG(kVerbose) << conn_id_ << " Clearing validation data and sending now !!!!!!!!!!     " << validation_data_ << " to " << socket_.RemoteEndpoint();
     validation_data_.clear();
     StartWrite(MessageSentFunctor());
   } else {
