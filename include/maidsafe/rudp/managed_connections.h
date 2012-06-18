@@ -13,6 +13,11 @@
 #ifndef MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
 #define MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
 
+#ifdef FAKE_RUDP
+#  include "../../../src/maidsafe/rudp/tests/fake_managed_connections.h"
+#else
+
+
 #include <functional>
 #include <map>
 #include <memory>
@@ -129,5 +134,7 @@ class ManagedConnections {
 }  // namespace rudp
 
 }  // namespace maidsafe
+
+#endif  // FAKE_RUDP
 
 #endif  // MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_

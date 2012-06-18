@@ -64,9 +64,13 @@ set(STYLE_RUDP ${ALL_FILES})
 ####    TESTS    ####
 file(GLOB SOURCE_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/*.cc")
 file(GLOB HEADER_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/*.h")
-set(ALL_FILES_RUDP_TESTS_DIR ${SOURCE_FILES_RUDP_TESTS_DIR} ${HEADER_FILES_RUDP_TESTS_DIR})
 source_group("Main Test Source Files" FILES ${SOURCE_FILES_RUDP_TESTS_DIR})
 source_group("Main Test Header Files" FILES ${HEADER_FILES_RUDP_TESTS_DIR})
+set(FAKE_MANAGED_CONNECTIONS_CC "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/fake_managed_connections.cc")
+set(FAKE_MANAGED_CONNECTIONS_H "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/fake_managed_connections.h")
+list(REMOVE_ITEM SOURCE_FILES_RUDP_TESTS_DIR ${FAKE_MANAGED_CONNECTIONS_CC})
+list(REMOVE_ITEM HEADER_FILES_RUDP_TESTS_DIR ${FAKE_MANAGED_CONNECTIONS_H})
+set(ALL_FILES_RUDP_TESTS_DIR ${SOURCE_FILES_RUDP_TESTS_DIR} ${HEADER_FILES_RUDP_TESTS_DIR})
 
 file(GLOB SOURCE_FILES_RUDP_CORE_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/tests/*.cc")
 file(GLOB HEADER_FILES_RUDP_CORE_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/tests/*.h")
@@ -91,6 +95,9 @@ set(ALL_TEST_FILES
     ${ALL_FILES_RUDP_CORE_TESTS_DIR}
 #     ${ALL_FILES_RUDP_OPERATIONS_TESTS_DIR}
     ${ALL_FILES_RUDP_PACKETS_TESTS_DIR})
+set(FAKE_TEST_FILES "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/managed_connections_test.cc"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/managed_connections_func_test.cc"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/test_main.cc")
 set(STYLE_RUDP ${STYLE_RUDP} ${ALL_TEST_FILES})
 
 
@@ -98,10 +105,21 @@ set(STYLE_RUDP ${STYLE_RUDP} ${ALL_TEST_FILES})
 # Define MaidSafe libraries and executables                                                       #
 ###################################################################################################
 ms_add_static_library(rudp ${ALL_FILES})
+ms_add_static_library(fake_rudp ${FAKE_MANAGED_CONNECTIONS_CC}
+                                ${FAKE_MANAGED_CONNECTIONS_H}
+                                "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/parameters.cc"
+                                "${PROJECT_SOURCE_DIR}/include/maidsafe/rudp/parameters.h"
+                                "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/utils.cc"
+                                "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/utils.h")
 ms_add_executable(TESTrudp "Tests/RUDP" ${ALL_TEST_FILES})
+ms_add_executable(TESTfake_rudp "Tests/RUDP" ${FAKE_TEST_FILES})
 
 target_link_libraries(maidsafe_rudp maidsafe_common)
 target_link_libraries(TESTrudp maidsafe_rudp)
+
+target_link_libraries(maidsafe_fake_rudp maidsafe_common)
+set_target_properties(maidsafe_fake_rudp PROPERTIES COMPILE_FLAGS -DFAKE_RUDP)
+target_link_libraries(TESTfake_rudp maidsafe_fake_rudp)
 
 rename_outdated_built_exes()
 
@@ -117,5 +135,6 @@ include(maidsafe_standard_flags)
 ###################################################################################################
 add_style_test(${STYLE_RUDP})
 add_gtests(TESTrudp)
+# add_gtests(TESTfake_rudp)
 add_project_experimental()
 test_summary_output()
