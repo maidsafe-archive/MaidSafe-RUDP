@@ -58,26 +58,29 @@ class ManagedConnections {
 
   static int32_t kMaxMessageSize() { return 67108864; }
 
-  // Creates a new transport object and bootstraps it to one of the provided
-  // bootstrap_endpoints.  The successfully connected endpoint is returned, or
-  // a default endpoint is returned if bootstrapping is unsuccessful.  For
-  // zero-state network, pass required local_endpoint.
+  // Creates a new transport object and bootstraps it to one of the provided bootstrap_endpoints.
+  // The successfully connected endpoint is returned, or a default endpoint is returned if
+  // bootstrapping is unsuccessful.  For zero-state network, pass required local_endpoint.
   boost::asio::ip::udp::endpoint Bootstrap(
       const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
       MessageReceivedFunctor message_received_functor,
       ConnectionLostFunctor connection_lost_functor,
       boost::asio::ip::udp::endpoint local_endpoint = boost::asio::ip::udp::endpoint());
 
-  // Returns a transport's EndpointPair.  Returns kNoneAvailable
-  // if there are no running Managed Connections.  In this case, Bootstrap must
-  // be called to start new Managed Connections.  Returns kFull if all
-  // Managed Connections already have the maximum number of running sockets.  If
-  // there are less than kMaxTransports transports running, a new one will be
-  // started and if successful, this will be the returned EndpointPair.
-  int GetAvailableEndpoint(EndpointPair &endpoint_pair);
+  // Returns a transport's EndpointPair.  Returns kNoneAvailable if there are no running Managed
+  // Connections.  In this case, Bootstrap must be called to start new Managed Connections.  Returns
+  // kFull if all Managed Connections already have the maximum number of running sockets.  If there
+  // are less than kMaxTransports transports running, a new one will be started and if successful,
+  // this will be the returned EndpointPair.  If peer_endpoint is known (e.g. if this is being
+  // executed by Routing::Service in response to a connection request, or if we want to make a
+  // permanent connection to a successful bootstrap endpoint) it should be passed in.  If
+  // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
+  // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
+  int GetAvailableEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint,
+                           EndpointPair &this_endpoint_pair);
 
-  // Makes a new connection and sends the validation data to the peer which
-  // runs its message_received_functor_ with the data.
+  // Makes a new connection and sends the validation data to the peer which runs its
+  // message_received_functor_ with the data.
   int Add(const boost::asio::ip::udp::endpoint &this_endpoint,
           const boost::asio::ip::udp::endpoint &peer_endpoint,
           const std::string &validation_data);
@@ -85,8 +88,8 @@ class ManagedConnections {
   // Drops the connection with peer.
   void Remove(const boost::asio::ip::udp::endpoint &peer_endpoint);
 
-  // Sends the message to the peer.  If the message is sent successfully, the
-  // message_sent_functor is executed with input of true.
+  // Sends the message to the peer.  If the message is sent successfully, the message_sent_functor
+  // is executed with input of true.
   void Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
             const std::string &message,
             MessageSentFunctor message_sent_functor) const;

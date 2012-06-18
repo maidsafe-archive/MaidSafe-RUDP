@@ -166,30 +166,38 @@ Endpoint ManagedConnections::StartNewTransport(
   return chosen_endpoint;
 }
 
-int ManagedConnections::GetAvailableEndpoint(EndpointPair &endpoint_pair) {
+int ManagedConnections::GetAvailableEndpoint(const Endpoint &peer_endpoint,
+                                             EndpointPair &this_endpoint_pair) {
   int transports_size(0);
   {
     SharedLock shared_lock(shared_mutex_);
     transports_size = static_cast<int>(transports_.size());
+
+    if (IsValid(peer_endpoint)) {
+      auto connection_map_itr = connection_map_.find(peer_endpoint);
+      if (connection_map_itr != connection_map_.end()) {
+        this_endpoint_pair.external = (*connection_map_itr).second->external_endpoint();
+        this_endpoint_pair.local = (*connection_map_itr).second->local_endpoint();
+        return kSuccess;
+      }
+    }
   }
 
   if (transports_size < kMaxTransports) {
     if (transports_size == 0) {
       LOG(kError) << "No running Transports.";
-      endpoint_pair.external = endpoint_pair.local = Endpoint();
+      this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
       return kNoneAvailable;
     }
 
     Endpoint new_endpoint(StartNewTransport(std::vector<Endpoint>(), Endpoint(local_ip_, 0)));
     if (IsValid(new_endpoint)) {
       UniqueLock unique_lock(shared_mutex_);
-      endpoint_pair.external =
-          (*transports_.rbegin()).transport->external_endpoint();
-      endpoint_pair.local =
-          (*transports_.rbegin()).transport->local_endpoint();
+      this_endpoint_pair.external = (*transports_.rbegin()).transport->external_endpoint();
+      this_endpoint_pair.local = (*transports_.rbegin()).transport->local_endpoint();
       return kSuccess;
     } else {
-      endpoint_pair.external = endpoint_pair.local = Endpoint();
+      this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
       return kTransportStartFailure;
     }
   }
@@ -204,14 +212,14 @@ int ManagedConnections::GetAvailableEndpoint(EndpointPair &endpoint_pair) {
         [&](const TransportAndSignalConnections &element) {
       if (element.transport->ConnectionsCount() < least_connections) {
         least_connections = element.transport->ConnectionsCount();
-        endpoint_pair.external = element.transport->external_endpoint();
-        endpoint_pair.local = element.transport->local_endpoint();
+        this_endpoint_pair.external = element.transport->external_endpoint();
+        this_endpoint_pair.local = element.transport->local_endpoint();
       }
     });
 
-    if (!IsValid(endpoint_pair.external) || !IsValid(endpoint_pair.local)) {
+    if (!IsValid(this_endpoint_pair.external) || !IsValid(this_endpoint_pair.local)) {
       LOG(kError) << "All Transports are full.";
-      endpoint_pair.external = endpoint_pair.local = Endpoint();
+      this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
       return kFull;
     }
 
