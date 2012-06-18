@@ -291,10 +291,6 @@ void ManagedConnections::Send(const Endpoint &peer_endpoint,
   (*itr).second->Send(peer_endpoint, message, message_sent_functor);
 }
 
-bool ManagedConnections::Ping(const Endpoint &peer_endpoint) const {
-  return TryConnectTo(std::vector<Endpoint>(1, peer_endpoint), false);
-}
-
 void ManagedConnections::OnMessageSlot(const std::string &message) {
   SharedLock shared_lock(shared_mutex_);
   message_received_functor_(message);

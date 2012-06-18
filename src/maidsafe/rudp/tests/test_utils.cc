@@ -188,11 +188,12 @@ void Node::ResetCount() {
   total_message_count_expectation_ = 0;
 }
 
-std::future<std::vector<std::string>> Node::GetFutureForMessages(const uint16_t &message_count) {
+boost::unique_future<std::vector<std::string>> Node::GetFutureForMessages(
+    const uint32_t &message_count) {
   BOOST_ASSERT(message_count > 0);
   total_message_count_expectation_ = message_count;
   promised_ = true;
-  std::promise<std::vector<std::string>> message_promise;
+  boost::promise<std::vector<std::string>> message_promise;
   message_promise_.swap(message_promise);
   return message_promise_.get_future();
 }

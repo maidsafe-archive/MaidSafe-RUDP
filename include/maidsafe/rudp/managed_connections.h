@@ -90,7 +90,6 @@ class ManagedConnections {
   void Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
             const std::string &message,
             MessageSentFunctor message_sent_functor) const;
-  bool Ping(const boost::asio::ip::udp::endpoint &peer_endpoint) const;
 
   friend class Transport;
   friend class test::ManagedConnectionsTest_BEH_API_Bootstrap_Test;

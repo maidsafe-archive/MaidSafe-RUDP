@@ -33,16 +33,7 @@ boost::asio::ip::address GetLocalIp(
     boost::asio::ip::udp::endpoint peer_endpoint =
         boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::from_string("8.8.8.8"), 0));
 
-// Tries to connect a socket to one of peer_endpoints.  If peer_endpoints is
-// empty, will then try to connect to one of the hard-coded default endpoints,
-// unless use_defaults is false.  The first successful connection attempt will
-// cause the function to return true and provide this node's local IP address.
-// If use_defaults is false, only the first peer_endpoint will be attempted.
-bool TryConnectTo(std::vector<boost::asio::ip::udp::endpoint> peer_endpoints,
-                  bool use_defaults = true,
-                  boost::asio::ip::address *local_ip = nullptr);
-
-// Returns true if 1024 < port < 49151 and the address is correctly specified.
+// Returns true if port > 1024 and the address is correctly specified.
 bool IsValid(const boost::asio::ip::udp::endpoint &endpoint);
 
 // // Convert an IP in ASCII format to IPv4 or IPv6 bytes

@@ -12,13 +12,13 @@
 #ifndef MAIDSAFE_RUDP_TESTS_TEST_UTILS_H_
 #define MAIDSAFE_RUDP_TESTS_TEST_UTILS_H_
 
-#include <future>
 #include <memory>
 #include <cstdint>
 #include <string>
 #include <vector>
 
 #include "boost/asio/ip/udp.hpp"
+#include "boost/thread/future.hpp"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
@@ -54,7 +54,8 @@ class Node {
   std::vector<std::string> messages() const;
   Endpoint Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
                      Endpoint local_endpoint = Endpoint());
-  std::future<std::vector<std::string>> GetFutureForMessages(const uint16_t &message_count);
+  boost::unique_future<std::vector<std::string>> GetFutureForMessages(
+      const uint32_t &message_count);
   std::string kId() const { return kId_; }
   std::string kValidationData() const { return kValidationData_; }
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
@@ -70,7 +71,7 @@ class Node {
   ManagedConnectionsPtr managed_connections_;
   bool promised_;
   uint32_t total_message_count_expectation_;
-  std::promise<std::vector<std::string>> message_promise_;
+  boost::promise<std::vector<std::string>> message_promise_;
 };
 
 
