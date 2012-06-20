@@ -58,7 +58,8 @@ void WaitForCount(const int &expected_count, std::atomic<int> *count) {
   std::unique_lock<std::mutex> lock(mutex);
   while (expected_count != *count) {
     lock.unlock();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    Sleep(bptime::milliseconds(100));
     lock.lock();
   }
 }
@@ -743,7 +744,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint2) {
   // TODO(dirvine) test hangs here connection_lost_count is always 0 at this point)
 //  do {
 //    lock.unlock();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    Sleep(bptime::milliseconds(1000));
 //    lock.lock();
 //  } while (connection_lost_count != 2);
 }
