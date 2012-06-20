@@ -127,7 +127,7 @@ void Transport::Close() {
                                                                                 LOG(kVerbose) << trans_id_ << " closing.";
   boost::mutex::scoped_lock lock(mutex_);
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
-    (*it)->Close();
+    strand_.post(std::bind(&Connection::Close, *it));
   if (multiplexer_)
     multiplexer_->Close();
   multiplexer_.reset();
@@ -301,10 +301,15 @@ void Transport::RemoveConnection(ConnectionPtr connection) {
 }
 
 void Transport::DoRemoveConnection(ConnectionPtr connection) {
-  boost::mutex::scoped_lock lock(mutex_);
-  connections_.erase(connection);
+  bool connections_empty(false), temporary_connection(false);
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    connections_.erase(connection);
+    connections_empty = connections_.empty();
+    temporary_connection = connection->IsTemporary();
+  }
   on_connection_lost_(connection->Socket().RemoteEndpoint(), shared_from_this(),
-                      connections_.empty(), connection->IsTemporary());
+                      connections_empty, temporary_connection);
 }
 
 Transport::ConnectionSet::iterator Transport::FindConnection(const Endpoint &peer_endpoint) {

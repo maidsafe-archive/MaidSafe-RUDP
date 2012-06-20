@@ -338,7 +338,6 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
     remove_transport = (transport->external_endpoint() ==
                         (*connection_itr).second->external_endpoint());
     if (remove_transport) {
-      assert(!temporary_connection);
       connection_map_.erase(connection_itr);
       connection_lost_functor_(peer_endpoint);
       LOG(kInfo) << mc_id_ << " Removed managed connection to " << peer_endpoint
