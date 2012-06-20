@@ -79,7 +79,7 @@ void Connection::DoClose() {
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-                                                                        LOG(kVerbose) << conn_id_ << " DoClose got transport lock";
+                                                                        LOG(kVerbose) << conn_id_ << " DoClose got transport lock.  Is temporary: " << std::boolalpha << IsTemporary();
     // We're still connected to the transport. We need to detach and then
     // start flushing the socket to attempt a graceful closure.
     socket_.NotifyClose();

@@ -100,13 +100,7 @@ void Transport::Bootstrap(
                                     bptime::time_duration() :
                                     Parameters::bootstrap_disconnection_timeout);
 
-                                                                                                    //bootstrap_connection_ = std::make_shared<Connection>(shared_from_this(), strand_,
-                                                                                                    //                                                     multiplexer_, *itr);
-                                                                                                    //bootstrap_connection_->StartConnecting("", bootstrap_off_existing_connection ?
-                                                                                                    //                                           bptime::time_duration() :
-                                                                                                    //                                           Parameters::bootstrap_disconnection_timeout);
-
- // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
+    // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
                                              //Sleep(bptime::milliseconds((RandomUint32() % 100) + 1000));
     int count(0);
     while (!IsValid(multiplexer_->external_endpoint()) ||
@@ -131,6 +125,7 @@ void Transport::Bootstrap(
 
 void Transport::Close() {
                                                                                 LOG(kVerbose) << trans_id_ << " closing.";
+  boost::mutex::scoped_lock lock(mutex_);
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
     (*it)->Close();
   if (multiplexer_)
@@ -298,7 +293,6 @@ void Transport::InsertConnection(ConnectionPtr connection) {
 void Transport::DoInsertConnection(ConnectionPtr connection) {
                               LOG(kVerbose) << trans_id_ << " DoInsertConnection with " << connection->Socket().RemoteEndpoint();
   connections_.insert(connection);
-                                                                              //if (!connection->temporary())
   on_connection_added_(connection->Socket().RemoteEndpoint(), shared_from_this());
 }
 
@@ -307,21 +301,10 @@ void Transport::RemoveConnection(ConnectionPtr connection) {
 }
 
 void Transport::DoRemoveConnection(ConnectionPtr connection) {
-                                                                                                  //if (connection->temporary())  // This is bootstrapping connection
-                                                                                                  //  return;
-
-  //if (Endpoint() != bootstrap_endpoint_) {  // This is my bootstrapped connection
-  //  if (connection->Socket().RemoteEndpoint() == bootstrap_endpoint_) {
-  //    bootstraped_connection = true;
-  //    bootstrap_endpoint_ = Endpoint();
-  //  }
-  //}
+  boost::mutex::scoped_lock lock(mutex_);
   connections_.erase(connection);
-  if (connections_.empty()) {
-    on_connection_lost_(connection->Socket().RemoteEndpoint(), shared_from_this());
-  } else {
-    on_connection_lost_(connection->Socket().RemoteEndpoint(), nullptr);
-  }
+  on_connection_lost_(connection->Socket().RemoteEndpoint(), shared_from_this(),
+                      connections_.empty(), connection->IsTemporary());
 }
 
 Transport::ConnectionSet::iterator Transport::FindConnection(const Endpoint &peer_endpoint) {
@@ -329,8 +312,8 @@ Transport::ConnectionSet::iterator Transport::FindConnection(const Endpoint &pee
   return std::find_if(connections_.begin(),
                       connections_.end(),
                       [&peer_endpoint](const ConnectionPtr &connection) {
-                          return connection->Socket().RemoteEndpoint() == peer_endpoint;
-                        });
+                        return connection->Socket().RemoteEndpoint() == peer_endpoint;
+                      });
 }
 
 

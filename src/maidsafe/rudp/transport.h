@@ -58,7 +58,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef boost::signals2::signal<void(const std::string&)> OnMessage;
   typedef boost::signals2::signal<
       void(const boost::asio::ip::udp::endpoint&,
-           std::shared_ptr<Transport>)> OnConnectionAdded, OnConnectionLost;
+           std::shared_ptr<Transport>)> OnConnectionAdded;
+  typedef boost::signals2::signal<
+      void(const boost::asio::ip::udp::endpoint&,
+           std::shared_ptr<Transport>, bool, bool)> OnConnectionLost;
 
   explicit Transport(std::shared_ptr<AsioService> asio_service);  // NOLINT (Fraser)
   virtual ~Transport();
@@ -91,6 +94,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
   void Close();
+  friend class Connection;
                                                                                                 std::string trans_id_;
  private:
   Transport(const Transport&);
@@ -114,7 +118,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   ConnectionSet::iterator FindConnection(const boost::asio::ip::udp::endpoint &peer_endpoint);
 
-  friend class Connection;
   void SignalMessageReceived(const std::string &message);
   void DoSignalMessageReceived(const std::string &message);
   void InsertConnection(ConnectionPtr connection);

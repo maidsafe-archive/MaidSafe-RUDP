@@ -118,7 +118,9 @@ class ManagedConnections {
   void OnConnectionAddedSlot(const boost::asio::ip::udp::endpoint &peer_endpoint,
                              std::shared_ptr<Transport> transport);
   void OnConnectionLostSlot(const boost::asio::ip::udp::endpoint &peer_endpoint,
-                            std::shared_ptr<Transport> transport);
+                            std::shared_ptr<Transport> transport,
+                            bool connections_empty,
+                            bool temporary_connection);
 //  void RemoveTransport(std::shared_ptr<Transport> transport);
 //  void InsertEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint,
 //                      std::shared_ptr<Transport> transport);

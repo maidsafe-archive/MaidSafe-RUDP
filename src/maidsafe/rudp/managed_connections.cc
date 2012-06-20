@@ -148,7 +148,7 @@ Endpoint ManagedConnections::StartNewTransport(
       bootstrap_off_existing_connection,
       boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
       boost::bind(&ManagedConnections::OnConnectionAddedSlot, this, _1, _2),
-      boost::bind(&ManagedConnections::OnConnectionLostSlot, this, _1, _2),
+      boost::bind(&ManagedConnections::OnConnectionLostSlot, this, _1, _2, _3, _4),
       &chosen_endpoint,
       &transport_and_signals_connections.on_message_connection,
       &transport_and_signals_connections.on_connection_added_connection,
@@ -264,9 +264,6 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
 
     auto connection_map_itr = connection_map_.find(peer_endpoint);
     if (connection_map_itr != connection_map_.end()) {
-      // Assert that the transport with "this_endpoint" is the same one found in "connection_map_".
-      assert((*connection_map_itr).second->external_endpoint() ==
-             (*itr).transport->external_endpoint());
       if ((*connection_map_itr).second->IsTemporaryConnection(peer_endpoint)) {
         (*itr).transport->MakeConnectionPermanent(peer_endpoint, validation_data);
         return kSuccess;
@@ -318,24 +315,41 @@ void ManagedConnections::OnConnectionAddedSlot(const Endpoint &peer_endpoint,
   UniqueLock unique_lock(shared_mutex_);
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
   if (result.second)
-    LOG(kInfo) << mc_id_ << " +++++++++++++++++++++++++++++++++++ Added managed connection to " << peer_endpoint;
+    LOG(kInfo) << mc_id_ << " +++++++++++++++++++++++++++++++++++ Added managed connection to " << peer_endpoint << " Now have " << connection_map_.size();
   else
     LOG(kError) << "Already connected to " << peer_endpoint;
 }
 
 void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
-                                              TransportPtr transport) {
+                                              TransportPtr transport,
+                                              bool connections_empty,
+                                              bool temporary_connection) {
+  bool remove_transport(connections_empty);
   UniqueLock unique_lock(shared_mutex_);
-  size_t result(connection_map_.erase(peer_endpoint));
-  if (result == 1U) {
-    LOG(kInfo) << mc_id_ << " Removed managed connection to " << peer_endpoint
-               << (transport ? " - also removing corresponding transport" : "");
-    connection_lost_functor_(peer_endpoint);
+  auto connection_itr(connection_map_.find(peer_endpoint));
+  if (connection_itr == connection_map_.end()) {
+    LOG(kError) << mc_id_ << " Was not connected to " << peer_endpoint << " Now have " << connection_map_.size();
+    if (temporary_connection)
+      remove_transport = false;
   } else {
-    LOG(kError) << "Was not connected to " << peer_endpoint;
+    // If this is a temporary connection to allow this node to bootstrap a new transport off an
+    // existing connection, the transport endpoint passed into the slot will not be the same one
+    // that is listed against the peer's endpoint in the connection_map_.
+    remove_transport = (transport->external_endpoint() ==
+                        (*connection_itr).second->external_endpoint());
+    if (remove_transport) {
+      assert(!temporary_connection);
+      connection_map_.erase(connection_itr);
+      connection_lost_functor_(peer_endpoint);
+      LOG(kInfo) << mc_id_ << " Removed managed connection to " << peer_endpoint
+                 << " - also removing corresponding transport. Now have " << connection_map_.size();
+    } else {
+      LOG(kInfo) << mc_id_ << " Not removing managed connection to " << peer_endpoint
+                 << " Now have " << connection_map_.size();
+    }
   }
 
-  if (!transport)
+  if (!remove_transport)
     return;
 
   auto itr(std::find_if(
