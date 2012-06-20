@@ -81,61 +81,64 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   bootstrap_endpoints.push_back(endpoint1);
 
   LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
-  for (int i = 2; i != node_count; ++i) {
-    if (!IsValid(nodes[i]->Bootstrap(bootstrap_endpoints)))
-      return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->kId();
-  }
 
   // TODO(Prakash): Check for validation messages at each node
   // Adding nodes to each other
-  EndpointPair endpoint_pair1, endpoint_pair2;
-  for (uint16_t i = 2; i != node_count; ++i) {
-    for (uint16_t j = 2; j != node_count; ++j) {
-      if ((j > i)) {  //  connecting all combination of nodes
-        LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[i]->kId();
-        int result(nodes[i]->managed_connections()->GetAvailableEndpoint(endpoint_pair1));
-        if (result != kSuccess ||
-            !IsValid(endpoint_pair1.local) ||
-            !IsValid(endpoint_pair1.external)) {
-          return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
-                                             << nodes[i]->kId() << " with result " << result
-                                             << ".  Local: " << endpoint_pair1.local
-                                             << "  External: " << endpoint_pair1.external;
-        }
-        LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[j]->kId();
-        result = nodes[j]->managed_connections()->GetAvailableEndpoint(endpoint_pair2);
-        if (result != kSuccess ||
-            !IsValid(endpoint_pair2.local) ||
-            !IsValid(endpoint_pair2.external)) {
-          return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
-                                             << nodes[j]->kId() << " with result " << result
-                                             << ".  Local: " << endpoint_pair2.local
-                                             << "  External: " << endpoint_pair2.external;
-        }
+  for (int i(2); i != node_count; ++i) {
+    Endpoint chosen_endpoint(nodes[i]->Bootstrap(bootstrap_endpoints));
+    if (!IsValid(chosen_endpoint))
+      return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->kId();
 
-        LOG(kInfo) << "Calling Add from " << nodes[i]->kId() << " on "
-                   << endpoint_pair1.external << " to " << nodes[j]->kId()
-                   << " on " << endpoint_pair2.external;
-        result = nodes[i]->managed_connections()->Add(endpoint_pair1.external,
-                                                      endpoint_pair2.external,
-                                                      nodes[i]->kValidationData());
-        if (result != kSuccess) {
-          return testing::AssertionFailure() << "Add failed for " << nodes[i]->kId()
-                                             << " with result " << result;
-        }
-
-        LOG(kInfo) << "Calling Add from " << nodes[j]->kId() << " on "
-                    << endpoint_pair2.external << " to " << nodes[i]->kId()
-                    << " on " << endpoint_pair1.external;
-        result = nodes[j]->managed_connections()->Add(endpoint_pair2.external,
-                                                      endpoint_pair1.external,
-                                                      nodes[j]->kValidationData());
-        if (result != kSuccess) {
-          return testing::AssertionFailure() << "Add failed for " << nodes[j]->kId()
-                                             << " with result " << result;
-        }
+    for (int j(0); j != i; ++j) {
+      LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[i]->kId();
+      Endpoint peer_endpoint;
+      if (chosen_endpoint == bootstrap_endpoints[j])
+        peer_endpoint = chosen_endpoint;
+      EndpointPair this_endpoint_pair, peer_endpoint_pair;
+      int result(nodes[i]->managed_connections()->GetAvailableEndpoint(peer_endpoint,
+                                                                       this_endpoint_pair));
+      if (result != kSuccess ||
+          !IsValid(this_endpoint_pair.local) ||
+          !IsValid(this_endpoint_pair.external)) {
+        return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
+                                           << nodes[i]->kId() << " with result " << result
+                                           << ".  Local: " << this_endpoint_pair.local
+                                           << "  External: " << this_endpoint_pair.external;
       }
-      bootstrap_endpoints.push_back(endpoint_pair1.external);
+      LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[j]->kId();
+      result = nodes[j]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.external,
+                                                                     peer_endpoint_pair);
+      if (result != kSuccess ||
+          !IsValid(peer_endpoint_pair.local) ||
+          !IsValid(peer_endpoint_pair.external)) {
+        return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
+                                           << nodes[j]->kId() << " with result " << result
+                                           << ".  Local: " << peer_endpoint_pair.local
+                                           << "  External: " << peer_endpoint_pair.external;
+      }
+
+      LOG(kInfo) << "Calling Add from " << nodes[i]->kId() << " on "
+                  << this_endpoint_pair.external << " to " << nodes[j]->kId()
+                  << " on " << peer_endpoint_pair.external;
+      result = nodes[i]->managed_connections()->Add(this_endpoint_pair.external,
+                                                    peer_endpoint_pair.external,
+                                                    nodes[i]->kValidationData());
+      if (result != kSuccess) {
+        return testing::AssertionFailure() << "Add failed for " << nodes[i]->kId()
+                                           << " with result " << result;
+      }
+
+      LOG(kInfo) << "Calling Add from " << nodes[j]->kId() << " on "
+                  << peer_endpoint_pair.external << " to " << nodes[i]->kId()
+                  << " on " << this_endpoint_pair.external;
+      result = nodes[j]->managed_connections()->Add(peer_endpoint_pair.external,
+                                                    this_endpoint_pair.external,
+                                                    nodes[j]->kValidationData());
+      if (result != kSuccess) {
+        return testing::AssertionFailure() << "Add failed for " << nodes[j]->kId()
+                                           << " with result " << result;
+      }
+      bootstrap_endpoints.push_back(this_endpoint_pair.external);
     }
   }
   return testing::AssertionSuccess();

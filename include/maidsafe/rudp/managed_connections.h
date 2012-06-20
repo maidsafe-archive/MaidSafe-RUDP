@@ -96,6 +96,7 @@ class ManagedConnections {
 
   friend class Transport;
   friend class test::ManagedConnectionsTest_BEH_API_Bootstrap_Test;
+                                                                                                std::string mc_id_;
 
  private:
   typedef std::map<boost::asio::ip::udp::endpoint, std::shared_ptr<Transport>> ConnectionMap;

@@ -47,15 +47,14 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       socket_(*multiplexer_),
       timer_(strand_.get_io_service()),
       probe_interval_timer_(strand_.get_io_service()),
+      lifespan_timer_(strand_.get_io_service()),
       remote_endpoint_(remote),
-      validation_data_(),
       send_buffer_(),
       receive_buffer_(),
       data_size_(0),
       data_received_(0),
       probe_retry_attempts_(0),
       timeout_for_response_(Parameters::default_receive_timeout),
-      lifespan_(bptime::pos_infin),
       timeout_state_(kNoTimeout) {
   static_assert((sizeof(detail::DataSize)) == 4, "DataSize must be 4 bytes.");
                                                                             static std::atomic<int> count(0);
@@ -78,6 +77,7 @@ void Connection::Close() {
 void Connection::DoClose() {
                                                                         LOG(kVerbose) << conn_id_ << " DoClose";
   probe_interval_timer_.cancel();
+  lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
                                                                         LOG(kVerbose) << conn_id_ << " DoClose got transport lock";
     // We're still connected to the transport. We need to detach and then
@@ -97,16 +97,24 @@ void Connection::DoClose() {
 
 void Connection::StartConnecting(const std::string &validation_data,
                                  const boost::posix_time::time_duration &lifespan) {
-  lifespan_ = lifespan;
-  validation_data_ = validation_data;
-  strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this()));
+  strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(),
+                             validation_data, lifespan));
 }
 
-void Connection::DoStartConnecting() {
+void Connection::DoStartConnecting(const std::string &validation_data,
+                                   const boost::posix_time::time_duration &lifespan) {
   StartTick();
-  StartConnect();
+  StartConnect(validation_data, lifespan);
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
+}
+
+bool Connection::IsTemporary() const {
+  return lifespan_timer_.expires_from_now() < bptime::pos_infin;
+}
+
+void Connection::MakePermanent() {
+  lifespan_timer_.expires_at(bptime::pos_infin);
 }
 
 void Connection::StartSending(const std::string &data,
@@ -175,21 +183,41 @@ void Connection::HandleTick() {
   }
 }
 
-void Connection::StartConnect() {
-  auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(), args::_1));
+void Connection::StartConnect(const std::string &validation_data,
+                              const boost::posix_time::time_duration &lifespan) {
+  auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(),
+                                        args::_1, validation_data));
   if (std::shared_ptr<Transport> transport = transport_.lock()) LOG(kVerbose) << conn_id_ << " StartConnect connecting "
-                                                          << transport->local_endpoint() << " to " << remote_endpoint_ << "   " << validation_data_;
+                                                          << transport->local_endpoint() << " to " << remote_endpoint_ << "   " << validation_data;
   detail::Session::Mode open_mode(detail::Session::kNormal);
-  if (validation_data_.empty()) {
-    open_mode = ((lifespan_ > bptime::time_duration()) ? detail::Session::kBootstrapAndKeep :
-                                                         detail::Session::kBootstrapAndDrop);
+  lifespan_timer_.expires_from_now(lifespan);
+  if (validation_data.empty()) {
+    assert(lifespan != bptime::pos_infin);
+    open_mode = ((lifespan > bptime::time_duration()) ? detail::Session::kBootstrapAndKeep :
+                                                        detail::Session::kBootstrapAndDrop);
+    lifespan_timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckLifespanTimeout,
+                                             shared_from_this(), args::_1)));
   }
   socket_.AsyncConnect(remote_endpoint_, handler, open_mode);
   timer_.expires_from_now(Parameters::connect_timeout);
   timeout_state_ = kConnecting;
 }
 
-void Connection::HandleConnect(const bs::error_code &ec) {
+void Connection::CheckLifespanTimeout(const bs::error_code &ec) {
+  if (ec && ec != boost::asio::error::operation_aborted) {
+    LOG(kError) << "Connection lifespan check timeout error: " << ec.message();
+    return DoClose();
+  }
+  if (!socket_.IsOpen())
+    return DoClose();
+
+  if (timer_.expires_at() <= asio::deadline_timer::traits_type::now()) {
+    LOG(kError) << "Closing connection to " << socket_.RemoteEndpoint() << " - Lifespan expired.";
+    return DoClose();
+  }
+}
+
+void Connection::HandleConnect(const bs::error_code &ec, const std::string &validation_data) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
@@ -203,15 +231,14 @@ void Connection::HandleConnect(const bs::error_code &ec) {
     return DoClose();
   }
 
-                           LOG(kVerbose) << conn_id_ << " HandleConnect connected to " << socket_.RemoteEndpoint() << "   " << validation_data_;
+                           LOG(kVerbose) << conn_id_ << " HandleConnect connected to " << socket_.RemoteEndpoint();
   if (std::shared_ptr<Transport> transport = transport_.lock())
     transport->InsertConnection(shared_from_this());
 
 //  StartProbing();
-  if (!validation_data_.empty()) {
-    EncodeData(validation_data_);
-                              LOG(kVerbose) << conn_id_ << " Clearing validation data and sending now !!!!!!!!!!     " << validation_data_ << " to " << socket_.RemoteEndpoint();
-    validation_data_.clear();
+  if (!validation_data.empty()) {
+    EncodeData(validation_data);
+                              LOG(kVerbose) << conn_id_ << " Sending validation data now !!!!!!!!!!     " << validation_data << " to " << socket_.RemoteEndpoint();
     StartWrite(MessageSentFunctor());
   } else {
     StartReadSize();

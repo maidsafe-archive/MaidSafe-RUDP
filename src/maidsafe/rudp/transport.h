@@ -85,7 +85,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
             const std::function<void(bool)> &message_sent_functor);
   boost::asio::ip::udp::endpoint external_endpoint() const;
   boost::asio::ip::udp::endpoint local_endpoint() const;
-  boost::asio::ip::udp::endpoint bootstrap_endpoint() const;
+  bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint &peer_endpoint);
+  void MakeConnectionPermanent(const boost::asio::ip::udp::endpoint &peer_endpoint,
+                               const std::string &validation_data);
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
   void Close();
@@ -110,6 +112,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void HandleDispatch(MultiplexerPtr multiplexer,
                       const boost::system::error_code &ec);
 
+  ConnectionSet::iterator FindConnection(const boost::asio::ip::udp::endpoint &peer_endpoint);
+
   friend class Connection;
   void SignalMessageReceived(const std::string &message);
   void DoSignalMessageReceived(const std::string &message);
@@ -117,8 +121,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DoInsertConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection);
   void DoRemoveConnection(ConnectionPtr connection);
-  void RemoveBootstrapConnection(ConnectionPtr connection);
-  void DoRemoveBootstrapConnection(ConnectionPtr connection);
   std::shared_ptr<AsioService> asio_service_;
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
@@ -131,8 +133,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
   OnMessage on_message_;
   OnConnectionAdded on_connection_added_;
   OnConnectionLost on_connection_lost_;
-  ConnectionPtr bootstrap_connection_;
-  boost::asio::deadline_timer bootstrap_disconnection_timer_;
 };
 
 typedef std::shared_ptr<Transport> TransportPtr;

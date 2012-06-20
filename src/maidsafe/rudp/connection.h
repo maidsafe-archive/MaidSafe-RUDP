@@ -63,6 +63,10 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartConnecting(const std::string &validation_data,
                        const boost::posix_time::time_duration &lifespan);
   void StartSending(const std::string &data, const std::function<void(bool)> &message_sent_functor);
+  // Returns true if lifespan_timer_ expires at < pos_infin.
+  bool IsTemporary() const;
+  // Sets the lifespan_timer_ to expire at pos_infin.
+  void MakePermanent();
                                                                                                     std::string conn_id_;
 
 private:
@@ -70,16 +74,19 @@ private:
   Connection &operator=(const Connection&);
 
   void DoClose();
-  void DoStartConnecting();
+  void DoStartConnecting(const std::string &validation_data,
+                         const boost::posix_time::time_duration &lifespan);
 
   void CheckTimeout(const boost::system::error_code &ec);
+  void CheckLifespanTimeout(const boost::system::error_code &ec);
   bool Stopped() const;
 
   void StartTick();
   void HandleTick();
 
-  void StartConnect();
-  void HandleConnect(const boost::system::error_code &ec);
+  void StartConnect(const std::string &validation_data,
+                    const boost::posix_time::time_duration &lifespan);
+  void HandleConnect(const boost::system::error_code &ec, const std::string &validation_data);
 
   void StartReadSize();
   void HandleReadSize(const boost::system::error_code &ec);
@@ -102,15 +109,12 @@ private:
   boost::asio::io_service::strand strand_;
   std::shared_ptr<detail::Multiplexer> multiplexer_;
   detail::Socket socket_;
-  boost::asio::deadline_timer timer_;
-  boost::asio::deadline_timer probe_interval_timer_;
+  boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
   boost::asio::ip::udp::endpoint remote_endpoint_;
-  std::string validation_data_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   size_t data_size_, data_received_;
   uint8_t probe_retry_attempts_;
   Timeout timeout_for_response_;
-  boost::posix_time::time_duration lifespan_;
   enum TimeoutState { kNoTimeout, kConnecting, kSending, kReceiving } timeout_state_;
 };
 
