@@ -60,6 +60,10 @@ class Node {
   std::string kValidationData() const { return kValidationData_; }
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
   void ResetCount();
+  int GetReceivedMessageCount(const std::string &message) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    return static_cast<int>(std::count(messages_.begin(), messages_.end(), message));
+  }
 
  private:
   void SetPromiseIfDone();

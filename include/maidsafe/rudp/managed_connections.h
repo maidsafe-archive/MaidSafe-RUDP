@@ -94,6 +94,13 @@ class ManagedConnections {
             const std::string &message,
             MessageSentFunctor message_sent_functor) const;
 
+  std::vector<boost::asio::ip::udp::endpoint> GetConnectedEndPoints() {
+    std::vector<boost::asio::ip::udp::endpoint> connected_endpoints;
+    for (auto it(connection_map_.begin()); it != connection_map_.end(); ++it)
+      connected_endpoints.push_back((*it).first);
+    return connected_endpoints;
+  }
+
   friend class Transport;
   friend class test::ManagedConnectionsTest_BEH_API_Bootstrap_Test;
                                                                                                 std::string mc_id_;
