@@ -230,13 +230,16 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
 
   // Before Add
   Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[1])));
-  EXPECT_EQ(bootstrap_endpoints_[0], chosen_endpoint);
+  EXPECT_EQ(bootstrap_endpoints_[1], chosen_endpoint);
   node_.managed_connections()->Remove(bootstrap_endpoints_[1]);
-                                                                        Sleep(boost::posix_time::milliseconds(1000));
+                                                                        Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(node_.connection_lost_endpoints().size(), 1U);
   EXPECT_EQ(chosen_endpoint, node_.connection_lost_endpoints()[0]);
+  node_.ResetCount();
 
   // After Add
+  chosen_endpoint = node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]));
+  EXPECT_EQ(bootstrap_endpoints_[0], chosen_endpoint);
   nodes_[0]->ResetCount();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   EXPECT_EQ(kSuccess,
@@ -271,17 +274,17 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
 
   // Invalid endpoint
   node_.managed_connections()->Remove(Endpoint());
-                                                                        Sleep(boost::posix_time::milliseconds(1000));
+                                                                        Sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(node_.connection_lost_endpoints().empty());
 
   // Unknown endpoint
   node_.managed_connections()->Remove(bootstrap_endpoints_[2]);
-                                                                        Sleep(boost::posix_time::milliseconds(1000));
+                                                                        Sleep(boost::posix_time::milliseconds(100));
   EXPECT_TRUE(node_.connection_lost_endpoints().empty());
 
   // Valid
   node_.managed_connections()->Remove(peer_endpoint_pair.external);
-                                                                        Sleep(boost::posix_time::milliseconds(1000));
+                                                                        Sleep(boost::posix_time::milliseconds(100));
   int count(0);
   do {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -296,7 +299,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
 
   // Already removed endpoint
   node_.managed_connections()->Remove(peer_endpoint_pair.external);
-                                                                        Sleep(boost::posix_time::milliseconds(1000));
+                                                                        Sleep(boost::posix_time::milliseconds(100));
   ASSERT_EQ(node_.connection_lost_endpoints().size(), 1U);
   ASSERT_EQ(nodes_[0]->connection_lost_endpoints().size(), 1U);
   EXPECT_EQ(node_.connection_lost_endpoints()[0], peer_endpoint_pair.external);
