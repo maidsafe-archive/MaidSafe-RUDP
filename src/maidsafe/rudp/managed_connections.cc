@@ -306,7 +306,6 @@ void ManagedConnections::Send(const Endpoint &peer_endpoint,
 }
 
 void ManagedConnections::OnMessageSlot(const std::string &message) {
-  SharedLock shared_lock(shared_mutex_);
   message_received_functor_(message);
 }
 
