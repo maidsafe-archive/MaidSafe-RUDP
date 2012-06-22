@@ -57,8 +57,8 @@ protected:
  // Each node sending n messsages to all other connected nodes.
  void RunNetworkTest(const uint16_t &num_messages, const int &messages_size) {
    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // to allow actual connection between nodes
-   // validation data will be exchanged, so the message number will be doubled
-   uint16_t messages_received_per_node = num_messages * (network_size_ - 1) * 2;
+   // validation data will be exchanged, so the message number shall be increased
+   uint16_t messages_received_per_node = (num_messages + 1) * (network_size_ - 1);
    std::vector<std::string> sent_messages;
    std::vector<boost::unique_future<std::vector<std::string> > > futures;
 
@@ -84,7 +84,6 @@ protected:
    std::vector<bool> results;
    for (uint16_t i = 0; i != nodes_.size(); ++i)
      if (!(futures.at(i).timed_wait(bptime::seconds(2)))) {
-
        LOG(kError) << "Timed out !!!!!!!!!!";
        results.push_back(false);
      } else {
