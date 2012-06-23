@@ -18,7 +18,6 @@
 #include <functional>
 #include <vector>
 
-
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
@@ -149,7 +148,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0])));
   EXPECT_EQ(bootstrap_endpoints_[0], chosen_endpoint);
 
-  nodes_[0]->ResetCount();
+  nodes_[0]->ResetData();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint, this_endpoint_pair));
@@ -179,7 +178,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   ASSERT_EQ(1, this_node_messages.size());
   EXPECT_EQ(node_.kValidationData(), peer_messages[0]);
   EXPECT_EQ(nodes_[0]->kValidationData(), this_node_messages[0]);
-  nodes_[0]->ResetCount();
+  nodes_[0]->ResetData();
 
   // Invalid endpoints
   EXPECT_EQ(kInvalidEndpoint,
@@ -223,6 +222,17 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
 
 TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 4));
+  auto wait_for_signals([&](int node_index)->bool {
+    int count(0);
+    do {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      ++count;
+    } while ((node_.connection_lost_endpoints().empty() ||
+             nodes_[node_index]->connection_lost_endpoints().empty()) &&
+             count != 10);
+    return (!node_.connection_lost_endpoints().empty() &&
+            !nodes_[node_index]->connection_lost_endpoints().empty());
+  });
 
   // Before Bootstrap
   node_.managed_connections()->Remove(bootstrap_endpoints_[1]);
@@ -232,15 +242,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[1])));
   EXPECT_EQ(bootstrap_endpoints_[1], chosen_endpoint);
   node_.managed_connections()->Remove(bootstrap_endpoints_[1]);
-                                                                        Sleep(boost::posix_time::milliseconds(100));
+  ASSERT_TRUE(wait_for_signals(1));
   ASSERT_EQ(node_.connection_lost_endpoints().size(), 1U);
+  ASSERT_EQ(nodes_[1]->connection_lost_endpoints().size(), 1U);
   EXPECT_EQ(chosen_endpoint, node_.connection_lost_endpoints()[0]);
-  node_.ResetCount();
 
   // After Add
   chosen_endpoint = node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]));
   EXPECT_EQ(bootstrap_endpoints_[0], chosen_endpoint);
-  nodes_[0]->ResetCount();
+  nodes_[0]->ResetData();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint, this_endpoint_pair));
@@ -270,145 +280,228 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   ASSERT_EQ(1, this_node_messages.size());
   EXPECT_EQ(node_.kValidationData(), peer_messages[0]);
   EXPECT_EQ(nodes_[0]->kValidationData(), this_node_messages[0]);
-  nodes_[0]->ResetCount();
+  nodes_[0]->ResetData();
 
   // Invalid endpoint
+  node_.ResetData();
+  nodes_[0]->ResetData();
   node_.managed_connections()->Remove(Endpoint());
-                                                                        Sleep(boost::posix_time::milliseconds(100));
+  ASSERT_FALSE(wait_for_signals(0));
   EXPECT_TRUE(node_.connection_lost_endpoints().empty());
+  EXPECT_TRUE(nodes_[0]->connection_lost_endpoints().empty());
 
   // Unknown endpoint
+  node_.ResetData();
+  nodes_[0]->ResetData();
   node_.managed_connections()->Remove(bootstrap_endpoints_[2]);
-                                                                        Sleep(boost::posix_time::milliseconds(100));
+  ASSERT_FALSE(wait_for_signals(2));
   EXPECT_TRUE(node_.connection_lost_endpoints().empty());
+  EXPECT_TRUE(nodes_[2]->connection_lost_endpoints().empty());
 
   // Valid
+  node_.ResetData();
+  nodes_[0]->ResetData();
   node_.managed_connections()->Remove(peer_endpoint_pair.external);
-                                                                        Sleep(boost::posix_time::milliseconds(100));
-  int count(0);
-  do {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    ++count;
-  } while (node_.connection_lost_endpoints().empty() &&
-           nodes_[0]->connection_lost_endpoints().empty() &&
-           count != 20);
+  ASSERT_TRUE(wait_for_signals(0));
   ASSERT_EQ(node_.connection_lost_endpoints().size(), 1U);
   ASSERT_EQ(nodes_[0]->connection_lost_endpoints().size(), 1U);
   EXPECT_EQ(node_.connection_lost_endpoints()[0], peer_endpoint_pair.external);
   EXPECT_EQ(nodes_[0]->connection_lost_endpoints()[0], this_endpoint_pair.external);
 
   // Already removed endpoint
+  node_.ResetData();
+  nodes_[0]->ResetData();
   node_.managed_connections()->Remove(peer_endpoint_pair.external);
-                                                                        Sleep(boost::posix_time::milliseconds(100));
-  ASSERT_EQ(node_.connection_lost_endpoints().size(), 1U);
-  ASSERT_EQ(nodes_[0]->connection_lost_endpoints().size(), 1U);
-  EXPECT_EQ(node_.connection_lost_endpoints()[0], peer_endpoint_pair.external);
-  EXPECT_EQ(nodes_[0]->connection_lost_endpoints()[0], this_endpoint_pair.external);
+  ASSERT_FALSE(wait_for_signals(0));
+  EXPECT_TRUE(node_.connection_lost_endpoints().empty());
+  EXPECT_TRUE(nodes_[0]->connection_lost_endpoints().empty());
 }
-/*
-TEST_F(ManagedConnectionsTest, BEH_API_Send) {
+
+TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
-  Endpoint bootstrap_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[1])));
-  EXPECT_EQ(bootstrap_endpoints_[1], bootstrap_endpoint);
-
-  nodes_[0]->ResetCount();
-  EndpointPair this_endpoint_pair, peer_endpoint_pair;
-  EXPECT_EQ(kSuccess,
-            nodes_[0]->managed_connections()->GetAvailableEndpoint(peer_endpoint_pair));
-  EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(this_endpoint_pair));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
-  EXPECT_TRUE(IsValid(peer_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(peer_endpoint_pair.external));
-
-  auto peer_futures(nodes_[0]->GetFutureForMessages(1));
-  auto this_node_futures(node_.GetFutureForMessages(1));
-  EXPECT_EQ(kSuccess,
-            nodes_[0]->managed_connections()->Add(peer_endpoint_pair.external,
-                                                  this_endpoint_pair.external,
-                                                  nodes_[0]->kValidationData()));
-  EXPECT_EQ(kSuccess,
-            node_.managed_connections()->Add(this_endpoint_pair.external,
-                                             peer_endpoint_pair.external,
-                                             node_.kValidationData()));
-  auto peer_messages(peer_futures.get());
-  auto this_node_messages(this_node_futures.get());
-  ASSERT_EQ(1, peer_messages.size());
-  ASSERT_EQ(1, this_node_messages.size());
-  EXPECT_EQ(node_.kValidationData(), peer_messages[0]);
-  EXPECT_EQ(nodes_[0]->kValidationData(), this_node_messages[0]);
-  nodes_[0]->ResetCount();
-
-
+  // Before Bootstrap
+  node_.managed_connections()->Send(bootstrap_endpoints_[0], "message1", MessageSentFunctor());
   bool result_of_send(true), result_arrived(false);
   std::condition_variable cond_var;
   std::mutex mutex;
+  std::unique_lock<std::mutex> lock(mutex);
   MessageSentFunctor message_sent_functor([&](bool result_in) {
     std::lock_guard<std::mutex> lock(mutex);
     result_of_send = result_in;
     result_arrived = true;
     cond_var.notify_one();
   });
+  auto wait_for_result([&] {
+    return cond_var.wait_for(lock,
+                             std::chrono::milliseconds(100),
+                             [&result_arrived]() { return result_arrived; });
+  });
+
+  result_of_send = false;
+  result_arrived = false;
+  node_.managed_connections()->Send(bootstrap_endpoints_[0], "message2", message_sent_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_FALSE(result_of_send);
+
+  // Before Add
+  // Sending to bootstrap peer should succeed, sending to any other should fail.
+  Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0])));
+  ASSERT_EQ(bootstrap_endpoints_[0], chosen_endpoint);
+  // Send to non-bootstrap peer
+  node_.managed_connections()->Send(bootstrap_endpoints_[1], "message3", MessageSentFunctor());
+  result_of_send = false;
+  result_arrived = false;
+  node_.managed_connections()->Send(bootstrap_endpoints_[1], "message4", message_sent_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_FALSE(result_of_send);
+  // Send to bootstrap peer
+  nodes_[0]->ResetData();
+  auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(2));
+  node_.managed_connections()->Send(bootstrap_endpoints_[0], "message5", MessageSentFunctor());
+  result_of_send = false;
+  result_arrived = false;
+  node_.managed_connections()->Send(bootstrap_endpoints_[0], "message6", message_sent_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_TRUE(result_of_send);
+  ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(200)));
+  auto messages(future_messages_at_peer.get());
+  ASSERT_EQ(2U, messages.size());
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message5"));
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message6"));
+
+  // After Add
+  nodes_[1]->ResetData();
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->GetAvailableEndpoint(Endpoint(), this_endpoint_pair));
+  EXPECT_EQ(kSuccess,
+            nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.external,
+                                                                   peer_endpoint_pair));
+  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
+  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
+  EXPECT_TRUE(IsValid(peer_endpoint_pair.local));
+  EXPECT_TRUE(IsValid(peer_endpoint_pair.external));
+
+  auto peer_futures(nodes_[1]->GetFutureForMessages(1));
+  auto this_node_futures(node_.GetFutureForMessages(1));
+  EXPECT_EQ(kSuccess,
+            nodes_[1]->managed_connections()->Add(peer_endpoint_pair.external,
+                                                  this_endpoint_pair.external,
+                                                  nodes_[1]->kValidationData()));
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->Add(this_endpoint_pair.external,
+                                             peer_endpoint_pair.external,
+                                             node_.kValidationData()));
+  ASSERT_TRUE(peer_futures.timed_wait(bptime::seconds(3)));
+  auto peer_messages(peer_futures.get());
+  ASSERT_TRUE(this_node_futures.timed_wait(bptime::seconds(3)));
+  auto this_node_messages(this_node_futures.get());
+  ASSERT_EQ(1U, peer_messages.size());
+  ASSERT_EQ(1U, this_node_messages.size());
+  EXPECT_EQ(node_.kValidationData(), peer_messages[0]);
+  EXPECT_EQ(nodes_[1]->kValidationData(), this_node_messages[0]);
 
   // Invalid endpoint
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    node_.managed_connections()->Send(Endpoint(), "message", message_sent_functor);
-    ASSERT_TRUE(cond_var.wait_for(lock,
-                                  std::chrono::milliseconds(100),
-                                  [&result_arrived]() { return result_arrived; }));
-    ASSERT_FALSE(result_of_send);
-  }
+  node_.ResetData();
+  nodes_[1]->ResetData();
+  node_.managed_connections()->Send(Endpoint(), "message7", MessageSentFunctor());
+  result_of_send = true;
+  result_arrived = false;
+  node_.managed_connections()->Send(Endpoint(), "message8", message_sent_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_FALSE(result_of_send);
 
   // Unavailable endpoint
-  {
-    result_of_send = true;
-    result_arrived = false;
-    std::unique_lock<std::mutex> lock(mutex);
-    node_.managed_connections()->Send(Endpoint(GetLocalIp(), GetRandomPort()),
-                             "message",
-                             message_sent_functor);
-    ASSERT_TRUE(cond_var.wait_for(lock,
-                                  std::chrono::milliseconds(100),
-                                  [&result_arrived]() { return result_arrived; }));
-    ASSERT_FALSE(result_of_send);
-  }
+  node_.ResetData();
+  nodes_[1]->ResetData();
+  node_.managed_connections()->Send(Endpoint(GetLocalIp(), GetRandomPort()),
+                                    "message9",
+                                    MessageSentFunctor());
+  result_of_send = true;
+  result_arrived = false;
+  node_.managed_connections()->Send(Endpoint(GetLocalIp(), GetRandomPort()),
+                                    "message10",
+                                    message_sent_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_FALSE(result_of_send);
 
-  {  // Valid
-    result_of_send = false;
-    result_arrived = false;
-    std::unique_lock<std::mutex> lock(mutex);
-    auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(1));
-    node_.managed_connections()->Send(peer_endpoint_pair.external, "message", message_sent_functor);
-    auto messages(future_messages_at_peer.get());
-    ASSERT_EQ(1, messages.size());
-    EXPECT_EQ("message", messages[0]);
-    ASSERT_TRUE(cond_var.wait_for(lock,
-                                  std::chrono::milliseconds(100),
-                                  [&result_arrived]() { return result_arrived; }));
-    ASSERT_TRUE(result_of_send);
-    nodes_[0]->ResetCount();
-  }
+  // Valid Send from node_ to nodes_[1]
+  node_.ResetData();
+  nodes_[1]->ResetData();
+  future_messages_at_peer = nodes_[1]->GetFutureForMessages(2);
+  node_.managed_connections()->Send(peer_endpoint_pair.external, "message11", MessageSentFunctor());
+  result_of_send = false;
+  result_arrived = false;
+  node_.managed_connections()->Send(peer_endpoint_pair.external, "message12", message_sent_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_TRUE(result_of_send);
+  ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(200)));
+  messages = future_messages_at_peer.get();
+  ASSERT_EQ(2U, messages.size());
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message11"));
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message12"));
 
-  {  // Valid large messages
-    result_of_send = false;
-    result_arrived = false;
-    std::unique_lock<std::mutex> lock(mutex);
-    std::string sent_message(std::move(RandomString(8 * 1024 * 1024)));
-    auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(1));
-    node_.managed_connections()->Send(peer_endpoint_pair.external, sent_message, message_sent_functor);
-    auto messages(future_messages_at_peer.get());
-    ASSERT_EQ(1, messages.size());
-    EXPECT_EQ(sent_message, messages[0]);
-    ASSERT_TRUE(cond_var.wait_for(lock,
-                                  std::chrono::milliseconds(100),
-                                  [&result_arrived]() { return result_arrived; }));
-    ASSERT_TRUE(result_of_send);
-    nodes_[0]->ResetCount();
-  }
+  // Valid Send from nodes_[1] to node_
+  node_.ResetData();
+  nodes_[1]->ResetData();
+  future_messages_at_peer = node_.GetFutureForMessages(2);
+  nodes_[1]->managed_connections()->Send(this_endpoint_pair.external, "message13", MessageSentFunctor());
+  result_of_send = false;
+  result_arrived = false;
+  nodes_[1]->managed_connections()->Send(this_endpoint_pair.external, "message14", message_sent_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_TRUE(result_of_send);
+  ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(200)));
+  messages = future_messages_at_peer.get();
+  ASSERT_EQ(2U, messages.size());
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message13"));
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message14"));
+
+  // After Remove
+  node_.ResetData();
+  nodes_[0]->ResetData();
+  node_.managed_connections()->Remove(bootstrap_endpoints_[0]);
+  int count(0);
+  do {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    ++count;
+  } while ((node_.connection_lost_endpoints().empty() ||
+            nodes_[0]->connection_lost_endpoints().empty()) &&
+            count != 10);
+  ASSERT_EQ(node_.connection_lost_endpoints().size(), 1U);
+  ASSERT_EQ(nodes_[0]->connection_lost_endpoints().size(), 1U);
+  EXPECT_EQ(node_.connection_lost_endpoints()[0], bootstrap_endpoints_[0]);
+
+  node_.ResetData();
+  nodes_[0]->ResetData();
+  node_.managed_connections()->Send(bootstrap_endpoints_[0], "message15", MessageSentFunctor());
+  result_of_send = false;
+  result_arrived = false;
+  node_.managed_connections()->Send(bootstrap_endpoints_[0], "message16", message_sent_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_FALSE(result_of_send);
+
+  // Valid large messages
+  node_.ResetData();
+  nodes_[1]->ResetData();
+  std::string sent_message(std::move(RandomString(8 * 1024 * 1024)));
+  future_messages_at_peer = node_.GetFutureForMessages(1);
+  result_of_send = false;
+  result_arrived = false;
+  nodes_[1]->managed_connections()->Send(this_endpoint_pair.external,
+                                         sent_message,
+                                         message_sent_functor);
+  ASSERT_TRUE(cond_var.wait_for(lock,
+                                std::chrono::seconds(10),
+                                [&result_arrived]() { return result_arrived; }));
+  EXPECT_TRUE(result_of_send);
+  ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::seconds(20)));
+  messages = future_messages_at_peer.get();
+  ASSERT_EQ(1U, messages.size());
+  EXPECT_EQ(sent_message, messages[0]);
 }
-
+/*
 // Ad-hoc tests. To be removed later
 TEST_F(ManagedConnectionsTest, BEH_BootstrapAndSend) {
   ManagedConnections managed_connections1, managed_connections2,

@@ -298,8 +298,14 @@ void ManagedConnections::Send(const Endpoint &peer_endpoint,
   auto itr(connection_map_.find(peer_endpoint));
   if (itr == connection_map_.end()) {
     LOG(kError) << "Can't send to " << peer_endpoint << " - not in map.";
-    if (message_sent_functor)
-      asio_service_->service().dispatch([message_sent_functor] { message_sent_functor(false); });
+    if (message_sent_functor) {
+      if (!connection_map_.empty()) {
+        asio_service_->service().dispatch([message_sent_functor] { message_sent_functor(false); });
+      } else {
+        // Probably haven't bootstrapped, so asio_service_ won't be running.
+        boost::thread(message_sent_functor, false);
+      }
+    }
     return;
   }
   (*itr).second->Send(peer_endpoint, message, message_sent_functor);
@@ -323,49 +329,56 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
                                               TransportPtr transport,
                                               bool connections_empty,
                                               bool temporary_connection) {
-  bool remove_transport(connections_empty);
-  UniqueLock unique_lock(shared_mutex_);
-  auto connection_itr(connection_map_.find(peer_endpoint));
-  if (connection_itr == connection_map_.end()) {
-    LOG(kError) << mc_id_ << " Was not connected to " << peer_endpoint << " Now have " << connection_map_.size();
-    if (temporary_connection)
-      remove_transport = false;
-  } else {
-    // If this is a temporary connection to allow this node to bootstrap a new transport off an
-    // existing connection, the transport endpoint passed into the slot will not be the same one
-    // that is listed against the peer's endpoint in the connection_map_.
-    remove_transport = (transport->external_endpoint() ==
-                        (*connection_itr).second->external_endpoint());
-    if (remove_transport) {
-      connection_map_.erase(connection_itr);
-      connection_lost_functor_(peer_endpoint);
-      LOG(kInfo) << mc_id_ << " Removed managed connection to " << peer_endpoint
-                 << " - also removing corresponding transport. Now have " << connection_map_.size();
+  bool should_execute_functor(false);
+  {
+    bool remove_transport(connections_empty);
+    UniqueLock unique_lock(shared_mutex_);
+    auto connection_itr(connection_map_.find(peer_endpoint));
+    if (connection_itr == connection_map_.end()) {
+      LOG(kError) << mc_id_ << " Was not connected to " << peer_endpoint << " Now have " << connection_map_.size();
+      if (temporary_connection)
+        remove_transport = false;
     } else {
-      LOG(kInfo) << mc_id_ << " Not removing managed connection to " << peer_endpoint
-                 << " Now have " << connection_map_.size();
+      // If this is a temporary connection to allow this node to bootstrap a new transport off an
+      // existing connection, the transport endpoint passed into the slot will not be the same one
+      // that is listed against the peer's endpoint in the connection_map_.
+      remove_transport = (transport->external_endpoint() ==
+                          (*connection_itr).second->external_endpoint());
+      if (remove_transport) {
+        connection_map_.erase(connection_itr);
+        should_execute_functor = true;
+        LOG(kInfo) << mc_id_ << " Removed managed connection to " << peer_endpoint
+                   << " - also removing corresponding transport. Now have "
+                   << connection_map_.size();
+      } else {
+        LOG(kInfo) << mc_id_ << " Not removing managed connection to " << peer_endpoint
+                   << " Now have " << connection_map_.size();
+      }
+    }
+
+    if (!remove_transport)
+      return;
+
+    auto itr(std::find_if(
+        transports_.begin(),
+        transports_.end(),
+        [&transport](const TransportAndSignalConnections &element) {
+          return transport == element.transport;
+        }));
+
+    if (itr == transports_.end()) {
+      LOG(kError) << "Failed to find transport in vector.";
+    } else {
+      (*itr).on_message_connection.disconnect();
+      (*itr).on_connection_added_connection.disconnect();
+      (*itr).on_connection_lost_connection.disconnect();
+      (*itr).transport->Close();
+      transports_.erase(itr);
     }
   }
 
-  if (!remove_transport)
-    return;
-
-  auto itr(std::find_if(
-      transports_.begin(),
-      transports_.end(),
-      [&transport](const TransportAndSignalConnections &element) {
-        return transport == element.transport;
-      }));
-
-  if (itr == transports_.end()) {
-    LOG(kError) << "Failed to find transport in vector.";
-    return;
-  }
-  (*itr).on_message_connection.disconnect();
-  (*itr).on_connection_added_connection.disconnect();
-  (*itr).on_connection_lost_connection.disconnect();
-  (*itr).transport->Close();
-  transports_.erase(itr);
+  if (should_execute_functor)
+    connection_lost_functor_(peer_endpoint);
 }
 
 }  // namespace rudp

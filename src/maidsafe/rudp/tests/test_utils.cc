@@ -184,7 +184,12 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
       local_endpoint);
 }
 
-void Node::ResetCount() {
+int Node::GetReceivedMessageCount(const std::string &message) const {
+  std::lock_guard<std::mutex> guard(mutex_);
+  return static_cast<int>(std::count(messages_.begin(), messages_.end(), message));
+}
+
+void Node::ResetData() {
   std::lock_guard<std::mutex> guard(mutex_);
   connection_lost_endpoints_.clear();
   messages_.clear();
