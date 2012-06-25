@@ -540,7 +540,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   // Prepare to send
   node_.ResetData();
   nodes_[1]->ResetData();
-  const int kMessageCount(2);
+  const int kMessageCount(10);
   ASSERT_LE(kMessageCount, std::numeric_limits<int8_t>::max());
   auto future_messages_at_peer(nodes_[1]->GetFutureForMessages(kMessageCount));
   std::vector<std::string> sent_messages;
@@ -573,7 +573,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   }
   ASSERT_TRUE(wait_for_result());
   EXPECT_TRUE(result_of_send);
-  ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(100 * kMessageCount)));
+  ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::seconds(10 * kMessageCount)));
   auto messages(future_messages_at_peer.get());
   ASSERT_EQ(kMessageCount, messages.size());
   for (int i(0); i != kMessageCount; ++i)
