@@ -61,6 +61,11 @@ class Node {
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
   int GetReceivedMessageCount(const std::string &message) const;
   void ResetData();
+  std::vector<Endpoint> GetConnectedEndPoints() { return connected_endpoints_; }
+  void AddConnectedEndPoint(const Endpoint & connected_endpoints) {
+    connected_endpoints_.push_back(connected_endpoints);
+  }
+
 
  private:
   void SetPromiseIfDone();
@@ -68,6 +73,7 @@ class Node {
   const std::string kId_, kValidationData_;
   mutable std::mutex mutex_;
   std::vector<Endpoint> connection_lost_endpoints_;
+  std::vector<Endpoint> connected_endpoints_;
   std::vector<std::string> messages_;
   ManagedConnectionsPtr managed_connections_;
   bool promised_;

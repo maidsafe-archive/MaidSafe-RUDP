@@ -72,11 +72,13 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       kSuccess) {
     return testing::AssertionFailure() << "Node 0 failed to add Node 1";
   }
+  nodes[0]->AddConnectedEndPoint(endpoint1);
   LOG(kInfo) << "Calling Add from " << endpoint1 << " to " << endpoint0;
   if (nodes[1]->managed_connections()->Add(endpoint1, endpoint0, nodes[1]->kValidationData()) !=
       kSuccess) {
     return testing::AssertionFailure() << "Node 1 failed to add Node 0";
   }
+  nodes[1]->AddConnectedEndPoint(endpoint0);
   bootstrap_endpoints.push_back(endpoint0);
   bootstrap_endpoints.push_back(endpoint1);
 
@@ -123,6 +125,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       result = nodes[i]->managed_connections()->Add(this_endpoint_pair.external,
                                                     peer_endpoint_pair.external,
                                                     nodes[i]->kValidationData());
+      nodes[i]->AddConnectedEndPoint(peer_endpoint_pair.external);
       if (result != kSuccess) {
         return testing::AssertionFailure() << "Add failed for " << nodes[i]->kId()
                                            << " with result " << result;
@@ -134,6 +137,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       result = nodes[j]->managed_connections()->Add(peer_endpoint_pair.external,
                                                     this_endpoint_pair.external,
                                                     nodes[j]->kValidationData());
+      nodes[j]->AddConnectedEndPoint(this_endpoint_pair.external);
       if (result != kSuccess) {
         return testing::AssertionFailure() << "Add failed for " << nodes[j]->kId()
                                            << " with result " << result;
@@ -150,6 +154,7 @@ Node::Node(int id)
         kValidationData_(kId_ + std::string("'s validation data")),
         mutex_(),
         connection_lost_endpoints_(),
+        connected_endpoints_(),
         messages_(),
         managed_connections_(new ManagedConnections),
         promised_(false),
