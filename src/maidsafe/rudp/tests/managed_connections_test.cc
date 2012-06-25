@@ -16,6 +16,7 @@
 #include <chrono>
 #include <future>
 #include <functional>
+#include <limits>
 #include <vector>
 
 #include "maidsafe/common/log.h"
@@ -501,124 +502,84 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_EQ(1U, messages.size());
   EXPECT_EQ(sent_message, messages[0]);
 }
-/*
-// Ad-hoc tests. To be removed later
-TEST_F(ManagedConnectionsTest, BEH_BootstrapAndSend) {
-  ManagedConnections managed_connections1, managed_connections2,
-                     managed_connections3;
-  Endpoint endpoint1(GetLocalIp(), GetRandomPort()),
-           endpoint2(GetLocalIp(), GetRandomPort());
 
-  auto future1 = std::async(std::launch::async, [&] {
-      return managed_connections1.Bootstrap(std::vector<Endpoint>(1, endpoint2),
-                                            message_received_functor_,
-                                            connection_lost_functor_,
-                                            endpoint1);});  // NOLINT (Fraser)
+TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
-  auto future2 = std::async(std::launch::async, [&] {
-      return managed_connections2.Bootstrap(std::vector<Endpoint>(1, endpoint1),
-                                            message_received_functor_,
-                                            connection_lost_functor_,
-                                            endpoint2);});  // NOLINT (Fraser)
-  ASSERT_TRUE(WaitUntilReady(future1, std::chrono::milliseconds(3000)));
-  ASSERT_TRUE(WaitUntilReady(future2, std::chrono::milliseconds(3000)));
-  ASSERT_FALSE(future1.get().address().is_unspecified());
-  ASSERT_FALSE(future2.get().address().is_unspecified());
-  ASSERT_EQ(1U, managed_connections1.connection_map_.size());
-  ASSERT_EQ(1U, managed_connections2.connection_map_.size());
+  // Bootstrap off nodes_[0]
+  Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0])));
+  ASSERT_EQ(bootstrap_endpoints_[0], chosen_endpoint);
 
-  boost::asio::ip::udp::endpoint bootstrap_endpoint =
-      managed_connections3.Bootstrap(std::vector<Endpoint>(1, endpoint1),
-                                     message_received_functor_,
-                                     connection_lost_functor_);
+  // Connect node_ to nodes_[1]
+  nodes_[1]->ResetData();
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->GetAvailableEndpoint(Endpoint(), this_endpoint_pair));
+  EXPECT_EQ(kSuccess,
+            nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.external,
+                                                                   peer_endpoint_pair));
+  auto peer_futures(nodes_[1]->GetFutureForMessages(1));
+  auto this_node_futures(node_.GetFutureForMessages(1));
+  EXPECT_EQ(kSuccess,
+            nodes_[1]->managed_connections()->Add(peer_endpoint_pair.external,
+                                                  this_endpoint_pair.external,
+                                                  nodes_[1]->kValidationData()));
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->Add(this_endpoint_pair.external,
+                                             peer_endpoint_pair.external,
+                                             node_.kValidationData()));
+  ASSERT_TRUE(peer_futures.timed_wait(bptime::seconds(3)));
+  auto peer_messages(peer_futures.get());
+  ASSERT_TRUE(this_node_futures.timed_wait(bptime::seconds(3)));
+  auto this_node_messages(this_node_futures.get());
+  ASSERT_EQ(1U, peer_messages.size());
+  ASSERT_EQ(1U, this_node_messages.size());
+  EXPECT_EQ(node_.kValidationData(), peer_messages[0]);
+  EXPECT_EQ(nodes_[1]->kValidationData(), this_node_messages[0]);
 
-  EXPECT_EQ(endpoint1, bootstrap_endpoint);
-  ASSERT_EQ(2U, managed_connections1.connection_map_.size());
-  ASSERT_EQ(1U, managed_connections2.connection_map_.size());
-  ASSERT_EQ(1U, managed_connections3.connection_map_.size());
-  ASSERT_EQ(1U, managed_connections3.transports_.size());
+  // Prepare to send
+  node_.ResetData();
+  nodes_[1]->ResetData();
+  const int kMessageCount(2);
+  ASSERT_LE(kMessageCount, std::numeric_limits<int8_t>::max());
+  auto future_messages_at_peer(nodes_[1]->GetFutureForMessages(kMessageCount));
+  std::vector<std::string> sent_messages;
+  for (int8_t i(0); i != kMessageCount; ++i)
+    sent_messages.push_back(std::string(256 * 1024, 'A' + i));
+  bool result_of_send(false);
+  int result_arrived_count(0);
+  std::condition_variable cond_var;
+  std::mutex mutex;
+  std::unique_lock<std::mutex> lock(mutex);
+  MessageSentFunctor message_sent_functor([&](bool result_in) {
+    std::lock_guard<std::mutex> lock(mutex);
+    result_of_send = result_in;
+    ++result_arrived_count;
+    cond_var.notify_one();
+  });
+  auto wait_for_result([&] {
+    return cond_var.wait_for(lock,
+                             std::chrono::seconds(20),
+                             [kMessageCount, &result_arrived_count] {
+                               return result_arrived_count == kMessageCount;
+                             });
+  });
 
-  Endpoint endpoint3((*managed_connections3.transports_.begin()).transport->local_endpoint());
-  std::string port1(boost::lexical_cast<std::string>(endpoint1.port()));
-  std::string port2(boost::lexical_cast<std::string>(endpoint2.port()));
-  std::string port3(boost::lexical_cast<std::string>(endpoint3.port()));
-
-  for (int i(0); i != 200; ++i) {
-    Sleep(bptime::milliseconds(1));
-    std::string message("Message " + boost::lexical_cast<std::string>(i / 2));
-    if (i % 2) {
-      managed_connections1.Send(endpoint2,
-                                message + " from " + port1 + " to " + port2,
-                                MessageSentFunctor());
-      managed_connections1.Send(endpoint3,
-                                message + " from " + port1 + " to " + port3,
-                                MessageSentFunctor());
-    } else {
-      managed_connections2.Send(endpoint1,
-                                message + " from " + port2 + " to " + port1,
-                                MessageSentFunctor());
-      managed_connections3.Send(endpoint1,
-                                message + " from " + port3 + " to " + port1,
-                                MessageSentFunctor());
-    }
+  // Send and assess results
+  for (int i(0); i != kMessageCount; ++i) {
+    node_.managed_connections()->Send(peer_endpoint_pair.external,
+                                      sent_messages[i],
+                                      message_sent_functor);
   }
-
-  Sleep(boost::posix_time::milliseconds(10000));
-
-  managed_connections3.Remove(endpoint1);
-  int count(0);
-  do {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    ++count;
-  } while (connection_lost_count_ != 2 && count != 20);
-  ASSERT_EQ(connection_lost_count_, 2);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_TRUE(result_of_send);
+  ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(100 * kMessageCount)));
+  auto messages(future_messages_at_peer.get());
+  ASSERT_EQ(kMessageCount, messages.size());
+  for (int i(0); i != kMessageCount; ++i)
+    EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), sent_messages[i]));
 }
 
-TEST_F(ManagedConnectionsTest, BEH_GetAvailableEndpoint) {
-  ManagedConnections managed_connections1, managed_connections2,
-                     managed_connections3;
-  Endpoint endpoint1(GetLocalIp(), GetRandomPort()),
-           endpoint2(GetLocalIp(), GetRandomPort()),
-           endpoint3(GetLocalIp(), GetRandomPort());
-
-  auto a1 = std::async(std::launch::async, [&] {
-      return managed_connections1.Bootstrap(std::vector<Endpoint>(1, endpoint2),
-                                            message_received_functor_,
-                                            connection_lost_functor_,
-                                            endpoint1);});  // NOLINT (Fraser)
-
-  auto a2 = std::async(std::launch::async, [&] {
-      return managed_connections2.Bootstrap(std::vector<Endpoint>(1, endpoint1),
-                                            message_received_functor_,
-                                            connection_lost_functor_,
-                                            endpoint2);});  // NOLINT (Fraser)
-
-  ASSERT_EQ(a2.wait_for(std::chrono::seconds(3)), std::future_status::ready);
-  ASSERT_EQ(a1.wait_for(std::chrono::seconds(3)), std::future_status::ready);
-  EXPECT_FALSE(a2.get().address().is_unspecified());
-  EXPECT_FALSE(a1.get().address().is_unspecified());
-
-  boost::asio::ip::udp::endpoint bootstrap_endpoint =
-      managed_connections3.Bootstrap(std::vector<Endpoint>(1, endpoint1),
-                                     message_received_functor_,
-                                     connection_lost_functor_);
-
-  EXPECT_FALSE(bootstrap_endpoint.address().is_unspecified());
-
-  EndpointPair new_endpoint_pair, new_endpoint_pair1;
-  EXPECT_EQ(kSuccess, managed_connections1.GetAvailableEndpoint(new_endpoint_pair));
-  EXPECT_TRUE(IsValid(new_endpoint_pair.external));
-  EXPECT_TRUE(IsValid(new_endpoint_pair.local));
-  EXPECT_EQ(kSuccess, managed_connections2.GetAvailableEndpoint(new_endpoint_pair1));
-  EXPECT_TRUE(IsValid(new_endpoint_pair1.external));
-  EXPECT_TRUE(IsValid(new_endpoint_pair1.local));
-
-  managed_connections1.Remove(endpoint2);
-  do {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-  } while (connection_lost_count_ != 2);
-}
-*/
 }  // namespace test
 
 }  // namespace rudp

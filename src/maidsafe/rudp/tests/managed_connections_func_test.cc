@@ -14,6 +14,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <deque>
 #include <future>
 #include <functional>
 #include <vector>
@@ -39,73 +40,69 @@ typedef boost::asio::ip::udp::endpoint Endpoint;
 
 namespace test {
 
-namespace {
-typedef std::shared_ptr<Node> TestNodePtr;
-}  // anonymous namspace
-
 class ManagedConnectionsFuncTest : public testing::Test {
-public:
- ManagedConnectionsFuncTest()
-     : nodes_(),
-       bootstrap_endpoints_(),
-       network_size_(4),
-       mutex_() {}
+ public:
+  ManagedConnectionsFuncTest() : nodes_(), bootstrap_endpoints_(), network_size_(4), mutex_() {}
+  ~ManagedConnectionsFuncTest() {}
 
- ~ManagedConnectionsFuncTest() {}
+ protected:
+  // Each node sending n messsages to all other connected nodes.
+  void RunNetworkTest(const uint16_t &num_messages, const int &messages_size) {
+    // to allow actual connection between nodes
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    // validation data will be exchanged, so the message number shall be increased
+    uint16_t messages_received_per_node = (num_messages + 1) * (network_size_ - 1);
+    std::vector<std::string> sent_messages;
+    std::vector<boost::unique_future<std::vector<std::string>>> futures;
 
-protected:
- // Each node sending n messsages to all other connected nodes.
- void RunNetworkTest(const uint16_t &num_messages, const int &messages_size) {
-   std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // to allow actual connection between nodes
-   // validation data will be exchanged, so the message number shall be increased
-   uint16_t messages_received_per_node = (num_messages + 1) * (network_size_ - 1);
-   std::vector<std::string> sent_messages;
-   std::vector<boost::unique_future<std::vector<std::string> > > futures;
+    // Generate_messages
+    for (uint16_t i = 0; i != nodes_.size(); ++i)
+      sent_messages.emplace_back(std::move(RandomString(messages_size)));
 
-   // Generate_messages
-   for (uint16_t i = 0; i != nodes_.size(); ++i)
-     sent_messages.emplace_back(std::move(RandomString(messages_size)));
+    // Get futures for messages from individual nodes
+    for (uint16_t i = 0; i != nodes_.size(); ++i)
+      futures.emplace_back(nodes_.at(i)->GetFutureForMessages(messages_received_per_node));
 
-   // Get futures for messages from individual nodes
-   for (uint16_t i = 0; i != nodes_.size(); ++i)
-     futures.emplace_back(nodes_.at(i)->GetFutureForMessages(messages_received_per_node));
+    // Sending messages
+    for (uint16_t i = 0; i != nodes_.size(); ++i) {
+      std::vector<Endpoint> peers/*(nodes_.at(i)->managed_connections()->GetConnectedEndPoints())*/;
+      std::for_each(peers.begin(), peers.end(), [&](const Endpoint& peer) {
+        // TODO(Fraser#5#): 2012-06-14 - Use valid MessageSentFunctor and check results
+        for (uint16_t j = 0; j != num_messages; ++j) {
+          nodes_.at(i)->managed_connections()->Send(peer,
+                                                    sent_messages.at(i),
+                                                    MessageSentFunctor());
+        }
+      });
+    }
 
-   // Sending messages
-   for (uint16_t i = 0; i != nodes_.size(); ++i) {
-     std::vector<Endpoint> peers/*(nodes_.at(i)->managed_connections()->GetConnectedEndPoints())*/;
-     std::for_each(peers.begin(), peers.end(), [&](const Endpoint& peer) {
-       // TODO(Fraser#5#): 2012-06-14 - Use valid MessageSentFunctor and check results
-       for (uint16_t j = 0; j != num_messages; ++j)
-         nodes_.at(i)->managed_connections()->Send(peer, sent_messages.at(i), MessageSentFunctor());
-     });
-   }
+    // Waiting for all results (promises)
+    std::deque<bool> results;
+    for (uint16_t i = 0; i != nodes_.size(); ++i) {
+      if (!(futures.at(i).timed_wait(bptime::seconds(2)))) {
+        LOG(kError) << "Timed out !!!!!!!!!!";
+        results.push_back(false);
+      } else {
+        results.push_back(!(futures.at(i).get().empty()));
+        EXPECT_TRUE(results.at(i));
+      }
+    }
 
-   // Waiting for all results (promises)
-   std::vector<bool> results;
-   for (uint16_t i = 0; i != nodes_.size(); ++i)
-     if (!(futures.at(i).timed_wait(bptime::seconds(2)))) {
-       LOG(kError) << "Timed out !!!!!!!!!!";
-       results.push_back(false);
-     } else {
-       results.push_back(!(futures.at(i).get().empty()));
-       EXPECT_TRUE(results.at(i));
-     }
+    // Check messages
+    for (uint16_t i = 0; i != nodes_.size(); ++i) {
+      for (uint16_t j = 0; j != sent_messages.size(); ++j) {
+        if (i != j)
+          EXPECT_EQ(num_messages, nodes_.at(i)->GetReceivedMessageCount(sent_messages.at(j)));
+      }
+    }
+  }
 
-   // Check messages
-   for (uint16_t i = 0; i != nodes_.size(); ++i)
-     for (uint16_t j = 0; j != sent_messages.size(); ++j)
-       if (i != j)
-         EXPECT_EQ(num_messages, nodes_.at(i)->GetReceivedMessageCount(sent_messages.at(j)));
- }
+  std::vector<std::shared_ptr<Node>> nodes_;
+  std::vector<Endpoint> bootstrap_endpoints_;
+  uint16_t network_size_;
 
- std::vector<Endpoint> bootstrap_endpoints() { return bootstrap_endpoints_; }
-
- std::vector<TestNodePtr> nodes_;
- std::vector<Endpoint> bootstrap_endpoints_;
- uint16_t network_size_;
-
-private:
- std::mutex mutex_;
+ private:
+  std::mutex mutex_;
 };
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkSmallMessages) {
