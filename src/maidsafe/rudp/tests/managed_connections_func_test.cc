@@ -65,7 +65,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Sending messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      std::vector<Endpoint> peers/*(nodes_.at(i)->managed_connections()->GetConnectedEndPoints())*/;
+      std::vector<Endpoint> peers(nodes_.at(i)->GetConnectedEndPoints());
       std::for_each(peers.begin(), peers.end(), [&](const Endpoint& peer) {
         // TODO(Fraser#5#): 2012-06-14 - Use valid MessageSentFunctor and check results
         for (uint16_t j = 0; j != num_messages; ++j) {
