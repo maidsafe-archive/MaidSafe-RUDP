@@ -48,8 +48,6 @@ class ManagedConnectionsFuncTest : public testing::Test {
  protected:
   // Each node sending n messsages to all other connected nodes.
   void RunNetworkTest(const uint16_t &num_messages, const int &messages_size) {
-    // to allow actual connection between nodes
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     // validation data will be exchanged, so the message number shall be increased
     uint16_t messages_received_per_node = (num_messages + 1) * (network_size_ - 1);
     std::vector<std::string> sent_messages;

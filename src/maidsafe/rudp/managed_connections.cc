@@ -335,7 +335,7 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
     UniqueLock unique_lock(shared_mutex_);
     auto connection_itr(connection_map_.find(peer_endpoint));
     if (connection_itr == connection_map_.end()) {
-      LOG(kError) << mc_id_ << " Was not connected to " << peer_endpoint << " Now have " << connection_map_.size();
+      LOG(kWarning) << mc_id_ << " Was not connected to " << peer_endpoint << " Now have " << connection_map_.size();
       if (temporary_connection)
         remove_transport = false;
     } else {

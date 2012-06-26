@@ -123,7 +123,7 @@ void Receiver::HandleData(const DataPacket &packet) {
       p.bytes_read = 0;
     }
   } else {
-    LOG(kWarning) << "Ignoring incoming packet with seqnum " << seqnum << " and data " << packet.Data();
+    LOG(kWarning) << "Ignoring incoming packet with seqnum " << seqnum/* << " and data " << packet.Data()*/;
   }
 
   if (seqnum % congestion_control_.AckInterval() == 0) {

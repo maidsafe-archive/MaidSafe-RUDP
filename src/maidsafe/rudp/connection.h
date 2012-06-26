@@ -76,6 +76,8 @@ private:
   void DoClose();
   void DoStartConnecting(const std::string &validation_data,
                          const boost::posix_time::time_duration &lifespan);
+  void DoStartSending(const std::string &data,
+                      const std::function<void(bool)> &message_sent_functor);
 
   void CheckTimeout(const boost::system::error_code &ec);
   void CheckLifespanTimeout(const boost::system::error_code &ec);
@@ -116,6 +118,7 @@ private:
   uint8_t probe_retry_attempts_;
   Timeout timeout_for_response_;
   enum TimeoutState { kNoTimeout, kConnecting, kSending, kReceiving } timeout_state_;
+  bool sending_;
 };
 
 }  // namespace rudp

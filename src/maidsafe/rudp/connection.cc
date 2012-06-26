@@ -14,8 +14,9 @@
 #include "maidsafe/rudp/connection.h"
 
 #include <algorithm>
-#include <array>  // NOLINT
+#include <array>
 #include <functional>
+#include <thread>
 
 #include "boost/asio/read.hpp"
 #include "boost/asio/write.hpp"
@@ -55,7 +56,8 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       data_received_(0),
       probe_retry_attempts_(0),
       timeout_for_response_(Parameters::default_receive_timeout),
-      timeout_state_(kNoTimeout) {
+      timeout_state_(kNoTimeout),
+      sending_(false) {
   static_assert((sizeof(detail::DataSize)) == 4, "DataSize must be 4 bytes.");
                                                                             static std::atomic<int> count(0);
                                                                             conn_id_ = "Connection " + boost::lexical_cast<std::string>(count++);
@@ -87,6 +89,7 @@ void Connection::DoClose() {
     timer_.expires_from_now(Parameters::speed_calculate_inverval);
     transport->RemoveConnection(shared_from_this());
     transport_.reset();
+    sending_ = false;
   } else {
                                                                         LOG(kVerbose) << conn_id_ << " DoClose didn't get transport lock";
     // We've already had a go at graceful closure. Just tear down the socket.
@@ -119,9 +122,34 @@ void Connection::MakePermanent() {
 
 void Connection::StartSending(const std::string &data,
                               const MessageSentFunctor &message_sent_functor) {
+  if (sending_)
+    strand_.post(std::bind(&Connection::StartSending, shared_from_this(), data,
+                           message_sent_functor));
+  else
+    strand_.dispatch(std::bind(&Connection::DoStartSending, shared_from_this(), data,
+                               message_sent_functor));
+}
+
+void Connection::DoStartSending(const std::string &data,
+                                const MessageSentFunctor &message_sent_functor) {
+  sending_ = true;
+  MessageSentFunctor wrapped_functor([&, message_sent_functor](bool result) {
+    MessageSentFunctor sent_functor(message_sent_functor);
+    if (sent_functor)
+      sent_functor(result);
+    sending_ = false;
+  });
+
+  if (Stopped()) {
+    if (message_sent_functor)
+      message_sent_functor(false);
+    sending_ = false;
+    return;
+  }
+
   EncodeData(data);
   timeout_for_response_ = Parameters::default_send_timeout;
-  strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), message_sent_functor));
+  strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
 }
 
 void Connection::CheckTimeout(const bs::error_code &ec) {
@@ -141,8 +169,7 @@ void Connection::CheckTimeout(const bs::error_code &ec) {
 
   if (timer_.expires_at() <= asio::deadline_timer::traits_type::now()) {
     // Time has run out.
-    LOG(kError) << "Closing connection to " << socket_.RemoteEndpoint() << " - timed out "
-                << (timeout_state_ == kSending ? "send" : "connect") << "ing.";
+    LOG(kError) << "Closing connection to " << socket_.RemoteEndpoint() << " - timed out.";
     return DoClose();
   }
 
