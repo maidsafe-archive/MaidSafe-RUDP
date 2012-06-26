@@ -16,12 +16,15 @@
 #include <thread>
 
 #include "boost/lexical_cast.hpp"
+#include "boost/date_time/posix_time/posix_time.hpp"
 
 #include "maidsafe/common/log.h"
 
 #include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/utils.h"
+
+namespace bptime = boost::posix_time;
 
 
 namespace maidsafe {
@@ -81,10 +84,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   nodes[1]->AddConnectedEndPoint(endpoint0);
   bootstrap_endpoints.push_back(endpoint0);
   bootstrap_endpoints.push_back(endpoint1);
+  nodes[0]->ResetData();
+  nodes[1]->ResetData();
 
   LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
 
-  // TODO(Prakash): Check for validation messages at each node
   // Adding nodes to each other
   for (int i(2); i != node_count; ++i) {
     Endpoint chosen_endpoint(nodes[i]->Bootstrap(bootstrap_endpoints));
@@ -92,6 +96,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->kId();
 
     for (int j(0); j != i; ++j) {
+      nodes[i]->ResetData();
+      nodes[j]->ResetData();
       LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[i]->kId();
       Endpoint peer_endpoint;
       if (chosen_endpoint == bootstrap_endpoints[j])
@@ -99,9 +105,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       EndpointPair this_endpoint_pair, peer_endpoint_pair;
       int result(nodes[i]->managed_connections()->GetAvailableEndpoint(peer_endpoint,
                                                                        this_endpoint_pair));
-      if (result != kSuccess ||
-          !IsValid(this_endpoint_pair.local) ||
-          !IsValid(this_endpoint_pair.external)) {
+      if (result != kSuccess) {
         return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
                                            << nodes[i]->kId() << " with result " << result
                                            << ".  Local: " << this_endpoint_pair.local
@@ -110,15 +114,15 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[j]->kId();
       result = nodes[j]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.external,
                                                                      peer_endpoint_pair);
-      if (result != kSuccess ||
-          !IsValid(peer_endpoint_pair.local) ||
-          !IsValid(peer_endpoint_pair.external)) {
+      if (result != kSuccess) {
         return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
                                            << nodes[j]->kId() << " with result " << result
                                            << ".  Local: " << peer_endpoint_pair.local
                                            << "  External: " << peer_endpoint_pair.external;
       }
 
+      auto futures0(nodes[i]->GetFutureForMessages(1));
+      auto futures1(nodes[j]->GetFutureForMessages(1));
       LOG(kInfo) << "Calling Add from " << nodes[i]->kId() << " on "
                   << this_endpoint_pair.external << " to " << nodes[j]->kId()
                   << " on " << peer_endpoint_pair.external;
@@ -141,6 +145,34 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       if (result != kSuccess) {
         return testing::AssertionFailure() << "Add failed for " << nodes[j]->kId()
                                            << " with result " << result;
+      }
+      if (!futures0.timed_wait(bptime::seconds(3))) {
+        return testing::AssertionFailure() << "Failed waiting for " << nodes[i]->kId()
+            << " to receive " << nodes[j]->kId() << "'s validation data.";
+      }
+      if (!futures1.timed_wait(bptime::seconds(3))) {
+        return testing::AssertionFailure() << "Failed waiting for " << nodes[j]->kId()
+            << " to receive " << nodes[i]->kId() << "'s validation data.";
+      }
+      auto messages0(futures0.get());
+      auto messages1(futures1.get());
+      if (messages0.size() != 1U) {
+        return testing::AssertionFailure() << nodes[i]->kId() << " has "
+            << messages0.size() << " messages [should be 1].";
+      }
+      if (messages1.size() != 1U) {
+        return testing::AssertionFailure() << nodes[j]->kId() << " has "
+            << messages1.size() << " messages [should be 1].";
+      }
+      if (messages0[0] != nodes[j]->kValidationData()) {
+        return testing::AssertionFailure() << nodes[i]->kId() << " has received " << nodes[j]->kId()
+            << "'s validation data as " << messages0[0] << " [should be \""
+            << nodes[j]->kValidationData() << "\"].";
+      }
+      if (messages1[0] != nodes[i]->kValidationData()) {
+        return testing::AssertionFailure() << nodes[j]->kId() << " has received " << nodes[i]->kId()
+            << "'s validation data as " << messages1[0] << " [should be \""
+            << nodes[i]->kValidationData() << "\"].";
       }
       bootstrap_endpoints.push_back(this_endpoint_pair.external);
     }
@@ -176,7 +208,15 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
   return managed_connections_->Bootstrap(
       bootstrap_endpoints,
       [&](const std::string &message) {
-        LOG(kInfo) << kId_ << " -- Received: " << message.substr(0, 30);
+        bool is_printable(true);
+        for (auto itr(message.begin()); itr != message.end(); ++itr) {
+          if (*itr < 32 || *itr > 127) {
+            is_printable = false;
+            break;
+          }
+        }
+        LOG(kInfo) << kId_ << " -- Received: " << (is_printable ? message.substr(0, 30) :
+                                                   EncodeToHex(message.substr(0, 15)));
         std::lock_guard<std::mutex> guard(mutex_);
         messages_.emplace_back(message);
         SetPromiseIfDone();
@@ -185,6 +225,10 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
         LOG(kInfo) << kId_ << " -- Lost connection to " << endpoint;
         std::lock_guard<std::mutex> guard(mutex_);
         connection_lost_endpoints_.emplace_back(endpoint);
+        connected_endpoints_.erase(std::remove(connected_endpoints_.begin(),
+                                               connected_endpoints_.end(),
+                                               endpoint),
+                                   connected_endpoints_.end());
       },
       local_endpoint);
 }
