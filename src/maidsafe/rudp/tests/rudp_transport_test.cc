@@ -65,6 +65,12 @@ class RudpTransportTest : public testing::Test {
       asio_service->Start();
     }
 
+    ~TestPeer () {
+      // TODO(Team): the following block maybe required for the DropConnection Test 
+//       transport->Close();
+//       asio_service->Stop();
+    }
+
     void OnMessageSlot(const std::string &message) {
       boost::mutex::scoped_lock lock(mutex);
       messages_received.push_back(message);
@@ -109,30 +115,81 @@ class RudpTransportTest : public testing::Test {
     transports_.clear();
   }
 
+  void ConnectTestPeers() {
+    transports_[0]->transport->Connect(transports_[1]->local_endpoint,
+                                      "validation data from node 0");
+    transports_[1]->transport->Connect(transports_[0]->local_endpoint,
+                                      "validation data from node 1");
+    boost::mutex::scoped_lock lock(transports_[1]->mutex);
+    EXPECT_TRUE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
+  }
+
   std::vector<std::shared_ptr<TestPeer> > transports_;
   uint16_t network_size_;
   bptime::time_duration kTimeOut_;
 };
 
 TEST_F(RudpTransportTest, FUNC_Connection) {
-  transports_[0]->transport->Connect(transports_[1]->local_endpoint,
-                                     "validation data from node 0");
-  transports_[1]->transport->Connect(transports_[0]->local_endpoint,
-                                     "validation data from node 1");
-
-  boost::mutex::scoped_lock lock(transports_[1]->mutex);
-  EXPECT_TRUE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
-
+  ConnectTestPeers();
   bool send_result(false);
   transports_[1]->messages_received.clear();
   std::string msg_content(RandomString(256));
   transports_[0]->transport->Send(transports_[1]->local_endpoint, msg_content,
                                   [&](bool result) { send_result = result; });
-
+  boost::mutex::scoped_lock lock(transports_[1]->mutex);
   EXPECT_TRUE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
   EXPECT_TRUE(send_result);
   EXPECT_EQ(1U, transports_[1]->messages_received.size());
   EXPECT_EQ(msg_content, transports_[1]->messages_received[0]);
+}
+
+TEST_F(RudpTransportTest, FUNC_CloseConnection) {
+  ConnectTestPeers();
+  transports_[1]->transport->CloseConnection(transports_[0]->local_endpoint);
+  {
+    boost::mutex::scoped_lock lock(transports_[0]->mutex);
+    EXPECT_TRUE(transports_[0]->cond_var_connection_lost.timed_wait(lock, kTimeOut_));
+  }
+  EXPECT_EQ(1U, transports_[0]->peers_lost.size());
+  EXPECT_EQ(transports_[1]->local_endpoint, transports_[0]->peers_lost[0]);
+
+// TODO(Team): removing following testing block will cause a segmentation failure
+
+  bool send_result(true);
+  transports_[1]->messages_received.clear();
+  std::string msg_content("testing msg from node 0");
+  transports_[0]->transport->Send(transports_[1]->local_endpoint, msg_content,
+                                  [&](bool result) { send_result = result; });
+  boost::mutex::scoped_lock lock(transports_[1]->mutex);
+  EXPECT_FALSE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
+  EXPECT_FALSE(send_result);
+  EXPECT_EQ(0, transports_[1]->messages_received.size());
+}
+
+TEST_F(RudpTransportTest, DISABLED_FUNC_DropConnection) {
+  ConnectTestPeers();
+  Endpoint dropped_endpoint(transports_[0]->local_endpoint);
+  int attemps(0);
+  while ((attemps < 10) && (transports_[0]->messages_received.size() == 0)) {
+    ++attemps;
+    Sleep(bptime::milliseconds(100));
+  }
+  transports_.erase(transports_.begin());
+
+  boost::mutex::scoped_lock lock(transports_[0]->mutex);
+  EXPECT_TRUE(transports_[0]->cond_var_connection_lost.timed_wait(lock, kTimeOut_));
+
+  EXPECT_EQ(1U, transports_[0]->peers_lost.size());
+  EXPECT_EQ(dropped_endpoint, transports_[0]->peers_lost[0]);
+
+  bool send_result(true);
+  transports_[0]->messages_received.clear();
+  std::string msg_content("testing msg from node 0");
+  transports_[0]->transport->Send(dropped_endpoint, msg_content,
+                                  [&](bool result) { send_result = result; });
+  EXPECT_FALSE(transports_[0]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
+  EXPECT_FALSE(send_result);
+  EXPECT_EQ(0, transports_[0]->messages_received.size());
 }
 
 }  // namespace test
