@@ -252,9 +252,20 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
   if (IsValid(joining_peer_endpoint)) {
             LOG(kVerbose) << trans_id_ << " GetJoiningPeerEndpoint called with valid endpoint: " << joining_peer_endpoint;
     // Check if this joining node is already connected
-    boost::mutex::scoped_lock lock(mutex_);
-    auto itr(FindConnection(joining_peer_endpoint));
-    if (itr == connections_.end()) {
+    ConnectionPtr joining_connection;
+    {
+      boost::mutex::scoped_lock lock(mutex_);
+      auto itr(FindConnection(joining_peer_endpoint));
+      if (itr != connections_.end())
+        joining_connection = *itr;
+    }
+    if (joining_connection) {
+      if (!joining_connection->IsTemporary()) {
+        LOG(kWarning) << "Received another bootstrap connection request from currently "
+                      << "connected endpoint " << joining_peer_endpoint << " - closing connection.";
+        joining_connection->Close();
+      }
+    } else {
       // Joining node is not already connected - start new temporary connection
       ConnectionPtr connection(
           std::make_shared<Connection>(shared_from_this(),
@@ -262,12 +273,6 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
                                        multiplexer_,
                                        joining_peer_endpoint));
       connection->StartConnecting("", Parameters::bootstrap_disconnection_timeout);
-    } else {
-      if (!(*itr)->IsTemporary()) {
-        LOG(kWarning) << "Received another bootstrap connection request from currently "
-                      << "connected endpoint " << joining_peer_endpoint << " - closing connection.";
-        (*itr)->Close();
-      }
     }
   }
   StartDispatch();

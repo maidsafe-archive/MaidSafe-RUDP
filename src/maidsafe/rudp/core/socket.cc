@@ -250,6 +250,8 @@ void Socket::ProcessFlush() {
     waiting_flush_.cancel();
   } else if (!session_.IsConnected()) {
     LOG(kError) << sock_id_ << std::boolalpha << " Sender flushed: " << sender_.Flushed() << "  Receiver flushed: " << receiver_.Flushed();
+  } else {
+    LOG(kVerbose) << sock_id_ << std::boolalpha << " Sender flushed: " << sender_.Flushed() << "  Receiver flushed: " << receiver_.Flushed();
   }
 }
 

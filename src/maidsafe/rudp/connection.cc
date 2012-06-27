@@ -86,10 +86,11 @@ void Connection::DoClose() {
     // start flushing the socket to attempt a graceful closure.
     socket_.NotifyClose();
     socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose, shared_from_this())));
-    timer_.expires_from_now(Parameters::speed_calculate_inverval);
     transport->RemoveConnection(shared_from_this());
     transport_.reset();
     sending_ = false;
+    timer_.expires_from_now(Parameters::disconnection_timeout);
+    timeout_state_ = kClosing;
   } else {
                                                                         LOG(kVerbose) << conn_id_ << " DoClose didn't get transport lock";
     // We've already had a go at graceful closure. Just tear down the socket.
@@ -204,6 +205,10 @@ void Connection::HandleTick() {
 //                                                                                        }
   }
   // We need to keep ticking during a graceful shutdown.
+  if (timeout_state_ == kClosing && timer_.expires_from_now().is_negative()) {
+    LOG(kInfo) << conn_id_ << " Timer has expired during closing - forcing close now.";
+    return DoClose();
+  }
                                                             LOG(kInfo) << conn_id_ << " Timer expires at " << timer_.expires_at();
   if (socket_.IsOpen()) {
     StartTick();

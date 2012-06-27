@@ -83,6 +83,9 @@ struct Parameters {
   // Timeout defined to disconnect Bootstrapping connection.
   static Timeout bootstrap_disconnection_timeout;
 
+  // Timeout defined for allowing flushing pending data after Connection::Close is called.
+  static Timeout disconnection_timeout;
+
   // Defined connection types
   enum ConnectionType {
     kWireless = 0x0fffffff,
