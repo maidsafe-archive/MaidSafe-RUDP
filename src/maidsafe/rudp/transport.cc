@@ -130,7 +130,6 @@ void Transport::Close() {
     strand_.post(std::bind(&Connection::Close, *it));
   if (multiplexer_)
     multiplexer_->Close();
-  multiplexer_.reset();
                                                                                 LOG(kVerbose) << trans_id_ << " closed.";
 }
 

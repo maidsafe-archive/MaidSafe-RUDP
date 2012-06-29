@@ -116,8 +116,7 @@ private:
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   size_t data_size_, data_received_;
   uint8_t probe_retry_attempts_;
-  Timeout timeout_for_response_;
-  enum TimeoutState { kNoTimeout, kConnecting, kSending, kReceiving, kClosing } timeout_state_;
+  enum TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
   bool sending_;
 };
 

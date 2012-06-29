@@ -103,8 +103,7 @@ class Multiplexer {
   // Dispatcher keeps track of the active sockets.
   Dispatcher dispatcher_;
 
-  // This node's external endpoint - passed to session and set during
-  // handshaking.
+  // This node's external endpoint - passed to session and set during handshaking.
   boost::asio::ip::udp::endpoint external_endpoint_;
 };
 

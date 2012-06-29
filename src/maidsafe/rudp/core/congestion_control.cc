@@ -52,18 +52,17 @@ CongestionControl::CongestionControl()
     packet_pair_intervals_(),
     peer_connection_type_(0),
     allowed_lost_(0),
-    transmitted_bits_(0),
-    last_record_transmit_time_(),
-    transmission_speed_(0) {
-}
+    transmitted_bytes_(std::numeric_limits<uintmax_t>::max()),
+    bits_per_second_(0),
+    last_record_transmit_time_() {}
 
 void CongestionControl::OnOpen(uint32_t /*send_seqnum*/,
                                uint32_t /*receive_seqnum*/) {
-  transmitted_bits_ = 0;
+  transmitted_bytes_ = std::numeric_limits<uintmax_t>::max();
 }
 
 void CongestionControl::OnClose() {
-  transmitted_bits_ = 0;
+  transmitted_bytes_ = std::numeric_limits<uintmax_t>::max();
 }
 
 void CongestionControl::OnDataPacketSent(uint32_t /*seqnum*/) {
@@ -249,33 +248,28 @@ void CongestionControl::SetPeerConnectionType(uint32_t connection_type) {
   }
 }
 
-bool CongestionControl::IsSlowTransmission(size_t length) {
-  // if length keeps to be zero, socket will have timeout eventually
-  // so don't need to worry about all 0 situation here
-  if (transmitted_bits_ == 0) {
-    transmitted_bits_ += static_cast<uint32_t>(length * 8);
-    last_record_transmit_time_ = TickTimer::Now();
-  } else {
-    transmitted_bits_ += static_cast<uint32_t>(length * 8);
-    // only calculate speed every calculation interval
-    boost::posix_time::time_duration duration = TickTimer::Now() -
-                                                last_record_transmit_time_;
-    if (duration > Parameters::speed_calculate_inverval) {
-      transmission_speed_ =
-          static_cast<uint32_t>(1000 * transmitted_bits_ /
-                                duration.total_milliseconds());
-      // be different to the initial state
-      transmitted_bits_ = 1;
-      last_record_transmit_time_ = TickTimer::Now();
-      if (transmission_speed_ < Parameters::slow_speed_threshold)
-        return true;
-    }
-  }
+bool CongestionControl::IsSlowTransmission(size_t /*length*/) {
+  //// if length keeps to be zero, socket will have timeout eventually
+  //// so don't need to worry about all 0 situation here
+  //if (transmitted_bytes_ == std::numeric_limits<uintmax_t>::max()) {
+  //  transmitted_bytes_ = length;
+  //  last_record_transmit_time_ = TickTimer::Now();
+  //} else {
+  //  boost::posix_time::ptime now(TickTimer::Now());
+  //  transmitted_bytes_ += length;
+  //  // only calculate speed every calculation interval
+  //  boost::posix_time::time_duration duration = now - last_record_transmit_time_;
+  //  if (duration > Parameters::speed_calculate_inverval) {
+  //    BOOST_ASSERT(transmitted_bytes_ < std::numeric_limits<uintmax_t>::max() / 1000);
+  //    bits_per_second_ = (1000 * transmitted_bytes_) / duration.total_milliseconds();
+  //    // be different to the initial state
+  //    transmitted_bytes_ = 0;
+  //    last_record_transmit_time_ = now;
+  //    if (bits_per_second_ < Parameters::slow_speed_threshold)
+  //      return true;
+  //  }
+  //}
   return false;
-}
-
-uint32_t CongestionControl::TransmissionSpeed() const {
-  return transmission_speed_;
 }
 
 size_t CongestionControl::AllowedLost() const {

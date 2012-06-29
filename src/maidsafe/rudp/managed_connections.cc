@@ -55,15 +55,17 @@ ManagedConnections::ManagedConnections()
 }
 
 ManagedConnections::~ManagedConnections() {
-  UniqueLock unique_lock(shared_mutex_);
-  std::for_each(transports_.begin(),
-                transports_.end(),
-                [](const TransportAndSignalConnections &element) {
-    element.on_connection_lost_connection.disconnect();
-    element.on_connection_added_connection.disconnect();
-    element.on_message_connection.disconnect();
-    element.transport->Close();
-  });
+  {
+    UniqueLock unique_lock(shared_mutex_);
+    std::for_each(transports_.begin(),
+                  transports_.end(),
+                  [](const TransportAndSignalConnections &element) {
+      element.on_connection_lost_connection.disconnect();
+      element.on_connection_added_connection.disconnect();
+      element.on_message_connection.disconnect();
+      element.transport->Close();
+    });
+  }
   asio_service_->Stop();
                                                                                 LOG(kVerbose) << mc_id_ << " destructor";
 }

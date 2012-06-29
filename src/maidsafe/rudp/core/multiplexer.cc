@@ -95,23 +95,24 @@ void Multiplexer::Close() {
   if (ec)
     LOG(kWarning) << "Multiplexer closing error: " << ec.message();
   assert(!IsOpen());
+  external_endpoint_ = ip::udp::endpoint();
 }
 
-boost::asio::ip::udp::endpoint Multiplexer::GetJoiningPeerEndpoint() {
+ip::udp::endpoint Multiplexer::GetJoiningPeerEndpoint() {
   return dispatcher_.GetAndClearJoiningPeerEndpoint();
 }
 
-boost::asio::ip::udp::endpoint Multiplexer::local_endpoint() const {
+ip::udp::endpoint Multiplexer::local_endpoint() const {
   boost::system::error_code ec;
-  boost::asio::ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
+  ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
   if (ec) {
     LOG(kError) << ec.message();
-    return boost::asio::ip::udp::endpoint();
+    return ip::udp::endpoint();
   }
   return local_endpoint;
 }
 
-boost::asio::ip::udp::endpoint Multiplexer::external_endpoint() const {
+ip::udp::endpoint Multiplexer::external_endpoint() const {
   return external_endpoint_;
 }
 

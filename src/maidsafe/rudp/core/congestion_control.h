@@ -79,8 +79,6 @@ class CongestionControl {
 
   // Calculate if the transmission speed is too slow
   bool IsSlowTransmission(size_t length);
-  // In b/s
-  uint32_t TransmissionSpeed() const;
 
  private:
   // Disallow copying and assignment.
@@ -121,10 +119,8 @@ class CongestionControl {
   size_t allowed_lost_;
 
   // Speed calculation related;
-  uint32_t transmitted_bits_;
+  uintmax_t transmitted_bytes_, bits_per_second_;
   boost::posix_time::ptime last_record_transmit_time_;
-  // in b/s
-  uint32_t transmission_speed_;
 };
 
 }  // namespace detail
