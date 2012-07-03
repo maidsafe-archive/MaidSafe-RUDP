@@ -105,9 +105,6 @@ Endpoint ManagedConnections::Bootstrap(
   if (IsValid(local_endpoint)) {
     local_ip_ = local_endpoint.address();
   } else {
-    // TODO(Prakash): FIXME, Temporarily adding loopback address for tests to pass.
-    // Need to fix GetLocalIp().
-//                                                         local_ip_ = boost::asio::ip::address_v4::loopback();
     local_ip_ = GetLocalIp();
     if (local_ip_.is_unspecified()) {
       LOG(kError) << "Failed to retrieve local IP.";
