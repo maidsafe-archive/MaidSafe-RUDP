@@ -344,38 +344,38 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
       // If this is a temporary connection to allow this node to bootstrap a new transport off an
       // existing connection, the transport endpoint passed into the slot will not be the same one
       // that is listed against the peer's endpoint in the connection_map_.
-      remove_transport = (transport->external_endpoint() ==
-                          (*connection_itr).second->external_endpoint());
-      if (remove_transport) {
+      if (transport->external_endpoint() == (*connection_itr).second->external_endpoint()) {
         connection_map_.erase(connection_itr);
         should_execute_functor = true;
         LOG(kInfo) << mc_id_ << " Removed managed connection to " << peer_endpoint
-                   << " - also removing corresponding transport. Now have "
+                   << (remove_transport ? " - also removing corresponding transport.  Now have " :
+                                          " - not removing transport.  Now have ")
                    << connection_map_.size();
       } else {
+        assert(temporary_connection);
         LOG(kInfo) << mc_id_ << " Not removing managed connection to " << peer_endpoint
                    << " Now have " << connection_map_.size();
+        remove_transport = false;
       }
     }
 
-    if (!remove_transport)
-      return;
+    if (remove_transport) {
+      auto itr(std::find_if(
+          transports_.begin(),
+          transports_.end(),
+          [&transport](const TransportAndSignalConnections &element) {
+            return transport == element.transport;
+          }));
 
-    auto itr(std::find_if(
-        transports_.begin(),
-        transports_.end(),
-        [&transport](const TransportAndSignalConnections &element) {
-          return transport == element.transport;
-        }));
-
-    if (itr == transports_.end()) {
-      LOG(kError) << "Failed to find transport in vector.";
-    } else {
-      (*itr).on_message_connection.disconnect();
-      (*itr).on_connection_added_connection.disconnect();
-      (*itr).on_connection_lost_connection.disconnect();
-      (*itr).transport->Close();
-      transports_.erase(itr);
+      if (itr == transports_.end()) {
+        LOG(kError) << "Failed to find transport in vector.";
+      } else {
+        (*itr).on_message_connection.disconnect();
+        (*itr).on_connection_added_connection.disconnect();
+        (*itr).on_connection_lost_connection.disconnect();
+        (*itr).transport->Close();
+        transports_.erase(itr);
+      }
     }
   }
 

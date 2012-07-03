@@ -115,7 +115,7 @@ private:
   boost::asio::ip::udp::endpoint remote_endpoint_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   size_t data_size_, data_received_;
-  uint8_t probe_retry_attempts_;
+  uint8_t failed_probe_count_;
   enum TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
   bool sending_;
 };

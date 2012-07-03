@@ -37,6 +37,8 @@ namespace maidsafe {
 
 namespace rudp {
 
+namespace test { class ManagedConnectionsTest_BEH_API_Keepalive_Test; }
+
 class Transport;
 
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
@@ -93,6 +95,7 @@ class ManagedConnections {
             MessageSentFunctor message_sent_functor) const;
 
   friend class Transport;
+  friend class test::ManagedConnectionsTest_BEH_API_Keepalive_Test;
                                                                                                 std::string mc_id_;
 
  private:

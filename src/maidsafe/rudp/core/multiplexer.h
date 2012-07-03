@@ -52,7 +52,7 @@ class Multiplexer {
   // Asynchronously receive a single packet and dispatch it.
   template <typename DispatchHandler>
   void AsyncDispatch(DispatchHandler handler) {
-                                                                            LOG(kVerbose) << mux_id_ << " Ticking";
+                                                                            LOG(kVerbose) << mux_id_ << " on " << external_endpoint_ << " Ticking";
     DispatchOp<DispatchHandler> op(handler, &socket_,
                                    boost::asio::buffer(receive_buffer_),
                                    &sender_endpoint_, &dispatcher_);
@@ -71,7 +71,7 @@ class Multiplexer {
       boost::system::error_code ec;
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
-        LOG(kWarning) << "Error sending to << " << endpoint << " - " << ec.message();
+        LOG(kWarning) << mux_id_ << " Error sending from " << external_endpoint_ << " to << " << endpoint << " - " << ec.message();
         return kSendFailure;
       } else {
         return kSuccess;

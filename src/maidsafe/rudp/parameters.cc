@@ -19,7 +19,7 @@ namespace maidsafe {
 namespace rudp {
 
 uint32_t Parameters::thread_count(8);
-uint32_t Parameters::default_window_size(16);
+uint32_t Parameters::default_window_size(64);
 uint32_t Parameters::maximum_window_size(512);
 uint32_t Parameters::default_size(1480);
 uint32_t Parameters::max_size(25980);
@@ -27,15 +27,16 @@ uint32_t Parameters::default_data_size(1450);
 uint32_t Parameters::max_data_size(25950);
 Timeout Parameters::default_send_timeout(bptime::seconds(10));
 Timeout Parameters::default_receive_timeout(bptime::seconds(10));
-Timeout Parameters::default_send_delay(bptime::milliseconds(1000));
+Timeout Parameters::default_send_delay(bptime::seconds(1));
 Timeout Parameters::default_receive_delay(bptime::milliseconds(100));
-Timeout Parameters::default_ack_timeout(bptime::milliseconds(1000));
+Timeout Parameters::default_ack_timeout(bptime::seconds(1));
 Timeout Parameters::ack_interval(bptime::milliseconds(100));
 Timeout Parameters::speed_calculate_inverval(bptime::seconds(10));
 uint32_t Parameters::slow_speed_threshold(1024);
-Timeout Parameters::connect_timeout(bptime::milliseconds(5000));
-Timeout Parameters::keepalive_interval(bptime::milliseconds(10000));
-Timeout Parameters::keepalive_timeout(bptime::milliseconds(1000));
+Timeout Parameters::connect_timeout(bptime::seconds(5));
+Timeout Parameters::keepalive_interval(bptime::milliseconds(500));
+Timeout Parameters::keepalive_timeout(bptime::milliseconds(200));
+uint32_t Parameters::maximum_keepalive_failures(10);
 Timeout Parameters::bootstrap_disconnection_timeout(bptime::seconds(60));
 Timeout Parameters::disconnection_timeout(bptime::milliseconds(100));
 Parameters::ConnectionType Parameters::connection_type(Parameters::kWireless);

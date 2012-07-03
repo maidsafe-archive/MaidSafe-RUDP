@@ -37,30 +37,31 @@ namespace rudp {
 namespace detail {
 
 Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
-  : dispatcher_(multiplexer.dispatcher_),
-    peer_(multiplexer),
-    tick_timer_(multiplexer.socket_.get_io_service()),
-    session_(peer_, tick_timer_, multiplexer.external_endpoint_),
-    congestion_control_(),
-    sender_(peer_, tick_timer_, congestion_control_),
-    receiver_(peer_, tick_timer_, congestion_control_),
-    waiting_connect_(multiplexer.socket_.get_io_service()),
-    waiting_connect_ec_(),
-    waiting_write_(multiplexer.socket_.get_io_service()),
-    waiting_write_buffer_(),
-    waiting_write_ec_(),
-    waiting_write_bytes_transferred_(0),
-    waiting_read_(multiplexer.socket_.get_io_service()),
-    waiting_read_buffer_(),
-    waiting_read_transfer_at_least_(0),
-    waiting_read_ec_(),
-    waiting_read_bytes_transferred_(0),
-    waiting_keepalive_sequence_number_(0),
-    waiting_probe_(multiplexer.socket_.get_io_service()),
-    waiting_probe_ec_(),
-    waiting_flush_(multiplexer.socket_.get_io_service()),
-    waiting_flush_ec_(),
-    sent_length_(0) {
+    : dispatcher_(multiplexer.dispatcher_),
+      peer_(multiplexer),
+      tick_timer_(multiplexer.socket_.get_io_service()),
+      session_(peer_, tick_timer_, multiplexer.external_endpoint_),
+      congestion_control_(),
+      sender_(peer_, tick_timer_, congestion_control_),
+      receiver_(peer_, tick_timer_, congestion_control_),
+      waiting_connect_(multiplexer.socket_.get_io_service()),
+      waiting_connect_ec_(),
+      waiting_write_(multiplexer.socket_.get_io_service()),
+      waiting_write_buffer_(),
+      waiting_write_ec_(),
+      waiting_write_bytes_transferred_(0),
+      waiting_read_(multiplexer.socket_.get_io_service()),
+      waiting_read_buffer_(),
+      waiting_read_transfer_at_least_(0),
+      waiting_read_ec_(),
+      waiting_read_bytes_transferred_(0),
+      // Request packet sequence numbers must be odd
+      waiting_keepalive_sequence_number_(RandomUint32() | 0x00000001),
+      waiting_probe_(multiplexer.socket_.get_io_service()),
+      waiting_probe_ec_(),
+      waiting_flush_(multiplexer.socket_.get_io_service()),
+      waiting_flush_ec_(),
+      sent_length_(0) {
   waiting_connect_.expires_at(bptime::pos_infin);
   waiting_write_.expires_at(bptime::pos_infin);
   waiting_read_.expires_at(bptime::pos_infin);
@@ -152,11 +153,10 @@ void Socket::StartProbe() {
     waiting_keepalive_sequence_number_ = 0;
     return;
   }
-  // Request packet sequence numbers must be odd
-  waiting_keepalive_sequence_number_ = (RandomUint32() | 0x00000001);
   KeepalivePacket keepalive_packet;
   keepalive_packet.SetDestinationSocketId(peer_.Id());
   keepalive_packet.SetSequenceNumber(waiting_keepalive_sequence_number_);
+  LOG(kVerbose) << sock_id_ << " Sending keepalive " << waiting_keepalive_sequence_number_ << " to " << peer_.Endpoint();
   if (kSuccess != sender_.SendKeepalive(keepalive_packet)) {
     waiting_probe_ec_ = boost::asio::error::try_again;
     waiting_probe_.cancel();
@@ -248,10 +248,6 @@ void Socket::ProcessFlush() {
   if (sender_.Flushed() && receiver_.Flushed()) {
     waiting_flush_ec_.clear();
     waiting_flush_.cancel();
-  } else if (!session_.IsConnected()) {
-    LOG(kError) << sock_id_ << std::boolalpha << " Sender flushed: " << sender_.Flushed() << "  Receiver flushed: " << receiver_.Flushed();
-  } else {
-    LOG(kVerbose) << sock_id_ << std::boolalpha << " Sender flushed: " << sender_.Flushed() << "  Receiver flushed: " << receiver_.Flushed();
   }
 }
 
@@ -308,13 +304,16 @@ void Socket::HandleHandshake(const HandshakePacket &packet) {
 }
 
 void Socket::HandleKeepalive(const KeepalivePacket &packet) {
+  LOG(kVerbose) << sock_id_ << " Receiving keepalive re" << (packet.IsResponse() ? "sponse " : "quest ") << packet.SequenceNumber();
   if (session_.IsConnected()) {
     if (packet.IsResponse()) {
       if (waiting_keepalive_sequence_number_ &&
             packet.IsResponseOf(waiting_keepalive_sequence_number_)) {
-        waiting_keepalive_sequence_number_ = 0;
         waiting_probe_ec_.clear();
         waiting_probe_.cancel();
+        waiting_keepalive_sequence_number_ += 2;
+        if (waiting_keepalive_sequence_number_ + 1 == 0)
+          waiting_keepalive_sequence_number_ = 1;
         return;
       } else {
         LOG(kInfo) << "Socket " << session_.Id()

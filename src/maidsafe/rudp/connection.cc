@@ -54,7 +54,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       receive_buffer_(),
       data_size_(0),
       data_received_(0),
-      probe_retry_attempts_(0),
+      failed_probe_count_(0),
       timeout_state_(kConnecting),
       sending_(false) {
   static_assert((sizeof(detail::DataSize)) == 4, "DataSize must be 4 bytes.");
@@ -217,10 +217,13 @@ void Connection::StartConnect(const std::string &validation_data,
   lifespan_timer_.expires_from_now(lifespan);
   if (validation_data.empty()) {
     assert(lifespan != bptime::pos_infin);
-    open_mode = ((lifespan > bptime::time_duration()) ? detail::Session::kBootstrapAndKeep :
-                                                        detail::Session::kBootstrapAndDrop);
-    lifespan_timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckLifespanTimeout,
-                                             shared_from_this(), args::_1)));
+    if (lifespan > bptime::time_duration()) {
+      open_mode = detail::Session::kBootstrapAndKeep;
+      lifespan_timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckLifespanTimeout,
+                                                        shared_from_this(), args::_1)));
+    } else {
+      open_mode = detail::Session::kBootstrapAndDrop;
+    }
   }
   socket_.AsyncConnect(remote_endpoint_, handler, open_mode);
   timer_.expires_from_now(Parameters::connect_timeout);
@@ -236,7 +239,7 @@ void Connection::CheckLifespanTimeout(const bs::error_code &ec) {
     return DoClose();
 
   if (lifespan_timer_.expires_from_now().is_negative()) {
-    LOG(kError) << "Closing connection to " << socket_.RemoteEndpoint() << " - Lifespan expired.";
+    LOG(kError) << conn_id_ << " Closing connection to " << socket_.RemoteEndpoint() << " - Lifespan expired.";
     return DoClose();
   }
 }
@@ -266,7 +269,7 @@ void Connection::HandleConnect(const bs::error_code &ec, const std::string &vali
   timer_.expires_at(boost::posix_time::pos_infin);
   timeout_state_ = kConnected;
 
-//  StartProbing();
+  StartProbing();
   StartReadSize();
   if (!validation_data.empty()) {
     EncodeData(validation_data);
@@ -360,7 +363,6 @@ void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
   }
 
   data_received_ += length;
-
   if (data_received_ == data_size_) {
                                                           //// No timeout applies while dispatching the message.
                                                           //timer_.expires_at(boost::posix_time::pos_infin);
@@ -387,7 +389,6 @@ void Connection::DispatchMessage() {
     transport->SignalMessageReceived(std::string(receive_buffer_.begin(),
                                                  receive_buffer_.end()));
     StartReadSize();
-//    StartProbing();
   }
 }
 
@@ -469,18 +470,18 @@ void Connection::DoProbe(const bs::error_code &ec) {
 
 void Connection::HandleProbe(const bs::error_code &ec) {
   if (!ec) {
-    probe_retry_attempts_ = 0;
-//    StartProbing();
-    return;
+    failed_probe_count_ = 0;
+    return StartProbing();
   }
 
   if (((asio::error::try_again == ec) || (asio::error::timed_out == ec) ||
-       (asio::error::operation_aborted == ec)) && (probe_retry_attempts_< 3)) {
-    ++probe_retry_attempts_;
+       (asio::error::operation_aborted == ec)) &&
+       (failed_probe_count_ < Parameters::maximum_keepalive_failures)) {
+    ++failed_probe_count_;
     bs::error_code ignored_ec;
     DoProbe(ignored_ec);
   } else {
-    LOG(kError) << "Failed to probe " << socket_.RemoteEndpoint() << " - " << ec.message();
+    LOG(kWarning) << conn_id_ << " Failed to probe " << socket_.RemoteEndpoint() << " - " << ec.message();
     return DoClose();
   }
 }

@@ -26,59 +26,58 @@ typedef boost::posix_time::time_duration Timeout;
 // This class provides the configurability to all traffic related parameters.
 struct Parameters {
  public:
-  // Thread count for use of asio::io_service
+  // Thread count for use of asio::io_service.
   static uint32_t thread_count;
 
-  // Window size permitted in RUDP
+  // Window size permitted in RUDP.
   static uint32_t default_window_size;
   static uint32_t maximum_window_size;
 
-  // Packet size permitted in RUDP
-  // Shall not exceed the UDP payload, which is 65507
+  // Packet size permitted in RUDP.  Shall not exceed the UDP payload, which is 65507.
   static uint32_t default_size;
   static uint32_t max_size;
   enum { kUDPPayload = 65500 };
 
-  // Data Payload size permitted in RUDP
-  // Shall not exceed Packet Size defined
+  // Data Payload size permitted in RUDP.  Shall not exceed Packet Size defined.
   static uint32_t default_data_size;
   static uint32_t max_data_size;
 
-  // Timeout defined for a packet to be resent
+  // Timeout defined for a packet to be resent.
   static Timeout default_send_timeout;
 
-  // Timeout defined for a neg-ack packet to be resent to request resent of an
-  // observed missing packet in receiver
+  // Timeout defined for a neg-ack packet to be resent to request resent of an observed missing
+  // packet in receiver.
   static Timeout default_receive_timeout;
 
-  // Machine dependent parameter of send delay,
-  // depending on computation power and I/O speed
+  // Machine dependent parameter of send delay, depending on computation power and I/O speed.
   static Timeout default_send_delay;
 
-  // Machine dependent parameter of receive delay,
-  // depending on computation power and I/O speed
+  // Machine dependent parameter of receive delay, depending on computation power and I/O speed.
   static Timeout default_receive_delay;
 
-  // Timeout defined for a Ack packet to be resent
+  // Timeout defined for a Ack packet to be resent.
   static Timeout default_ack_timeout;
 
-  // Timeout defined for the fixed interval between Ack packets
+  // Timeout defined for the fixed interval between Ack packets.
   static Timeout ack_interval;
 
-  // Interval to calculate speed
+  // Interval to calculate speed.
   static Timeout speed_calculate_inverval;
 
-  // Slow speed threshold to force the socket closed, in b/s
+  // Slow speed threshold to force the socket closed, in bits/s.
   static uint32_t slow_speed_threshold;
 
-  // Timeout during connection establishment
+  // Timeout during connection establishment.
   static Timeout connect_timeout;
 
-  // Timeout defined for the fixed interval between sending Keepalive packets
+  // Timeout defined for the fixed interval between sending Keepalive packets.
   static Timeout keepalive_interval;
 
   // Timeout defined to receive Keepalive response packet.
   static Timeout keepalive_timeout;
+
+  // Maximum sequential keepalive failures allowed before connection is closed.
+  static uint32_t maximum_keepalive_failures;
 
   // Timeout defined to disconnect Bootstrapping connection.
   static Timeout bootstrap_disconnection_timeout;
@@ -86,7 +85,7 @@ struct Parameters {
   // Timeout defined for allowing flushing pending data after Connection::Close is called.
   static Timeout disconnection_timeout;
 
-  // Defined connection types
+  // Defined connection types.
   enum ConnectionType {
     kWireless = 0x0fffffff,
     kT1 = 0xf0ffffff,
