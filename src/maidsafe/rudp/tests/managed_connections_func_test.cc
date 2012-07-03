@@ -48,18 +48,19 @@ class ManagedConnectionsFuncTest : public testing::Test {
  protected:
   // Each node sending n messsages to all other connected nodes.
   void RunNetworkTest(const uint16_t &num_messages, const int &messages_size) {
-    // validation data will be exchanged, so the message number shall be increased
-    uint16_t messages_received_per_node = (num_messages + 1) * (network_size_ - 1);
+    uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
     std::vector<std::string> sent_messages;
     std::vector<boost::unique_future<std::vector<std::string>>> futures;
 
     // Generate_messages
-    for (uint16_t i = 0; i != nodes_.size(); ++i)
-      sent_messages.emplace_back(std::move(RandomString(messages_size)));
+    for (uint8_t i = 0; i != nodes_.size(); ++i)
+      sent_messages.push_back(std::string(messages_size, 'A' + i));
 
     // Get futures for messages from individual nodes
-    for (uint16_t i = 0; i != nodes_.size(); ++i)
+    for (uint16_t i = 0; i != nodes_.size(); ++i) {
+      nodes_.at(i)->ResetData();
       futures.emplace_back(nodes_.at(i)->GetFutureForMessages(messages_received_per_node));
+    }
 
     // Sending messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
@@ -75,15 +76,10 @@ class ManagedConnectionsFuncTest : public testing::Test {
     }
 
     // Waiting for all results (promises)
-    std::deque<bool> results;
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      if (!(futures.at(i).timed_wait(bptime::seconds(2)))) {
-        LOG(kError) << "Timed out !!!!!!!!!!";
-        results.push_back(false);
-      } else {
-        results.push_back(!(futures.at(i).get().empty()));
-        EXPECT_TRUE(results.at(i));
-      }
+      ASSERT_TRUE(futures.at(i).timed_wait(bptime::seconds(5))) << "Timed out on " << nodes_.at(i)->kId();
+      auto messages(futures.at(i).get());
+      EXPECT_TRUE(!messages.empty());
     }
 
     // Check messages
@@ -104,53 +100,53 @@ class ManagedConnectionsFuncTest : public testing::Test {
 };
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkSmallMessages) {
- ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
- RunNetworkTest(1, 1024);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
+  RunNetworkTest(1, 1024);
 }
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_Network256KBMessages) {
- ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
- RunNetworkTest(1, 1024 * 256);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
+  RunNetworkTest(1, 1024 * 256);
 }
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_Network512KBMessages) {
- ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
- RunNetworkTest(1, 1024 * 512);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
+  RunNetworkTest(1, 1024 * 512);
 }
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_Network1MBMessages) {
- ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
- RunNetworkTest(1, 1024 * 1024);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
+  RunNetworkTest(1, 1024 * 1024);
 }
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_Network2MBMessages) {
- ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
- RunNetworkTest(1, 1024 * 1024 * 2);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
+  RunNetworkTest(1, 1024 * 1024 * 2);
 }
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultipleSmallMessages) {
- ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
- RunNetworkTest(10, 1024);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
+  RunNetworkTest(10, 1024);
 }
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple256KBMessages) {
- ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
- RunNetworkTest(10, 1024 * 256);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
+  RunNetworkTest(10, 1024 * 256);
 }
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple512KBMessages) {
- ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
- RunNetworkTest(10, 1024 * 512);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
+  RunNetworkTest(10, 1024 * 512);
 }
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple1MBMessages) {
- ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
- RunNetworkTest(10, 1024 * 1024);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
+  RunNetworkTest(10, 1024 * 1024);
 }
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple2MBMessages) {
- ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
- RunNetworkTest(10, 1024 * 1024 * 2);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
+  RunNetworkTest(10, 1024 * 1024 * 2);
 }
 
 }  // namespace test

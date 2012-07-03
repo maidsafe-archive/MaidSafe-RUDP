@@ -25,14 +25,14 @@ namespace rudp {
 namespace detail {
 
 DataPacket::DataPacket()
-  : packet_sequence_number_(0),
-    first_packet_in_message_(false),
-    last_packet_in_message_(false),
-    in_order_(false),
-    message_number_(0),
-    time_stamp_(0),
-    destination_socket_id_(0),
-    data_() {}
+    : packet_sequence_number_(0),
+      first_packet_in_message_(false),
+      last_packet_in_message_(false),
+      in_order_(false),
+      message_number_(0),
+      time_stamp_(0),
+      destination_socket_id_(0),
+      data_() {}
 
 uint32_t DataPacket::PacketSequenceNumber() const {
   return packet_sequence_number_;

@@ -35,7 +35,7 @@ Timeout Parameters::speed_calculate_inverval(bptime::seconds(10));
 uint32_t Parameters::slow_speed_threshold(1024);
 Timeout Parameters::connect_timeout(bptime::seconds(5));
 Timeout Parameters::keepalive_interval(bptime::milliseconds(500));
-Timeout Parameters::keepalive_timeout(bptime::milliseconds(200));
+Timeout Parameters::keepalive_timeout(bptime::milliseconds(400));
 uint32_t Parameters::maximum_keepalive_failures(10);
 Timeout Parameters::bootstrap_disconnection_timeout(bptime::seconds(60));
 Timeout Parameters::disconnection_timeout(bptime::milliseconds(100));

@@ -34,7 +34,11 @@ namespace test {
 
 class RudpTransportTest : public testing::Test {
  public:
-  RudpTransportTest() : transports_(), network_size_(2), kTimeOut_(bptime::seconds(2)) {}
+  RudpTransportTest()
+      : transports_(),
+        network_size_(2),
+        kTimeOut_(Parameters::keepalive_interval * Parameters::maximum_keepalive_failures) {}
+
   ~RudpTransportTest() {}
 
  protected:
@@ -66,9 +70,8 @@ class RudpTransportTest : public testing::Test {
     }
 
     ~TestPeer () {
-      // TODO(Team): the following block maybe required for the DropConnection Test 
-//       transport->Close();
-//       asio_service->Stop();
+       transport->Close();
+       asio_service->Stop();
     }
 
     void OnMessageSlot(const std::string &message) {
@@ -129,7 +132,7 @@ class RudpTransportTest : public testing::Test {
   bptime::time_duration kTimeOut_;
 };
 
-TEST_F(RudpTransportTest, FUNC_Connection) {
+TEST_F(RudpTransportTest, BEH_Connection) {
   ConnectTestPeers();
   bool send_result(false);
   transports_[1]->messages_received.clear();
@@ -143,7 +146,7 @@ TEST_F(RudpTransportTest, FUNC_Connection) {
   EXPECT_EQ(msg_content, transports_[1]->messages_received[0]);
 }
 
-TEST_F(RudpTransportTest, FUNC_CloseConnection) {
+TEST_F(RudpTransportTest, BEH_CloseConnection) {
   ConnectTestPeers();
   transports_[1]->transport->CloseConnection(transports_[0]->local_endpoint);
   {
@@ -166,12 +169,12 @@ TEST_F(RudpTransportTest, FUNC_CloseConnection) {
   EXPECT_EQ(0, transports_[1]->messages_received.size());
 }
 
-TEST_F(RudpTransportTest, DISABLED_FUNC_DropConnection) {
+TEST_F(RudpTransportTest, BEH_DropConnection) {
   ConnectTestPeers();
   Endpoint dropped_endpoint(transports_[0]->local_endpoint);
-  int attemps(0);
-  while ((attemps < 10) && (transports_[0]->messages_received.size() == 0)) {
-    ++attemps;
+  int attempts(0);
+  while ((attempts < 10) && (transports_[0]->messages_received.size() == 0)) {
+    ++attempts;
     Sleep(bptime::milliseconds(100));
   }
   transports_.erase(transports_.begin());
@@ -179,7 +182,7 @@ TEST_F(RudpTransportTest, DISABLED_FUNC_DropConnection) {
   boost::mutex::scoped_lock lock(transports_[0]->mutex);
   EXPECT_TRUE(transports_[0]->cond_var_connection_lost.timed_wait(lock, kTimeOut_));
 
-  EXPECT_EQ(1U, transports_[0]->peers_lost.size());
+  ASSERT_EQ(1U, transports_[0]->peers_lost.size());
   EXPECT_EQ(dropped_endpoint, transports_[0]->peers_lost[0]);
 
   bool send_result(true);

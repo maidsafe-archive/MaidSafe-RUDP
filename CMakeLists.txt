@@ -105,21 +105,21 @@ set(STYLE_RUDP ${STYLE_RUDP} ${ALL_TEST_FILES})
 # Define MaidSafe libraries and executables                                                       #
 ###################################################################################################
 ms_add_static_library(rudp ${ALL_FILES})
-ms_add_static_library(fake_rudp ${FAKE_MANAGED_CONNECTIONS_CC}
-                                ${FAKE_MANAGED_CONNECTIONS_H}
-                                "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/parameters.cc"
-                                "${PROJECT_SOURCE_DIR}/include/maidsafe/rudp/parameters.h"
-                                "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/utils.cc"
-                                "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/utils.h")
+# ms_add_static_library(fake_rudp ${FAKE_MANAGED_CONNECTIONS_CC}
+#                                 ${FAKE_MANAGED_CONNECTIONS_H}
+#                                 "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/parameters.cc"
+#                                 "${PROJECT_SOURCE_DIR}/include/maidsafe/rudp/parameters.h"
+#                                 "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/utils.cc"
+#                                 "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/utils.h")
 ms_add_executable(TESTrudp "Tests/RUDP" ${ALL_TEST_FILES})
-ms_add_executable(TESTfake_rudp "Tests/RUDP" ${FAKE_TEST_FILES})
+# ms_add_executable(TESTfake_rudp "Tests/RUDP" ${FAKE_TEST_FILES})
 
 target_link_libraries(maidsafe_rudp maidsafe_common)
 target_link_libraries(TESTrudp maidsafe_rudp)
 
-target_link_libraries(maidsafe_fake_rudp maidsafe_common)
-set_target_properties(maidsafe_fake_rudp PROPERTIES COMPILE_FLAGS -DFAKE_RUDP)
-target_link_libraries(TESTfake_rudp maidsafe_fake_rudp)
+# target_link_libraries(maidsafe_fake_rudp maidsafe_common)
+# set_target_properties(maidsafe_fake_rudp PROPERTIES COMPILE_FLAGS -DFAKE_RUDP)
+# target_link_libraries(TESTfake_rudp maidsafe_fake_rudp)
 
 rename_outdated_built_exes()
 

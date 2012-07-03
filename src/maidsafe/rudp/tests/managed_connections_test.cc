@@ -587,26 +587,6 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
     EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), sent_messages[i]));
 }
 
-TEST_F(ManagedConnectionsTest, BEH_API_Keepalive) {
-  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
-  nodes_[1]->ResetData();
-  // Kill nodes_[0] asio service to avoid sending shutdown packet (non-graceful close)
-  nodes_[0]->managed_connections()->asio_service_->service().stop();
-  nodes_[0]->managed_connections()->asio_service_->Stop();
-  boost::this_thread::sleep(Parameters::keepalive_timeout *
-                            (Parameters::maximum_keepalive_failures));
-  auto wait_for_signals([&]()->bool {
-    int count(0);
-    do {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      ++count;
-    } while (nodes_[1]->connection_lost_endpoints().empty() && count != 10);
-    return (!nodes_[1]->connection_lost_endpoints().empty());
-  });
-  ASSERT_TRUE(wait_for_signals());
-  ASSERT_EQ(nodes_[1]->connection_lost_endpoints().size(), 1U);
-}
-
 TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   Parameters::bootstrap_disconnection_timeout = bptime::seconds(6);
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));

@@ -25,15 +25,15 @@ namespace rudp {
 namespace detail {
 
 HandshakePacket::HandshakePacket()
-  : rudp_version_(0),
-    socket_type_(0),
-    initial_packet_sequence_number_(0),
-    maximum_packet_size_(0),
-    maximum_flow_window_size_(0),
-    connection_type_(0),
-    socket_id_(0),
-    syn_cookie_(0),
-    endpoint_() {
+    : rudp_version_(0),
+      socket_type_(0),
+      initial_packet_sequence_number_(0),
+      maximum_packet_size_(0),
+      maximum_flow_window_size_(0),
+      connection_type_(0),
+      socket_id_(0),
+      syn_cookie_(0),
+      endpoint_() {
   SetType(kPacketType);
 }
 
@@ -123,8 +123,7 @@ void HandshakePacket::SetEndpoint(const asio::ip::udp::endpoint &endpoint) {
 }
 
 bool HandshakePacket::IsValid(const asio::const_buffer &buffer) {
-  return (IsValidBase(buffer, kPacketType) &&
-          (asio::buffer_size(buffer) == kPacketSize));
+  return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) == kPacketSize));
 }
 
 bool HandshakePacket::Decode(const asio::const_buffer &buffer) {
@@ -190,8 +189,7 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer &buffer) const {
 
   boost::asio::ip::address_v6 ip_address;
   if (endpoint_.address().is_v4()) {
-    ip_address =
-        asio::ip::address_v6::v4_compatible(endpoint_.address().to_v4());
+    ip_address = asio::ip::address_v6::v4_compatible(endpoint_.address().to_v4());
   } else {
     ip_address = endpoint_.address().to_v6();
   }
