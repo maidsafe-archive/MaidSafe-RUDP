@@ -52,6 +52,7 @@ class Multiplexer {
   // Asynchronously receive a single packet and dispatch it.
   template <typename DispatchHandler>
   void AsyncDispatch(DispatchHandler handler) {
+                                                                            LOG(kVerbose) << mux_id_ << " on " << external_endpoint_ << " Ticking";
     DispatchOp<DispatchHandler> op(handler, &socket_,
                                    boost::asio::buffer(receive_buffer_),
                                    &sender_endpoint_, &dispatcher_);
@@ -70,7 +71,7 @@ class Multiplexer {
       boost::system::error_code ec;
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
-        LOG(kError) << "Error sending to << " << endpoint << " - " << ec.message();
+        LOG(kWarning) << mux_id_ << " Error sending from " << external_endpoint_ << " to << " << endpoint << " - " << ec.message();
         return kSendFailure;
       } else {
         return kSuccess;
@@ -79,14 +80,14 @@ class Multiplexer {
     return kSendFailure;
   }
 
-  // Returns endpoint of peer requesting to bootstrap off this node.
-  boost::asio::ip::udp::endpoint GetBootstrappingEndpoint();
+  // Returns endpoint of peer requesting to join the network via this node.
+  boost::asio::ip::udp::endpoint GetJoiningPeerEndpoint();
 
   boost::asio::ip::udp::endpoint local_endpoint() const;
   boost::asio::ip::udp::endpoint external_endpoint() const;
 
   friend class Socket;
-
+                                                                                                      std::string mux_id_;
  private:
   // Disallow copying and assignment.
   Multiplexer(const Multiplexer&);
@@ -102,8 +103,7 @@ class Multiplexer {
   // Dispatcher keeps track of the active sockets.
   Dispatcher dispatcher_;
 
-  // This node's external endpoint - passed to session and set during
-  // handshaking.
+  // This node's external endpoint - passed to session and set during handshaking.
   boost::asio::ip::udp::endpoint external_endpoint_;
 };
 

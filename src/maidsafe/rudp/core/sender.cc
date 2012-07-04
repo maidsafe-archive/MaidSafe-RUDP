@@ -126,6 +126,7 @@ void Sender::HandleNegativeAck(const NegativeAckPacket &packet) {
 }
 
 void Sender::HandleTick() {
+                                                                            LOG(kVerbose) << "Sender Ticking";
   if (send_timeout_ <= tick_timer_.Now()) {
     // Clear timeout. Will be reset next time a data packet is sent.
     send_timeout_ = bptime::pos_infin;

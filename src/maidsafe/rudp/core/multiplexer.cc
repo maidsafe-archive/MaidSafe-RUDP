@@ -14,6 +14,8 @@
 
 #include <cassert>
 
+                                                                                            #include "boost/lexical_cast.hpp"
+                                                                                            #include "maidsafe/common/utils.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/utils.h"
@@ -32,9 +34,15 @@ Multiplexer::Multiplexer(asio::io_service &asio_service) //NOLINT
   : socket_(asio_service),
     receive_buffer_(Parameters::max_size),
     sender_endpoint_(),
-    dispatcher_() {}
+    dispatcher_() {
+                                                                                                    static std::atomic<int> count(0);
+                                                                                                    mux_id_ = "Mux " + boost::lexical_cast<std::string>(count++);
+                                                                                                    LOG(kVerbose) << mux_id_ << " constructor";
+}
 
-Multiplexer::~Multiplexer() {}
+Multiplexer::~Multiplexer() {
+                                                                                                              LOG(kVerbose) << mux_id_ << " destructor";
+}
 
 ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
   if (socket_.is_open()) {
@@ -81,27 +89,30 @@ bool Multiplexer::IsOpen() const {
 }
 
 void Multiplexer::Close() {
+                                                                                                              LOG(kVerbose) << mux_id_ << " closing";
   bs::error_code ec;
   socket_.close(ec);
   if (ec)
     LOG(kWarning) << "Multiplexer closing error: " << ec.message();
+  assert(!IsOpen());
+  external_endpoint_ = ip::udp::endpoint();
 }
 
-boost::asio::ip::udp::endpoint Multiplexer::GetBootstrappingEndpoint() {
-  return dispatcher_.GetAndClearBootstrappingEndpoint();
+ip::udp::endpoint Multiplexer::GetJoiningPeerEndpoint() {
+  return dispatcher_.GetAndClearJoiningPeerEndpoint();
 }
 
-boost::asio::ip::udp::endpoint Multiplexer::local_endpoint() const {
+ip::udp::endpoint Multiplexer::local_endpoint() const {
   boost::system::error_code ec;
-  boost::asio::ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
+  ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
   if (ec) {
     LOG(kError) << ec.message();
-    return boost::asio::ip::udp::endpoint();
+    return ip::udp::endpoint();
   }
   return local_endpoint;
 }
 
-boost::asio::ip::udp::endpoint Multiplexer::external_endpoint() const {
+ip::udp::endpoint Multiplexer::external_endpoint() const {
   return external_endpoint_;
 }
 

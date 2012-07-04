@@ -37,37 +37,42 @@ namespace rudp {
 namespace detail {
 
 Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
-  : dispatcher_(multiplexer.dispatcher_),
-    peer_(multiplexer),
-    tick_timer_(multiplexer.socket_.get_io_service()),
-    session_(peer_, tick_timer_, multiplexer.external_endpoint_),
-    congestion_control_(),
-    sender_(peer_, tick_timer_, congestion_control_),
-    receiver_(peer_, tick_timer_, congestion_control_),
-    waiting_connect_(multiplexer.socket_.get_io_service()),
-    waiting_connect_ec_(),
-    waiting_write_(multiplexer.socket_.get_io_service()),
-    waiting_write_buffer_(),
-    waiting_write_ec_(),
-    waiting_write_bytes_transferred_(0),
-    waiting_read_(multiplexer.socket_.get_io_service()),
-    waiting_read_buffer_(),
-    waiting_read_transfer_at_least_(0),
-    waiting_read_ec_(),
-    waiting_read_bytes_transferred_(0),
-    waiting_keepalive_sequence_number_(0),
-    waiting_probe_(multiplexer.socket_.get_io_service()),
-    waiting_probe_ec_(),
-    waiting_flush_(multiplexer.socket_.get_io_service()),
-    waiting_flush_ec_(),
-    sent_length_(0) {
+    : dispatcher_(multiplexer.dispatcher_),
+      peer_(multiplexer),
+      tick_timer_(multiplexer.socket_.get_io_service()),
+      session_(peer_, tick_timer_, multiplexer.external_endpoint_),
+      congestion_control_(),
+      sender_(peer_, tick_timer_, congestion_control_),
+      receiver_(peer_, tick_timer_, congestion_control_),
+      waiting_connect_(multiplexer.socket_.get_io_service()),
+      waiting_connect_ec_(),
+      waiting_write_(multiplexer.socket_.get_io_service()),
+      waiting_write_buffer_(),
+      waiting_write_ec_(),
+      waiting_write_bytes_transferred_(0),
+      waiting_read_(multiplexer.socket_.get_io_service()),
+      waiting_read_buffer_(),
+      waiting_read_transfer_at_least_(0),
+      waiting_read_ec_(),
+      waiting_read_bytes_transferred_(0),
+      // Request packet sequence numbers must be odd
+      waiting_keepalive_sequence_number_(RandomUint32() | 0x00000001),
+      waiting_probe_(multiplexer.socket_.get_io_service()),
+      waiting_probe_ec_(),
+      waiting_flush_(multiplexer.socket_.get_io_service()),
+      waiting_flush_ec_(),
+      sent_length_(0) {
   waiting_connect_.expires_at(bptime::pos_infin);
   waiting_write_.expires_at(bptime::pos_infin);
   waiting_read_.expires_at(bptime::pos_infin);
   waiting_flush_.expires_at(bptime::pos_infin);
+                                                                            static std::atomic<int> count(0);
+                                                                            sock_id_ = "Socket " + boost::lexical_cast<std::string>(count++);
+                                                                            LOG(kVerbose) << sock_id_ << " constructor";
 }
 
 Socket::~Socket() {
+                                                                                LOG(kVerbose) << sock_id_ << " destructor (IsOpen: " << std::boolalpha << IsOpen() << ")";
   if (IsOpen())
     dispatcher_.RemoveSocket(session_.Id());
 }
@@ -101,12 +106,13 @@ bool Socket::IsOpen() const {
   return session_.IsOpen();
 }
 
-void Socket::set_bootstrapping(const bool &bootstraping) {
-  BOOST_ASSERT(!session_.IsOpen());
-  session_.set_bootstrapping(bootstraping);
+void Socket::NotifyClose() {
+  if (session_.IsOpen())
+    sender_.NotifyClose();
 }
 
 void Socket::Close() {
+  LOG(kVerbose) << sock_id_ << " Closing (session is open: " << std::boolalpha << session_.IsOpen() << ")";
   if (session_.IsOpen()) {
     sender_.NotifyClose();
     congestion_control_.OnClose();
@@ -128,13 +134,15 @@ void Socket::Close() {
   waiting_flush_.cancel();
   waiting_probe_ec_ = asio::error::shut_down;
   waiting_probe_.cancel();
+                                                                          LOG(kVerbose) << sock_id_ << " Closed";
 }
 
-void Socket::StartConnect(const ip::udp::endpoint &remote) {
+void Socket::StartConnect(const ip::udp::endpoint &remote, Session::Mode open_mode) {
   peer_.SetEndpoint(remote);
   peer_.SetId(0);  // Assigned when handshake response is received.
   session_.Open(dispatcher_.AddSocket(this),
-                sender_.GetNextPacketSequenceNumber());
+                sender_.GetNextPacketSequenceNumber(),
+                open_mode);
 }
 
 void Socket::StartProbe() {
@@ -145,11 +153,10 @@ void Socket::StartProbe() {
     waiting_keepalive_sequence_number_ = 0;
     return;
   }
-  // Request packet sequence numbers must be odd
-  waiting_keepalive_sequence_number_ = (RandomUint32() | 0x00000001);
   KeepalivePacket keepalive_packet;
   keepalive_packet.SetDestinationSocketId(peer_.Id());
   keepalive_packet.SetSequenceNumber(waiting_keepalive_sequence_number_);
+  LOG(kVerbose) << sock_id_ << " Sending keepalive " << waiting_keepalive_sequence_number_ << " to " << peer_.Endpoint();
   if (kSuccess != sender_.SendKeepalive(keepalive_packet)) {
     waiting_probe_ec_ = boost::asio::error::try_again;
     waiting_probe_.cancel();
@@ -158,6 +165,7 @@ void Socket::StartProbe() {
 }
 
 void Socket::StartWrite(const asio::const_buffer &data) {
+  std::lock_guard<std::mutex> lock(mutex_);
   // Check for a no-op write.
   if (asio::buffer_size(data) == 0) {
     waiting_write_ec_.clear();
@@ -194,6 +202,7 @@ void Socket::ProcessWrite() {
 
 void Socket::StartRead(const asio::mutable_buffer &data,
                        size_t transfer_at_least) {
+  std::lock_guard<std::mutex> lock(mutex_);
   // Check for a no-read write.
   if (asio::buffer_size(data) == 0) {
     waiting_read_ec_.clear();
@@ -235,6 +244,7 @@ void Socket::StartFlush() {
 }
 
 void Socket::ProcessFlush() {
+//  if ((sender_.Flushed() && receiver_.Flushed()) || !session_.IsConnected()) {
   if (sender_.Flushed() && receiver_.Flushed()) {
     waiting_flush_ec_.clear();
     waiting_flush_.cancel();
@@ -266,18 +276,23 @@ void Socket::HandleReceiveFrom(const asio::const_buffer &data,
     } else if (shutdown_packet.Decode(data)) {
       Close();
     } else {
-      LOG(kError) << "Socket " << session_.Id()
-                  << " ignoring invalid packet from " << endpoint;
+      LOG(kError) << "Socket " << session_.Id() << " ignoring invalid packet from " << endpoint;
     }
   } else {
-    LOG(kError) << "Socket " << session_.Id()
-                << " ignoring spurious packet from " << endpoint;
+    LOG(kError) << "Socket " << session_.Id() << " ignoring spurious packet from " << endpoint;
   }
 }
 
 void Socket::HandleHandshake(const HandshakePacket &packet) {
   bool was_connected = session_.IsConnected();
   session_.HandleHandshake(packet);
+
+  if (!session_.IsOpen()) {
+    sender_.NotifyClose();
+    dispatcher_.RemoveSocket(session_.Id());
+    return Close();
+  }
+
   if (!was_connected && session_.IsConnected()) {
     congestion_control_.OnOpen(sender_.GetNextPacketSequenceNumber(),
                                session_.ReceivingSequenceNumber());
@@ -289,13 +304,16 @@ void Socket::HandleHandshake(const HandshakePacket &packet) {
 }
 
 void Socket::HandleKeepalive(const KeepalivePacket &packet) {
+  LOG(kVerbose) << sock_id_ << " Receiving keepalive re" << (packet.IsResponse() ? "sponse " : "quest ") << packet.SequenceNumber();
   if (session_.IsConnected()) {
     if (packet.IsResponse()) {
       if (waiting_keepalive_sequence_number_ &&
             packet.IsResponseOf(waiting_keepalive_sequence_number_)) {
-        waiting_keepalive_sequence_number_ = 0;
         waiting_probe_ec_.clear();
         waiting_probe_.cancel();
+        waiting_keepalive_sequence_number_ += 2;
+        if (waiting_keepalive_sequence_number_ + 1 == 0)
+          waiting_keepalive_sequence_number_ = 1;
         return;
       } else {
         LOG(kInfo) << "Socket " << session_.Id()
@@ -309,6 +327,7 @@ void Socket::HandleKeepalive(const KeepalivePacket &packet) {
 }
 
 void Socket::HandleData(const DataPacket &packet) {
+  std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     receiver_.HandleData(packet);
     ProcessRead();
@@ -317,6 +336,7 @@ void Socket::HandleData(const DataPacket &packet) {
 }
 
 void Socket::HandleAck(const AckPacket &packet) {
+  std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     sender_.HandleAck(packet);
     ProcessRead();
@@ -326,6 +346,7 @@ void Socket::HandleAck(const AckPacket &packet) {
 }
 
 void Socket::HandleAckOfAck(const AckOfAckPacket &packet) {
+  std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     receiver_.HandleAckOfAck(packet);
     ProcessRead();
@@ -341,6 +362,8 @@ void Socket::HandleNegativeAck(const NegativeAckPacket &packet) {
 }
 
 void Socket::HandleTick() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  LOG(kVerbose) << sock_id_ << " Ticking.  IsConnected: " << std::boolalpha << session_.IsConnected();
   if (session_.IsConnected()) {
     sender_.HandleTick();
     receiver_.HandleTick();

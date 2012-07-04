@@ -16,11 +16,13 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <deque>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
+#include "boost/asio/strand.hpp"
 #include "boost/asio/ip/udp.hpp"
 
 #include "maidsafe/rudp/core/congestion_control.h"
@@ -72,6 +74,9 @@ class Socket {
   // Returns whether the connection is open.
   bool IsOpen() const;
 
+  // Notify the peer that the socket is about to close.
+  void NotifyClose();
+
   // Close the socket and cancel pending asynchronous operations.
   void Close();
 
@@ -100,10 +105,11 @@ class Socket {
   // expires.
   template <typename ConnectHandler>
   void AsyncConnect(const boost::asio::ip::udp::endpoint &remote,
-                    ConnectHandler handler) {
+                    ConnectHandler handler,
+                    Session::Mode open_mode) {
     ConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
     waiting_connect_.async_wait(op);
-    StartConnect(remote);
+    StartConnect(remote, open_mode);
   }
 
   // Initiate an asynchronous operation to write data. The operation will
@@ -113,7 +119,7 @@ class Socket {
   void AsyncWrite(const boost::asio::const_buffer &data,
                   WriteHandler handler) {
     WriteOp<WriteHandler> op(handler, &waiting_write_ec_,
-                             &waiting_write_bytes_transferred_);
+                              &waiting_write_bytes_transferred_);
     waiting_write_.async_wait(op);
     StartWrite(data);
   }
@@ -121,9 +127,10 @@ class Socket {
   // Initiate an asynchronous operation to read data.
   template <typename ReadHandler>
   void AsyncRead(const boost::asio::mutable_buffer &data,
-                 size_t transfer_at_least, ReadHandler handler) {
+                 size_t transfer_at_least,
+                 ReadHandler handler) {
     ReadOp<ReadHandler> op(handler, &waiting_read_ec_,
-                           &waiting_read_bytes_transferred_);
+                            &waiting_read_bytes_transferred_);
     waiting_read_.async_wait(op);
     StartRead(data, transfer_at_least);
   }
@@ -146,21 +153,18 @@ class Socket {
     StartProbe();
   }
 
-  // Set socket opened for bootstraping. This needs to be called before AsyncConnect
-  void set_bootstrapping(const bool &bootstraping);
-
   friend class Dispatcher;
+                                                                                                    std::string sock_id_;
 
  private:
   // Disallow copying and assignment.
   Socket(const Socket&);
   Socket &operator=(const Socket&);
 
-  void StartConnect(const boost::asio::ip::udp::endpoint &remote);
+  void StartConnect(const boost::asio::ip::udp::endpoint &remote, Session::Mode open_mode);
   void StartWrite(const boost::asio::const_buffer &data);
   void ProcessWrite();
-  void StartRead(const boost::asio::mutable_buffer &data,
-                 size_t transfer_at_least);
+  void StartRead(const boost::asio::mutable_buffer &data, size_t transfer_at_least);
   void ProcessRead();
   void StartFlush();
   void ProcessFlush();
@@ -195,6 +199,9 @@ class Socket {
 
   // The dispatcher that holds this sockets registration.
   Dispatcher &dispatcher_;
+
+  // Mutex to protect access to the buffers during read/write operations.
+  std::mutex mutex_;
 
   // The remote peer with which we are communicating.
   Peer peer_;

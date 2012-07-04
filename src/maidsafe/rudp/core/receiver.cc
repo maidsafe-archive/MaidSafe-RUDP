@@ -58,7 +58,8 @@ void Receiver::Reset(uint32_t initial_sequence_number) {
 bool Receiver::Flushed() const {
   uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
   return acks_.IsEmpty() &&
-         (ack_packet_seqnum == last_ack_packet_sequence_number_);
+         (ack_packet_seqnum == last_ack_packet_sequence_number_ ||
+          last_ack_packet_sequence_number_ == 0);
 }
 
 size_t Receiver::ReadData(const boost::asio::mutable_buffer &data) {
@@ -122,7 +123,7 @@ void Receiver::HandleData(const DataPacket &packet) {
       p.bytes_read = 0;
     }
   } else {
-    LOG(kWarning) << "Ignoring incoming packet with seqnum " << seqnum << " and data " << packet.Data();
+    LOG(kWarning) << "Ignoring incoming packet with seqnum " << seqnum/* << " and data " << packet.Data()*/;
   }
 
   if (seqnum % congestion_control_.AckInterval() == 0) {
@@ -155,6 +156,7 @@ void Receiver::HandleAckOfAck(const AckOfAckPacket &packet) {
 }
 
 void Receiver::HandleTick() {
+                                                                            LOG(kVerbose) << "Receiver Ticking";
   bptime::ptime now = tick_timer_.Now();
 
   // Generate an acknowledgement only if the latest sequence number has

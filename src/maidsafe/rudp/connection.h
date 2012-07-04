@@ -14,6 +14,7 @@
 #ifndef MAIDSAFE_RUDP_CONNECTION_H_
 #define MAIDSAFE_RUDP_CONNECTION_H_
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -29,9 +30,14 @@ namespace maidsafe {
 namespace rudp {
 
 namespace detail {
+
+typedef int32_t DataSize;
+
 class Multiplexer;
 class Socket;
+
 }  // namespace detail
+
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic push
@@ -49,33 +55,40 @@ class Connection : public std::enable_shared_from_this<Connection> {
              const boost::asio::ip::udp::endpoint &remote);
   ~Connection();
 
-  bool temporary() const { return temporary_; }
-  void set_temporary(const bool & temporary) { temporary_ = temporary; }
-
   detail::Socket &Socket();
 
   void Close();
-  void StartConnecting(const std::string &data);
-  void StartSending(const std::string &data);
-
-  // Set connection opened for bootstraping. This needs to be called before StartConnecting.
-  void set_bootstrapping(const bool &bootstraping);
+  // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
+  // after lifespan has passed.
+  void StartConnecting(const std::string &validation_data,
+                       const boost::posix_time::time_duration &lifespan);
+  void StartSending(const std::string &data, const std::function<void(bool)> &message_sent_functor);
+  // Returns true if lifespan_timer_ expires at < pos_infin.
+  bool IsTemporary() const;
+  // Sets the lifespan_timer_ to expire at pos_infin.
+  void MakePermanent();
+                                                                                                    std::string conn_id_;
 
 private:
   Connection(const Connection&);
   Connection &operator=(const Connection&);
 
   void DoClose();
-  void DoStartConnecting();
+  void DoStartConnecting(const std::string &validation_data,
+                         const boost::posix_time::time_duration &lifespan);
+  void DoStartSending(const std::string &data,
+                      const std::function<void(bool)> &message_sent_functor);
 
   void CheckTimeout(const boost::system::error_code &ec);
+  void CheckLifespanTimeout(const boost::system::error_code &ec);
   bool Stopped() const;
 
   void StartTick();
   void HandleTick();
 
-  void StartConnect();
-  void HandleConnect(const boost::system::error_code &ec);
+  void StartConnect(const std::string &validation_data,
+                    const boost::posix_time::time_duration &lifespan);
+  void HandleConnect(const boost::system::error_code &ec, const std::string &validation_data);
 
   void StartReadSize();
   void HandleReadSize(const boost::system::error_code &ec);
@@ -83,8 +96,9 @@ private:
   void StartReadData();
   void HandleReadData(const boost::system::error_code &ec, size_t length);
 
-  void StartWrite();
-  void HandleWrite(const boost::system::error_code &ec);
+  void StartWrite(const std::function<void(bool)> &message_sent_functor);
+  void HandleWrite(const boost::system::error_code &ec,
+                   const std::function<void(bool)> &message_sent_functor);
 
   void StartProbing();
   void DoProbe(const boost::system::error_code &ec);
@@ -97,17 +111,13 @@ private:
   boost::asio::io_service::strand strand_;
   std::shared_ptr<detail::Multiplexer> multiplexer_;
   detail::Socket socket_;
-  boost::asio::deadline_timer timer_;
-  boost::asio::deadline_timer probe_interval_timer_;
-  boost::posix_time::ptime response_deadline_;
+  boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
   boost::asio::ip::udp::endpoint remote_endpoint_;
-  std::string validation_data_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   size_t data_size_, data_received_;
-  uint8_t probe_retry_attempts_;
-  Timeout timeout_for_response_;
-  bool temporary_;
-  enum TimeoutState { kNoTimeout, kConnecting, kSending } timeout_state_;
+  uint8_t failed_probe_count_;
+  enum TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
+  bool sending_;
 };
 
 }  // namespace rudp

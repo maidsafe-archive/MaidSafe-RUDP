@@ -42,13 +42,22 @@ Session::Session(Peer &peer,                                  // NOLINT (Fraser)
       sending_sequence_number_(0),
       receiving_sequence_number_(0),
       peer_connection_type_(0),
-      state_(kClosed),
-      bootstrapping_(false) {}
+      mode_(kNormal),
+      state_(kClosed) {
+                                                                                                    static std::atomic<int> count(0);
+                                                                                                    session_id_ = "Session " + boost::lexical_cast<std::string>(count++);
+                                                                                                    LOG(kVerbose) << session_id_ << " constructor";
+}
 
-void Session::Open(uint32_t id, uint32_t sequence_number) {
+Session::~Session() {
+                                                                                                              LOG(kVerbose) << session_id_ << " destructor";
+}
+
+void Session::Open(uint32_t id, uint32_t sequence_number, Mode mode) {
   assert(id != 0);
   id_ = id;
   sending_sequence_number_ = sequence_number;
+  mode_ = mode;
   state_ = kProbing;
   SendConnectionRequest();
 }
@@ -74,6 +83,7 @@ uint32_t Session::PeerConnectionType() const {
 }
 
 void Session::Close() {
+  LOG(kVerbose) << session_id_ << " Closing";
   state_ = kClosed;
 }
 
@@ -89,21 +99,26 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
     SendCookie();
   } else if (state_ == kHandshaking) {
 //    if (packet.SynCookie() == 1) {
+    if (IsValid(packet.Endpoint())) {
+      this_external_endpoint_ = packet.Endpoint();
+    } else {
+      LOG(kError) << session_id_ << " Invalid external endpoint in handshake: "
+                  << packet.Endpoint();
+    }
+    if (mode_ == kBootstrapAndDrop) {
+      state_ = kClosed;
+      return;
+    }
     state_ = kConnected;
     peer_connection_type_ = packet.ConnectionType();
     receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
     SendConnectionAccepted();
-    if (IsValid(packet.Endpoint())) {
-      this_external_endpoint_ = packet.Endpoint();
-    } else {
-      LOG(kError) << "Invalid external endpoint in handshake: "
-                  << packet.Endpoint();
-    }
 //    }
   }
 }
 
 void Session::HandleTick() {
+                                                                        LOG(kVerbose) << session_id_ << " Ticking.";
   if (state_ == kProbing) {
     SendConnectionRequest();
   } else if (state_ == kHandshaking) {
@@ -111,33 +126,26 @@ void Session::HandleTick() {
   }
 }
 
-void Session::set_bootstrapping(const bool &bootstraping) {
-  bootstrapping_ = bootstraping;
-}
-
 void Session::SendConnectionRequest() {
-  LOG(kInfo) << "SendConnectionRequest (bootstrapping: " << std::boolalpha << bootstrapping_ << ") to " << peer_.Endpoint();
+  LOG(kVerbose) << session_id_ << " SendConnectionRequest (mode: " << mode_ << ") to " << peer_.Endpoint();
   HandshakePacket packet;
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetSocketId(id_);
   packet.SetEndpoint(peer_.Endpoint());
-  // For bootstrapping
-  if (bootstrapping_)
-    packet.SetDestinationSocketId(0xffffffff);
-  else
-    packet.SetDestinationSocketId(0);
+  packet.SetDestinationSocketId((mode_ == kNormal) ? 0 : 0xffffffff);
   packet.SetConnectionType(1);
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
-    LOG(kError) << "Failed to send handshake to " << peer_.Endpoint();
+    LOG(kError) << session_id_ << " Failed to send handshake to " << peer_.Endpoint();
 
   // Schedule another connection request.
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
 void Session::SendCookie() {
+  LOG(kVerbose) << session_id_ << " SendCookie (mode: " << mode_ << ") to " << peer_.Endpoint();
   HandshakePacket packet;
   packet.SetEndpoint(peer_.Endpoint());
   packet.SetDestinationSocketId(peer_.Id());
@@ -152,13 +160,14 @@ void Session::SendCookie() {
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
-    LOG(kError) << "Failed to send cookie to " << peer_.Endpoint();
+    LOG(kError) << session_id_ << " Failed to send cookie to " << peer_.Endpoint();
 
   // Schedule another cookie send.
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
 void Session::SendConnectionAccepted() {
+  LOG(kVerbose) << session_id_ << " SendConnectionAccepted (mode: " << mode_ << ") to " << peer_.Endpoint();
   HandshakePacket packet;
   packet.SetEndpoint(peer_.Endpoint());
   packet.SetDestinationSocketId(peer_.Id());
@@ -173,7 +182,7 @@ void Session::SendConnectionAccepted() {
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
-    LOG(kError) << "Failed to send connection_accepted to " << peer_.Endpoint();
+    LOG(kError) << session_id_ << " Failed to send connection_accepted to " << peer_.Endpoint();
 }
 
 }  // namespace detail
