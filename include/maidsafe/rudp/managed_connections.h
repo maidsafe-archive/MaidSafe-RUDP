@@ -90,7 +90,7 @@ class ManagedConnections {
   // is executed with input of true.
   void Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
             const std::string &message,
-            MessageSentFunctor message_sent_functor) const;
+            MessageSentFunctor message_sent_functor);
 
   friend class Transport;
                                                                                                 std::string mc_id_;
@@ -118,12 +118,8 @@ class ManagedConnections {
                             std::shared_ptr<Transport> transport,
                             bool connections_empty,
                             bool temporary_connection);
-//  void RemoveTransport(std::shared_ptr<Transport> transport);
-//  void InsertEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint,
-//                      std::shared_ptr<Transport> transport);
-//  void RemoveEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint);
 
-  std::shared_ptr<AsioService> asio_service_;
+  AsioService asio_service_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
   std::vector<TransportAndSignalConnections> transports_;

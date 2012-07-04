@@ -42,7 +42,7 @@ const int kMaxTransports(10);
 }  // unnamed namespace
 
 ManagedConnections::ManagedConnections()
-    : asio_service_(new AsioService(Parameters::thread_count)),
+    : asio_service_(Parameters::thread_count),
       message_received_functor_(),
       connection_lost_functor_(),
       transports_(),
@@ -66,7 +66,7 @@ ManagedConnections::~ManagedConnections() {
       element.transport->Close();
     });
   }
-  asio_service_->Stop();
+  asio_service_.Stop();
                                                                                 LOG(kVerbose) << mc_id_ << " destructor";
 }
 
@@ -100,7 +100,7 @@ Endpoint ManagedConnections::Bootstrap(
     return Endpoint();
   }
 
-  asio_service_->Start();
+  asio_service_.Start();
 
   if (IsValid(local_endpoint)) {
     local_ip_ = local_endpoint.address();
@@ -292,14 +292,14 @@ void ManagedConnections::Remove(const Endpoint &peer_endpoint) {
 
 void ManagedConnections::Send(const Endpoint &peer_endpoint,
                               const std::string &message,
-                              MessageSentFunctor message_sent_functor) const {
+                              MessageSentFunctor message_sent_functor) {
   SharedLock shared_lock(shared_mutex_);
   auto itr(connection_map_.find(peer_endpoint));
   if (itr == connection_map_.end()) {
     LOG(kError) << "Can't send to " << peer_endpoint << " - not in map.";
     if (message_sent_functor) {
       if (!connection_map_.empty()) {
-        asio_service_->service().dispatch([message_sent_functor] { message_sent_functor(false); });
+        asio_service_.service().dispatch([message_sent_functor] { message_sent_functor(false); });
       } else {
         // Probably haven't bootstrapped, so asio_service_ won't be running.
         boost::thread(message_sent_functor, false);

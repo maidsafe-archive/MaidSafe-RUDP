@@ -63,7 +63,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
       void(const boost::asio::ip::udp::endpoint&,
            std::shared_ptr<Transport>, bool, bool)> OnConnectionLost;
 
-  explicit Transport(std::shared_ptr<AsioService> asio_service);  // NOLINT (Fraser)
+  explicit Transport(AsioService& asio_service);  // NOLINT (Fraser)
   virtual ~Transport();
 
   void Bootstrap(const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
@@ -124,7 +124,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DoInsertConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection);
   void DoRemoveConnection(ConnectionPtr connection);
-  std::shared_ptr<AsioService> asio_service_;
+  AsioService& asio_service_;
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
 

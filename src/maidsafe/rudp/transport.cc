@@ -38,10 +38,10 @@ namespace {
 typedef boost::asio::ip::udp::endpoint Endpoint;
 }  // unnamed namespace
 
-Transport::Transport(std::shared_ptr<AsioService> asio_service)          // NOLINT (Fraser)
+Transport::Transport(AsioService& asio_service)          // NOLINT (Fraser)
     : asio_service_(asio_service),
-      strand_(asio_service->service()),
-      multiplexer_(new detail::Multiplexer(asio_service->service())),
+      strand_(asio_service.service()),
+      multiplexer_(new detail::Multiplexer(asio_service.service())),
       connections_(),
       mutex_(),
       on_message_(),
@@ -188,7 +188,7 @@ void Transport::Send(const Endpoint &peer_endpoint,
   if (itr == connections_.end()) {
     LOG(kWarning) << "Not currently connected to " << peer_endpoint;
     if (message_sent_functor)
-      asio_service_->service().dispatch([message_sent_functor] { message_sent_functor(false); });
+      asio_service_.service().dispatch([message_sent_functor] { message_sent_functor(false); });
     return;
   }
 

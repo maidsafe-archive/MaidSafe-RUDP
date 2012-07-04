@@ -48,7 +48,7 @@ class RudpTransportTest : public testing::Test {
                   cond_var_connection_added(),
                   cond_var_connection_lost(),
                   cond_var_msg_received(),
-                  asio_service(new AsioService(Parameters::thread_count)),
+                  asio_service(Parameters::thread_count),
                   transport(new Transport(asio_service)),
                   messages_received(),
                   peers_added(),
@@ -66,12 +66,12 @@ class RudpTransportTest : public testing::Test {
                            &on_message_connection,
                            &on_connection_added_connection,
                            &on_connection_lost_connection);
-      asio_service->Start();
+      asio_service.Start();
     }
 
     ~TestPeer () {
        transport->Close();
-       asio_service->Stop();
+       asio_service.Stop();
     }
 
     void OnMessageSlot(const std::string &message) {
@@ -100,7 +100,7 @@ class RudpTransportTest : public testing::Test {
     boost::condition_variable cond_var_connection_added;
     boost::condition_variable cond_var_connection_lost;
     boost::condition_variable cond_var_msg_received;
-    std::shared_ptr<AsioService> asio_service;
+    AsioService asio_service;
     std::shared_ptr<Transport> transport;
     std::vector<std::string> messages_received;
     std::vector<Endpoint> peers_added;
