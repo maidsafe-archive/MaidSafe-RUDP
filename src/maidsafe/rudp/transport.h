@@ -56,14 +56,17 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
  public:
   typedef boost::signals2::signal<void(const std::string&)> OnMessage;
+
   typedef boost::signals2::signal<
       void(const boost::asio::ip::udp::endpoint&,
            std::shared_ptr<Transport>)> OnConnectionAdded;
+
   typedef boost::signals2::signal<
       void(const boost::asio::ip::udp::endpoint&,
            std::shared_ptr<Transport>, bool, bool)> OnConnectionLost;
 
   explicit Transport(AsioService& asio_service);  // NOLINT (Fraser)
+
   virtual ~Transport();
 
   void Bootstrap(const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
@@ -75,27 +78,35 @@ class Transport : public std::enable_shared_from_this<Transport> {
                  boost::asio::ip::udp::endpoint *chosen_endpoint,
                  boost::signals2::connection *on_message_connection,
                  boost::signals2::connection *on_connection_added_connection,
+
                  boost::signals2::connection *on_connection_lost_connection);
   void Connect(const boost::asio::ip::udp::endpoint &peer_endpoint,
                const std::string &validation_data);
+
   // Returns kSuccess if the connection existed and was closed.  Returns
   // kInvalidConnection if the connection didn't exist.  If this causes the
   // size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
   int CloseConnection(const boost::asio::ip::udp::endpoint &peer_endpoint);
+
   void Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
             const std::string &message,
-            const std::function<void(bool)> &message_sent_functor);
+            const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
+
   boost::asio::ip::udp::endpoint external_endpoint() const;
   boost::asio::ip::udp::endpoint local_endpoint() const;
+
   bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint &peer_endpoint);
   void MakeConnectionPermanent(const boost::asio::ip::udp::endpoint &peer_endpoint,
                                const std::string &validation_data);
+
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
+
   void Close();
+
   friend class Connection;
-                                                                                                std::string trans_id_;
+
  private:
   Transport(const Transport&);
   Transport &operator=(const Transport&);
@@ -110,7 +121,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DoCloseConnection(ConnectionPtr connection);
   void DoSend(ConnectionPtr connection,
               const std::string &message,
-              const std::function<void(bool)> &message_sent_functor);
+              const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
 
   void StartDispatch();
   void HandleDispatch(MultiplexerPtr multiplexer,

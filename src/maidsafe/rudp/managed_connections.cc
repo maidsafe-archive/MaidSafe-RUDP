@@ -15,7 +15,6 @@
 #include <functional>
 #include <iterator>
 
-                                                                                    #include "boost/lexical_cast.hpp"
 #include "maidsafe/common/log.h"
 
 #include "maidsafe/rudp/return_codes.h"
@@ -48,11 +47,7 @@ ManagedConnections::ManagedConnections()
       transports_(),
       connection_map_(),
       shared_mutex_(),
-      bootstrap_endpoints_() {
-                                                                                static std::atomic<int> count(0);
-                                                                                mc_id_ = "ManagedConnexions " + boost::lexical_cast<std::string>(count++);
-                                                                                LOG(kVerbose) << mc_id_ << " constructor";
-}
+      bootstrap_endpoints_() {}
 
 ManagedConnections::~ManagedConnections() {
   {
@@ -67,7 +62,6 @@ ManagedConnections::~ManagedConnections() {
     });
   }
   asio_service_.Stop();
-                                                                                LOG(kVerbose) << mc_id_ << " destructor";
 }
 
 Endpoint ManagedConnections::Bootstrap(
@@ -164,9 +158,6 @@ Endpoint ManagedConnections::StartNewTransport(
   }
 
   UniqueLock unique_lock(shared_mutex_);
-  LOG(kInfo) << mc_id_ << " Inserting " << transport_and_signals_connections.transport->trans_id_ << " in vector"
-             << ", chosen_endpoint - " << chosen_endpoint << ", local endpoint - " << transport_and_signals_connections.transport->local_endpoint()
-             << ", external_endpoint - " << transport_and_signals_connections.transport->external_endpoint();
   transports_.push_back(transport_and_signals_connections);
   return chosen_endpoint;
 }
@@ -267,15 +258,14 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
         (*itr).transport->MakeConnectionPermanent(peer_endpoint, validation_data);
         return kSuccess;
       } else {
-        LOG(kError) << mc_id_ << " A permanent managed connection to " << peer_endpoint
-                    << " already exists";
+        LOG(kError) << "A permanent managed connection to " << peer_endpoint << " already exists";
         return kConnectionAlreadyExists;
       }
     }
   }
 
-  LOG(kInfo) << mc_id_ << " Add::Connecting "<< (*itr).transport->external_endpoint()
-             << " to  " << peer_endpoint;
+  LOG(kInfo) << "Attempting to connect from "<< (*itr).transport->external_endpoint() << " to  "
+             << peer_endpoint;
   (*itr).transport->Connect(peer_endpoint, validation_data);
   return kSuccess;
 }
@@ -299,7 +289,7 @@ void ManagedConnections::Send(const Endpoint &peer_endpoint,
     LOG(kError) << "Can't send to " << peer_endpoint << " - not in map.";
     if (message_sent_functor) {
       if (!connection_map_.empty()) {
-        asio_service_.service().dispatch([message_sent_functor] { message_sent_functor(false); });
+        asio_service_.service().dispatch([message_sent_functor] { message_sent_functor(false); });  // NOLINT (Fraser)
       } else {
         // Probably haven't bootstrapped, so asio_service_ won't be running.
         boost::thread(message_sent_functor, false);
@@ -318,10 +308,12 @@ void ManagedConnections::OnConnectionAddedSlot(const Endpoint &peer_endpoint,
                                                TransportPtr transport) {
   UniqueLock unique_lock(shared_mutex_);
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
-  if (result.second)
-    LOG(kInfo) << mc_id_ << " +++++++++++++++++++++++++++++++++++ Added managed connection to " << peer_endpoint << " Now have " << connection_map_.size();
-  else
-    LOG(kError) << "Already connected to " << peer_endpoint;
+  if (result.second) {
+    LOG(kInfo) << "Successfully connected from "<< transport->external_endpoint() << " to  "
+               << peer_endpoint;
+  } else {
+    LOG(kError) << transport->external_endpoint() << " is already connected to " << peer_endpoint;
+  }
 }
 
 void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
@@ -334,7 +326,7 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
     UniqueLock unique_lock(shared_mutex_);
     auto connection_itr(connection_map_.find(peer_endpoint));
     if (connection_itr == connection_map_.end()) {
-      LOG(kWarning) << mc_id_ << " Was not connected to " << peer_endpoint << " Now have " << connection_map_.size();
+      LOG(kWarning) << "Was not connected to " << peer_endpoint;
       if (temporary_connection)
         remove_transport = false;
     } else {
@@ -344,14 +336,16 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
       if (transport->external_endpoint() == (*connection_itr).second->external_endpoint()) {
         connection_map_.erase(connection_itr);
         should_execute_functor = true;
-        LOG(kInfo) << mc_id_ << " Removed managed connection to " << peer_endpoint
+        LOG(kInfo) << "Removed managed connection from " << transport->external_endpoint() << " to "
+                   << peer_endpoint
                    << (remove_transport ? " - also removing corresponding transport.  Now have " :
                                           " - not removing transport.  Now have ")
-                   << connection_map_.size();
+                   << connection_map_.size() << " connections.";
       } else {
         assert(temporary_connection);
-        LOG(kInfo) << mc_id_ << " Not removing managed connection to " << peer_endpoint
-                   << " Now have " << connection_map_.size();
+        LOG(kInfo) << "Not removing managed connection from "
+                   << (*connection_itr).second->external_endpoint() << " to " << peer_endpoint
+                   << "  Now have " << connection_map_.size() << " connections.";
         remove_transport = false;
       }
     }

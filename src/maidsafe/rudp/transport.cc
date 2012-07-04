@@ -46,14 +46,9 @@ Transport::Transport(AsioService& asio_service)          // NOLINT (Fraser)
       mutex_(),
       on_message_(),
       on_connection_added_(),
-      on_connection_lost_() {
-                                                                                static std::atomic<int> count(0);
-                                                                                trans_id_ = "Transport " + boost::lexical_cast<std::string>(count++);
-                                                                                LOG(kVerbose) << trans_id_ << " constructor";
-}
+      on_connection_lost_() {}
 
 Transport::~Transport() {
-                                                                                LOG(kVerbose) << trans_id_ << " destructor";
   Close();
 }
 
@@ -101,7 +96,6 @@ void Transport::Bootstrap(
                                     Parameters::bootstrap_disconnection_timeout);
 
     // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
-                                             //Sleep(bptime::milliseconds((RandomUint32() % 100) + 1000));
     int count(0);
     while (!IsValid(multiplexer_->external_endpoint()) ||
            !IsValid(multiplexer_->local_endpoint())) {
@@ -124,23 +118,19 @@ void Transport::Bootstrap(
 }
 
 void Transport::Close() {
-                                                                                LOG(kVerbose) << trans_id_ << " closing.";
   boost::mutex::scoped_lock lock(mutex_);
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
     strand_.post(std::bind(&Connection::Close, *it));
   if (multiplexer_)
     multiplexer_->Close();
-                                                                                LOG(kVerbose) << trans_id_ << " closed.";
 }
 
-void Transport::Connect(const Endpoint &peer_endpoint,
-                        const std::string &validation_data) {
-  strand_.dispatch(std::bind(&Transport::DoConnect, shared_from_this(),
-                             peer_endpoint, validation_data));
+void Transport::Connect(const Endpoint &peer_endpoint, const std::string &validation_data) {
+  strand_.dispatch(std::bind(&Transport::DoConnect, shared_from_this(), peer_endpoint,
+                             validation_data));
 }
 
-void Transport::DoConnect(const Endpoint &peer_endpoint,
-                          const std::string &validation_data) {
+void Transport::DoConnect(const Endpoint &peer_endpoint, const std::string &validation_data) {
   bool opened_multiplexer(false);
 
   if (!multiplexer_->IsOpen()) {
@@ -153,9 +143,7 @@ void Transport::DoConnect(const Endpoint &peer_endpoint,
     opened_multiplexer = true;
   }
 
-  ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(),
-                                                        strand_,
-                                                        multiplexer_,
+  ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(), strand_, multiplexer_,
                                                         peer_endpoint));
   connection->StartConnecting(validation_data, bptime::pos_infin);
 
@@ -171,8 +159,7 @@ int Transport::CloseConnection(const Endpoint &peer_endpoint) {
     return kInvalidConnection;
   }
 
-  strand_.dispatch(std::bind(&Transport::DoCloseConnection,
-                             shared_from_this(), *itr));
+  strand_.dispatch(std::bind(&Transport::DoCloseConnection, shared_from_this(), *itr));
   return kSuccess;
 }
 
@@ -188,12 +175,12 @@ void Transport::Send(const Endpoint &peer_endpoint,
   if (itr == connections_.end()) {
     LOG(kWarning) << "Not currently connected to " << peer_endpoint;
     if (message_sent_functor)
-      asio_service_.service().dispatch([message_sent_functor] { message_sent_functor(false); });
+      asio_service_.service().dispatch([message_sent_functor] { message_sent_functor(false); });  // NOLINT (Fraser)
     return;
   }
 
-  strand_.dispatch(std::bind(&Transport::DoSend, shared_from_this(),
-                             *itr, message, message_sent_functor));
+  strand_.dispatch(std::bind(&Transport::DoSend, shared_from_this(), *itr, message,
+                             message_sent_functor));
 }
 
 void Transport::DoSend(ConnectionPtr connection,
@@ -227,8 +214,8 @@ void Transport::MakeConnectionPermanent(const Endpoint &peer_endpoint,
     return;
   }
   (*itr)->MakePermanent();
-  strand_.dispatch(std::bind(&Transport::DoSend, shared_from_this(),
-                             *itr, validation_data, MessageSentFunctor()));
+  strand_.dispatch(std::bind(&Transport::DoSend, shared_from_this(), *itr, validation_data,
+                             MessageSentFunctor()));
 }
 
 size_t Transport::ConnectionsCount() const {
@@ -237,8 +224,7 @@ size_t Transport::ConnectionsCount() const {
 }
 
 void Transport::StartDispatch() {
-  auto handler = strand_.wrap(std::bind(&Transport::HandleDispatch,
-                                        shared_from_this(),
+  auto handler = strand_.wrap(std::bind(&Transport::HandleDispatch, shared_from_this(),
                                         multiplexer_, args::_1));
   multiplexer_->AsyncDispatch(handler);
 }
@@ -249,7 +235,6 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
     return;
   Endpoint joining_peer_endpoint(multiplexer->GetJoiningPeerEndpoint());
   if (IsValid(joining_peer_endpoint)) {
-            LOG(kVerbose) << trans_id_ << " GetJoiningPeerEndpoint called with valid endpoint: " << joining_peer_endpoint;
     // Check if this joining node is already connected
     ConnectionPtr joining_connection;
     {
@@ -295,7 +280,6 @@ void Transport::InsertConnection(ConnectionPtr connection) {
 }
 
 void Transport::DoInsertConnection(ConnectionPtr connection) {
-                              LOG(kVerbose) << trans_id_ << " DoInsertConnection with " << connection->Socket().RemoteEndpoint();
   connections_.insert(connection);
   on_connection_added_(connection->Socket().RemoteEndpoint(), shared_from_this());
 }

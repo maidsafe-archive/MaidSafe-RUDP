@@ -12,8 +12,8 @@
 #ifndef MAIDSAFE_RUDP_TESTS_TEST_UTILS_H_
 #define MAIDSAFE_RUDP_TESTS_TEST_UTILS_H_
 
-#include <memory>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 

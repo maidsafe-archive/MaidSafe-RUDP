@@ -38,17 +38,14 @@ namespace rudp {
 
 namespace detail {
 
-Receiver::Receiver(Peer &peer,                                // NOLINT (Fraser)
-                   TickTimer &tick_timer,
-                   CongestionControl &congestion_control)
-  : peer_(peer),
-    tick_timer_(tick_timer),
-    congestion_control_(congestion_control),
-    unread_packets_(),
-    acks_(),
-    last_ack_packet_sequence_number_(0),
-    ack_sent_time_(tick_timer_.Now()) {
-}
+Receiver::Receiver(Peer &peer, TickTimer &tick_timer, CongestionControl &congestion_control)  // NOLINT (Fraser)
+    : peer_(peer),
+      tick_timer_(tick_timer),
+      congestion_control_(congestion_control),
+      unread_packets_(),
+      acks_(),
+      last_ack_packet_sequence_number_(0),
+      ack_sent_time_(tick_timer_.Now()) {}
 
 void Receiver::Reset(uint32_t initial_sequence_number) {
   unread_packets_.Reset(initial_sequence_number);
@@ -71,8 +68,6 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer &data) {
        (n != unread_packets_.End()) && (ptr < end);
        n = unread_packets_.Next(n)) {
     UnreadPacket &p = unread_packets_[n];
-//        LOG(kError) << "Unread packet: " << p.packet.PacketSequenceNumber() << " size = "
-//                    << p.packet.Data().size();
     if (p.lost) {
       break;
     } else if (p.packet.Data().size() > p.bytes_read) {
@@ -82,13 +77,10 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer &data) {
       ptr += length;
       p.bytes_read += length;
       if (p.packet.Data().size() == p.bytes_read) {
-//                  LOG(kError) << "Removing packet: " << p.packet.PacketSequenceNumber();
         unread_packets_.Remove();
       } else {
-//                  LOG(kError) << "NOT Removing packet: " << p.packet.PacketSequenceNumber() << " - length = " << length;
       }
     } else {
-//                      LOG(kError) << "Removing packet: " << p.packet.PacketSequenceNumber();
       unread_packets_.Remove();
     }
   }
@@ -123,7 +115,7 @@ void Receiver::HandleData(const DataPacket &packet) {
       p.bytes_read = 0;
     }
   } else {
-    LOG(kWarning) << "Ignoring incoming packet with seqnum " << seqnum/* << " and data " << packet.Data()*/;
+    LOG(kWarning) << "Ignoring incoming packet with seqnum " << seqnum;
   }
 
   if (seqnum % congestion_control_.AckInterval() == 0) {
@@ -156,7 +148,6 @@ void Receiver::HandleAckOfAck(const AckOfAckPacket &packet) {
 }
 
 void Receiver::HandleTick() {
-                                                                            LOG(kVerbose) << "Receiver Ticking";
   bptime::ptime now = tick_timer_.Now();
 
   // Generate an acknowledgement only if the latest sequence number has

@@ -32,11 +32,9 @@ class Session {
  public:
   enum Mode { kNormal, kBootstrapAndDrop, kBootstrapAndKeep };
 
-  explicit Session(Peer &peer,                                // NOLINT (Fraser)
+  explicit Session(Peer &peer,                                                    // NOLINT (Fraser)
                    TickTimer &tick_timer,
                    boost::asio::ip::udp::endpoint &this_external_endpoint);
-
-  ~Session();
 
   // Open the session.
   void Open(uint32_t id, uint32_t sequence_number, Mode mode);
@@ -64,7 +62,6 @@ class Session {
 
   // Handle a tick in the system time.
   void HandleTick();
-                                                                                                    std::string session_id_;
 
  private:
   // Disallow copying and assignment.

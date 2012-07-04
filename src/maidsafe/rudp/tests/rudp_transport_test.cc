@@ -10,14 +10,13 @@
 *  the explicit written permission of the board of directors of MaidSafe.net. *
 ******************************************************************************/
 
-#include "maidsafe/rudp/transport.h"
-
 #include <vector>
 
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
+#include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 #include "maidsafe/rudp/utils.h"
 
@@ -43,16 +42,16 @@ class RudpTransportTest : public testing::Test {
 
  protected:
   struct TestPeer {
-    TestPeer () : local_endpoint(GetLocalIp(), GetRandomPort()),
-                  mutex(),
-                  cond_var_connection_added(),
-                  cond_var_connection_lost(),
-                  cond_var_msg_received(),
-                  asio_service(Parameters::thread_count),
-                  transport(new Transport(asio_service)),
-                  messages_received(),
-                  peers_added(),
-                  peers_lost() {
+    TestPeer() : local_endpoint(GetLocalIp(), GetRandomPort()),
+                 mutex(),
+                 cond_var_connection_added(),
+                 cond_var_connection_lost(),
+                 cond_var_msg_received(),
+                 asio_service(Parameters::thread_count),
+                 transport(new Transport(asio_service)),
+                 messages_received(),
+                 peers_added(),
+                 peers_lost() {
       Endpoint chosen_endpoint;
       std::vector<Endpoint> bootstrap_endpoints;
       boost::signals2::connection on_message_connection;
@@ -69,7 +68,7 @@ class RudpTransportTest : public testing::Test {
       asio_service.Start();
     }
 
-    ~TestPeer () {
+    ~TestPeer() {
        transport->Close();
        asio_service.Stop();
     }
@@ -138,7 +137,7 @@ TEST_F(RudpTransportTest, BEH_Connection) {
   transports_[1]->messages_received.clear();
   std::string msg_content(RandomString(256));
   transports_[0]->transport->Send(transports_[1]->local_endpoint, msg_content,
-                                  [&](bool result) { send_result = result; });
+                                  [&](bool result) { send_result = result; });  // NOLINT (Fraser)
   boost::mutex::scoped_lock lock(transports_[1]->mutex);
   EXPECT_TRUE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
   EXPECT_TRUE(send_result);
@@ -162,7 +161,7 @@ TEST_F(RudpTransportTest, BEH_CloseConnection) {
   transports_[1]->messages_received.clear();
   std::string msg_content("testing msg from node 0");
   transports_[0]->transport->Send(transports_[1]->local_endpoint, msg_content,
-                                  [&](bool result) { send_result = result; });
+                                  [&](bool result) { send_result = result; });  // NOLINT (Fraser)
   boost::mutex::scoped_lock lock(transports_[1]->mutex);
   EXPECT_FALSE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
   EXPECT_FALSE(send_result);
@@ -189,7 +188,7 @@ TEST_F(RudpTransportTest, BEH_DropConnection) {
   transports_[0]->messages_received.clear();
   std::string msg_content("testing msg from node 0");
   transports_[0]->transport->Send(dropped_endpoint, msg_content,
-                                  [&](bool result) { send_result = result; });
+                                  [&](bool result) { send_result = result; });  // NOLINT (Fraser)
   EXPECT_FALSE(transports_[0]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
   EXPECT_FALSE(send_result);
   EXPECT_EQ(0, transports_[0]->messages_received.size());

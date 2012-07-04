@@ -14,9 +14,9 @@
 #ifndef MAIDSAFE_RUDP_CORE_SOCKET_H_
 #define MAIDSAFE_RUDP_CORE_SOCKET_H_
 
+#include <mutex>
 #include <cstdint>
 #include <memory>
-#include <mutex>
 #include <deque>
 
 #include "boost/asio/buffer.hpp"
@@ -87,9 +87,7 @@ class Socket {
   uint32_t BestReadBufferSize();
 
   // Calculate if the transmission speed is too slow
-  bool IsSlowTransmission(size_t length) {
-    return congestion_control_.IsSlowTransmission(length);
-  }
+  bool IsSlowTransmission(size_t length) { return congestion_control_.IsSlowTransmission(length); }
 
   // Asynchronously process one "tick". The internal tick size varies based on
   // the next time-based event that is of interest to the socket.
@@ -116,10 +114,8 @@ class Socket {
   // generally complete immediately unless congestion has caused the internal
   // buffer for unprocessed send data to fill up.
   template <typename WriteHandler>
-  void AsyncWrite(const boost::asio::const_buffer &data,
-                  WriteHandler handler) {
-    WriteOp<WriteHandler> op(handler, &waiting_write_ec_,
-                              &waiting_write_bytes_transferred_);
+  void AsyncWrite(const boost::asio::const_buffer &data, WriteHandler handler) {
+    WriteOp<WriteHandler> op(handler, &waiting_write_ec_, &waiting_write_bytes_transferred_);
     waiting_write_.async_wait(op);
     StartWrite(data);
   }
@@ -129,8 +125,7 @@ class Socket {
   void AsyncRead(const boost::asio::mutable_buffer &data,
                  size_t transfer_at_least,
                  ReadHandler handler) {
-    ReadOp<ReadHandler> op(handler, &waiting_read_ec_,
-                            &waiting_read_bytes_transferred_);
+    ReadOp<ReadHandler> op(handler, &waiting_read_ec_, &waiting_read_bytes_transferred_);
     waiting_read_.async_wait(op);
     StartRead(data, transfer_at_least);
   }
@@ -154,7 +149,6 @@ class Socket {
   }
 
   friend class Dispatcher;
-                                                                                                    std::string sock_id_;
 
  private:
   // Disallow copying and assignment.

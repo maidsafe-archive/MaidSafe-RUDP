@@ -40,9 +40,7 @@ class TickTimer;
 
 class Sender {
  public:
-  explicit Sender(Peer &peer,                                 // NOLINT (Fraser)
-                  TickTimer &tick_timer,
-                  CongestionControl &congestion_control);
+  explicit Sender(Peer &peer, TickTimer &tick_timer, CongestionControl &congestion_control);  // NOLINT (Fraser)
 
   // Get the sequence number that will be used for the next packet.
   uint32_t GetNextPacketSequenceNumber() const;
@@ -89,9 +87,7 @@ class Sender {
   CongestionControl &congestion_control_;
 
   struct UnackedPacket {
-    UnackedPacket() : packet(),
-                      lost(false),
-                      last_send_time() {}
+    UnackedPacket() : packet(), lost(false), last_send_time() {}
     DataPacket packet;
     bool lost;
     boost::posix_time::ptime last_send_time;

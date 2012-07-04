@@ -32,7 +32,7 @@ namespace rudp {
 
 namespace detail {
 
-Session::Session(Peer &peer,                                  // NOLINT (Fraser)
+Session::Session(Peer &peer,  // NOLINT (Fraser)
                  TickTimer &tick_timer,
                  boost::asio::ip::udp::endpoint &this_external_endpoint)
     : peer_(peer),
@@ -43,15 +43,7 @@ Session::Session(Peer &peer,                                  // NOLINT (Fraser)
       receiving_sequence_number_(0),
       peer_connection_type_(0),
       mode_(kNormal),
-      state_(kClosed) {
-                                                                                                    static std::atomic<int> count(0);
-                                                                                                    session_id_ = "Session " + boost::lexical_cast<std::string>(count++);
-                                                                                                    LOG(kVerbose) << session_id_ << " constructor";
-}
-
-Session::~Session() {
-                                                                                                              LOG(kVerbose) << session_id_ << " destructor";
-}
+      state_(kClosed) {}
 
 void Session::Open(uint32_t id, uint32_t sequence_number, Mode mode) {
   assert(id != 0);
@@ -83,7 +75,6 @@ uint32_t Session::PeerConnectionType() const {
 }
 
 void Session::Close() {
-  LOG(kVerbose) << session_id_ << " Closing";
   state_ = kClosed;
 }
 
@@ -92,7 +83,7 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
     peer_.SetId(packet.SocketId());
   }
 
-  // TODO(Fraser#5#): 2012-04-04 - Check if we need to uncomment the lines below
+  // TODO(Fraser#5#): 2012-04-04 - Handle SynCookies
   if (state_ == kProbing) {
 //    if (packet.ConnectionType() == 1 && packet.SynCookie() == 0)
     state_ = kHandshaking;
@@ -102,8 +93,7 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
     if (IsValid(packet.Endpoint())) {
       this_external_endpoint_ = packet.Endpoint();
     } else {
-      LOG(kError) << session_id_ << " Invalid external endpoint in handshake: "
-                  << packet.Endpoint();
+      LOG(kError) << "Invalid external endpoint in handshake: " << packet.Endpoint();
     }
     if (mode_ == kBootstrapAndDrop) {
       state_ = kClosed;
@@ -118,7 +108,6 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
 }
 
 void Session::HandleTick() {
-                                                                        LOG(kVerbose) << session_id_ << " Ticking.";
   if (state_ == kProbing) {
     SendConnectionRequest();
   } else if (state_ == kHandshaking) {
@@ -127,7 +116,6 @@ void Session::HandleTick() {
 }
 
 void Session::SendConnectionRequest() {
-  LOG(kVerbose) << session_id_ << " SendConnectionRequest (mode: " << mode_ << ") to " << peer_.Endpoint();
   HandshakePacket packet;
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
@@ -138,14 +126,13 @@ void Session::SendConnectionRequest() {
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
-    LOG(kError) << session_id_ << " Failed to send handshake to " << peer_.Endpoint();
+    LOG(kError) << "Failed to send handshake to " << peer_.Endpoint();
 
   // Schedule another connection request.
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
 void Session::SendCookie() {
-  LOG(kVerbose) << session_id_ << " SendCookie (mode: " << mode_ << ") to " << peer_.Endpoint();
   HandshakePacket packet;
   packet.SetEndpoint(peer_.Endpoint());
   packet.SetDestinationSocketId(peer_.Id());
@@ -160,14 +147,13 @@ void Session::SendCookie() {
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
-    LOG(kError) << session_id_ << " Failed to send cookie to " << peer_.Endpoint();
+    LOG(kError) << "Failed to send cookie to " << peer_.Endpoint();
 
   // Schedule another cookie send.
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
 void Session::SendConnectionAccepted() {
-  LOG(kVerbose) << session_id_ << " SendConnectionAccepted (mode: " << mode_ << ") to " << peer_.Endpoint();
   HandshakePacket packet;
   packet.SetEndpoint(peer_.Endpoint());
   packet.SetDestinationSocketId(peer_.Id());
@@ -182,7 +168,7 @@ void Session::SendConnectionAccepted() {
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
-    LOG(kError) << session_id_ << " Failed to send connection_accepted to " << peer_.Endpoint();
+    LOG(kError) << "Failed to send connection_accepted to " << peer_.Endpoint();
 }
 
 }  // namespace detail

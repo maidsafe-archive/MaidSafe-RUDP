@@ -12,8 +12,8 @@
 
 #include "maidsafe/rudp/tests/test_utils.h"
 
-#include <set>
 #include <thread>
+#include <set>
 
 #include "boost/lexical_cast.hpp"
 #include "boost/date_time/posix_time/posix_time.hpp"

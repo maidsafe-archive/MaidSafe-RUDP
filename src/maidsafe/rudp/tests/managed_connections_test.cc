@@ -336,7 +336,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   auto wait_for_result([&] {
     return cond_var.wait_for(lock,
                              std::chrono::milliseconds(100),
-                             [&result_arrived]() { return result_arrived; });
+                             [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
   });
 
   result_of_send = result_arrived = false;
@@ -443,9 +443,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.ResetData();
   nodes_[1]->ResetData();
   future_messages_at_peer = node_.GetFutureForMessages(2);
-  nodes_[1]->managed_connections()->Send(this_endpoint_pair.external, "message13", MessageSentFunctor());
+  nodes_[1]->managed_connections()->Send(this_endpoint_pair.external, "message13",
+                                         MessageSentFunctor());
   result_of_send = result_arrived = false;
-  nodes_[1]->managed_connections()->Send(this_endpoint_pair.external, "message14", message_sent_functor);
+  nodes_[1]->managed_connections()->Send(this_endpoint_pair.external, "message14",
+                                         message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_TRUE(result_of_send);
   ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(200)));
@@ -488,7 +490,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
                                          message_sent_functor);
   ASSERT_TRUE(cond_var.wait_for(lock,
                                 std::chrono::seconds(10),
-                                [&result_arrived]() { return result_arrived; }));
+                                [&result_arrived]() { return result_arrived; }));  // NOLINT (Fraser)
   EXPECT_TRUE(result_of_send);
   ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::seconds(20)));
   messages = future_messages_at_peer.get();
@@ -506,7 +508,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
                                          message_sent_functor);
   ASSERT_TRUE(cond_var.wait_for(lock,
                                 std::chrono::seconds(10),
-                                [&result_arrived]() { return result_arrived; }));
+                                [&result_arrived]() { return result_arrived; }));  // NOLINT (Fraser)
   EXPECT_FALSE(result_of_send);
 }
 
@@ -607,7 +609,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   auto wait_for_result([&] {
     return cond_var.wait_for(lock,
                              std::chrono::milliseconds(100),
-                             [&result_arrived]() { return result_arrived; });
+                             [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
   });
   node_.ResetData();
   nodes_[0]->ResetData();

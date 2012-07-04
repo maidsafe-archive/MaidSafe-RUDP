@@ -31,15 +31,7 @@ namespace rudp {
 
 namespace detail {
 
-Dispatcher::Dispatcher() : sockets_(), joining_peer_endpoint_() {
-                                                                                static std::atomic<int> count(0);
-                                                                                disp_id_ = "Dispatcher " + boost::lexical_cast<std::string>(count++);
-                                                                                LOG(kVerbose) << disp_id_ << " constructor";
-}
-
-                                                                                                            Dispatcher::~Dispatcher() {
-                                                                                                              LOG(kVerbose) << disp_id_ << " destructor";
-                                                                                                            }
+Dispatcher::Dispatcher() : sockets_(), joining_peer_endpoint_() {}
 
 uint32_t Dispatcher::AddSocket(Socket *socket) {
   // Generate a new unique id for the socket.
@@ -63,7 +55,7 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
     SocketMap::const_iterator socket_iter(sockets_.end());
     if (id == 0) {
       // This is a handshake packet on a newly-added socket
-                                    LOG(kInfo) << "This is a handshake packet on a newly-added socket from " << endpoint;
+      LOG(kVerbose) << "This is a handshake packet on a newly-added socket from " << endpoint;
       socket_iter = std::find_if(
           sockets_.begin(),
           sockets_.end(),
@@ -74,11 +66,13 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
       if (sockets_.size() == 1U && endpoint == (*sockets_.begin()).second->RemoteEndpoint()) {
         // This is a handshake packet from a peer replying to this node's join attempt,
         // or from a peer starting a zero state network with this node
-        LOG(kInfo) << "This is a handshake packet from " << endpoint << " which is replying to a join request, or starting a new network";
+        LOG(kVerbose) << "This is a handshake packet from " << endpoint
+                      << " which is replying to a join request, or starting a new network";
         socket_iter = sockets_.begin();
       } else {
         // This is a handshake packet from a peer trying to join the network
-        LOG(kInfo) << "This is a handshake packet from " << endpoint << " which is trying to join the network";
+        LOG(kVerbose) << "This is a handshake packet from " << endpoint
+                      << " which is trying to join the network";
         HandshakePacket handshake_packet;
         if (handshake_packet.Decode(data)) {
           joining_peer_endpoint_ = endpoint;
@@ -87,7 +81,6 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
       }
     } else {
       // This packet is intended for a specific connection.
-                                        //      LOG(kInfo) << "This packet is intended for a specific connection from " << endpoint;
       socket_iter = sockets_.find(id);
     }
 

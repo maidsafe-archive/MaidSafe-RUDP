@@ -13,16 +13,16 @@
 #ifndef MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
 #define MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
 
-#ifdef FAKE_RUDP
-#  include "../../../src/maidsafe/rudp/tests/fake_managed_connections.h"
-#else
-
 
 #include <functional>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#ifdef FAKE_RUDP
+#  include "../../../src/maidsafe/rudp/tests/fake_managed_connections.h"
+#else
 
 #include "boost/asio/ip/address.hpp"
 #include "boost/asio/ip/udp.hpp"
@@ -41,7 +41,7 @@ class Transport;
 
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
 typedef std::function<void(const boost::asio::ip::udp::endpoint&)> ConnectionLostFunctor;
-typedef std::function<void(bool)> MessageSentFunctor;
+typedef std::function<void(bool)> MessageSentFunctor;  // NOLINT (Fraser)
 
 struct EndpointPair {
   EndpointPair() : local(), external() {}
@@ -93,7 +93,6 @@ class ManagedConnections {
             MessageSentFunctor message_sent_functor);
 
   friend class Transport;
-                                                                                                std::string mc_id_;
 
  private:
   typedef std::map<boost::asio::ip::udp::endpoint, std::shared_ptr<Transport>> ConnectionMap;

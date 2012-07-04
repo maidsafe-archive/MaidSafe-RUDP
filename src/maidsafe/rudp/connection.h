@@ -53,7 +53,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
              const boost::asio::io_service::strand &strand,
              const std::shared_ptr<detail::Multiplexer> &multiplexer,
              const boost::asio::ip::udp::endpoint &remote);
-  ~Connection();
 
   detail::Socket &Socket();
 
@@ -62,14 +61,13 @@ class Connection : public std::enable_shared_from_this<Connection> {
   // after lifespan has passed.
   void StartConnecting(const std::string &validation_data,
                        const boost::posix_time::time_duration &lifespan);
-  void StartSending(const std::string &data, const std::function<void(bool)> &message_sent_functor);
+  void StartSending(const std::string &data, const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
   // Returns true if lifespan_timer_ expires at < pos_infin.
   bool IsTemporary() const;
   // Sets the lifespan_timer_ to expire at pos_infin.
   void MakePermanent();
-                                                                                                    std::string conn_id_;
 
-private:
+ private:
   Connection(const Connection&);
   Connection &operator=(const Connection&);
 
@@ -77,7 +75,7 @@ private:
   void DoStartConnecting(const std::string &validation_data,
                          const boost::posix_time::time_duration &lifespan);
   void DoStartSending(const std::string &data,
-                      const std::function<void(bool)> &message_sent_functor);
+                      const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
 
   void CheckTimeout(const boost::system::error_code &ec);
   void CheckLifespanTimeout(const boost::system::error_code &ec);
@@ -96,9 +94,9 @@ private:
   void StartReadData();
   void HandleReadData(const boost::system::error_code &ec, size_t length);
 
-  void StartWrite(const std::function<void(bool)> &message_sent_functor);
+  void StartWrite(const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
   void HandleWrite(const boost::system::error_code &ec,
-                   const std::function<void(bool)> &message_sent_functor);
+                   const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
 
   void StartProbing();
   void DoProbe(const boost::system::error_code &ec);

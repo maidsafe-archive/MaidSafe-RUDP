@@ -14,8 +14,8 @@
 
 #include <atomic>
 #include <chrono>
-#include <deque>
 #include <future>
+#include <deque>
 #include <functional>
 #include <vector>
 
@@ -50,7 +50,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
   void RunNetworkTest(const uint16_t &num_messages, const int &messages_size) {
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
     std::vector<std::string> sent_messages;
-    std::vector<boost::unique_future<std::vector<std::string>>> futures;
+    std::vector<boost::unique_future<std::vector<std::string>>> futures;  // NOLINT (Fraser)
 
     // Generate_messages
     for (uint8_t i = 0; i != nodes_.size(); ++i)
@@ -68,8 +68,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
       std::for_each(peers.begin(), peers.end(), [&](const Endpoint& peer) {
         // TODO(Fraser#5#): 2012-06-14 - Use valid MessageSentFunctor and check results
         for (uint16_t j = 0; j != num_messages; ++j) {
-          nodes_.at(i)->managed_connections()->Send(peer,
-                                                    sent_messages.at(i),
+          nodes_.at(i)->managed_connections()->Send(peer, sent_messages.at(i),
                                                     MessageSentFunctor());
         }
       });
@@ -77,7 +76,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Waiting for all results (promises)
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      ASSERT_TRUE(futures.at(i).timed_wait(bptime::seconds(5))) << "Timed out on " << nodes_.at(i)->kId();
+      ASSERT_TRUE(futures.at(i).timed_wait(bptime::seconds(5))) << "Timed out on "
+                                                                << nodes_.at(i)->kId();
       auto messages(futures.at(i).get());
       EXPECT_TRUE(!messages.empty());
     }

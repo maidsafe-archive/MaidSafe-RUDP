@@ -30,7 +30,7 @@ namespace rudp {
 
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
 typedef std::function<void(const boost::asio::ip::udp::endpoint&)> ConnectionLostFunctor;
-typedef std::function<void(bool)> MessageSentFunctor;
+typedef std::function<void(bool)> MessageSentFunctor;  // NOLINT (Fraser)
 
 struct EndpointPair {
   EndpointPair() : local(), external() {}

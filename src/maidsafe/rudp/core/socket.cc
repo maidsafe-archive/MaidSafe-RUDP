@@ -66,13 +66,9 @@ Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
   waiting_write_.expires_at(bptime::pos_infin);
   waiting_read_.expires_at(bptime::pos_infin);
   waiting_flush_.expires_at(bptime::pos_infin);
-                                                                            static std::atomic<int> count(0);
-                                                                            sock_id_ = "Socket " + boost::lexical_cast<std::string>(count++);
-                                                                            LOG(kVerbose) << sock_id_ << " constructor";
 }
 
 Socket::~Socket() {
-                                                                                LOG(kVerbose) << sock_id_ << " destructor (IsOpen: " << std::boolalpha << IsOpen() << ")";
   if (IsOpen())
     dispatcher_.RemoveSocket(session_.Id());
 }
@@ -112,7 +108,6 @@ void Socket::NotifyClose() {
 }
 
 void Socket::Close() {
-  LOG(kVerbose) << sock_id_ << " Closing (session is open: " << std::boolalpha << session_.IsOpen() << ")";
   if (session_.IsOpen()) {
     sender_.NotifyClose();
     congestion_control_.OnClose();
@@ -134,7 +129,6 @@ void Socket::Close() {
   waiting_flush_.cancel();
   waiting_probe_ec_ = asio::error::shut_down;
   waiting_probe_.cancel();
-                                                                          LOG(kVerbose) << sock_id_ << " Closed";
 }
 
 void Socket::StartConnect(const ip::udp::endpoint &remote, Session::Mode open_mode) {
@@ -156,7 +150,6 @@ void Socket::StartProbe() {
   KeepalivePacket keepalive_packet;
   keepalive_packet.SetDestinationSocketId(peer_.Id());
   keepalive_packet.SetSequenceNumber(waiting_keepalive_sequence_number_);
-  LOG(kVerbose) << sock_id_ << " Sending keepalive " << waiting_keepalive_sequence_number_ << " to " << peer_.Endpoint();
   if (kSuccess != sender_.SendKeepalive(keepalive_packet)) {
     waiting_probe_ec_ = boost::asio::error::try_again;
     waiting_probe_.cancel();
@@ -173,9 +166,9 @@ void Socket::StartWrite(const asio::const_buffer &data) {
     return;
   }
 
-  // Try processing the write immediately. If there's space in the write buffer
-  // then the operation will complete immediately. Otherwise, it will wait until
-  // some other event frees up space in the buffer.
+  // Try processing the write immediately. If there's space in the write buffer then the operation
+  // will complete immediately. Otherwise, it will wait until some other event frees up space in the
+  // buffer.
   waiting_write_buffer_ = data;
   waiting_write_bytes_transferred_ = 0;
   ProcessWrite();
@@ -190,8 +183,8 @@ void Socket::ProcessWrite() {
   size_t length = sender_.AddData(waiting_write_buffer_);
   waiting_write_buffer_ = waiting_write_buffer_ + length;
   waiting_write_bytes_transferred_ += length;
-  // If we have finished writing all of the data then it's time to trigger the
-  // write's completion handler.
+  // If we have finished writing all of the data then it's time to trigger the write's completion
+  // handler.
   if (asio::buffer_size(waiting_write_buffer_) == 0) {
     sent_length_ = 0;
     // The write is done. Trigger the write's completion handler.
@@ -210,9 +203,8 @@ void Socket::StartRead(const asio::mutable_buffer &data,
     return;
   }
 
-  // Try processing the read immediately. If there's available data then the
-  // operation will complete immediately. Otherwise it will wait until the next
-  // data packet arrives.
+  // Try processing the read immediately. If there's available data then the operation will complete
+  // immediately. Otherwise it will wait until the next data packet arrives.
   waiting_read_buffer_ = data;
   waiting_read_transfer_at_least_ = transfer_at_least;
   waiting_read_bytes_transferred_ = 0;
@@ -229,8 +221,8 @@ void Socket::ProcessRead() {
   waiting_read_buffer_ = waiting_read_buffer_ + length;
   waiting_read_bytes_transferred_ += length;
 
-  // If we have filled the buffer, or read more than the minimum number of
-  // bytes required, then it's time to trigger the read's completion handler.
+  // If we have filled the buffer, or read more than the minimum number of bytes required, then it's
+  // time to trigger the read's completion handler.
   if (asio::buffer_size(waiting_read_buffer_) == 0 ||
       waiting_read_bytes_transferred_ >= waiting_read_transfer_at_least_) {
     // the read is done. Trigger the read's completion handler.
@@ -244,15 +236,13 @@ void Socket::StartFlush() {
 }
 
 void Socket::ProcessFlush() {
-//  if ((sender_.Flushed() && receiver_.Flushed()) || !session_.IsConnected()) {
   if (sender_.Flushed() && receiver_.Flushed()) {
     waiting_flush_ec_.clear();
     waiting_flush_.cancel();
   }
 }
 
-void Socket::HandleReceiveFrom(const asio::const_buffer &data,
-                               const ip::udp::endpoint &endpoint) {
+void Socket::HandleReceiveFrom(const asio::const_buffer &data, const ip::udp::endpoint &endpoint) {
   if (endpoint == peer_.Endpoint()) {
     DataPacket data_packet;
     AckPacket ack_packet;
@@ -276,10 +266,10 @@ void Socket::HandleReceiveFrom(const asio::const_buffer &data,
     } else if (shutdown_packet.Decode(data)) {
       Close();
     } else {
-      LOG(kError) << "Socket " << session_.Id() << " ignoring invalid packet from " << endpoint;
+      LOG(kWarning) << "Socket " << session_.Id() << " ignoring invalid packet from " << endpoint;
     }
   } else {
-    LOG(kError) << "Socket " << session_.Id() << " ignoring spurious packet from " << endpoint;
+    LOG(kWarning) << "Socket " << session_.Id() << " ignoring spurious packet from " << endpoint;
   }
 }
 
@@ -304,7 +294,6 @@ void Socket::HandleHandshake(const HandshakePacket &packet) {
 }
 
 void Socket::HandleKeepalive(const KeepalivePacket &packet) {
-  LOG(kVerbose) << sock_id_ << " Receiving keepalive re" << (packet.IsResponse() ? "sponse " : "quest ") << packet.SequenceNumber();
   if (session_.IsConnected()) {
     if (packet.IsResponse()) {
       if (waiting_keepalive_sequence_number_ &&
@@ -316,9 +305,8 @@ void Socket::HandleKeepalive(const KeepalivePacket &packet) {
           waiting_keepalive_sequence_number_ = 1;
         return;
       } else {
-        LOG(kInfo) << "Socket " << session_.Id()
-                   << " ignoring unexpected keepalive response packet from "
-                   << peer_.Endpoint();
+        LOG(kWarning) << "Socket " << session_.Id()
+                      << " ignoring unexpected keepalive response packet from " << peer_.Endpoint();
       }
     } else {
       sender_.HandleKeepalive(packet);
@@ -363,7 +351,6 @@ void Socket::HandleNegativeAck(const NegativeAckPacket &packet) {
 
 void Socket::HandleTick() {
   std::lock_guard<std::mutex> lock(mutex_);
-  LOG(kVerbose) << sock_id_ << " Ticking.  IsConnected: " << std::boolalpha << session_.IsConnected();
   if (session_.IsConnected()) {
     sender_.HandleTick();
     receiver_.HandleTick();

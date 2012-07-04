@@ -13,10 +13,10 @@
 
 #include "maidsafe/rudp/connection.h"
 
-#include <algorithm>
 #include <array>
-#include <functional>
 #include <thread>
+#include <algorithm>
+#include <functional>
 
 #include "boost/asio/read.hpp"
 #include "boost/asio/write.hpp"
@@ -58,13 +58,6 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       timeout_state_(kConnecting),
       sending_(false) {
   static_assert((sizeof(detail::DataSize)) == 4, "DataSize must be 4 bytes.");
-                                                                            static std::atomic<int> count(0);
-                                                                            conn_id_ = "Connection " + boost::lexical_cast<std::string>(count++);
-                                                                            LOG(kVerbose) << conn_id_ << " constructor";
-}
-
-Connection::~Connection() {
-                                                                      LOG(kVerbose) << conn_id_ << " destructor";
 }
 
 detail::Socket &Connection::Socket() {
@@ -76,13 +69,11 @@ void Connection::Close() {
 }
 
 void Connection::DoClose() {
-                                                                        LOG(kVerbose) << conn_id_ << " DoClose";
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-                                                                        LOG(kVerbose) << conn_id_ << " DoClose got transport lock.  Is temporary: " << std::boolalpha << IsTemporary();
-    // We're still connected to the transport. We need to detach and then
-    // start flushing the socket to attempt a graceful closure.
+    // We're still connected to the transport. We need to detach and then start flushing the socket
+    // to attempt a graceful closure.
     socket_.NotifyClose();
     socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose, shared_from_this())));
     transport->RemoveConnection(shared_from_this());
@@ -91,7 +82,6 @@ void Connection::DoClose() {
     timer_.expires_from_now(Parameters::disconnection_timeout);
     timeout_state_ = kClosing;
   } else {
-                                                                        LOG(kVerbose) << conn_id_ << " DoClose didn't get transport lock";
     // We've already had a go at graceful closure. Just tear down the socket.
     socket_.Close();
     timer_.cancel();
@@ -178,7 +168,6 @@ bool Connection::Stopped() const {
 }
 
 void Connection::StartTick() {
-                                                                            LOG(kVerbose) << conn_id_ << " Ticking";
   auto handler = strand_.wrap(std::bind(&Connection::HandleTick, shared_from_this()));
   socket_.AsyncTick(handler);
 }
@@ -192,18 +181,17 @@ void Connection::HandleTick() {
 //      timer_.expires_from_now(Parameters::speed_calculate_inverval);
 
     // If transmission speed is too slow, the socket shall be forced closed
-                                                                                        //if (socket_.IsSlowTransmission(sent_length)) {
-                                                                                        //  LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint()
-                                                                                        //                << " has slow transmission - closing now.";
-                                                                                        //  return DoClose();
-                                                                                        //}
+//    if (socket_.IsSlowTransmission(sent_length)) {
+//      LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint()
+//                    << " has slow transmission - closing now.";
+//      return DoClose();
+//    }
 //  }
+
   // We need to keep ticking during a graceful shutdown.
-  if (timeout_state_ == kClosing && timer_.expires_from_now().is_negative()) {
-    LOG(kInfo) << conn_id_ << " Timer has expired during closing - forcing close now.";
+  if (timeout_state_ == kClosing && timer_.expires_from_now().is_negative())
     return DoClose();
-  }
-//                                                            LOG(kInfo) << conn_id_ << " Timer expires at " << timer_.expires_at();
+
   StartTick();
 }
 
@@ -211,8 +199,6 @@ void Connection::StartConnect(const std::string &validation_data,
                               const boost::posix_time::time_duration &lifespan) {
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(),
                                         args::_1, validation_data));
-  if (std::shared_ptr<Transport> transport = transport_.lock()) LOG(kVerbose) << conn_id_ << " StartConnect connecting "
-                                                          << transport->local_endpoint() << " to " << remote_endpoint_ << "   " << validation_data;
   detail::Session::Mode open_mode(detail::Session::kNormal);
   lifespan_timer_.expires_from_now(lifespan);
   if (validation_data.empty()) {
@@ -239,7 +225,7 @@ void Connection::CheckLifespanTimeout(const bs::error_code &ec) {
     return DoClose();
 
   if (lifespan_timer_.expires_from_now().is_negative()) {
-    LOG(kError) << conn_id_ << " Closing connection to " << socket_.RemoteEndpoint() << " - Lifespan expired.";
+    LOG(kInfo) << "Closing connection to " << socket_.RemoteEndpoint() << " - Lifespan expired.";
     return DoClose();
   }
 }
@@ -258,7 +244,6 @@ void Connection::HandleConnect(const bs::error_code &ec, const std::string &vali
     return DoClose();
   }
 
-                           LOG(kVerbose) << conn_id_ << " HandleConnect connected to " << socket_.RemoteEndpoint();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     transport->InsertConnection(shared_from_this());
   } else {
@@ -273,31 +258,17 @@ void Connection::HandleConnect(const bs::error_code &ec, const std::string &vali
   StartReadSize();
   if (!validation_data.empty()) {
     EncodeData(validation_data);
-                              LOG(kVerbose) << conn_id_ << " Sending validation data now !!!!!!!!!!     " << validation_data << " to " << socket_.RemoteEndpoint();
     StartWrite(MessageSentFunctor());
   }
 }
 
 void Connection::StartReadSize() {
   assert(!Stopped());
-  //if (Stopped()) {
-  //  LOG(kError) << "Failed to start read size from " << socket_.RemoteEndpoint()
-  //              << " - connection stopped.";
-  //  return;
-  //}
-
   receive_buffer_.clear();
   receive_buffer_.resize(sizeof(detail::DataSize));
   socket_.AsyncRead(asio::buffer(receive_buffer_), sizeof(detail::DataSize),
                     strand_.wrap(std::bind(&Connection::HandleReadSize,
                                            shared_from_this(), args::_1)));
-
-//  timer_.expires_at(boost::posix_time::pos_infin);
-//  boost::posix_time::ptime now = asio::deadline_timer::traits_type::now();
-//  response_deadline_ = now + Parameters::default_receive_timeout;
-//  timer_.expires_at(std::max(response_deadline_,
-//                             now + Parameters::speed_calculate_inverval));
-//  timeout_state_ = kNoTimeout;
 }
 
 void Connection::HandleReadSize(const bs::error_code &ec) {
@@ -323,18 +294,11 @@ void Connection::HandleReadSize(const bs::error_code &ec) {
   data_size_ = size;
   data_received_ = 0;
 
-//  timer_.expires_from_now(Parameters::speed_calculate_inverval);
   StartReadData();
 }
 
 void Connection::StartReadData() {
   assert(!Stopped());
-  //if (Stopped()) {
-  //  LOG(kError) << "Failed to read data from " << socket_.RemoteEndpoint()
-  //              << " - connection stopped.";
-  //  return DoClose();
-  //}
-
   size_t buffer_size = data_received_;
   buffer_size += std::min(static_cast<size_t> (socket_.BestReadBufferSize()),
                           data_size_ - data_received_);
@@ -364,30 +328,25 @@ void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
 
   data_received_ += length;
   if (data_received_ == data_size_) {
-                                                          //// No timeout applies while dispatching the message.
-                                                          //timer_.expires_at(boost::posix_time::pos_infin);
-
     // Dispatch the message outside the strand.
-    strand_.get_io_service().post(std::bind(&Connection::DispatchMessage,
-                                            shared_from_this()));
+    strand_.get_io_service().post(std::bind(&Connection::DispatchMessage, shared_from_this()));
   } else {
     // Need more data to complete the message.
-                                                                                                    //if (length > 0)
-                                                                                                    //  timer_.expires_from_now(Parameters::speed_calculate_inverval);
-                                                                                                    //// If transmission speed is too slow, the socket shall be forced closed
-                                                                                                    //if (socket_.IsSlowTransmission(length)) {
-                                                                                                    //  LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint()
-                                                                                                    //                << " has slow transmission - closing now.";
-                                                                                                    //  return DoClose();
-                                                                                                    //}
+//    if (length > 0)
+//      timer_.expires_from_now(Parameters::speed_calculate_inverval);
+//    // If transmission speed is too slow, the socket shall be forced closed
+//    if (socket_.IsSlowTransmission(length)) {
+//      LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint()
+//                    << " has slow transmission - closing now.";
+//      return DoClose();
+//    }
     StartReadData();
   }
 }
 
 void Connection::DispatchMessage() {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    transport->SignalMessageReceived(std::string(receive_buffer_.begin(),
-                                                 receive_buffer_.end()));
+    transport->SignalMessageReceived(std::string(receive_buffer_.begin(), receive_buffer_.end()));
     StartReadSize();
   }
 }
@@ -410,8 +369,7 @@ void Connection::EncodeData(const std::string &data) {
 
 void Connection::StartWrite(const MessageSentFunctor &message_sent_functor) {
   if (Stopped()) {
-    LOG(kError) << "Failed to write to " << socket_.RemoteEndpoint()
-                << " - connection stopped.";
+    LOG(kError) << "Failed to write to " << socket_.RemoteEndpoint() << " - connection stopped.";
     if (message_sent_functor)
       message_sent_functor(false);
     return DoClose();
@@ -420,9 +378,6 @@ void Connection::StartWrite(const MessageSentFunctor &message_sent_functor) {
   socket_.AsyncWrite(asio::buffer(send_buffer_),
                      std::bind(&Connection::HandleWrite, shared_from_this(),
                                args::_1, message_sent_functor));
-                                                                                //timer_.expires_from_now(Parameters::speed_calculate_inverval);
-                                                                                //if (kConnecting != timeout_state_)
-                                                                                //  timeout_state_ = kSending;
 }
 
 void Connection::HandleWrite(const bs::error_code &ec,
@@ -446,10 +401,6 @@ void Connection::HandleWrite(const bs::error_code &ec,
       message_sent_functor(false);
     return DoClose();
   }
-
-                                                                                  //// Once data sent out, stop the timer for the sending procedure
-                                                                                  //timer_.expires_at(boost::posix_time::pos_infin);
-                                                                                  //timeout_state_ = kNoTimeout;
 
   if (message_sent_functor)
     message_sent_functor(true);
@@ -481,7 +432,7 @@ void Connection::HandleProbe(const bs::error_code &ec) {
     bs::error_code ignored_ec;
     DoProbe(ignored_ec);
   } else {
-    LOG(kWarning) << conn_id_ << " Failed to probe " << socket_.RemoteEndpoint() << " - " << ec.message();
+    LOG(kWarning) << "Failed to probe " << socket_.RemoteEndpoint() << " - " << ec.message();
     return DoClose();
   }
 }

@@ -42,12 +42,9 @@ class TickTimer;
 
 class Receiver {
  public:
-  explicit Receiver(Peer &peer,                               // NOLINT (Fraser)
-                    TickTimer &tick_timer,
-                    CongestionControl &congestion_control);
+  explicit Receiver(Peer &peer, TickTimer &tick_timer, CongestionControl &congestion_control);  // NOLINT (Fraser)
 
-  // Reset receiver so that it is ready to start receiving data from the
-  // specified sequence number.
+  // Reset receiver so that it is ready to start receiving data from the specified sequence number.
   void Reset(uint32_t initial_sequence_number);
 
   // Determine whether all acknowledgements have been processed.
@@ -102,21 +99,19 @@ class Receiver {
     }
   };
 
-  // The receiver's window of unread packets. If this window fills up, any new
-  // data packets are dropped. The application needs to read data regularly to
-  // ensure that more data can be received.
+  // The receiver's window of unread packets. If this window fills up, any new data packets are
+  // dropped. The application needs to read data regularly to ensure that more data can be received.
   typedef SlidingWindow<UnreadPacket> UnreadPacketWindow;
   UnreadPacketWindow unread_packets_;
 
   struct Ack {
-    Ack() : packet(),
-            send_time(boost::asio::deadline_timer::traits_type::now()) {}
+    Ack() : packet(), send_time(boost::asio::deadline_timer::traits_type::now()) {}
     AckPacket packet;
     boost::posix_time::ptime send_time;
   };
 
-  // The receiver's window of acknowledgements. New acks are generated on a
-  // regular basis, so if this window fills up the oldest entries are removed.
+  // The receiver's window of acknowledgements. New acks are generated on a regular basis, so if
+  // this window fills up the oldest entries are removed.
   typedef SlidingWindow<Ack> AckWindow;
   AckWindow acks_;
 

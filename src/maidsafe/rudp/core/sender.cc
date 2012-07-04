@@ -32,14 +32,12 @@ namespace rudp {
 
 namespace detail {
 
-Sender::Sender(Peer &peer,                                    // NOLINT (Fraser)
-               TickTimer &tick_timer,
-               CongestionControl &congestion_control)
-  : peer_(peer),
-    tick_timer_(tick_timer),
-    congestion_control_(congestion_control),
-    unacked_packets_(),
-    send_timeout_() {}
+Sender::Sender(Peer &peer, TickTimer &tick_timer, CongestionControl &congestion_control)  // NOLINT (Fraser)
+    : peer_(peer),
+      tick_timer_(tick_timer),
+      congestion_control_(congestion_control),
+      unacked_packets_(),
+      send_timeout_() {}
 
 uint32_t Sender::GetNextPacketSequenceNumber() const {
   return unacked_packets_.End();
@@ -126,7 +124,6 @@ void Sender::HandleNegativeAck(const NegativeAckPacket &packet) {
 }
 
 void Sender::HandleTick() {
-                                                                            LOG(kVerbose) << "Sender Ticking";
   if (send_timeout_ <= tick_timer_.Now()) {
     // Clear timeout. Will be reset next time a data packet is sent.
     send_timeout_ = bptime::pos_infin;

@@ -31,7 +31,6 @@ class Socket;
 class Dispatcher {
  public:
   Dispatcher();
-                                                                                                        ~Dispatcher();
 
   // Add a socket. Returns a new unique id for the socket.
   uint32_t AddSocket(Socket *socket);
@@ -44,7 +43,6 @@ class Dispatcher {
                          const boost::asio::ip::udp::endpoint &endpoint);
 
   boost::asio::ip::udp::endpoint GetAndClearJoiningPeerEndpoint();
-                                                                                                    std::string disp_id_;
 
  private:
   // Disallow copying and assignment.

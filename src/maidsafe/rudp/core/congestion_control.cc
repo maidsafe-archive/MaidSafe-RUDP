@@ -56,8 +56,7 @@ CongestionControl::CongestionControl()
     bits_per_second_(0),
     last_record_transmit_time_() {}
 
-void CongestionControl::OnOpen(uint32_t /*send_seqnum*/,
-                               uint32_t /*receive_seqnum*/) {
+void CongestionControl::OnOpen(uint32_t /*send_seqnum*/, uint32_t /*receive_seqnum*/) {
   transmitted_bytes_ = std::numeric_limits<uintmax_t>::max();
 }
 
@@ -249,26 +248,26 @@ void CongestionControl::SetPeerConnectionType(uint32_t connection_type) {
 }
 
 bool CongestionControl::IsSlowTransmission(size_t /*length*/) {
-  //// if length keeps to be zero, socket will have timeout eventually
-  //// so don't need to worry about all 0 situation here
-  //if (transmitted_bytes_ == std::numeric_limits<uintmax_t>::max()) {
-  //  transmitted_bytes_ = length;
-  //  last_record_transmit_time_ = TickTimer::Now();
-  //} else {
-  //  boost::posix_time::ptime now(TickTimer::Now());
-  //  transmitted_bytes_ += length;
-  //  // only calculate speed every calculation interval
-  //  boost::posix_time::time_duration duration = now - last_record_transmit_time_;
-  //  if (duration > Parameters::speed_calculate_inverval) {
-  //    BOOST_ASSERT(transmitted_bytes_ < std::numeric_limits<uintmax_t>::max() / 1000);
-  //    bits_per_second_ = (1000 * transmitted_bytes_) / duration.total_milliseconds();
-  //    // be different to the initial state
-  //    transmitted_bytes_ = 0;
-  //    last_record_transmit_time_ = now;
-  //    if (bits_per_second_ < Parameters::slow_speed_threshold)
-  //      return true;
-  //  }
-  //}
+//  // if length keeps to be zero, socket will have timeout eventually
+//  // so don't need to worry about all 0 situation here
+//  if (transmitted_bytes_ == std::numeric_limits<uintmax_t>::max()) {
+//    transmitted_bytes_ = length;
+//    last_record_transmit_time_ = TickTimer::Now();
+//  } else {
+//    boost::posix_time::ptime now(TickTimer::Now());
+//    transmitted_bytes_ += length;
+//    // only calculate speed every calculation interval
+//    boost::posix_time::time_duration duration = now - last_record_transmit_time_;
+//    if (duration > Parameters::speed_calculate_inverval) {
+//      BOOST_ASSERT(transmitted_bytes_ < std::numeric_limits<uintmax_t>::max() / 1000);
+//      bits_per_second_ = (1000 * transmitted_bytes_) / duration.total_milliseconds();
+//      // be different to the initial state
+//      transmitted_bytes_ = 0;
+//      last_record_transmit_time_ = now;
+//      if (bits_per_second_ < Parameters::slow_speed_threshold)
+//        return true;
+//    }
+//  }
   return false;
 }
 
@@ -339,9 +338,9 @@ uint32_t CongestionControl::AckInterval() const {
   return ack_interval_;
 }
 
-//boost::posix_time::time_duration CongestionControl::AckInterval() const {
-//  return Parameters::ack_interval;
-//}
+//  boost::posix_time::time_duration CongestionControl::AckInterval() const {
+//    return Parameters::ack_interval;
+//  }
 
 }  // namespace detail
 

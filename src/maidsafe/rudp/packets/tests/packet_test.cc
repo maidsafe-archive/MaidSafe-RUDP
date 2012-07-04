@@ -271,7 +271,7 @@ class ControlPacketTest : public testing::Test {
 TEST_F(ControlPacketTest, BEH_Type) {
   EXPECT_EQ(0U, control_packet_.Type());
 #ifndef NDEBUG
-  ASSERT_DEATH({ SetType(0x8000); }, "Assertion failed: .* <= 0x7fff");
+  ASSERT_DEATH({ SetType(0x8000); }, "Assertion failed: .* <= 0x7fff");  // NOLINT (Fraser)
 #endif
   SetType(0x7fff);
   EXPECT_EQ(0x7fff, control_packet_.Type());

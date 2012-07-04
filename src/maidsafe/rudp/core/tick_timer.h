@@ -22,29 +22,23 @@ namespace rudp {
 
 namespace detail {
 
-// Lightweight wrapper around a deadline_timer that avoids modifying the expiry
-// time if it would move it further away.
+// Lightweight wrapper around a deadline_timer that avoids modifying the expiry time if it would
+// move it further away.
 class TickTimer {
  public:
   explicit TickTimer(boost::asio::io_service &asio_service)  // NOLINT (Fraser)
-    : timer_(asio_service) {
+      : timer_(asio_service) {
     Reset();
   }
 
-  static boost::posix_time::ptime Now() {
-    return boost::asio::deadline_timer::traits_type::now();
-  }
+  static boost::posix_time::ptime Now() { return boost::asio::deadline_timer::traits_type::now(); }
 
-  void Cancel() {
-    timer_.cancel();
-  }
+  void Cancel() { timer_.cancel(); }
 
-  void Reset() {
-    timer_.expires_at(boost::posix_time::pos_infin);
-  }
+  void Reset() { timer_.expires_at(boost::posix_time::pos_infin); }
 
   bool Expired() const {
-    // Infinate time out will be counted as expired
+    // Infinite time out will be counted as expired
     if (timer_.expires_at() == boost::posix_time::pos_infin)
       return true;
     return Now() >= timer_.expires_at();
@@ -55,14 +49,10 @@ class TickTimer {
       timer_.expires_at(time);
   }
 
-  void TickAfter(const boost::posix_time::time_duration &duration) {
-    TickAt(Now() + duration);
-  }
+  void TickAfter(const boost::posix_time::time_duration &duration) { TickAt(Now() + duration); }
 
   template <typename WaitHandler>
-  void AsyncWait(WaitHandler handler) {
-    timer_.async_wait(handler);
-  }
+  void AsyncWait(WaitHandler handler) { timer_.async_wait(handler); }
 
  private:
   boost::asio::deadline_timer timer_;
