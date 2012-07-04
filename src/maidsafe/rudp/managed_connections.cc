@@ -47,7 +47,8 @@ ManagedConnections::ManagedConnections()
       transports_(),
       connection_map_(),
       shared_mutex_(),
-      bootstrap_endpoints_() {}
+      bootstrap_endpoints_(),
+      local_ip_() {}
 
 ManagedConnections::~ManagedConnections() {
   {
