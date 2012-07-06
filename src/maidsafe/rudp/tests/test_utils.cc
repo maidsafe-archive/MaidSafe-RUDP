@@ -245,8 +245,7 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
       [&](const std::string &message) {
         bool is_printable(true);
         for (auto itr(message.begin()); itr != message.end(); ++itr) {
-          // The second part of the comparison gives a warning since the max value of a char is 127
-          if (*itr < 32/* || *itr > 127*/) {
+          if (*itr < 32) {
             is_printable = false;
             break;
           }
