@@ -226,7 +226,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   auto wait_for_signals([&](int node_index)->bool {
     int count(0);
     do {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      Sleep(bptime::milliseconds(100));
       ++count;
     } while ((node_.connection_lost_endpoints().empty() ||
              nodes_[node_index]->connection_lost_endpoints().empty()) &&
@@ -462,7 +462,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.managed_connections()->Remove(bootstrap_endpoints_[0]);
   int count(0);
   do {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    Sleep(bptime::milliseconds(100));
     ++count;
   } while ((node_.connection_lost_endpoints().empty() ||
             nodes_[0]->connection_lost_endpoints().empty()) &&
@@ -645,7 +645,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   boost::this_thread::sleep(Parameters::bootstrap_disconnection_timeout);
   int count(0);
   do {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    Sleep(bptime::milliseconds(100));
     ++count;
   } while ((node_.connection_lost_endpoints().empty() ||
             nodes_[0]->connection_lost_endpoints().empty()) &&

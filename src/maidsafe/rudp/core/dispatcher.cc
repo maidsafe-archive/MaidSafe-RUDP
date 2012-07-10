@@ -63,6 +63,8 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
             return socket_pair.second->RemoteEndpoint() == endpoint;
           });
     } else if (id == 0xffffffff) {
+      if (sockets_.empty())
+        return;
       if (sockets_.size() == 1U && endpoint == (*sockets_.begin()).second->RemoteEndpoint()) {
         // This is a handshake packet from a peer replying to this node's join attempt,
         // or from a peer starting a zero state network with this node

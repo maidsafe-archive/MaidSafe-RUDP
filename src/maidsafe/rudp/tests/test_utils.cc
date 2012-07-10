@@ -60,7 +60,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
            endpoint1(GetLocalIp(), GetRandomPort()),
            chosen_endpoint;
 
-  std::thread thread([&] {
+  boost::thread thread([&] {
     chosen_endpoint = nodes[0]->Bootstrap(std::vector<Endpoint>(1, endpoint1), endpoint0);
   });
   if (nodes[1]->Bootstrap(std::vector<Endpoint>(1, endpoint0), endpoint1) != endpoint0)
@@ -245,7 +245,7 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
       [&](const std::string &message) {
         bool is_printable(true);
         for (auto itr(message.begin()); itr != message.end(); ++itr) {
-          if (*itr < 32 || *itr > 127) {
+          if (*itr < 32) {
             is_printable = false;
             break;
           }

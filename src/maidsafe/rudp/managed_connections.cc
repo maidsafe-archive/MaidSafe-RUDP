@@ -47,7 +47,8 @@ ManagedConnections::ManagedConnections()
       transports_(),
       connection_map_(),
       shared_mutex_(),
-      bootstrap_endpoints_() {}
+      bootstrap_endpoints_(),
+      local_ip_() {}
 
 ManagedConnections::~ManagedConnections() {
   {
@@ -309,7 +310,7 @@ void ManagedConnections::OnConnectionAddedSlot(const Endpoint &peer_endpoint,
   UniqueLock unique_lock(shared_mutex_);
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
   if (result.second) {
-    LOG(kInfo) << "Successfully connected from "<< transport->external_endpoint() << " to  "
+    LOG(kInfo) << "Successfully connected from "<< transport->external_endpoint() << " to "
                << peer_endpoint;
   } else {
     LOG(kError) << transport->external_endpoint() << " is already connected to " << peer_endpoint;

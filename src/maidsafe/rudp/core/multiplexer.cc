@@ -32,7 +32,8 @@ Multiplexer::Multiplexer(asio::io_service &asio_service) //NOLINT
   : socket_(asio_service),
     receive_buffer_(Parameters::max_size),
     sender_endpoint_(),
-    dispatcher_() {}
+    dispatcher_(),
+    external_endpoint_() {}
 
 ReturnCode Multiplexer::Open(const ip::udp::endpoint &endpoint) {
   if (socket_.is_open()) {

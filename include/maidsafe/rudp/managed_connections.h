@@ -94,6 +94,10 @@ class ManagedConnections {
   typedef std::map<boost::asio::ip::udp::endpoint, std::shared_ptr<Transport>> ConnectionMap;
 
   struct TransportAndSignalConnections {
+    TransportAndSignalConnections() : transport(),
+                                      on_message_connection(),
+                                      on_connection_added_connection(),
+                                      on_connection_lost_connection() {}
     std::shared_ptr<Transport> transport;
     boost::signals2::connection on_message_connection;
     boost::signals2::connection on_connection_added_connection;

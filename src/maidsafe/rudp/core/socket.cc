@@ -38,6 +38,7 @@ namespace detail {
 
 Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
     : dispatcher_(multiplexer.dispatcher_),
+      mutex_(),
       peer_(multiplexer),
       tick_timer_(multiplexer.socket_.get_io_service()),
       session_(peer_, tick_timer_, multiplexer.external_endpoint_),
