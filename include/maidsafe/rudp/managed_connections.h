@@ -20,10 +20,6 @@
 #include <string>
 #include <vector>
 
-#ifdef FAKE_RUDP
-#  include "../../../src/maidsafe/rudp/tests/fake_managed_connections.h"
-#else
-
 #include "boost/asio/ip/address.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
@@ -131,7 +127,5 @@ class ManagedConnections {
 }  // namespace rudp
 
 }  // namespace maidsafe
-
-#endif  // FAKE_RUDP
 
 #endif  // MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
