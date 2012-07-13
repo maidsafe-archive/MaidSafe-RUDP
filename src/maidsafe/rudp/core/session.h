@@ -17,6 +17,7 @@
 #include <cstdint>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/asio/ip/udp.hpp"
+#include "maidsafe/common/rsa.h"
 #include "maidsafe/rudp/packets/handshake_packet.h"
 
 namespace maidsafe {
@@ -37,7 +38,10 @@ class Session {
                    boost::asio::ip::udp::endpoint &this_external_endpoint);
 
   // Open the session.
-  void Open(uint32_t id, uint32_t sequence_number, Mode mode);
+  void Open(uint32_t id,
+            std::shared_ptr<asymm::PublicKey> this_public_key,
+            uint32_t sequence_number,
+            Mode mode);
 
   // Get whether the session is already open. May not be connected.
   bool IsOpen() const;
@@ -63,6 +67,12 @@ class Session {
   // Handle a tick in the system time.
   void HandleTick();
 
+  // Changes mode_ to kNormal;
+  void MakePermanent();
+
+  // Returns true if mode_ is kNormal
+  bool IsPermanent() const;
+
  private:
   // Disallow copying and assignment.
   Session(const Session&);
@@ -72,7 +82,6 @@ class Session {
   void SendPacket();
   void SendConnectionRequest();
   void SendCookie();
-  void SendConnectionAccepted();
 
   // The peer with which we are communicating.
   Peer &peer_;
@@ -82,6 +91,9 @@ class Session {
 
   // This node's external endpoint as viewed by peer.
   boost::asio::ip::udp::endpoint &this_external_endpoint_;
+
+  // This node's public key
+  std::shared_ptr<asymm::PublicKey> this_public_key_;
 
   // The local socket id.
   uint32_t id_;

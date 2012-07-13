@@ -19,6 +19,7 @@
 
 #include "boost/asio/ip/udp.hpp"
 #include "boost/thread/future.hpp"
+#include "maidsafe/common/rsa.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
@@ -56,13 +57,17 @@ class Node {
                      Endpoint local_endpoint = Endpoint());
   boost::unique_future<std::vector<std::string>> GetFutureForMessages(
       const uint32_t &message_count);
-  std::string kId() const { return kId_; }
-  std::string kValidationData() const { return kValidationData_; }
+  std::string id() const { return key_pair_.identity; }
+  std::string validation_data() const { return key_pair_.validation_token; }
+  std::shared_ptr<asymm::PrivateKey> private_key() const {
+      return std::shared_ptr<asymm::PrivateKey>(new asymm::PrivateKey(key_pair_.private_key)); }
+  std::shared_ptr<asymm::PublicKey> public_key() const {
+      return std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey(key_pair_.public_key)); }
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
   int GetReceivedMessageCount(const std::string &message) const;
   void ResetData();
   std::vector<Endpoint> GetConnectedEndPoints() { return connected_endpoints_; }
-  void AddConnectedEndPoint(const Endpoint & connected_endpoints) {
+  void AddConnectedEndPoint(const Endpoint &connected_endpoints) {
     connected_endpoints_.push_back(connected_endpoints);
   }
 
@@ -70,7 +75,7 @@ class Node {
  private:
   void SetPromiseIfDone();
 
-  const std::string kId_, kValidationData_;
+  asymm::Keys key_pair_;
   mutable std::mutex mutex_;
   std::vector<Endpoint> connection_lost_endpoints_;
   std::vector<Endpoint> connected_endpoints_;

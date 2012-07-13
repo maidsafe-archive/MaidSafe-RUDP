@@ -132,10 +132,13 @@ void Socket::Close() {
   waiting_probe_.cancel();
 }
 
-void Socket::StartConnect(const ip::udp::endpoint &remote, Session::Mode open_mode) {
+void Socket::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
+                          const ip::udp::endpoint &remote,
+                          Session::Mode open_mode) {
   peer_.SetEndpoint(remote);
   peer_.SetId(0);  // Assigned when handshake response is received.
   session_.Open(dispatcher_.AddSocket(this),
+                this_public_key,
                 sender_.GetNextPacketSequenceNumber(),
                 open_mode);
 }
@@ -194,8 +197,7 @@ void Socket::ProcessWrite() {
   }
 }
 
-void Socket::StartRead(const asio::mutable_buffer &data,
-                       size_t transfer_at_least) {
+void Socket::StartRead(const asio::mutable_buffer &data, size_t transfer_at_least) {
   std::lock_guard<std::mutex> lock(mutex_);
   // Check for a no-read write.
   if (asio::buffer_size(data) == 0) {
@@ -361,6 +363,14 @@ void Socket::HandleTick() {
   } else {
     session_.HandleTick();
   }
+}
+
+void Socket::MakePermanent() {
+  session_.MakePermanent();
+}
+
+std::shared_ptr<asymm::PublicKey> Socket::PeerPublicKey() const {
+  return peer_.public_key();
 }
 
 }  // namespace detail

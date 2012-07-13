@@ -31,7 +31,7 @@
 #include "boost/thread/shared_mutex.hpp"
 
 #include "maidsafe/common/asio_service.h"
-
+#include "maidsafe/common/rsa.h"
 
 namespace maidsafe {
 
@@ -58,14 +58,17 @@ class ManagedConnections {
 
   // Creates a new transport object and bootstraps it to one of the provided bootstrap_endpoints.
   // The successfully connected endpoint is returned, or a default endpoint is returned if
-  // bootstrapping is unsuccessful.  For zero-state network, pass required local_endpoint.
+  // bootstrapping is unsuccessful.  All messages are decrypted using private_key before being
+  // passed up via MessageReceivedFunctor.  For zero-state network, pass required local_endpoint.
   boost::asio::ip::udp::endpoint Bootstrap(
       const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
       MessageReceivedFunctor message_received_functor,
       ConnectionLostFunctor connection_lost_functor,
+      std::shared_ptr<asymm::PrivateKey> private_key,
+      std::shared_ptr<asymm::PublicKey> public_key,
       boost::asio::ip::udp::endpoint local_endpoint = boost::asio::ip::udp::endpoint());
 
-  // Returns a transport's EndpointPair.  Returns kNoneAvailable if there are no running Managed
+  // Returns a transport's EndpointPair.  Returns kNotBootstrapped if there are no running Managed
   // Connections.  In this case, Bootstrap must be called to start new Managed Connections.  Returns
   // kFull if all Managed Connections already have the maximum number of running sockets.  If there
   // are less than kMaxTransports transports running, a new one will be started and if successful,
@@ -77,8 +80,9 @@ class ManagedConnections {
   int GetAvailableEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint,
                            EndpointPair &this_endpoint_pair);
 
-  // Makes a new connection and sends the validation data to the peer which runs its
-  // message_received_functor_ with the data.
+  // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
+  // runs its message_received_functor_ with the data.  All messages sent via this connection are
+  // encrypted for the peer.
   int Add(const boost::asio::ip::udp::endpoint &this_endpoint,
           const boost::asio::ip::udp::endpoint &peer_endpoint,
           const std::string &validation_data);
@@ -125,10 +129,11 @@ class ManagedConnections {
   AsioService asio_service_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
+  std::shared_ptr<asymm::PrivateKey> private_key_;
+  std::shared_ptr<asymm::PublicKey> public_key_;
   std::vector<TransportAndSignalConnections> transports_;
   ConnectionMap connection_map_;
   mutable boost::shared_mutex shared_mutex_;
-  std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints_;
   boost::asio::ip::address local_ip_;
 };
 

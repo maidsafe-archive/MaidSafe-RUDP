@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "maidsafe/common/log.h"
+#include "maidsafe/common/return_codes.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
@@ -43,15 +44,19 @@ class RudpTransportTest : public testing::Test {
  protected:
   struct TestPeer {
     TestPeer() : local_endpoint(GetLocalIp(), GetRandomPort()),
+                 key_pair(),
                  mutex(),
                  cond_var_connection_added(),
                  cond_var_connection_lost(),
                  cond_var_msg_received(),
                  asio_service(Parameters::thread_count),
-                 transport(new Transport(asio_service)),
+                 transport(),
                  messages_received(),
                  peers_added(),
                  peers_lost() {
+      asymm::GenerateKeyPair(&key_pair);
+      transport.reset(new Transport(asio_service,
+          std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey(key_pair.public_key))));
       Endpoint chosen_endpoint;
       std::vector<Endpoint> bootstrap_endpoints;
       boost::signals2::connection on_message_connection;
@@ -95,6 +100,7 @@ class RudpTransportTest : public testing::Test {
     }
 
     Endpoint local_endpoint;
+    asymm::Keys key_pair;
     boost::mutex mutex;
     boost::condition_variable cond_var_connection_added;
     boost::condition_variable cond_var_connection_lost;
@@ -119,9 +125,9 @@ class RudpTransportTest : public testing::Test {
 
   void ConnectTestPeers() {
     transports_[0]->transport->Connect(transports_[1]->local_endpoint,
-                                      "validation data from node 0");
+                                       "validation data from node 0");
     transports_[1]->transport->Connect(transports_[0]->local_endpoint,
-                                      "validation data from node 1");
+                                       "validation data from node 1");
     boost::mutex::scoped_lock lock(transports_[1]->mutex);
     EXPECT_TRUE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
   }
@@ -142,7 +148,12 @@ TEST_F(RudpTransportTest, BEH_Connection) {
   EXPECT_TRUE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
   EXPECT_TRUE(send_result);
   EXPECT_EQ(1U, transports_[1]->messages_received.size());
-  EXPECT_EQ(msg_content, transports_[1]->messages_received[0]);
+  EXPECT_NE(msg_content, transports_[1]->messages_received[0]);
+  std::string decrypted_msg;
+  EXPECT_EQ(kSuccess, asymm::Decrypt(transports_[1]->messages_received[0],
+                                     transports_[1]->key_pair.private_key,
+                                     &decrypted_msg));
+  EXPECT_EQ(msg_content, decrypted_msg);
 }
 
 TEST_F(RudpTransportTest, BEH_CloseConnection) {

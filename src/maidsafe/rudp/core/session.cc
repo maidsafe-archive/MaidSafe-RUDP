@@ -14,7 +14,6 @@
 #include "maidsafe/rudp/core/session.h"
 
 #include <cassert>
-
 #include "maidsafe/common/log.h"
 
 #include "maidsafe/rudp/packets/data_packet.h"
@@ -39,15 +38,21 @@ Session::Session(Peer &peer,  // NOLINT (Fraser)
       tick_timer_(tick_timer),
       this_external_endpoint_(this_external_endpoint),
       id_(0),
+      this_public_key_(),
       sending_sequence_number_(0),
       receiving_sequence_number_(0),
       peer_connection_type_(0),
       mode_(kNormal),
       state_(kClosed) {}
 
-void Session::Open(uint32_t id, uint32_t sequence_number, Mode mode) {
+void Session::Open(uint32_t id,
+                   std::shared_ptr<asymm::PublicKey> this_public_key,
+                   uint32_t sequence_number,
+                   Mode mode) {
   assert(id != 0);
+  assert(this_public_key);
   id_ = id;
+  this_public_key_ = this_public_key;
   sending_sequence_number_ = sequence_number;
   mode_ = mode;
   state_ = kProbing;
@@ -94,15 +99,26 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
       this_external_endpoint_ = packet.Endpoint();
     } else {
       LOG(kError) << "Invalid external endpoint in handshake: " << packet.Endpoint();
+      state_ = kClosed;
+      return;
     }
+
+    if (!packet.PublicKey()) {
+      LOG(kError) << "Handshake packet is missing peer's public key";
+      state_ = kClosed;
+      return;
+    }
+
     if (mode_ == kBootstrapAndDrop) {
       state_ = kClosed;
       return;
     }
+
     state_ = kConnected;
     peer_connection_type_ = packet.ConnectionType();
     receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
-    SendConnectionAccepted();
+    peer_.SetPublicKey(packet.PublicKey());
+    SendCookie();
 //    }
   }
 }
@@ -144,6 +160,7 @@ void Session::SendCookie() {
   packet.SetConnectionType(Parameters::connection_type);
   packet.SetSocketId(id_);
   packet.SetSynCookie(1);  // TODO(Team) calculate cookie
+  packet.SetPublicKey(this_public_key_);
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
@@ -153,22 +170,12 @@ void Session::SendCookie() {
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
-void Session::SendConnectionAccepted() {
-  HandshakePacket packet;
-  packet.SetEndpoint(peer_.Endpoint());
-  packet.SetDestinationSocketId(peer_.Id());
-  packet.SetRudpVersion(4);
-  packet.SetSocketType(HandshakePacket::kStreamSocketType);
-  packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
-  packet.SetMaximumPacketSize(Parameters::max_size);
-  packet.SetMaximumFlowWindowSize(Parameters::maximum_window_size);
-  packet.SetConnectionType(Parameters::connection_type);
-  packet.SetSocketId(id_);
-  packet.SetSynCookie(1);  // TODO(Team) calculate cookie
+void Session::MakePermanent() {
+  mode_ = kNormal;
+}
 
-  int result(peer_.Send(packet));
-  if (result != kSuccess)
-    LOG(kError) << "Failed to send connection_accepted to " << peer_.Endpoint();
+bool Session::IsPermanent() const {
+  return mode_ == kNormal;
 }
 
 }  // namespace detail

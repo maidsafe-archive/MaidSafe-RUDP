@@ -88,16 +88,18 @@ void Connection::DoClose() {
   }
 }
 
-void Connection::StartConnecting(const std::string &validation_data,
+void Connection::StartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
+                                 const std::string &validation_data,
                                  const boost::posix_time::time_duration &lifespan) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(),
-                             validation_data, lifespan));
+                             this_public_key, validation_data, lifespan));
 }
 
-void Connection::DoStartConnecting(const std::string &validation_data,
+void Connection::DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
+                                   const std::string &validation_data,
                                    const boost::posix_time::time_duration &lifespan) {
   StartTick();
-  StartConnect(validation_data, lifespan);
+  StartConnect(this_public_key, validation_data, lifespan);
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
 }
@@ -108,16 +110,26 @@ bool Connection::IsTemporary() const {
 
 void Connection::MakePermanent() {
   lifespan_timer_.expires_at(bptime::pos_infin);
+  socket_.MakePermanent();
 }
 
 void Connection::StartSending(const std::string &data,
                               const MessageSentFunctor &message_sent_functor) {
-  if (sending_)
+  if (sending_) {
     strand_.post(std::bind(&Connection::StartSending, shared_from_this(), data,
                            message_sent_functor));
-  else
-    strand_.dispatch(std::bind(&Connection::DoStartSending, shared_from_this(), data,
+  } else {
+    std::string encrypted_data;
+    int result(asymm::Encrypt(data, *socket_.PeerPublicKey(), &encrypted_data));
+    if (result != kSuccess) {
+      LOG(kError) << "Failed to encrypt message.  Result: " << result;
+      if (message_sent_functor)
+        message_sent_functor(false);
+      return;
+    }
+    strand_.dispatch(std::bind(&Connection::DoStartSending, shared_from_this(), encrypted_data,
                                message_sent_functor));
+  }
 }
 
 void Connection::DoStartSending(const std::string &data,
@@ -195,7 +207,8 @@ void Connection::HandleTick() {
   StartTick();
 }
 
-void Connection::StartConnect(const std::string &validation_data,
+void Connection::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
+                              const std::string &validation_data,
                               const boost::posix_time::time_duration &lifespan) {
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(),
                                         args::_1, validation_data));
@@ -211,7 +224,7 @@ void Connection::StartConnect(const std::string &validation_data,
       open_mode = detail::Session::kBootstrapAndDrop;
     }
   }
-  socket_.AsyncConnect(remote_endpoint_, handler, open_mode);
+  socket_.AsyncConnect(this_public_key, remote_endpoint_, handler, open_mode);
   timer_.expires_from_now(Parameters::connect_timeout);
   timeout_state_ = kConnecting;
 }
@@ -256,10 +269,8 @@ void Connection::HandleConnect(const bs::error_code &ec, const std::string &vali
 
   StartProbing();
   StartReadSize();
-  if (!validation_data.empty()) {
-    EncodeData(validation_data);
-    StartWrite(MessageSentFunctor());
-  }
+  if (!validation_data.empty())
+    StartSending(validation_data, MessageSentFunctor());
 }
 
 void Connection::StartReadSize() {

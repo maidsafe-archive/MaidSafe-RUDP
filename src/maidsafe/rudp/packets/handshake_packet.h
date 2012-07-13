@@ -15,11 +15,14 @@
 #define MAIDSAFE_RUDP_PACKETS_HANDSHAKE_PACKET_H_
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/system/error_code.hpp"
+
+#include "maidsafe/common/rsa.h"
 
 #include "maidsafe/rudp/packets/control_packet.h"
 
@@ -31,7 +34,7 @@ namespace detail {
 
 class HandshakePacket : public ControlPacket {
  public:
-  enum { kPacketSize = ControlPacket::kHeaderSize + 50 };
+  enum { kMinPacketSize = ControlPacket::kHeaderSize + 50 };
   enum { kPacketType = 0 };
 
   HandshakePacket();
@@ -66,6 +69,9 @@ class HandshakePacket : public ControlPacket {
   boost::asio::ip::udp::endpoint Endpoint() const;
   void SetEndpoint(const boost::asio::ip::udp::endpoint &endpoint);
 
+  std::shared_ptr<asymm::PublicKey> PublicKey() const;
+  void SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key);
+
   static bool IsValid(const boost::asio::const_buffer &buffer);
   bool Decode(const boost::asio::const_buffer &buffer);
   size_t Encode(const boost::asio::mutable_buffer &buffer) const;
@@ -80,6 +86,7 @@ class HandshakePacket : public ControlPacket {
   uint32_t socket_id_;
   uint32_t syn_cookie_;
   boost::asio::ip::udp::endpoint endpoint_;
+  std::shared_ptr<asymm::PublicKey> public_key_;
 };
 
 }  // namespace detail

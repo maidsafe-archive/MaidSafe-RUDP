@@ -38,8 +38,9 @@ namespace {
 typedef boost::asio::ip::udp::endpoint Endpoint;
 }  // unnamed namespace
 
-Transport::Transport(AsioService& asio_service)          // NOLINT (Fraser)
+Transport::Transport(AsioService& asio_service, std::shared_ptr<asymm::PublicKey> this_public_key)  // NOLINT (Fraser)
     : asio_service_(asio_service),
+      this_public_key_(this_public_key),
       strand_(asio_service.service()),
       multiplexer_(new detail::Multiplexer(asio_service.service())),
       connections_(),
@@ -91,7 +92,7 @@ void Transport::Bootstrap(
     }
     ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(), strand_,
                                                           multiplexer_, *itr));
-    connection->StartConnecting("", bootstrap_off_existing_connection ?
+    connection->StartConnecting(this_public_key_, "", bootstrap_off_existing_connection ?
                                     bptime::time_duration() :
                                     Parameters::bootstrap_disconnection_timeout);
 
@@ -145,7 +146,7 @@ void Transport::DoConnect(const Endpoint &peer_endpoint, const std::string &vali
 
   ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(), strand_, multiplexer_,
                                                         peer_endpoint));
-  connection->StartConnecting(validation_data, bptime::pos_infin);
+  connection->StartConnecting(this_public_key_, validation_data, bptime::pos_infin);
 
   if (opened_multiplexer)
     StartDispatch();
@@ -256,7 +257,8 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
                                        strand_,
                                        multiplexer_,
                                        joining_peer_endpoint));
-      connection->StartConnecting("", Parameters::bootstrap_disconnection_timeout);
+      connection->StartConnecting(this_public_key_, "",
+                                  Parameters::bootstrap_disconnection_timeout);
     }
   }
   StartDispatch();

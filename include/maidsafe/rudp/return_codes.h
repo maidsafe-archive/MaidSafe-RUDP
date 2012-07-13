@@ -20,7 +20,7 @@ namespace rudp {
 
 enum ReturnCode {
   kSuccess = 0,
-  kNoneAvailable = -350000,
+  kNotBootstrapped = -350000,
   kFull = -350001,
   kNullParameter = -350002,
   kInvalidTransport = -350003,
@@ -30,11 +30,13 @@ enum ReturnCode {
   kTransportStartFailure = -350007,
   kAlreadyStarted = -350008,
   kInvalidAddress = -350009,
-  kSetOptionFailure = -350010,
-  kBindError = -350011,
-  kConnectError = -350012,
-  kSendFailure = -350013,
-  kPendingResult = -350014,
+  kEmptyValidationData = -350010,
+  kSetOptionFailure = -350011,
+  kBindError = -350012,
+  kConnectError = -350013,
+  kSendFailure = -350014,
+  kPendingResult = -350015,
+  kInvalidPublicKey = -350016,
 
   // Upper limit of values for this enum.
   kReturnCodeLimit = -359999

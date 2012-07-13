@@ -27,8 +27,7 @@ namespace detail {
 class Packet {
  public:
   // Get the destination socket id from an encoded packet.
-  static bool DecodeDestinationSocketId(uint32_t *id,
-                                        const boost::asio::const_buffer &data);
+  static bool DecodeDestinationSocketId(uint32_t *id, const boost::asio::const_buffer &data);
 
  protected:
   // Prevent deletion through this type.

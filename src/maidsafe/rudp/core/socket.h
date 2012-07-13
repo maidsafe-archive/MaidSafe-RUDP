@@ -25,6 +25,8 @@
 #include "boost/asio/strand.hpp"
 #include "boost/asio/ip/udp.hpp"
 
+#include "maidsafe/common/rsa.h"
+
 #include "maidsafe/rudp/core/congestion_control.h"
 #include "maidsafe/rudp/core/peer.h"
 #include "maidsafe/rudp/core/receiver.h"
@@ -102,12 +104,13 @@ class Socket {
   // caller to set a timeout and close the socket after the timeout period
   // expires.
   template <typename ConnectHandler>
-  void AsyncConnect(const boost::asio::ip::udp::endpoint &remote,
+  void AsyncConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
+                    const boost::asio::ip::udp::endpoint &remote,
                     ConnectHandler handler,
                     Session::Mode open_mode) {
     ConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
     waiting_connect_.async_wait(op);
-    StartConnect(remote, open_mode);
+    StartConnect(this_public_key, remote, open_mode);
   }
 
   // Initiate an asynchronous operation to write data. The operation will
@@ -148,6 +151,15 @@ class Socket {
     StartProbe();
   }
 
+  // Changes mode of session to kNormal
+  void MakePermanent();
+
+  // Returns true if session's mode is kNormal
+  bool IsPermanent() const { return session_.IsPermanent(); }
+
+  // Public key of remote peer, used to encrypt all outgoing messages on this socket
+  std::shared_ptr<asymm::PublicKey> PeerPublicKey() const;
+
   friend class Dispatcher;
 
  private:
@@ -155,7 +167,9 @@ class Socket {
   Socket(const Socket&);
   Socket &operator=(const Socket&);
 
-  void StartConnect(const boost::asio::ip::udp::endpoint &remote, Session::Mode open_mode);
+  void StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
+                    const boost::asio::ip::udp::endpoint &remote,
+                    Session::Mode open_mode);
   void StartWrite(const boost::asio::const_buffer &data);
   void ProcessWrite();
   void StartRead(const boost::asio::mutable_buffer &data, size_t transfer_at_least);

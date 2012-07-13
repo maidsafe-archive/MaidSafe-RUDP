@@ -16,6 +16,8 @@
 #include <cassert>
 #include <cstring>
 
+#include "maidsafe/common/log.h"
+
 namespace asio = boost::asio;
 
 namespace maidsafe {
@@ -33,7 +35,8 @@ HandshakePacket::HandshakePacket()
       connection_type_(0),
       socket_id_(0),
       syn_cookie_(0),
-      endpoint_() {
+      endpoint_(),
+      public_key_() {
   SetType(kPacketType);
 }
 
@@ -122,8 +125,18 @@ void HandshakePacket::SetEndpoint(const asio::ip::udp::endpoint &endpoint) {
   endpoint_ = endpoint;
 }
 
+std::shared_ptr<asymm::PublicKey> HandshakePacket::PublicKey() const {
+  return public_key_;
+}
+
+void HandshakePacket::SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key) {
+  public_key_ = public_key;
+}
+
 bool HandshakePacket::IsValid(const asio::const_buffer &buffer) {
-  return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) == kPacketSize));
+  // TODO(Fraser#5#): 2012-07-11 - If encoded public key size can be determined, change buffer size
+  // check to:  == kMinPacketSize || == kMinPacketSize + key size.
+  return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) >= kMinPacketSize));
 }
 
 bool HandshakePacket::Decode(const asio::const_buffer &buffer) {
@@ -136,7 +149,8 @@ bool HandshakePacket::Decode(const asio::const_buffer &buffer) {
     return false;
 
   const unsigned char *p = asio::buffer_cast<const unsigned char *>(buffer);
-//  size_t length = asio::buffer_size(buffer) - kHeaderSize;
+  size_t length = asio::buffer_size(buffer) - kHeaderSize;
+
   p += kHeaderSize;
 
   DecodeUint32(&rudp_version_, p + 0);
@@ -163,13 +177,31 @@ bool HandshakePacket::Decode(const asio::const_buffer &buffer) {
 
   endpoint_ = asio::ip::udp::endpoint(ip_address, port);
 
+  if (asio::buffer_size(buffer) != kMinPacketSize) {
+    std::string encoded_public_key(p + 50, p + length);
+    public_key_.reset(new asymm::PublicKey);
+    asymm::DecodePublicKey(encoded_public_key, public_key_.get());
+    if (!asymm::ValidateKey(*public_key_)) {
+      LOG(kError) << "Failed to validate peer's public key.";
+      return false;
+    }
+  }
+
   return true;
 }
 
 size_t HandshakePacket::Encode(const asio::mutable_buffer &buffer) const {
-  // Refuse to encode if the output buffer is not big enough.
-  if (asio::buffer_size(buffer) < kPacketSize)
-    return 0;
+  std::string encoded_public_key;
+  if (public_key_) {
+    // Refuse to encode if the output buffer is not big enough.
+    if (asio::buffer_size(buffer) == kMinPacketSize)
+      return 0;
+    asymm::EncodePublicKey(*public_key_, &encoded_public_key);
+  } else {
+    // Refuse to encode if the output buffer is not big enough.
+    if (asio::buffer_size(buffer) < kMinPacketSize)
+      return 0;
+  }
 
   // Encode the common parts of the control packet.
   if (EncodeBase(buffer) == 0)
@@ -199,7 +231,9 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer &buffer) const {
   p[48] = ((endpoint_.port() >> 8) & 0xff);
   p[49] = (endpoint_.port() & 0xff);
 
-  return kPacketSize;
+  std::memcpy(p + 50, encoded_public_key.data(), encoded_public_key.size());
+
+  return kMinPacketSize + encoded_public_key.size();
 }
 
 }  // namespace detail

@@ -28,6 +28,7 @@
 #include "boost/thread/mutex.hpp"
 
 #include "maidsafe/common/asio_service.h"
+#include "maidsafe/common/rsa.h"
 
 #include "maidsafe/rudp/parameters.h"
 
@@ -65,7 +66,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
       void(const boost::asio::ip::udp::endpoint&,
            std::shared_ptr<Transport>, bool, bool)> OnConnectionLost;
 
-  explicit Transport(AsioService& asio_service);  // NOLINT (Fraser)
+  Transport(AsioService& asio_service, std::shared_ptr<asymm::PublicKey> this_public_key);  // NOLINT (Fraser)
 
   virtual ~Transport();
 
@@ -124,8 +125,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
               const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
 
   void StartDispatch();
-  void HandleDispatch(MultiplexerPtr multiplexer,
-                      const boost::system::error_code &ec);
+  void HandleDispatch(MultiplexerPtr multiplexer, const boost::system::error_code &ec);
 
   ConnectionSet::iterator FindConnection(const boost::asio::ip::udp::endpoint &peer_endpoint);
 
@@ -138,6 +138,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   AsioService& asio_service_;
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
+  std::shared_ptr<asymm::PublicKey> this_public_key_;
 
   // Because the connections can be in an idle initial state with no pending
   // async operations (after calling PrepareSend()), they are kept alive with

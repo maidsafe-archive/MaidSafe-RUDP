@@ -301,7 +301,7 @@ TEST_F(ControlPacketTest, BEH_IsValidBase) {
     char_array[1] = 0x44;
     EXPECT_FALSE(IsValidBase(boost::asio::buffer(char_array), 0x7444));
   }
-  char char_array[HandshakePacket::kPacketSize];
+  char char_array[HandshakePacket::kMinPacketSize];
   {
     // Packet type wrong
     char_array[0] = 0x00;
@@ -437,12 +437,12 @@ class HandshakePacketTest : public testing::Test {
 TEST_F(HandshakePacketTest, BEH_IsValid) {
   {
     // Buffer length wrong
-    char char_array[HandshakePacket::kPacketSize + 10];
+    char char_array[HandshakePacket::kMinPacketSize - 1];
     char_array[0] = static_cast<unsigned char>(0x80);
     char_array[1] = HandshakePacket::kPacketType;
     EXPECT_FALSE(handshake_packet_.IsValid(boost::asio::buffer(char_array)));
   }
-  char char_array[HandshakePacket::kPacketSize];
+  char char_array[HandshakePacket::kMinPacketSize];
   char_array[0] = static_cast<unsigned char>(0x80);
   {
     // Packet type wrong
@@ -459,7 +459,7 @@ TEST_F(HandshakePacketTest, BEH_IsValid) {
 TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
   {
     // Pass in a buffer having the length less than required
-    char char_array[HandshakePacket::kPacketSize - 1];
+    char char_array[HandshakePacket::kMinPacketSize - 1];
     EXPECT_EQ(0U, handshake_packet_.Encode(boost::asio::buffer(char_array)));
   }
   {
@@ -476,7 +476,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
         boost::asio::ip::address::from_string("2001:db8:85a3:8d3:1319:8a2e:370:7348"), 12345);
     handshake_packet_.SetEndpoint(endpoint);
 
-    char char_array[HandshakePacket::kPacketSize];
+    char char_array[HandshakePacket::kMinPacketSize];
     boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
     handshake_packet_.Encode(boost::asio::buffer(dbuffer));
 

@@ -77,7 +77,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
     // Waiting for all results (promises)
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       ASSERT_TRUE(futures.at(i).timed_wait(bptime::seconds(5))) << "Timed out on "
-                                                                << nodes_.at(i)->kId();
+                                                                << nodes_.at(i)->id();
       auto messages(futures.at(i).get());
       EXPECT_TRUE(!messages.empty());
     }

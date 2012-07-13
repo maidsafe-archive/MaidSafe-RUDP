@@ -60,6 +60,13 @@ TEST(SocketTest, BEH_Socket) {
   asio::io_service io_service;
   bs::error_code server_ec;
   bs::error_code client_ec;
+  asymm::Keys server_key_pair, client_key_pair;
+  asymm::GenerateKeyPair(&server_key_pair);
+  asymm::GenerateKeyPair(&client_key_pair);
+  std::shared_ptr<asymm::PublicKey> server_public_key(
+      new asymm::PublicKey(server_key_pair.public_key));
+  std::shared_ptr<asymm::PublicKey> client_public_key(
+      new asymm::PublicKey(client_key_pair.public_key));
 
   Multiplexer server_multiplexer(io_service);
   ip::udp::endpoint server_endpoint(GetLocalIp(), maidsafe::rudp::test::GetRandomPort());
@@ -82,10 +89,12 @@ TEST(SocketTest, BEH_Socket) {
 
   Socket client_socket(client_multiplexer);
   client_ec = asio::error::would_block;
-  client_socket.AsyncConnect(server_endpoint,
+  client_socket.AsyncConnect(client_public_key,
+                             server_endpoint,
                              std::bind(&handler1, args::_1, &client_ec),
                              Session::kNormal);
-  server_socket.AsyncConnect(client_endpoint,
+  server_socket.AsyncConnect(server_public_key,
+                             client_endpoint,
                              std::bind(&handler1, args::_1, &server_ec),
                              Session::kNormal);
 
@@ -137,6 +146,13 @@ TEST(SocketTest, BEH_AsyncProbe) {
   asio::io_service io_service;
   bs::error_code server_ec;
   bs::error_code client_ec;
+  asymm::Keys server_key_pair, client_key_pair;
+  asymm::GenerateKeyPair(&server_key_pair);
+  asymm::GenerateKeyPair(&client_key_pair);
+  std::shared_ptr<asymm::PublicKey> server_public_key(
+      new asymm::PublicKey(server_key_pair.public_key));
+  std::shared_ptr<asymm::PublicKey> client_public_key(
+      new asymm::PublicKey(client_key_pair.public_key));
 
   Multiplexer server_multiplexer(io_service);
   ReturnCode result(kPendingResult);
@@ -183,10 +199,12 @@ TEST(SocketTest, BEH_AsyncProbe) {
   server_ec = asio::error::would_block;
   client_ec = asio::error::would_block;
 
-  client_socket.AsyncConnect(server_endpoint,
+  client_socket.AsyncConnect(client_public_key,
+                             server_endpoint,
                              std::bind(&handler1, args::_1, &client_ec),
                              Session::kNormal);
-  server_socket.AsyncConnect(client_endpoint,
+  server_socket.AsyncConnect(server_public_key,
+                             client_endpoint,
                              std::bind(&handler1, args::_1, &server_ec),
                              Session::kNormal);
 

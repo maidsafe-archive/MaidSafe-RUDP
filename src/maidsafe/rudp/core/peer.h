@@ -18,6 +18,7 @@
 
 #include "boost/asio/ip/udp.hpp"
 #include "maidsafe/common/log.h"
+#include "maidsafe/common/rsa.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 
 
@@ -30,13 +31,19 @@ namespace detail {
 class Peer {
  public:
   explicit Peer(Multiplexer &multiplexer)  // NOLINT (Fraser)
-    : multiplexer_(multiplexer), endpoint_(), id_(0) {}
+    : multiplexer_(multiplexer), endpoint_(), id_(0), public_key_() {}
 
   const boost::asio::ip::udp::endpoint &Endpoint() const { return endpoint_; }
   void SetEndpoint(const boost::asio::ip::udp::endpoint &ep) { endpoint_ = ep; }
 
   uint32_t Id() const { return id_; }
   void SetId(uint32_t id) { id_ = id; }
+
+  std::shared_ptr<asymm::PublicKey> public_key() const { return public_key_; }
+  void SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key) {
+    assert(asymm::ValidateKey(*public_key));
+    public_key_ = public_key;
+  }
 
   template <typename Packet>
   ReturnCode Send(const Packet &packet) {
@@ -54,6 +61,7 @@ class Peer {
   // The remote socket's endpoint and identifier.
   boost::asio::ip::udp::endpoint endpoint_;
   uint32_t id_;
+  std::shared_ptr<asymm::PublicKey> public_key_;
 };
 
 }  // namespace detail

@@ -59,7 +59,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void Close();
   // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
   // after lifespan has passed.
-  void StartConnecting(const std::string &validation_data,
+  void StartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
+                       const std::string &validation_data,
                        const boost::posix_time::time_duration &lifespan);
   void StartSending(const std::string &data, const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
   // Returns true if lifespan_timer_ expires at < pos_infin.
@@ -72,7 +73,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   Connection &operator=(const Connection&);
 
   void DoClose();
-  void DoStartConnecting(const std::string &validation_data,
+  void DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
+                         const std::string &validation_data,
                          const boost::posix_time::time_duration &lifespan);
   void DoStartSending(const std::string &data,
                       const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
@@ -84,7 +86,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartTick();
   void HandleTick();
 
-  void StartConnect(const std::string &validation_data,
+  void StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
+                    const std::string &validation_data,
                     const boost::posix_time::time_duration &lifespan);
   void HandleConnect(const boost::system::error_code &ec, const std::string &validation_data);
 

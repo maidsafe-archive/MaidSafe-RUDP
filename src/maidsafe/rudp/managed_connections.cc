@@ -47,7 +47,6 @@ ManagedConnections::ManagedConnections()
       transports_(),
       connection_map_(),
       shared_mutex_(),
-      bootstrap_endpoints_(),
       local_ip_() {}
 
 ManagedConnections::~ManagedConnections() {
@@ -65,11 +64,12 @@ ManagedConnections::~ManagedConnections() {
   asio_service_.Stop();
 }
 
-Endpoint ManagedConnections::Bootstrap(
-    const std::vector<Endpoint> &bootstrap_endpoints,
-    MessageReceivedFunctor message_received_functor,
-    ConnectionLostFunctor connection_lost_functor,
-    boost::asio::ip::udp::endpoint local_endpoint) {
+Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
+                                       MessageReceivedFunctor message_received_functor,
+                                       ConnectionLostFunctor connection_lost_functor,
+                                       std::shared_ptr<asymm::PrivateKey> private_key,
+                                       std::shared_ptr<asymm::PublicKey> public_key,
+                                       boost::asio::ip::udp::endpoint local_endpoint) {
   {
     SharedLock shared_lock(shared_mutex_);
     if (!connection_map_.empty()) {
@@ -89,6 +89,13 @@ Endpoint ManagedConnections::Bootstrap(
     return Endpoint();
   }
   connection_lost_functor_ = connection_lost_functor;
+  if (!private_key || !asymm::ValidateKey(*private_key) ||
+      !public_key || !asymm::ValidateKey(*public_key)) {
+    LOG(kError) << "You must provide a valid private and public key.";
+    return Endpoint();
+  }
+  private_key_ = private_key;
+  public_key_ = public_key;
 
   if (bootstrap_endpoints.empty()) {
     LOG(kError) << "You must provide at least one Bootstrap endpoint.";
@@ -113,15 +120,14 @@ Endpoint ManagedConnections::Bootstrap(
     return Endpoint();
   }
 
-  bootstrap_endpoints_ = bootstrap_endpoints;
   return new_endpoint;
 }
 
-Endpoint ManagedConnections::StartNewTransport(
-    std::vector<Endpoint> bootstrap_endpoints,
-    Endpoint local_endpoint) {
+Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpoints,
+                                               Endpoint local_endpoint) {
   TransportAndSignalConnections transport_and_signals_connections;
-  transport_and_signals_connections.transport = std::make_shared<Transport>(asio_service_);
+  transport_and_signals_connections.transport =
+      std::make_shared<Transport>(asio_service_, public_key_);
   bool bootstrap_off_existing_connection(bootstrap_endpoints.empty());
   if (bootstrap_off_existing_connection) {
     bootstrap_endpoints.reserve(kMaxTransports * Transport::kMaxConnections());
@@ -133,8 +139,6 @@ Endpoint ManagedConnections::StartNewTransport(
       bootstrap_endpoints.push_back(entry.first);
     });
   }
-  if (bootstrap_endpoints.empty())
-    bootstrap_endpoints = bootstrap_endpoints_;  // Last resort
   Endpoint chosen_endpoint;
   transport_and_signals_connections.transport->Bootstrap(
       bootstrap_endpoints,
@@ -184,7 +188,7 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint &peer_endpoint,
     if (transports_size == 0) {
       LOG(kError) << "No running Transports.";
       this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
-      return kNoneAvailable;
+      return kNotBootstrapped;
     }
 
     Endpoint new_endpoint(StartNewTransport(std::vector<Endpoint>(), Endpoint(local_ip_, 0)));
@@ -195,7 +199,8 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint &peer_endpoint,
       return kSuccess;
     } else {
       this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
-      return kTransportStartFailure;
+      SharedLock shared_lock(shared_mutex_);
+      return connection_map_.empty() ? kNotBootstrapped : kTransportStartFailure;
     }
   }
 
@@ -234,6 +239,10 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
   if (!IsValid(peer_endpoint)) {
     LOG(kError) << "Invalid peer_endpoint passed.";
     return kInvalidEndpoint;
+  }
+  if (validation_data.empty()) {
+    LOG(kError) << "Invalid peer_endpoint passed.";
+    return kEmptyValidationData;
   }
 
   std::vector<TransportAndSignalConnections>::iterator itr;
@@ -302,7 +311,13 @@ void ManagedConnections::Send(const Endpoint &peer_endpoint,
 }
 
 void ManagedConnections::OnMessageSlot(const std::string &message) {
-  message_received_functor_(message);
+  std::string decrypted_message;
+  int result(asymm::Decrypt(message, *private_key_, &decrypted_message));
+  if (result != kSuccess) {
+    LOG(kError) << "Failed to decrypt message.  Result: " << result;
+  } else {
+    message_received_functor_(decrypted_message);
+  }
 }
 
 void ManagedConnections::OnConnectionAddedSlot(const Endpoint &peer_endpoint,
