@@ -299,10 +299,12 @@ void ManagedConnections::Send(const Endpoint &peer_endpoint,
     LOG(kError) << "Can't send to " << peer_endpoint << " - not in map.";
     if (message_sent_functor) {
       if (!connection_map_.empty()) {
-        asio_service_.service().dispatch([message_sent_functor] { message_sent_functor(false); });  // NOLINT (Fraser)
+        asio_service_.service().dispatch([message_sent_functor] {
+          message_sent_functor(kInvalidConnection);
+        });
       } else {
         // Probably haven't bootstrapped, so asio_service_ won't be running.
-        boost::thread(message_sent_functor, false);
+        boost::thread(message_sent_functor, kInvalidConnection);
       }
     }
     return;

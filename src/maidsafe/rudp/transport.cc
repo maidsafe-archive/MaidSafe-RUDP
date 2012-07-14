@@ -175,8 +175,11 @@ void Transport::Send(const Endpoint &peer_endpoint,
   auto itr(FindConnection(peer_endpoint));
   if (itr == connections_.end()) {
     LOG(kWarning) << "Not currently connected to " << peer_endpoint;
-    if (message_sent_functor)
-      asio_service_.service().dispatch([message_sent_functor] { message_sent_functor(false); });  // NOLINT (Fraser)
+    if (message_sent_functor) {
+      asio_service_.service().dispatch([message_sent_functor] {
+        message_sent_functor(kInvalidConnection);
+      });
+    }
     return;
   }
 

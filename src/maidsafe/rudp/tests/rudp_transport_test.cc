@@ -17,6 +17,7 @@
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
+#include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 #include "maidsafe/rudp/utils.h"
@@ -139,14 +140,14 @@ class RudpTransportTest : public testing::Test {
 
 TEST_F(RudpTransportTest, BEH_Connection) {
   ConnectTestPeers();
-  bool send_result(false);
+  int send_result(kConnectError);
   transports_[1]->messages_received.clear();
   std::string msg_content(RandomString(256));
   transports_[0]->transport->Send(transports_[1]->local_endpoint, msg_content,
-                                  [&](bool result) { send_result = result; });  // NOLINT (Fraser)
+                                  [&](int result) { send_result = result; });  // NOLINT (Fraser)
   boost::mutex::scoped_lock lock(transports_[1]->mutex);
   EXPECT_TRUE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
-  EXPECT_TRUE(send_result);
+  EXPECT_EQ(kSuccess, send_result);
   EXPECT_EQ(1U, transports_[1]->messages_received.size());
   EXPECT_NE(msg_content, transports_[1]->messages_received[0]);
   std::string decrypted_msg;
@@ -166,16 +167,14 @@ TEST_F(RudpTransportTest, BEH_CloseConnection) {
   EXPECT_EQ(1U, transports_[0]->peers_lost.size());
   EXPECT_EQ(transports_[1]->local_endpoint, transports_[0]->peers_lost[0]);
 
-// TODO(Team): removing following testing block will cause a segmentation failure
-
-  bool send_result(true);
+  int send_result(kSuccess);
   transports_[1]->messages_received.clear();
   std::string msg_content("testing msg from node 0");
   transports_[0]->transport->Send(transports_[1]->local_endpoint, msg_content,
-                                  [&](bool result) { send_result = result; });  // NOLINT (Fraser)
+                                  [&](int result) { send_result = result; });  // NOLINT (Fraser)
   boost::mutex::scoped_lock lock(transports_[1]->mutex);
   EXPECT_FALSE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
-  EXPECT_FALSE(send_result);
+  EXPECT_EQ(kInvalidConnection, send_result);
   EXPECT_EQ(0, transports_[1]->messages_received.size());
 }
 
@@ -195,13 +194,13 @@ TEST_F(RudpTransportTest, BEH_DropConnection) {
   ASSERT_EQ(1U, transports_[0]->peers_lost.size());
   EXPECT_EQ(dropped_endpoint, transports_[0]->peers_lost[0]);
 
-  bool send_result(true);
+  int send_result(kSuccess);
   transports_[0]->messages_received.clear();
   std::string msg_content("testing msg from node 0");
   transports_[0]->transport->Send(dropped_endpoint, msg_content,
-                                  [&](bool result) { send_result = result; });  // NOLINT (Fraser)
+                                  [&](int result) { send_result = result; });  // NOLINT (Fraser)
   EXPECT_FALSE(transports_[0]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
-  EXPECT_FALSE(send_result);
+  EXPECT_EQ(kInvalidConnection, send_result);
   EXPECT_EQ(0, transports_[0]->messages_received.size());
 }
 

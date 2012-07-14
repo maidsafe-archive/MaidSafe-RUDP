@@ -41,7 +41,7 @@ class Transport;
 
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
 typedef std::function<void(const boost::asio::ip::udp::endpoint&)> ConnectionLostFunctor;
-typedef std::function<void(bool)> MessageSentFunctor;  // NOLINT (Fraser)
+typedef std::function<void(int)> MessageSentFunctor;  // NOLINT (Fraser)
 
 struct EndpointPair {
   EndpointPair() : local(), external() {}
@@ -91,7 +91,8 @@ class ManagedConnections {
   void Remove(const boost::asio::ip::udp::endpoint &peer_endpoint);
 
   // Sends the message to the peer.  If the message is sent successfully, the message_sent_functor
-  // is executed with input of true.
+  // is executed with input of kSuccess.  If there is no existing connection to peer_endpoint,
+  // kInvalidConnection is used.
   void Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
             const std::string &message,
             MessageSentFunctor message_sent_functor);

@@ -92,7 +92,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   void Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
             const std::string &message,
-            const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
+            const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
 
   boost::asio::ip::udp::endpoint external_endpoint() const;
   boost::asio::ip::udp::endpoint local_endpoint() const;
@@ -122,7 +122,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DoCloseConnection(ConnectionPtr connection);
   void DoSend(ConnectionPtr connection,
               const std::string &message,
-              const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
+              const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
 
   void StartDispatch();
   void HandleDispatch(MultiplexerPtr multiplexer, const boost::system::error_code &ec);

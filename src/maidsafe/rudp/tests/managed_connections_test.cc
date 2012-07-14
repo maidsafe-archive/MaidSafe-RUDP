@@ -370,11 +370,12 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
 
   // Before Bootstrap
   node_.managed_connections()->Send(bootstrap_endpoints_[0], "message1", MessageSentFunctor());
-  bool result_of_send(true), result_arrived(false);
+  int result_of_send(kSuccess);
+  bool result_arrived(false);
   std::condition_variable cond_var;
   std::mutex mutex;
   std::unique_lock<std::mutex> lock(mutex);
-  MessageSentFunctor message_sent_functor([&](bool result_in) {
+  MessageSentFunctor message_sent_functor([&](int result_in) {
     std::lock_guard<std::mutex> lock(mutex);
     result_of_send = result_in;
     result_arrived = true;
@@ -386,10 +387,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
                              [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
   });
 
-  result_of_send = result_arrived = false;
+  result_of_send = kSuccess;
+  result_arrived = false;
   node_.managed_connections()->Send(bootstrap_endpoints_[0], "message2", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_FALSE(result_of_send);
+  EXPECT_EQ(kInvalidConnection, result_of_send);
 
   // Before Add
   // Sending to bootstrap peer should succeed, sending to any other should fail.
@@ -397,10 +399,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_EQ(bootstrap_endpoints_[0], chosen_endpoint);
   // Send to non-bootstrap peer
   node_.managed_connections()->Send(bootstrap_endpoints_[1], "message3", MessageSentFunctor());
-  result_of_send = result_arrived = false;
+  result_of_send = kSuccess;
+  result_arrived = false;
   node_.managed_connections()->Send(bootstrap_endpoints_[1], "message4", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_FALSE(result_of_send);
+  EXPECT_EQ(kInvalidConnection, result_of_send);
   // Send to bootstrap peer
   nodes_[0]->ResetData();
   auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(2));
@@ -408,7 +411,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   result_of_send = result_arrived = false;
   node_.managed_connections()->Send(bootstrap_endpoints_[0], "message6", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_TRUE(result_of_send);
+  EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(200)));
   auto messages(future_messages_at_peer.get());
   ASSERT_EQ(2U, messages.size());
@@ -451,11 +454,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.ResetData();
   nodes_[1]->ResetData();
   node_.managed_connections()->Send(Endpoint(), "message7", MessageSentFunctor());
-  result_of_send = true;
+  result_of_send = kSuccess;
   result_arrived = false;
   node_.managed_connections()->Send(Endpoint(), "message8", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_FALSE(result_of_send);
+  EXPECT_EQ(kInvalidConnection, result_of_send);
 
   // Unavailable endpoint
   node_.ResetData();
@@ -463,23 +466,24 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.managed_connections()->Send(Endpoint(GetLocalIp(), GetRandomPort()),
                                     "message9",
                                     MessageSentFunctor());
-  result_of_send = true;
+  result_of_send = kSuccess;
   result_arrived = false;
   node_.managed_connections()->Send(Endpoint(GetLocalIp(), GetRandomPort()),
                                     "message10",
                                     message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_FALSE(result_of_send);
+  EXPECT_EQ(kInvalidConnection, result_of_send);
 
   // Valid Send from node_ to nodes_[1]
   node_.ResetData();
   nodes_[1]->ResetData();
   future_messages_at_peer = nodes_[1]->GetFutureForMessages(2);
   node_.managed_connections()->Send(peer_endpoint_pair.external, "message11", MessageSentFunctor());
-  result_of_send = result_arrived = false;
+  result_of_send = kConnectError;
+  result_arrived = false;
   node_.managed_connections()->Send(peer_endpoint_pair.external, "message12", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_TRUE(result_of_send);
+  EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(200)));
   messages = future_messages_at_peer.get();
   ASSERT_EQ(2U, messages.size());
@@ -492,11 +496,12 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   future_messages_at_peer = node_.GetFutureForMessages(2);
   nodes_[1]->managed_connections()->Send(this_endpoint_pair.external, "message13",
                                          MessageSentFunctor());
-  result_of_send = result_arrived = false;
+  result_of_send = kConnectError;
+  result_arrived = false;
   nodes_[1]->managed_connections()->Send(this_endpoint_pair.external, "message14",
                                          message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_TRUE(result_of_send);
+  EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(200)));
   messages = future_messages_at_peer.get();
   ASSERT_EQ(2U, messages.size());
@@ -521,24 +526,26 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.ResetData();
   nodes_[0]->ResetData();
   node_.managed_connections()->Send(bootstrap_endpoints_[0], "message15", MessageSentFunctor());
-  result_of_send = result_arrived = false;
+  result_of_send = kSuccess;
+  result_arrived = false;
   node_.managed_connections()->Send(bootstrap_endpoints_[0], "message16", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_FALSE(result_of_send);
+  EXPECT_EQ(kInvalidConnection, result_of_send);
 
   // Valid large message
   node_.ResetData();
   nodes_[1]->ResetData();
   std::string sent_message(std::move(RandomString(8 * 1024 * 1024)));
   future_messages_at_peer = node_.GetFutureForMessages(1);
-  result_of_send = result_arrived = false;
+  result_of_send = kConnectError;
+  result_arrived = false;
   nodes_[1]->managed_connections()->Send(this_endpoint_pair.external,
                                          sent_message,
                                          message_sent_functor);
   ASSERT_TRUE(cond_var.wait_for(lock,
                                 std::chrono::seconds(10),
                                 [&result_arrived]() { return result_arrived; }));  // NOLINT (Fraser)
-  EXPECT_TRUE(result_of_send);
+  EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::seconds(20)));
   messages = future_messages_at_peer.get();
   ASSERT_EQ(1U, messages.size());
@@ -548,15 +555,15 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.ResetData();
   nodes_[1]->ResetData();
   sent_message = std::move(RandomString(ManagedConnections::kMaxMessageSize() + 1));
-  result_of_send = true;
+  result_of_send = kSuccess;
   result_arrived = false;
-  nodes_[2]->managed_connections()->Send(this_endpoint_pair.external,
+  nodes_[1]->managed_connections()->Send(this_endpoint_pair.external,
                                          sent_message,
                                          message_sent_functor);
   ASSERT_TRUE(cond_var.wait_for(lock,
                                 std::chrono::seconds(10),
                                 [&result_arrived]() { return result_arrived; }));  // NOLINT (Fraser)
-  EXPECT_FALSE(result_of_send);
+  EXPECT_EQ(kSendFailure, result_of_send);
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
@@ -602,12 +609,12 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   std::vector<std::string> sent_messages;
   for (int8_t i(0); i != kMessageCount; ++i)
     sent_messages.push_back(std::string(256 * 1024, 'A' + i));
-  bool result_of_send(false);
+  int result_of_send(kConnectError);
   int result_arrived_count(0);
   std::condition_variable cond_var;
   std::mutex mutex;
   std::unique_lock<std::mutex> lock(mutex);
-  MessageSentFunctor message_sent_functor([&](bool result_in) {
+  MessageSentFunctor message_sent_functor([&](int result_in) {
     std::lock_guard<std::mutex> lock(mutex);
     result_of_send = result_in;
     ++result_arrived_count;
@@ -628,7 +635,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
                                       message_sent_functor);
   }
   ASSERT_TRUE(wait_for_result());
-  EXPECT_TRUE(result_of_send);
+  EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::seconds(10 * kMessageCount)));
   auto messages(future_messages_at_peer.get());
   ASSERT_EQ(kMessageCount, messages.size());
@@ -643,11 +650,12 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   EXPECT_TRUE(IsValid(chosen_endpoint));
 
   // Send within bootstrap_disconnection_timeout period from node_ to nodes_[0]
-  bool result_of_send(false), result_arrived(false);
+  int result_of_send(kConnectError);
+  bool result_arrived(false);
   std::condition_variable cond_var;
   std::mutex mutex;
   std::unique_lock<std::mutex> lock(mutex);
-  MessageSentFunctor message_sent_functor([&](bool result_in) {
+  MessageSentFunctor message_sent_functor([&](int result_in) {
     std::lock_guard<std::mutex> lock(mutex);
     result_of_send = result_in;
     result_arrived = true;
@@ -663,7 +671,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(1));
   node_.managed_connections()->Send(bootstrap_endpoints_[0], "message01", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_TRUE(result_of_send);
+  EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(200)));
   auto messages = future_messages_at_peer.get();
   ASSERT_EQ(1U, messages.size());
@@ -673,14 +681,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   node_.ResetData();
   nodes_[0]->ResetData();
   future_messages_at_peer = node_.GetFutureForMessages(1);
-  result_of_send = result_arrived = false;
+  result_of_send = kConnectError;
+  result_arrived = false;
   EndpointPair this_endpoint_pair;
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(bootstrap_endpoints_[0],
                                                                         this_endpoint_pair));
   nodes_[0]->managed_connections()->Send(this_endpoint_pair.external, "message02",
                                          message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_TRUE(result_of_send);
+  EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(200)));
   messages = future_messages_at_peer.get();
   ASSERT_EQ(1U, messages.size());
@@ -704,18 +713,20 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   // Send again in both directions - expect failure
   node_.ResetData();
   nodes_[0]->ResetData();
-  result_of_send = result_arrived = false;
+  result_of_send = kSuccess;
+  result_arrived = false;
   node_.managed_connections()->Send(bootstrap_endpoints_[0], "message03", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_FALSE(result_of_send);
+  EXPECT_EQ(kInvalidConnection, result_of_send);
 
   node_.ResetData();
   nodes_[0]->ResetData();
-  result_of_send = result_arrived = false;
+  result_of_send = kSuccess;
+  result_arrived = false;
   nodes_[0]->managed_connections()->Send(this_endpoint_pair.external, "message04",
                                          message_sent_functor);
   ASSERT_TRUE(wait_for_result());
-  EXPECT_FALSE(result_of_send);
+  EXPECT_EQ(kInvalidConnection, result_of_send);
 }
 
 }  // namespace test

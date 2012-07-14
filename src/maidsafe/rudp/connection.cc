@@ -123,9 +123,7 @@ void Connection::StartSending(const std::string &data,
     int result(asymm::Encrypt(data, *socket_.PeerPublicKey(), &encrypted_data));
     if (result != kSuccess) {
       LOG(kError) << "Failed to encrypt message.  Result: " << result;
-      if (message_sent_functor)
-        message_sent_functor(false);
-      return;
+      return InvokeSentFunctor(message_sent_functor, result);
     }
     strand_.dispatch(std::bind(&Connection::DoStartSending, shared_from_this(), encrypted_data,
                                message_sent_functor));
@@ -135,21 +133,20 @@ void Connection::StartSending(const std::string &data,
 void Connection::DoStartSending(const std::string &data,
                                 const MessageSentFunctor &message_sent_functor) {
   sending_ = true;
-  MessageSentFunctor wrapped_functor([&, message_sent_functor](bool result) {
-    MessageSentFunctor sent_functor(message_sent_functor);
-    if (sent_functor)
-      sent_functor(result);
+  MessageSentFunctor wrapped_functor([&, message_sent_functor](int result) {
+    InvokeSentFunctor(message_sent_functor, result);
+//    MessageSentFunctor sent_functor(message_sent_functor);
+//    if (sent_functor)
+//      sent_functor(result);
     sending_ = false;
   });
 
-  if (Stopped()) {
-    if (message_sent_functor)
-      message_sent_functor(false);
+  if (Stopped() || !EncodeData(data)) {
+    InvokeSentFunctor(message_sent_functor, kSendFailure);
     sending_ = false;
     return;
   }
 
-  EncodeData(data);
   strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
 }
 
@@ -274,7 +271,10 @@ void Connection::HandleConnect(const bs::error_code &ec, const std::string &vali
 }
 
 void Connection::StartReadSize() {
-  assert(!Stopped());
+  if (Stopped()) {
+    LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint() << " already stopped.";
+    return DoClose();
+  }
   receive_buffer_.clear();
   receive_buffer_.resize(sizeof(detail::DataSize));
   socket_.AsyncRead(asio::buffer(receive_buffer_), sizeof(detail::DataSize),
@@ -309,7 +309,10 @@ void Connection::HandleReadSize(const bs::error_code &ec) {
 }
 
 void Connection::StartReadData() {
-  assert(!Stopped());
+  if (Stopped()) {
+    LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint() << " already stopped.";
+    return DoClose();
+  }
   size_t buffer_size = data_received_;
   buffer_size += std::min(static_cast<size_t> (socket_.BestReadBufferSize()),
                           data_size_ - data_received_);
@@ -362,27 +365,27 @@ void Connection::DispatchMessage() {
   }
 }
 
-void Connection::EncodeData(const std::string &data) {
+bool Connection::EncodeData(const std::string &data) {
   // Serialize message to internal buffer
   detail::DataSize msg_size = static_cast<detail::DataSize>(data.size());
   if (static_cast<size_t>(msg_size) >
           static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
     LOG(kError) << "Data size " << msg_size << " bytes (exceeds limit of "
                 << ManagedConnections::kMaxMessageSize() << ")";
-    return DoClose();
+    return false;
   }
 
   send_buffer_.clear();
   for (int i = 0; i != 4; ++i)
     send_buffer_.push_back(static_cast<char>(msg_size >> (8 * (3 - i))));
   send_buffer_.insert(send_buffer_.end(), data.begin(), data.end());
+  return true;
 }
 
 void Connection::StartWrite(const MessageSentFunctor &message_sent_functor) {
   if (Stopped()) {
     LOG(kError) << "Failed to write to " << socket_.RemoteEndpoint() << " - connection stopped.";
-    if (message_sent_functor)
-      message_sent_functor(false);
+    InvokeSentFunctor(message_sent_functor, kSendFailure);
     return DoClose();
   }
 
@@ -400,21 +403,18 @@ void Connection::HandleWrite(const bs::error_code &ec,
                   << " - " << ec.message();
     }
 #endif
-    if (message_sent_functor)
-      message_sent_functor(false);
+    InvokeSentFunctor(message_sent_functor, kSendFailure);
     return DoClose();
   }
 
   if (Stopped()) {
     LOG(kError) << "Failed to write to " << socket_.RemoteEndpoint()
                 << " - connection stopped.";
-    if (message_sent_functor)
-      message_sent_functor(false);
+    InvokeSentFunctor(message_sent_functor, kSendFailure);
     return DoClose();
   }
 
-  if (message_sent_functor)
-    message_sent_functor(true);
+  InvokeSentFunctor(message_sent_functor, kSuccess);
 }
 
 void Connection::StartProbing() {
@@ -445,6 +445,14 @@ void Connection::HandleProbe(const bs::error_code &ec) {
   } else {
     LOG(kWarning) << "Failed to probe " << socket_.RemoteEndpoint() << " - " << ec.message();
     return DoClose();
+  }
+}
+
+void Connection::InvokeSentFunctor(const MessageSentFunctor &message_sent_functor,
+                                   int result) const {
+  if (message_sent_functor) {
+    if (std::shared_ptr<Transport> transport = transport_.lock())
+      message_sent_functor(result);
   }
 }
 
