@@ -109,6 +109,8 @@ void Socket::NotifyClose() {
 }
 
 void Socket::Close() {
+  waiting_connect_ec_ = session_.IsConnected() ? boost::system::error_code() :
+                                                 asio::error::operation_aborted;
   if (session_.IsOpen()) {
     sender_.NotifyClose();
     congestion_control_.OnClose();
@@ -118,7 +120,6 @@ void Socket::Close() {
 //  peer_.SetEndpoint(ip::udp::endpoint());
   peer_.SetId(0);
   tick_timer_.Cancel();
-  waiting_connect_ec_ = asio::error::operation_aborted;
   waiting_connect_.cancel();
   waiting_write_ec_ = asio::error::operation_aborted;
   waiting_write_bytes_transferred_ = 0;
@@ -287,12 +288,16 @@ void Socket::HandleHandshake(const HandshakePacket &packet) {
   }
 
   if (!was_connected && session_.IsConnected()) {
-    congestion_control_.OnOpen(sender_.GetNextPacketSequenceNumber(),
-                               session_.ReceivingSequenceNumber());
-    congestion_control_.SetPeerConnectionType(session_.PeerConnectionType());
-    receiver_.Reset(session_.ReceivingSequenceNumber());
-    waiting_connect_ec_.clear();
-    waiting_connect_.cancel();
+    if (session_.mode() == Session::kBootstrapAndDrop) {
+      Close();
+    } else {
+      congestion_control_.OnOpen(sender_.GetNextPacketSequenceNumber(),
+                                 session_.ReceivingSequenceNumber());
+      congestion_control_.SetPeerConnectionType(session_.PeerConnectionType());
+      receiver_.Reset(session_.ReceivingSequenceNumber());
+      waiting_connect_ec_.clear();
+      waiting_connect_.cancel();
+    }
   }
 }
 

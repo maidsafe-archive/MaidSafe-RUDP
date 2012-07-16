@@ -94,6 +94,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
             const std::string &message,
             const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
 
+  void Ping(const boost::asio::ip::udp::endpoint &peer_endpoint,
+            const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
+
   boost::asio::ip::udp::endpoint external_endpoint() const;
   boost::asio::ip::udp::endpoint local_endpoint() const;
 

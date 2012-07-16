@@ -151,11 +151,10 @@ class Socket {
     StartProbe();
   }
 
+  bool IsPermanent() const { return session_.mode() == Session::kNormal; }
+
   // Changes mode of session to kNormal
   void MakePermanent();
-
-  // Returns true if session's mode is kNormal
-  bool IsPermanent() const { return session_.IsPermanent(); }
 
   // Public key of remote peer, used to encrypt all outgoing messages on this socket
   std::shared_ptr<asymm::PublicKey> PeerPublicKey() const;

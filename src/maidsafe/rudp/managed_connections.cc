@@ -16,6 +16,7 @@
 #include <iterator>
 
 #include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/transport.h"
@@ -310,6 +311,44 @@ void ManagedConnections::Send(const Endpoint &peer_endpoint,
     return;
   }
   (*itr).second->Send(peer_endpoint, message, message_sent_functor);
+}
+
+void ManagedConnections::Ping(const boost::asio::ip::udp::endpoint &peer_endpoint,
+                              PingFunctor ping_functor) {
+  if (!ping_functor) {
+    LOG(kWarning) << "No functor passed - not pinging.";
+    return;
+  }
+
+  if (transports_.empty()) {
+    LOG(kError) << "No running Transports.";
+    // Probably haven't bootstrapped, so asio_service_ won't be running.
+    boost::thread(ping_functor, kNotBootstrapped);
+    return;
+  }
+
+  SharedLock shared_lock(shared_mutex_);
+  // Check this node isn't already connected to peer
+  if (connection_map_.find(peer_endpoint) != connection_map_.end()) {
+    asio_service_.service().dispatch([ping_functor] {
+      ping_functor(kWontPingAlreadyConnected);
+    });
+    return;
+  }
+
+  // Check we're not trying to ping ourself
+  if (std::find_if(transports_.begin(),
+                   transports_.end(),
+                   [&peer_endpoint](const TransportAndSignalConnections &tprt_and_sigs_conns) {
+                     return tprt_and_sigs_conns.transport->external_endpoint() == peer_endpoint;
+                   }) != transports_.end()) {
+    LOG(kError) << "Trying to ping ourself.";
+    asio_service_.service().dispatch([ping_functor] { ping_functor(kWontPingOurself); });  // NOLINT (Fraser)
+    return;
+  }
+
+  size_t index(RandomUint32() % transports_.size());
+  transports_[index].transport->Ping(peer_endpoint, ping_functor);
 }
 
 void ManagedConnections::OnMessageSlot(const std::string &message) {

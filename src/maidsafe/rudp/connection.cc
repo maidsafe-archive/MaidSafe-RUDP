@@ -92,14 +92,20 @@ void Connection::StartConnecting(std::shared_ptr<asymm::PublicKey> this_public_k
                                  const std::string &validation_data,
                                  const boost::posix_time::time_duration &lifespan) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(),
-                             this_public_key, validation_data, lifespan));
+                             this_public_key, validation_data, lifespan, PingFunctor()));
+}
+
+void Connection::Ping(std::shared_ptr<asymm::PublicKey> this_public_key,
+                      const PingFunctor &ping_functor) {
+  strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(),
+                             this_public_key, "", bptime::time_duration(), ping_functor));
 }
 
 void Connection::DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
                                    const std::string &validation_data,
-                                   const boost::posix_time::time_duration &lifespan) {
-  StartTick();
-  StartConnect(this_public_key, validation_data, lifespan);
+                                   const boost::posix_time::time_duration &lifespan,
+                                   const PingFunctor &ping_functor) {
+  StartConnect(this_public_key, validation_data, lifespan, ping_functor);
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
 }
@@ -206,9 +212,10 @@ void Connection::HandleTick() {
 
 void Connection::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
                               const std::string &validation_data,
-                              const boost::posix_time::time_duration &lifespan) {
+                              const boost::posix_time::time_duration &lifespan,
+                              const PingFunctor &ping_functor) {
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(),
-                                        args::_1, validation_data));
+                                        args::_1, validation_data, ping_functor));
   detail::Session::Mode open_mode(detail::Session::kNormal);
   lifespan_timer_.expires_from_now(lifespan);
   if (validation_data.empty()) {
@@ -240,17 +247,24 @@ void Connection::CheckLifespanTimeout(const bs::error_code &ec) {
   }
 }
 
-void Connection::HandleConnect(const bs::error_code &ec, const std::string &validation_data) {
+void Connection::HandleConnect(const bs::error_code &ec,
+                               const std::string &validation_data,
+                               const PingFunctor &ping_functor) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
       LOG(kError) << "Failed to connect to " << socket_.RemoteEndpoint() << " - " << ec.message();
 #endif
+    if (ping_functor)
+      ping_functor(kPingFailed);
     return DoClose();
   }
 
   if (Stopped()) {
-    LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint() << " already stopped.";
+    if (ping_functor)
+      ping_functor(kSuccess);
+    else
+      LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint() << " already stopped.";
     return DoClose();
   }
 
@@ -264,6 +278,7 @@ void Connection::HandleConnect(const bs::error_code &ec, const std::string &vali
   timer_.expires_at(boost::posix_time::pos_infin);
   timeout_state_ = kConnected;
 
+  StartTick();
   StartProbing();
   StartReadSize();
   if (!validation_data.empty())

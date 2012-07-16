@@ -70,8 +70,7 @@ class Session {
   // Changes mode_ to kNormal;
   void MakePermanent();
 
-  // Returns true if mode_ is kNormal
-  bool IsPermanent() const;
+  Mode mode() const;
 
  private:
   // Disallow copying and assignment.

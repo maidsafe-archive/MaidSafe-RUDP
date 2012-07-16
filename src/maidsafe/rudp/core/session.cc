@@ -96,6 +96,11 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
   } else if (state_ == kHandshaking) {
 //    if (packet.SynCookie() == 1) {
     if (IsValid(packet.Endpoint())) {
+      // TODO(Fraser#5#): 2012-07-16 - Check that if this_external_endpoint_ != packet.Endpoint(),
+      //                  then either previous value for this_external_endpoint_ was set to the same
+      //                  as "this local endpoint" (i.e. we connected to a peer on the same local
+      //                  network), or this_external_endpoint_ was 0.0.0.0 (i.e. this is the first
+      //                  connection on this transport).
       this_external_endpoint_ = packet.Endpoint();
     } else {
       LOG(kError) << "Invalid external endpoint in handshake: " << packet.Endpoint();
@@ -109,15 +114,14 @@ void Session::HandleHandshake(const HandshakePacket &packet) {
       return;
     }
 
-    if (mode_ == kBootstrapAndDrop) {
-      state_ = kClosed;
-      return;
-    }
-
     state_ = kConnected;
     peer_connection_type_ = packet.ConnectionType();
     receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
     peer_.SetPublicKey(packet.PublicKey());
+
+    if (mode_ == kBootstrapAndDrop)
+      return;
+
     SendCookie();
 //    }
   }
@@ -174,8 +178,8 @@ void Session::MakePermanent() {
   mode_ = kNormal;
 }
 
-bool Session::IsPermanent() const {
-  return mode_ == kNormal;
+Session::Mode Session::mode() const {
+  return mode_;
 }
 
 }  // namespace detail

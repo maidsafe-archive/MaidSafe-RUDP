@@ -193,6 +193,13 @@ void Transport::DoSend(ConnectionPtr connection,
   connection->StartSending(message, message_sent_functor);
 }
 
+void Transport::Ping(const boost::asio::ip::udp::endpoint &peer_endpoint,
+                     const PingFunctor &ping_functor) {
+  ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(), strand_,
+                                                        multiplexer_, peer_endpoint));
+  connection->Ping(this_public_key_, ping_functor);
+}
+
 Endpoint Transport::external_endpoint() const {
   return multiplexer_->external_endpoint();
 }

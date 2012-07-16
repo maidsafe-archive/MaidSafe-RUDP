@@ -62,6 +62,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
                        const std::string &validation_data,
                        const boost::posix_time::time_duration &lifespan);
+  void Ping(std::shared_ptr<asymm::PublicKey> this_public_key,
+            const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
   void StartSending(const std::string &data, const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
   // Returns true if lifespan_timer_ expires at < pos_infin.
   bool IsTemporary() const;
@@ -75,7 +77,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void DoClose();
   void DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
                          const std::string &validation_data,
-                         const boost::posix_time::time_duration &lifespan);
+                         const boost::posix_time::time_duration &lifespan,
+                         const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
   void DoStartSending(const std::string &data,
                       const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
 
@@ -88,8 +91,11 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
                     const std::string &validation_data,
-                    const boost::posix_time::time_duration &lifespan);
-  void HandleConnect(const boost::system::error_code &ec, const std::string &validation_data);
+                    const boost::posix_time::time_duration &lifespan,
+                    const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
+  void HandleConnect(const boost::system::error_code &ec,
+                     const std::string &validation_data,
+                     const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
 
   void StartReadSize();
   void HandleReadSize(const boost::system::error_code &ec);
