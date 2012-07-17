@@ -51,50 +51,61 @@ void Dispatcher::RemoveSocket(uint32_t id) {
 void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
                                    const ip::udp::endpoint &endpoint) {
   uint32_t id(0);
-  if (Packet::DecodeDestinationSocketId(&id, data)) {
-    SocketMap::const_iterator socket_iter(sockets_.end());
-    if (id == 0) {
-      // This is a handshake packet on a newly-added socket
-      LOG(kVerbose) << "This is a handshake packet on a newly-added socket from " << endpoint;
-      socket_iter = std::find_if(
-          sockets_.begin(),
-          sockets_.end(),
-          [endpoint](const SocketMap::value_type &socket_pair) {
-            return socket_pair.second->RemoteEndpoint() == endpoint;
-          });
-    } else if (id == 0xffffffff) {
-      if (sockets_.empty())
+  if (!Packet::DecodeDestinationSocketId(&id, data)) {
+    LOG(kError) << "Received a non-RUDP packet from " << endpoint;
+    return;
+  }
+
+  SocketMap::const_iterator socket_iter(sockets_.end());
+  if (id == 0) {
+    // This is a handshake packet on a newly-added socket
+    LOG(kVerbose) << "This is a handshake packet on a newly-added socket from " << endpoint;
+    socket_iter = std::find_if(
+        sockets_.begin(),
+        sockets_.end(),
+        [endpoint](const SocketMap::value_type &socket_pair) {
+          return socket_pair.second->RemoteEndpoint() == endpoint;
+        });
+  } else if (id == 0xffffffff) {
+    if (sockets_.empty())
+      return;
+    socket_iter = std::find_if(
+        sockets_.begin(),
+        sockets_.end(),
+        [endpoint](const SocketMap::value_type &socket_pair) {
+          return socket_pair.second->RemoteEndpoint() == endpoint;
+        });
+    if (socket_iter == sockets_.end()) {
+      // This is a handshake packet from a peer trying to ping this node or join the network
+      HandshakePacket handshake_packet;
+      if (handshake_packet.Decode(data)) {
+        LOG(kVerbose) << "This is a handshake packet from " << endpoint
+                      << " which is trying to ping this node or join the network";
+        joining_peer_endpoint_ = endpoint;
         return;
-      if (sockets_.size() == 1U && endpoint == (*sockets_.begin()).second->RemoteEndpoint()) {
+      }
+    } else {
+      if (sockets_.size() == 1U) {
         // This is a handshake packet from a peer replying to this node's join attempt,
         // or from a peer starting a zero state network with this node
         LOG(kVerbose) << "This is a handshake packet from " << endpoint
                       << " which is replying to a join request, or starting a new network";
-        socket_iter = sockets_.begin();
       } else {
-        // This is a handshake packet from a peer trying to join the network
         LOG(kVerbose) << "This is a handshake packet from " << endpoint
-                      << " which is trying to join the network";
-        HandshakePacket handshake_packet;
-        if (handshake_packet.Decode(data)) {
-          joining_peer_endpoint_ = endpoint;
-          return;
-        }
+                      << " which is replying to a ping request";
       }
-    } else {
-      // This packet is intended for a specific connection.
-      socket_iter = sockets_.find(id);
-    }
-
-    if (socket_iter != sockets_.end()) {
-      socket_iter->second->HandleReceiveFrom(data, endpoint);
-    } else {
-      const unsigned char *p = asio::buffer_cast<const unsigned char*>(data);
-      LOG(kInfo) << "Received a packet \"0x" << std::hex << static_cast<int>(*p) << std::dec
-                 << "\" for unknown connection " << id << " from " << endpoint;
     }
   } else {
-    LOG(kError) << "Received a non-RUDP packet from " << endpoint;
+    // This packet is intended for a specific connection.
+    socket_iter = sockets_.find(id);
+  }
+
+  if (socket_iter != sockets_.end()) {
+    socket_iter->second->HandleReceiveFrom(data, endpoint);
+  } else {
+    const unsigned char *p = asio::buffer_cast<const unsigned char*>(data);
+    LOG(kInfo) << "Received a packet \"0x" << std::hex << static_cast<int>(*p) << std::dec
+                << "\" for unknown connection " << id << " from " << endpoint;
   }
 }
 

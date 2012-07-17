@@ -70,6 +70,9 @@ struct Parameters {
   // Timeout during connection establishment.
   static Timeout connect_timeout;
 
+  // Timeout during ping attempt.
+  static Timeout ping_timeout;
+
   // Timeout defined for the fixed interval between sending Keepalive packets.
   static Timeout keepalive_interval;
 

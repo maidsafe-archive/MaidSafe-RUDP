@@ -105,6 +105,7 @@ void Connection::DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public
                                    const std::string &validation_data,
                                    const boost::posix_time::time_duration &lifespan,
                                    const PingFunctor &ping_functor) {
+  StartTick();
   StartConnect(this_public_key, validation_data, lifespan, ping_functor);
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
@@ -229,7 +230,7 @@ void Connection::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
     }
   }
   socket_.AsyncConnect(this_public_key, remote_endpoint_, handler, open_mode);
-  timer_.expires_from_now(Parameters::connect_timeout);
+  timer_.expires_from_now(ping_functor ? Parameters::ping_timeout : Parameters::connect_timeout);
   timeout_state_ = kConnecting;
 }
 
@@ -278,7 +279,6 @@ void Connection::HandleConnect(const bs::error_code &ec,
   timer_.expires_at(boost::posix_time::pos_infin);
   timeout_state_ = kConnected;
 
-  StartTick();
   StartProbing();
   StartReadSize();
   if (!validation_data.empty())

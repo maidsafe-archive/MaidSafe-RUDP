@@ -408,7 +408,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   nodes_[0]->ResetData();
   auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(2));
   node_.managed_connections()->Send(bootstrap_endpoints_[0], "message5", MessageSentFunctor());
-  result_of_send = result_arrived = false;
+  result_of_send = kConnectError;
+  result_arrived = false;
   node_.managed_connections()->Send(bootstrap_endpoints_[0], "message6", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kSuccess, result_of_send);
@@ -727,6 +728,127 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
                                          message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kInvalidConnection, result_of_send);
+}
+
+TEST_F(ManagedConnectionsTest, BEH_API_Ping) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
+
+  // Without valid functor
+  node_.managed_connections()->Ping(bootstrap_endpoints_[0], PingFunctor());
+
+  // Before Bootstrap
+  int result_of_ping(kSuccess);
+  bool result_arrived(false);
+  std::condition_variable cond_var;
+  std::mutex mutex;
+  std::unique_lock<std::mutex> lock(mutex);
+  PingFunctor ping_functor([&](int result_in) {
+    std::lock_guard<std::mutex> lock(mutex);
+    result_of_ping = result_in;
+    result_arrived = true;
+    cond_var.notify_one();
+  });
+  auto wait_for_result([&] {
+    return cond_var.wait_for(
+        lock,
+        std::chrono::milliseconds(Parameters::ping_timeout.total_milliseconds() + 1000),
+        [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
+  });
+  node_.managed_connections()->Ping(bootstrap_endpoints_[0], ping_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_EQ(kNotBootstrapped, result_of_ping);
+
+  // Before Add
+  // Pinging bootstrap peer should fail since we're already connected, pinging ourself should fail
+  // since that's madness, pinging any other existing peer should succeed.
+  Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0])));
+  ASSERT_EQ(bootstrap_endpoints_[0], chosen_endpoint);
+  // Ping non-bootstrap peer
+  result_of_ping = kPingFailed;
+  result_arrived = false;
+  node_.managed_connections()->Ping(bootstrap_endpoints_[2], ping_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_EQ(kSuccess, result_of_ping);
+  // Ping ourself (get our existing transport's endpoint)
+  EndpointPair this_endpoint_pair;
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->GetAvailableEndpoint(bootstrap_endpoints_[0],
+                                                              this_endpoint_pair));
+  result_of_ping = kSuccess;
+  result_arrived = false;
+  node_.managed_connections()->Ping(this_endpoint_pair.external, ping_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_EQ(kWontPingOurself, result_of_ping);
+  // Ping bootstrap peer
+  result_of_ping = kSuccess;
+  result_arrived = false;
+  node_.managed_connections()->Ping(bootstrap_endpoints_[0], ping_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_EQ(kWontPingAlreadyConnected, result_of_ping);
+  // Ping non-existent peer
+  Endpoint unavailable_endpoint(ip::address::from_string("1.1.1.1"), GetRandomPort());
+  result_of_ping = kSuccess;
+  result_arrived = false;
+  node_.managed_connections()->Ping(unavailable_endpoint, ping_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_EQ(kPingFailed, result_of_ping);
+
+  // After Add
+  nodes_[1]->ResetData();
+  EndpointPair peer_endpoint_pair;
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->GetAvailableEndpoint(Endpoint(), this_endpoint_pair));
+  EXPECT_EQ(kSuccess,
+            nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.external,
+                                                                   peer_endpoint_pair));
+  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
+  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
+  EXPECT_TRUE(IsValid(peer_endpoint_pair.local));
+  EXPECT_TRUE(IsValid(peer_endpoint_pair.external));
+
+  auto peer_futures(nodes_[1]->GetFutureForMessages(1));
+  auto this_node_futures(node_.GetFutureForMessages(1));
+  EXPECT_EQ(kSuccess,
+            nodes_[1]->managed_connections()->Add(peer_endpoint_pair.external,
+                                                  this_endpoint_pair.external,
+                                                  nodes_[1]->validation_data()));
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->Add(this_endpoint_pair.external,
+                                             peer_endpoint_pair.external,
+                                             node_.validation_data()));
+  ASSERT_TRUE(peer_futures.timed_wait(bptime::seconds(3)));
+  auto peer_messages(peer_futures.get());
+  ASSERT_TRUE(this_node_futures.timed_wait(bptime::seconds(3)));
+  auto this_node_messages(this_node_futures.get());
+  ASSERT_EQ(1U, peer_messages.size());
+  ASSERT_EQ(1U, this_node_messages.size());
+  EXPECT_EQ(node_.validation_data(), peer_messages[0]);
+  EXPECT_EQ(nodes_[1]->validation_data(), this_node_messages[0]);
+
+  // Ping non-connected peer
+  result_of_ping = kPingFailed;
+  result_arrived = false;
+  node_.managed_connections()->Ping(bootstrap_endpoints_[2], ping_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_EQ(kSuccess, result_of_ping);
+  // Ping ourself
+  result_of_ping = kSuccess;
+  result_arrived = false;
+  node_.managed_connections()->Ping(this_endpoint_pair.external, ping_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_EQ(kWontPingOurself, result_of_ping);
+  // Ping bootstrap peer
+  result_of_ping = kSuccess;
+  result_arrived = false;
+  node_.managed_connections()->Ping(bootstrap_endpoints_[0], ping_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_EQ(kWontPingAlreadyConnected, result_of_ping);
+  // Ping non-existent peer
+  result_of_ping = kSuccess;
+  result_arrived = false;
+  node_.managed_connections()->Ping(unavailable_endpoint, ping_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_EQ(kPingFailed, result_of_ping);
 }
 
 }  // namespace test
