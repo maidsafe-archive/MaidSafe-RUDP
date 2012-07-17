@@ -242,8 +242,9 @@ void Connection::CheckLifespanTimeout(const bs::error_code &ec) {
   if (!socket_.IsOpen())
     return DoClose();
 
-  if (lifespan_timer_.expires_from_now().is_negative()) {
-    LOG(kInfo) << "Closing connection to " << socket_.RemoteEndpoint() << " - Lifespan expired.";
+  if (lifespan_timer_.expires_from_now() != bptime::pos_infin) {
+    LOG(kInfo) << "Closing connection to " << socket_.RemoteEndpoint() << "  Lifespan remaining: "
+               << lifespan_timer_.expires_from_now();
     return DoClose();
   }
 }
