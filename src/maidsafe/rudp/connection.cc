@@ -243,9 +243,17 @@ void Connection::CheckLifespanTimeout(const bs::error_code &ec) {
     return DoClose();
 
   if (lifespan_timer_.expires_from_now() != bptime::pos_infin) {
-    LOG(kInfo) << "Closing connection to " << socket_.RemoteEndpoint() << "  Lifespan remaining: "
-               << lifespan_timer_.expires_from_now();
-    return DoClose();
+    if (lifespan_timer_.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
+      LOG(kInfo) << "Closing connection to " << socket_.RemoteEndpoint() << "  Lifespan remaining: "
+                 << lifespan_timer_.expires_from_now();
+      return DoClose();
+    } else {
+      LOG(kInfo) << "Spuriously checking lifespan timeout of connection to "
+                 << socket_.RemoteEndpoint() << "  Lifespan remaining: "
+                 << lifespan_timer_.expires_from_now();
+      lifespan_timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckLifespanTimeout,
+                                                        shared_from_this(), args::_1)));
+    }
   }
 }
 
