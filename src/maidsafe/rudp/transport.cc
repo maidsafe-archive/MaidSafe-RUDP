@@ -34,9 +34,10 @@ namespace maidsafe {
 
 namespace rudp {
 
-namespace {
-typedef boost::asio::ip::udp::endpoint Endpoint;
-}  // unnamed namespace
+const unsigned short Transport::kResiliencePort(5483);  // NOLINT (Fraser)
+
+namespace { typedef boost::asio::ip::udp::endpoint Endpoint; }  // unnamed namespace
+
 
 Transport::Transport(AsioService& asio_service, std::shared_ptr<asymm::PublicKey> this_public_key)  // NOLINT (Fraser)
     : asio_service_(asio_service),
@@ -47,7 +48,8 @@ Transport::Transport(AsioService& asio_service, std::shared_ptr<asymm::PublicKey
       mutex_(),
       on_message_(),
       on_connection_added_(),
-      on_connection_lost_() {}
+      on_connection_lost_(),
+      is_resilience_transport_(false) {}
 
 Transport::~Transport() {
   Close();
@@ -113,7 +115,20 @@ void Transport::Bootstrap(
     if (IsValid(multiplexer_->external_endpoint()) && IsValid(multiplexer_->local_endpoint())) {
       assert(*itr == connection->Socket().RemoteEndpoint());
       *chosen_endpoint = *itr;
-      return;
+      break;
+    }
+  }
+
+  // If we're starting a resilience transport, check the external port is 5483
+  if (local_endpoint.port() == kResiliencePort) {
+    is_resilience_transport_ = true;
+    if (multiplexer_->external_endpoint().port() != kResiliencePort) {
+      LOG(kWarning) << "Failed to start resilience transport - got port "
+                    << multiplexer_->external_endpoint().port() << " instead of "
+                    << kResiliencePort;
+      *chosen_endpoint = Endpoint();
+    } else {
+      LOG(kInfo) << "Started resilience transport on " << multiplexer_->external_endpoint();
     }
   }
 }

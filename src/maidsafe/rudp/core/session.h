@@ -88,7 +88,7 @@ class Session {
   // The timer used to generate tick events.
   TickTimer& tick_timer_;
 
-  // This node's external endpoint as viewed by peer.
+  // This node's external endpoint as viewed by peer.  Object owned by multiplexer.
   boost::asio::ip::udp::endpoint& this_external_endpoint_;
 
   // This node's public key

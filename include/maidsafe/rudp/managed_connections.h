@@ -103,10 +103,8 @@ class ManagedConnections {
   typedef std::map<boost::asio::ip::udp::endpoint, std::shared_ptr<Transport>> ConnectionMap;
 
   struct TransportAndSignalConnections {
-    TransportAndSignalConnections() : transport(),
-                                      on_message_connection(),
-                                      on_connection_added_connection(),
-                                      on_connection_lost_connection() {}
+    TransportAndSignalConnections();
+    void DisconnectSignalsAndClose();
     std::shared_ptr<Transport> transport;
     boost::signals2::connection on_message_connection;
     boost::signals2::connection on_connection_added_connection;
@@ -115,9 +113,14 @@ class ManagedConnections {
 
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
+
   boost::asio::ip::udp::endpoint StartNewTransport(
       std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints,
       boost::asio::ip::udp::endpoint local_endpoint);
+
+  bool DirectConnected(boost::asio::ip::address& this_address) const;
+
+  void StartResilienceTransport(const boost::asio::ip::address& this_address);
 
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const boost::asio::ip::udp::endpoint& peer_endpoint,
@@ -136,6 +139,7 @@ class ManagedConnections {
   ConnectionMap connection_map_;
   mutable boost::shared_mutex shared_mutex_;
   boost::asio::ip::address local_ip_;
+  TransportAndSignalConnections resilience_transport_;
 #ifdef FAKE_RUDP
   std::vector<boost::asio::ip::udp::endpoint> fake_endpoints_;
 #endif

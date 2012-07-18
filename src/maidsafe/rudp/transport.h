@@ -66,6 +66,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
       void(const boost::asio::ip::udp::endpoint&,
            std::shared_ptr<Transport>, bool, bool)> OnConnectionLost;
 
+  static const unsigned short kResiliencePort;  // NOLINT (Fraser)
+
   Transport(AsioService& asio_service, std::shared_ptr<asymm::PublicKey> this_public_key);  // NOLINT (Fraser)
 
   virtual ~Transport();
@@ -79,8 +81,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
                  boost::asio::ip::udp::endpoint* chosen_endpoint,
                  boost::signals2::connection* on_message_connection,
                  boost::signals2::connection* on_connection_added_connection,
-
                  boost::signals2::connection* on_connection_lost_connection);
+
   void Connect(const boost::asio::ip::udp::endpoint& peer_endpoint,
                const std::string& validation_data);
 
@@ -103,6 +105,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
   void MakeConnectionPermanent(const boost::asio::ip::udp::endpoint& peer_endpoint,
                                const std::string& validation_data);
+
+  bool IsResilienceTransport() const { return is_resilience_transport_; }
 
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
@@ -151,6 +155,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   OnMessage on_message_;
   OnConnectionAdded on_connection_added_;
   OnConnectionLost on_connection_lost_;
+  bool is_resilience_transport_;
 };
 
 typedef std::shared_ptr<Transport> TransportPtr;

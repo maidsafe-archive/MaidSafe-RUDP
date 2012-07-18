@@ -14,6 +14,7 @@
 
 #include <functional>
 #include <iterator>
+#include <map>
 
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
@@ -48,20 +49,19 @@ ManagedConnections::ManagedConnections()
       transports_(),
       connection_map_(),
       shared_mutex_(),
-      local_ip_() {}
+      local_ip_(),
+      resilience_transport_() {}
 
 ManagedConnections::~ManagedConnections() {
   {
     UniqueLock unique_lock(shared_mutex_);
     std::for_each(transports_.begin(),
                   transports_.end(),
-                  [](const TransportAndSignalConnections& element) {
-      element.on_connection_lost_connection.disconnect();
-      element.on_connection_added_connection.disconnect();
-      element.on_message_connection.disconnect();
-      element.transport->Close();
+                  [](TransportAndSignalConnections& element) {
+      element.DisconnectSignalsAndClose();
     });
   }
+  resilience_transport_.DisconnectSignalsAndClose();
   asio_service_.Stop();
 }
 
@@ -70,7 +70,7 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
                                        ConnectionLostFunctor connection_lost_functor,
                                        std::shared_ptr<asymm::PrivateKey> private_key,
                                        std::shared_ptr<asymm::PublicKey> public_key,
-                                       boost::asio::ip::udp::endpoint local_endpoint) {
+                                       Endpoint local_endpoint) {
   {
     SharedLock shared_lock(shared_mutex_);
     if (!connection_map_.empty()) {
@@ -156,15 +156,19 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
     SharedLock shared_lock(shared_mutex_);
     LOG(kWarning) << "Failed to start a new Transport.  "
                   << connection_map_.size() << " currently running.";
-    transport_and_signals_connections.on_connection_added_connection.disconnect();
-    transport_and_signals_connections.on_connection_lost_connection.disconnect();
-    transport_and_signals_connections.on_message_connection.disconnect();
-    transport_and_signals_connections.transport->Close();
+    transport_and_signals_connections.DisconnectSignalsAndClose();
     return Endpoint();
   }
 
-  UniqueLock unique_lock(shared_mutex_);
-  transports_.push_back(transport_and_signals_connections);
+  {
+    UniqueLock unique_lock(shared_mutex_);
+    transports_.push_back(transport_and_signals_connections);
+  }
+
+  boost::asio::ip::address address;
+  if (DirectConnected(address))
+    StartResilienceTransport(address);
+
   return chosen_endpoint;
 }
 
@@ -313,8 +317,7 @@ void ManagedConnections::Send(const Endpoint& peer_endpoint,
   (*itr).second->Send(peer_endpoint, message, message_sent_functor);
 }
 
-void ManagedConnections::Ping(const boost::asio::ip::udp::endpoint& peer_endpoint,
-                              PingFunctor ping_functor) {
+void ManagedConnections::Ping(const Endpoint& peer_endpoint, PingFunctor ping_functor) {
   if (!ping_functor) {
     LOG(kWarning) << "No functor passed - not pinging.";
     return;
@@ -351,6 +354,74 @@ void ManagedConnections::Ping(const boost::asio::ip::udp::endpoint& peer_endpoin
   transports_[index].transport->Ping(peer_endpoint, ping_functor);
 }
 
+bool ManagedConnections::DirectConnected(boost::asio::ip::address& this_address) const {
+  typedef std::pair<boost::asio::ip::address, boost::asio::ip::address> AddressPair;
+  std::map<AddressPair, int> endpoints_;
+  AddressPair mode;  // as in average
+  int current_max_count(0);
+  {
+    SharedLock shared_lock(shared_mutex_);
+    if (static_cast<int>(transports_.size()) < kMaxTransports)
+      return false;
+
+    for (auto itr(transports_.begin()); itr != transports_.end(); ++itr) {
+      auto result(endpoints_.insert(
+          std::make_pair(std::make_pair(itr->transport->external_endpoint().address(),
+                                        itr->transport->local_endpoint().address()), 1)));
+      if (!result.second)
+        ++(result.first->second);
+
+      if (result.first->second > current_max_count) {
+        current_max_count = result.first->second;
+        mode = result.first->first;
+      }
+
+      if (current_max_count > kMaxTransports / 2)
+        break;
+    }
+  }
+
+  if (mode.first != mode.second) {
+    LOG(kInfo) << "This node is not direct-connected.  Its external address is " << mode.first
+               << " and its local address is " << mode.second;
+    return false;
+  }
+
+  this_address = mode.first;
+  LOG(kInfo) << "This node is direct-connected on " << mode.first;
+  return true;
+}
+
+void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address &this_address) {
+  resilience_transport_.transport = std::make_shared<Transport>(asio_service_, public_key_);
+  std::vector<Endpoint> bootstrap_endpoints;
+  {
+    SharedLock shared_lock(shared_mutex_);
+    std::for_each(
+        connection_map_.begin(),
+        connection_map_.end(),
+        [&bootstrap_endpoints](const ConnectionMap::value_type& entry) {
+      bootstrap_endpoints.push_back(entry.first);
+    });
+  }
+
+  Endpoint chosen_endpoint;
+  resilience_transport_.transport->Bootstrap(
+      bootstrap_endpoints,
+      Endpoint(this_address, Transport::kResiliencePort),
+      true,
+      boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
+      boost::bind(&ManagedConnections::OnConnectionAddedSlot, this, _1, _2),
+      boost::bind(&ManagedConnections::OnConnectionLostSlot, this, _1, _2, _3, _4),
+      &chosen_endpoint,
+      &resilience_transport_.on_message_connection,
+      &resilience_transport_.on_connection_added_connection,
+      &resilience_transport_.on_connection_lost_connection);
+
+  if (!IsValid(chosen_endpoint))
+    resilience_transport_.DisconnectSignalsAndClose();
+}
+
 void ManagedConnections::OnMessageSlot(const std::string& message) {
   std::string decrypted_message;
   int result(asymm::Decrypt(message, *private_key_, &decrypted_message));
@@ -379,7 +450,7 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint& peer_endpoint,
                                               bool temporary_connection) {
   bool should_execute_functor(false);
   {
-    bool remove_transport(connections_empty);
+    bool remove_transport(connections_empty && !transport->IsResilienceTransport());
     UniqueLock unique_lock(shared_mutex_);
     auto connection_itr(connection_map_.find(peer_endpoint));
     if (connection_itr == connection_map_.end()) {
@@ -418,10 +489,7 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint& peer_endpoint,
       if (itr == transports_.end()) {
         LOG(kError) << "Failed to find transport in vector.";
       } else {
-        (*itr).on_message_connection.disconnect();
-        (*itr).on_connection_added_connection.disconnect();
-        (*itr).on_connection_lost_connection.disconnect();
-        (*itr).transport->Close();
+        (*itr).DisconnectSignalsAndClose();
         transports_.erase(itr);
       }
     }
@@ -429,6 +497,22 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint& peer_endpoint,
 
   if (should_execute_functor)
     connection_lost_functor_(peer_endpoint);
+}
+
+
+
+ManagedConnections::TransportAndSignalConnections::TransportAndSignalConnections()
+    : transport(),
+      on_message_connection(),
+      on_connection_added_connection(),
+      on_connection_lost_connection() {}
+
+void ManagedConnections::TransportAndSignalConnections::DisconnectSignalsAndClose() {
+  on_connection_added_connection.disconnect();
+  on_connection_lost_connection.disconnect();
+  on_message_connection.disconnect();
+  if (transport)
+    transport->Close();
 }
 
 }  // namespace rudp
