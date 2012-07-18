@@ -136,6 +136,9 @@ class ManagedConnections {
   ConnectionMap connection_map_;
   mutable boost::shared_mutex shared_mutex_;
   boost::asio::ip::address local_ip_;
+#ifdef FAKE_RUDP
+  std::vector<boost::asio::ip::udp::endpoint> fake_endpoints_;
+#endif
 };
 
 }  // namespace rudp
