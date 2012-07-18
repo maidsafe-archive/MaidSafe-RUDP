@@ -38,7 +38,7 @@ namespace rudp {
 
 namespace detail {
 
-Receiver::Receiver(Peer &peer, TickTimer &tick_timer, CongestionControl &congestion_control)  // NOLINT (Fraser)
+Receiver::Receiver(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control)  // NOLINT (Fraser)
     : peer_(peer),
       tick_timer_(tick_timer),
       congestion_control_(congestion_control),
@@ -59,15 +59,15 @@ bool Receiver::Flushed() const {
           last_ack_packet_sequence_number_ == 0);
 }
 
-size_t Receiver::ReadData(const boost::asio::mutable_buffer &data) {
-  unsigned char *begin = asio::buffer_cast<unsigned char*>(data);
-  unsigned char *ptr = begin;
-  unsigned char *end = begin + asio::buffer_size(data);
+size_t Receiver::ReadData(const boost::asio::mutable_buffer& data) {
+  unsigned char* begin = asio::buffer_cast<unsigned char*>(data);
+  unsigned char* ptr = begin;
+  unsigned char* end = begin + asio::buffer_size(data);
 
   for (boost::uint32_t n = unread_packets_.Begin();
        (n != unread_packets_.End()) && (ptr < end);
        n = unread_packets_.Next(n)) {
-    UnreadPacket &p = unread_packets_[n];
+    UnreadPacket& p = unread_packets_[n];
     if (p.lost) {
       break;
     } else if (p.packet.Data().size() > p.bytes_read) {
@@ -88,7 +88,7 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer &data) {
   return ptr - begin;
 }
 
-void Receiver::HandleData(const DataPacket &packet) {
+void Receiver::HandleData(const DataPacket& packet) {
   unread_packets_.SetMaximumSize(congestion_control_.ReceiveWindowSize());
 
   uint32_t seqnum = packet.PacketSequenceNumber();
@@ -106,7 +106,7 @@ void Receiver::HandleData(const DataPacket &packet) {
   // The empty slot will got populated here, if the packet arrived later having
   // a seqnum falls in the window
   if (unread_packets_.Contains(seqnum)) {
-    UnreadPacket &p = unread_packets_[seqnum];
+    UnreadPacket& p = unread_packets_[seqnum];
     // The packet will be ignored if already received
     if (p.lost) {
       congestion_control_.OnDataPacketReceived(seqnum);
@@ -130,11 +130,11 @@ void Receiver::HandleData(const DataPacket &packet) {
 //  }
 }
 
-void Receiver::HandleAckOfAck(const AckOfAckPacket &packet) {
+void Receiver::HandleAckOfAck(const AckOfAckPacket& packet) {
   uint32_t ack_seqnum = packet.AckSequenceNumber();
 
   if (acks_.Contains(ack_seqnum)) {
-    Ack &a = acks_[ack_seqnum];
+    Ack& a = acks_[ack_seqnum];
     boost::posix_time::time_duration rtt = tick_timer_.Now() - a.send_time;
     uint64_t rtt_us = rtt.total_microseconds();
     if (rtt_us < std::numeric_limits<uint32_t>::max()) {

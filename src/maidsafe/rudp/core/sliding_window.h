@@ -110,30 +110,30 @@ class SlidingWindow {
 
   // Get the item with the specified sequence number.
   // Precondition: Contains(n).
-  T &operator[](uint32_t n) { return items_[SequenceNumberToIndex(n)]; }
+  T& operator[](uint32_t n) { return items_[SequenceNumberToIndex(n)]; }
 
   // Get the item with the specified sequence number.
   // Precondition: Contains(n).
-  const T &operator[](uint32_t n) const { return items_[SequenceNumberToIndex(n)]; }
+  const T& operator[](uint32_t n) const { return items_[SequenceNumberToIndex(n)]; }
 
   // Get the element at the front of the window.
   // Precondition: !IsEmpty().
-  T &Front() { return items_.front(); }
+  T& Front() { return items_.front(); }
 
   // Get the element at the front of the window.
   // Precondition: !IsEmpty().
-  const T &Front() const { return items_.front(); }
+  const T& Front() const { return items_.front(); }
 
   // Get the element at the back of the window.
   // Precondition: !IsEmpty().
-  T &Back() {
+  T& Back() {
     assert(!IsEmpty());
     return items_.front();
   }
 
   // Get the element at the back of the window.
   // Precondition: !IsEmpty().
-  const T &Back() const {
+  const T& Back() const {
     assert(!IsEmpty());
     return items_.back();
   }
@@ -144,7 +144,7 @@ class SlidingWindow {
  private:
   // Disallow copying and assignment.
   SlidingWindow(const SlidingWindow&);
-  SlidingWindow &operator=(const SlidingWindow&);
+  SlidingWindow& operator=(const SlidingWindow&);
 
   // Helper function to convert a sequence number into an index in the window.
   size_t SequenceNumberToIndex(uint32_t n) const {

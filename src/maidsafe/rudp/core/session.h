@@ -33,9 +33,9 @@ class Session {
  public:
   enum Mode { kNormal, kBootstrapAndDrop, kBootstrapAndKeep };
 
-  explicit Session(Peer &peer,                                                    // NOLINT (Fraser)
-                   TickTimer &tick_timer,
-                   boost::asio::ip::udp::endpoint &this_external_endpoint);
+  explicit Session(Peer& peer,                                                    // NOLINT (Fraser)
+                   TickTimer& tick_timer,
+                   boost::asio::ip::udp::endpoint& this_external_endpoint);
 
   // Open the session.
   void Open(uint32_t id,
@@ -62,7 +62,7 @@ class Session {
   void Close();
 
   // Handle a handshake packet.
-  void HandleHandshake(const HandshakePacket &packet);
+  void HandleHandshake(const HandshakePacket& packet);
 
   // Handle a tick in the system time.
   void HandleTick();
@@ -75,7 +75,7 @@ class Session {
  private:
   // Disallow copying and assignment.
   Session(const Session&);
-  Session &operator=(const Session&);
+  Session& operator=(const Session&);
 
   // Helper functions to send the packets that make up the handshaking process.
   void SendPacket();
@@ -83,13 +83,13 @@ class Session {
   void SendCookie();
 
   // The peer with which we are communicating.
-  Peer &peer_;
+  Peer& peer_;
 
   // The timer used to generate tick events.
-  TickTimer &tick_timer_;
+  TickTimer& tick_timer_;
 
   // This node's external endpoint as viewed by peer.
-  boost::asio::ip::udp::endpoint &this_external_endpoint_;
+  boost::asio::ip::udp::endpoint& this_external_endpoint_;
 
   // This node's public key
   std::shared_ptr<asymm::PublicKey> this_public_key_;

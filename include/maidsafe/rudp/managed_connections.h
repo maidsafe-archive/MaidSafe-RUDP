@@ -73,29 +73,29 @@ class ManagedConnections {
   // permanent connection to a successful bootstrap endpoint) it should be passed in.  If
   // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
   // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
-  int GetAvailableEndpoint(const boost::asio::ip::udp::endpoint &peer_endpoint,
-                           EndpointPair &this_endpoint_pair);
+  int GetAvailableEndpoint(const boost::asio::ip::udp::endpoint& peer_endpoint,
+                           EndpointPair& this_endpoint_pair);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
   // runs its message_received_functor_ with the data.  All messages sent via this connection are
   // encrypted for the peer.
-  int Add(const boost::asio::ip::udp::endpoint &this_endpoint,
-          const boost::asio::ip::udp::endpoint &peer_endpoint,
-          const std::string &validation_data);
+  int Add(const boost::asio::ip::udp::endpoint& this_endpoint,
+          const boost::asio::ip::udp::endpoint& peer_endpoint,
+          const std::string& validation_data);
 
   // Drops the connection with peer.
-  void Remove(const boost::asio::ip::udp::endpoint &peer_endpoint);
+  void Remove(const boost::asio::ip::udp::endpoint& peer_endpoint);
 
   // Sends the message to the peer.  If the message is sent successfully, the message_sent_functor
   // is executed with input of kSuccess.  If there is no existing connection to peer_endpoint,
   // kInvalidConnection is used.
-  void Send(const boost::asio::ip::udp::endpoint &peer_endpoint,
-            const std::string &message,
+  void Send(const boost::asio::ip::udp::endpoint& peer_endpoint,
+            const std::string& message,
             MessageSentFunctor message_sent_functor);
 
   // Try to ping remote_endpoint.  If this node is already connected, ping_functor is invoked with
   // kWontPingAlreadyConnected.  Otherwise, kPingFailed or kSuccess is passed to ping_functor.
-  void Ping(const boost::asio::ip::udp::endpoint &peer_endpoint, PingFunctor ping_functor);
+  void Ping(const boost::asio::ip::udp::endpoint& peer_endpoint, PingFunctor ping_functor);
 
   friend class Transport;
 
@@ -119,10 +119,10 @@ class ManagedConnections {
       std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints,
       boost::asio::ip::udp::endpoint local_endpoint);
 
-  void OnMessageSlot(const std::string &message);
-  void OnConnectionAddedSlot(const boost::asio::ip::udp::endpoint &peer_endpoint,
+  void OnMessageSlot(const std::string& message);
+  void OnConnectionAddedSlot(const boost::asio::ip::udp::endpoint& peer_endpoint,
                              std::shared_ptr<Transport> transport);
-  void OnConnectionLostSlot(const boost::asio::ip::udp::endpoint &peer_endpoint,
+  void OnConnectionLostSlot(const boost::asio::ip::udp::endpoint& peer_endpoint,
                             std::shared_ptr<Transport> transport,
                             bool connections_empty,
                             bool temporary_connection);

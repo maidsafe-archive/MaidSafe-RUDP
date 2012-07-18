@@ -30,7 +30,7 @@ boost::asio::ip::address GetLocalIp(
         boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::from_string("8.8.8.8"), 0));
 
 // Returns true if port > 1024 and the address is correctly specified.
-bool IsValid(const boost::asio::ip::udp::endpoint &endpoint);
+bool IsValid(const boost::asio::ip::udp::endpoint& endpoint);
 
 }  // namespace rudp
 

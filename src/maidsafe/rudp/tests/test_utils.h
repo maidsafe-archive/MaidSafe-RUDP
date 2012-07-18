@@ -45,7 +45,7 @@ uint16_t GetRandomPort();
 
 testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                       std::vector<Endpoint> &bootstrap_endpoints,
-                                      const int &node_count);
+                                      const int& node_count);
 
 
 class Node {
@@ -56,7 +56,7 @@ class Node {
   Endpoint Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
                      Endpoint local_endpoint = Endpoint());
   boost::unique_future<std::vector<std::string>> GetFutureForMessages(
-      const uint32_t &message_count);
+      const uint32_t& message_count);
   std::string id() const { return key_pair_.identity; }
   std::string validation_data() const { return key_pair_.validation_token; }
   std::shared_ptr<asymm::PrivateKey> private_key() const {
@@ -64,10 +64,10 @@ class Node {
   std::shared_ptr<asymm::PublicKey> public_key() const {
       return std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey(key_pair_.public_key)); }
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
-  int GetReceivedMessageCount(const std::string &message) const;
+  int GetReceivedMessageCount(const std::string& message) const;
   void ResetData();
   std::vector<Endpoint> GetConnectedEndPoints() { return connected_endpoints_; }
-  void AddConnectedEndPoint(const Endpoint &connected_endpoints) {
+  void AddConnectedEndPoint(const Endpoint& connected_endpoints) {
     connected_endpoints_.push_back(connected_endpoints);
   }
 

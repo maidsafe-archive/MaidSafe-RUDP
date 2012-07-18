@@ -25,13 +25,13 @@ namespace rudp {
 
 namespace {
 
-ip::udp::endpoint Resolve(ip::udp::resolver &resolver,
+ip::udp::endpoint Resolve(ip::udp::resolver& resolver,
                           std::pair<std::string, std::string> address_and_port) {
   try {
     ip::udp::resolver::query query(ip::udp::v4(), address_and_port.first, address_and_port.second);
-    return *resolver.resolve(query);
+    return* resolver.resolve(query);
   }
-  catch(const std::exception &e) {
+  catch(const std::exception& e) {
     LOG(kError) << "Failed resolving " << address_and_port.first << ":" << address_and_port.second
                 << " - " << e.what();
     return ip::udp::endpoint();
@@ -50,13 +50,13 @@ ip::address GetLocalIp(ip::udp::endpoint peer_endpoint) {
       return ip::address();
     return socket.local_endpoint().address();
   }
-  catch(const std::exception &e) {
+  catch(const std::exception& e) {
     LOG(kError) << "Failed trying to connect to " << peer_endpoint << " - " << e.what();
     return ip::address();
   }
 }
 
-bool IsValid(const ip::udp::endpoint &endpoint) {
+bool IsValid(const ip::udp::endpoint& endpoint) {
   return endpoint.port() > 1024U && !endpoint.address().is_unspecified();
 }
 

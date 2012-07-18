@@ -79,19 +79,19 @@ class RudpTransportTest : public testing::Test {
        asio_service.Stop();
     }
 
-    void OnMessageSlot(const std::string &message) {
+    void OnMessageSlot(const std::string& message) {
       boost::mutex::scoped_lock lock(mutex);
       messages_received.push_back(message);
       cond_var_msg_received.notify_one();
     }
 
-    void OnConnectionAddedSlot(const Endpoint &peer_endpoint, TransportPtr /*transport*/) {
+    void OnConnectionAddedSlot(const Endpoint& peer_endpoint, TransportPtr /*transport*/) {
       boost::mutex::scoped_lock lock(mutex);
       peers_added.push_back(peer_endpoint);
       cond_var_connection_added.notify_one();
     }
 
-    void OnConnectionLostSlot(const Endpoint &peer_endpoint,
+    void OnConnectionLostSlot(const Endpoint& peer_endpoint,
                               TransportPtr /*transport*/,
                               bool /*connections_empty*/,
                               bool /*temporary_connection*/) {

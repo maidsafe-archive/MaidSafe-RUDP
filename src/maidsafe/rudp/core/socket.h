@@ -61,7 +61,7 @@ class Dispatcher;
 
 class Socket {
  public:
-  explicit Socket(Multiplexer &multiplexer);  // NOLINT (Fraser)
+  explicit Socket(Multiplexer& multiplexer);  // NOLINT (Fraser)
   ~Socket();
 
   // Get the unique identifier that has been assigned to the socket.
@@ -105,7 +105,7 @@ class Socket {
   // expires.
   template <typename ConnectHandler>
   void AsyncConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
-                    const boost::asio::ip::udp::endpoint &remote,
+                    const boost::asio::ip::udp::endpoint& remote,
                     ConnectHandler handler,
                     Session::Mode open_mode) {
     ConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
@@ -117,7 +117,7 @@ class Socket {
   // generally complete immediately unless congestion has caused the internal
   // buffer for unprocessed send data to fill up.
   template <typename WriteHandler>
-  void AsyncWrite(const boost::asio::const_buffer &data, WriteHandler handler) {
+  void AsyncWrite(const boost::asio::const_buffer& data, WriteHandler handler) {
     WriteOp<WriteHandler> op(handler, &waiting_write_ec_, &waiting_write_bytes_transferred_);
     waiting_write_.async_wait(op);
     StartWrite(data);
@@ -125,7 +125,7 @@ class Socket {
 
   // Initiate an asynchronous operation to read data.
   template <typename ReadHandler>
-  void AsyncRead(const boost::asio::mutable_buffer &data,
+  void AsyncRead(const boost::asio::mutable_buffer& data,
                  size_t transfer_at_least,
                  ReadHandler handler) {
     ReadOp<ReadHandler> op(handler, &waiting_read_ec_, &waiting_read_bytes_transferred_);
@@ -164,14 +164,14 @@ class Socket {
  private:
   // Disallow copying and assignment.
   Socket(const Socket&);
-  Socket &operator=(const Socket&);
+  Socket& operator=(const Socket&);
 
   void StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
-                    const boost::asio::ip::udp::endpoint &remote,
+                    const boost::asio::ip::udp::endpoint& remote,
                     Session::Mode open_mode);
-  void StartWrite(const boost::asio::const_buffer &data);
+  void StartWrite(const boost::asio::const_buffer& data);
   void ProcessWrite();
-  void StartRead(const boost::asio::mutable_buffer &data, size_t transfer_at_least);
+  void StartRead(const boost::asio::mutable_buffer& data, size_t transfer_at_least);
   void ProcessRead();
   void StartFlush();
   void ProcessFlush();
@@ -179,33 +179,33 @@ class Socket {
   void StartProbe();
 
   // Called by the Dispatcher when a new packet arrives for the socket.
-  void HandleReceiveFrom(const boost::asio::const_buffer &data,
-                         const boost::asio::ip::udp::endpoint &endpoint);
+  void HandleReceiveFrom(const boost::asio::const_buffer& data,
+                         const boost::asio::ip::udp::endpoint& endpoint);
 
   // Called to process a newly received handshake packet.
-  void HandleHandshake(const HandshakePacket &packet);
+  void HandleHandshake(const HandshakePacket& packet);
 
   // Called to process a newly received data packet.
-  void HandleData(const DataPacket &packet);
+  void HandleData(const DataPacket& packet);
 
   // Called to process a newly received acknowledgement packet.
-  void HandleAck(const AckPacket &packet);
+  void HandleAck(const AckPacket& packet);
 
   // Called to process a newly received acknowledgement of an acknowledgement.
-  void HandleAckOfAck(const AckOfAckPacket &packet);
+  void HandleAckOfAck(const AckOfAckPacket& packet);
 
   // Called to process a newly received negative acknowledgement packet.
-  void HandleNegativeAck(const NegativeAckPacket &packet);
+  void HandleNegativeAck(const NegativeAckPacket& packet);
 
   // Called to process a newly received Keepalive packet.
-  void HandleKeepalive(const KeepalivePacket &packet);
+  void HandleKeepalive(const KeepalivePacket& packet);
 
   // Called to handle a tick event.
   void HandleTick();
-  friend void DispatchTick(Socket *socket) { socket->HandleTick(); }
+  friend void DispatchTick(Socket* socket) { socket->HandleTick(); }
 
   // The dispatcher that holds this sockets registration.
-  Dispatcher &dispatcher_;
+  Dispatcher& dispatcher_;
 
   // Mutex to protect access to the buffers during read/write operations.
   std::mutex mutex_;

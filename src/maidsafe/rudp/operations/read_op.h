@@ -29,20 +29,20 @@ template <typename ReadHandler>
 class ReadOp {
  public:
   ReadOp(ReadHandler handler,
-         const boost::system::error_code *ec,
-         const size_t *bytes_transferred)
+         const boost::system::error_code* ec,
+         const size_t* bytes_transferred)
     : handler_(handler),
       ec_(ec),
       bytes_transferred_(bytes_transferred) {
   }
 
-  ReadOp(const ReadOp &L)
+  ReadOp(const ReadOp& L)
     : handler_(L.handler_),
       ec_(L.ec_),
       bytes_transferred_(L.bytes_transferred_) {
   }
 
-  ReadOp & operator=(const ReadOp &L) {
+  ReadOp & operator=(const ReadOp& L) {
     // check for "self assignment" and do nothing in that case
     if (this != &L) {
       delete ec_;
@@ -51,33 +51,33 @@ class ReadOp {
       ec_ = L.ec_;
       bytes_transferred_ = L.bytes_transferred_;
     }
-    return *this;
+    return* this;
   }
 
   void operator()(boost::system::error_code) {
     handler_(*ec_, *bytes_transferred_);
   }
 
-  friend void *asio_handler_allocate(size_t n, ReadOp *op) {
+  friend void* asio_handler_allocate(size_t n, ReadOp* op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, ReadOp *op) {
+  friend void asio_handler_deallocate(void* p, size_t n, ReadOp* op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, ReadOp *op) {
+  friend void asio_handler_invoke(const Function& f, ReadOp* op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
 
  private:
   ReadHandler handler_;
-  const boost::system::error_code *ec_;
-  const size_t *bytes_transferred_;
+  const boost::system::error_code* ec_;
+  const size_t* bytes_transferred_;
 };
 
 }  // namespace detail

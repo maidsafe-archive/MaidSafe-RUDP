@@ -110,7 +110,7 @@ void HandshakePacket::SetSynCookie(uint32_t n) {
 //    return ip_address_;
 //  }
 
-//  void HandshakePacket::SetIpAddress(const asio::ip::address &address) {
+//  void HandshakePacket::SetIpAddress(const asio::ip::address& address) {
 //    if (address.is_v4())
 //      ip_address_ = asio::ip::address_v6::v4_compatible(address.to_v4());
 //    else
@@ -121,7 +121,7 @@ asio::ip::udp::endpoint HandshakePacket::Endpoint() const {
   return endpoint_;
 }
 
-void HandshakePacket::SetEndpoint(const asio::ip::udp::endpoint &endpoint) {
+void HandshakePacket::SetEndpoint(const asio::ip::udp::endpoint& endpoint) {
   endpoint_ = endpoint;
 }
 
@@ -133,13 +133,13 @@ void HandshakePacket::SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key)
   public_key_ = public_key;
 }
 
-bool HandshakePacket::IsValid(const asio::const_buffer &buffer) {
+bool HandshakePacket::IsValid(const asio::const_buffer& buffer) {
   // TODO(Fraser#5#): 2012-07-11 - If encoded public key size can be determined, change buffer size
   // check to:  == kMinPacketSize || == kMinPacketSize + key size.
   return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) >= kMinPacketSize));
 }
 
-bool HandshakePacket::Decode(const asio::const_buffer &buffer) {
+bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
     return false;
@@ -148,7 +148,7 @@ bool HandshakePacket::Decode(const asio::const_buffer &buffer) {
   if (!DecodeBase(buffer, kPacketType))
     return false;
 
-  const unsigned char *p = asio::buffer_cast<const unsigned char *>(buffer);
+  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
   size_t length = asio::buffer_size(buffer) - kHeaderSize;
 
   p += kHeaderSize;
@@ -190,7 +190,7 @@ bool HandshakePacket::Decode(const asio::const_buffer &buffer) {
   return true;
 }
 
-size_t HandshakePacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t HandshakePacket::Encode(const asio::mutable_buffer& buffer) const {
   std::string encoded_public_key;
   if (public_key_) {
     // Refuse to encode if the output buffer is not big enough.
@@ -207,7 +207,7 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer &buffer) const {
   if (EncodeBase(buffer) == 0)
     return 0;
 
-  unsigned char *p = asio::buffer_cast<unsigned char *>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
   p += kHeaderSize;
 
   EncodeUint32(rudp_version_, p + 0);

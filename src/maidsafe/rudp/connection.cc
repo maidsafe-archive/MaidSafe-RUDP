@@ -39,9 +39,9 @@ namespace maidsafe {
 namespace rudp {
 
 Connection::Connection(const std::shared_ptr<Transport> &transport,
-                       const asio::io_service::strand &strand,
+                       const asio::io_service::strand& strand,
                        const std::shared_ptr<detail::Multiplexer> &multiplexer,
-                       const ip::udp::endpoint &remote)
+                       const ip::udp::endpoint& remote)
     : transport_(transport),
       strand_(strand),
       multiplexer_(multiplexer),
@@ -60,7 +60,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
   static_assert((sizeof(detail::DataSize)) == 4, "DataSize must be 4 bytes.");
 }
 
-detail::Socket &Connection::Socket() {
+detail::Socket& Connection::Socket() {
   return socket_;
 }
 
@@ -89,22 +89,22 @@ void Connection::DoClose() {
 }
 
 void Connection::StartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
-                                 const std::string &validation_data,
-                                 const boost::posix_time::time_duration &lifespan) {
+                                 const std::string& validation_data,
+                                 const boost::posix_time::time_duration& lifespan) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(),
                              this_public_key, validation_data, lifespan, PingFunctor()));
 }
 
 void Connection::Ping(std::shared_ptr<asymm::PublicKey> this_public_key,
-                      const PingFunctor &ping_functor) {
+                      const PingFunctor& ping_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(),
                              this_public_key, "", bptime::time_duration(), ping_functor));
 }
 
 void Connection::DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
-                                   const std::string &validation_data,
-                                   const boost::posix_time::time_duration &lifespan,
-                                   const PingFunctor &ping_functor) {
+                                   const std::string& validation_data,
+                                   const boost::posix_time::time_duration& lifespan,
+                                   const PingFunctor& ping_functor) {
   StartTick();
   StartConnect(this_public_key, validation_data, lifespan, ping_functor);
   bs::error_code ignored_ec;
@@ -120,8 +120,8 @@ void Connection::MakePermanent() {
   socket_.MakePermanent();
 }
 
-void Connection::StartSending(const std::string &data,
-                              const MessageSentFunctor &message_sent_functor) {
+void Connection::StartSending(const std::string& data,
+                              const MessageSentFunctor& message_sent_functor) {
   if (sending_) {
     strand_.post(std::bind(&Connection::StartSending, shared_from_this(), data,
                            message_sent_functor));
@@ -137,8 +137,8 @@ void Connection::StartSending(const std::string &data,
   }
 }
 
-void Connection::DoStartSending(const std::string &data,
-                                const MessageSentFunctor &message_sent_functor) {
+void Connection::DoStartSending(const std::string& data,
+                                const MessageSentFunctor& message_sent_functor) {
   sending_ = true;
   MessageSentFunctor wrapped_functor([&, message_sent_functor](int result) {
     InvokeSentFunctor(message_sent_functor, result);
@@ -157,7 +157,7 @@ void Connection::DoStartSending(const std::string &data,
   strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
 }
 
-void Connection::CheckTimeout(const bs::error_code &ec) {
+void Connection::CheckTimeout(const bs::error_code& ec) {
   if (ec && ec != boost::asio::error::operation_aborted) {
     LOG(kError) << "Connection check timeout error: " << ec.message();
     socket_.Close();
@@ -212,9 +212,9 @@ void Connection::HandleTick() {
 }
 
 void Connection::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
-                              const std::string &validation_data,
-                              const boost::posix_time::time_duration &lifespan,
-                              const PingFunctor &ping_functor) {
+                              const std::string& validation_data,
+                              const boost::posix_time::time_duration& lifespan,
+                              const PingFunctor& ping_functor) {
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(),
                                         args::_1, validation_data, ping_functor));
   detail::Session::Mode open_mode(detail::Session::kNormal);
@@ -234,7 +234,7 @@ void Connection::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
   timeout_state_ = kConnecting;
 }
 
-void Connection::CheckLifespanTimeout(const bs::error_code &ec) {
+void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
   if (ec && ec != boost::asio::error::operation_aborted) {
     LOG(kError) << "Connection lifespan check timeout error: " << ec.message();
     return DoClose();
@@ -257,9 +257,9 @@ void Connection::CheckLifespanTimeout(const bs::error_code &ec) {
   }
 }
 
-void Connection::HandleConnect(const bs::error_code &ec,
-                               const std::string &validation_data,
-                               const PingFunctor &ping_functor) {
+void Connection::HandleConnect(const bs::error_code& ec,
+                               const std::string& validation_data,
+                               const PingFunctor& ping_functor) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
@@ -306,7 +306,7 @@ void Connection::StartReadSize() {
                                            shared_from_this(), args::_1)));
 }
 
-void Connection::HandleReadSize(const bs::error_code &ec) {
+void Connection::HandleReadSize(const bs::error_code& ec) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped()) {
@@ -347,7 +347,7 @@ void Connection::StartReadData() {
                                            args::_1, args::_2)));
 }
 
-void Connection::HandleReadData(const bs::error_code &ec, size_t length) {
+void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped()) {
@@ -389,7 +389,7 @@ void Connection::DispatchMessage() {
   }
 }
 
-bool Connection::EncodeData(const std::string &data) {
+bool Connection::EncodeData(const std::string& data) {
   // Serialize message to internal buffer
   detail::DataSize msg_size = static_cast<detail::DataSize>(data.size());
   if (static_cast<size_t>(msg_size) >
@@ -406,7 +406,7 @@ bool Connection::EncodeData(const std::string &data) {
   return true;
 }
 
-void Connection::StartWrite(const MessageSentFunctor &message_sent_functor) {
+void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
   if (Stopped()) {
     LOG(kError) << "Failed to write to " << socket_.RemoteEndpoint() << " - connection stopped.";
     InvokeSentFunctor(message_sent_functor, kSendFailure);
@@ -418,8 +418,8 @@ void Connection::StartWrite(const MessageSentFunctor &message_sent_functor) {
                                args::_1, message_sent_functor));
 }
 
-void Connection::HandleWrite(const bs::error_code &ec,
-                             const MessageSentFunctor &message_sent_functor) {
+void Connection::HandleWrite(const bs::error_code& ec,
+                             const MessageSentFunctor& message_sent_functor) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped()) {
@@ -447,14 +447,14 @@ void Connection::StartProbing() {
                                                 shared_from_this(), args::_1)));
 }
 
-void Connection::DoProbe(const bs::error_code &ec) {
+void Connection::DoProbe(const bs::error_code& ec) {
   if ((asio::error::operation_aborted != ec) && !Stopped()) {
     socket_.AsyncProbe(strand_.wrap(std::bind(&Connection::HandleProbe,
                                               shared_from_this(), args::_1)));
   }
 }
 
-void Connection::HandleProbe(const bs::error_code &ec) {
+void Connection::HandleProbe(const bs::error_code& ec) {
   if (!ec) {
     failed_probe_count_ = 0;
     return StartProbing();
@@ -472,7 +472,7 @@ void Connection::HandleProbe(const bs::error_code &ec) {
   }
 }
 
-void Connection::InvokeSentFunctor(const MessageSentFunctor &message_sent_functor,
+void Connection::InvokeSentFunctor(const MessageSentFunctor& message_sent_functor,
                                    int result) const {
   if (message_sent_functor) {
     if (std::shared_ptr<Transport> transport = transport_.lock())

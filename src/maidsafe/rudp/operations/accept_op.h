@@ -30,7 +30,7 @@ namespace detail {
 template <typename AcceptHandler>
 class AcceptOp {
  public:
-  AcceptOp(AcceptHandler handler, Socket &socket)  // NOLINT (Fraser)
+  AcceptOp(AcceptHandler handler, Socket& socket)  // NOLINT (Fraser)
     : handler_(handler),
       socket_(socket) {}
 
@@ -41,25 +41,25 @@ class AcceptOp {
     handler_(ec);
   }
 
-  friend void *asio_handler_allocate(size_t n, AcceptOp *op) {
+  friend void* asio_handler_allocate(size_t n, AcceptOp* op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, AcceptOp *op) {
+  friend void asio_handler_deallocate(void* p, size_t n, AcceptOp* op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, AcceptOp *op) {
+  friend void asio_handler_invoke(const Function& f, AcceptOp* op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
 
  private:
   AcceptHandler handler_;
-  Socket &socket_;
+  Socket& socket_;
 };
 
 }  // namespace detail

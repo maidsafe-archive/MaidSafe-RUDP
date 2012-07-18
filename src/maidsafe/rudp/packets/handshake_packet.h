@@ -67,14 +67,14 @@ class HandshakePacket : public ControlPacket {
   void SetSynCookie(uint32_t n);
 
   boost::asio::ip::udp::endpoint Endpoint() const;
-  void SetEndpoint(const boost::asio::ip::udp::endpoint &endpoint);
+  void SetEndpoint(const boost::asio::ip::udp::endpoint& endpoint);
 
   std::shared_ptr<asymm::PublicKey> PublicKey() const;
   void SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key);
 
-  static bool IsValid(const boost::asio::const_buffer &buffer);
-  bool Decode(const boost::asio::const_buffer &buffer);
-  size_t Encode(const boost::asio::mutable_buffer &buffer) const;
+  static bool IsValid(const boost::asio::const_buffer& buffer);
+  bool Decode(const boost::asio::const_buffer& buffer);
+  size_t Encode(const boost::asio::mutable_buffer& buffer) const;
 
  private:
   uint32_t rudp_version_;

@@ -38,7 +38,7 @@ void NegativeAckPacket::AddSequenceNumbers(uint32_t first, uint32_t last) {
   sequence_numbers_.push_back(last);
 }
 
-bool NegativeAckPacket::IsValid(const asio::const_buffer &buffer) {
+bool NegativeAckPacket::IsValid(const asio::const_buffer& buffer) {
   return (IsValidBase(buffer, kPacketType) &&
           (asio::buffer_size(buffer) > kHeaderSize) &&
           ((asio::buffer_size(buffer) - kHeaderSize) % 4 == 0));
@@ -73,7 +73,7 @@ bool NegativeAckPacket::HasSequenceNumbers() const {
   return !sequence_numbers_.empty();
 }
 
-bool NegativeAckPacket::Decode(const asio::const_buffer &buffer) {
+bool NegativeAckPacket::Decode(const asio::const_buffer& buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
     return false;
@@ -82,7 +82,7 @@ bool NegativeAckPacket::Decode(const asio::const_buffer &buffer) {
   if (!DecodeBase(buffer, kPacketType))
     return false;
 
-  const unsigned char *p = asio::buffer_cast<const unsigned char *>(buffer);
+  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
   size_t length = asio::buffer_size(buffer) - kHeaderSize;
   p += kHeaderSize;
 
@@ -96,7 +96,7 @@ bool NegativeAckPacket::Decode(const asio::const_buffer &buffer) {
   return true;
 }
 
-size_t NegativeAckPacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t NegativeAckPacket::Encode(const asio::mutable_buffer& buffer) const {
   // Refuse to encode if the output buffer is not big enough.
   if (asio::buffer_size(buffer) < kHeaderSize + sequence_numbers_.size() * 4)
     return 0;
@@ -105,7 +105,7 @@ size_t NegativeAckPacket::Encode(const asio::mutable_buffer &buffer) const {
   if (EncodeBase(buffer) == 0)
     return 0;
 
-  unsigned char *p = asio::buffer_cast<unsigned char *>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
   p += kHeaderSize;
 
   for (size_t i = 0; i < sequence_numbers_.size(); ++i)

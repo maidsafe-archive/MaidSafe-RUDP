@@ -57,13 +57,13 @@ void Transport::Bootstrap(
     const std::vector<Endpoint> &bootstrap_endpoints,
     Endpoint local_endpoint,
     bool bootstrap_off_existing_connection,
-    const OnMessage::slot_type &on_message_slot,
-    const OnConnectionAdded::slot_type &on_connection_added_slot,
-    const OnConnectionLost::slot_type &on_connection_lost_slot,
-    Endpoint *chosen_endpoint,
-    boost::signals2::connection *on_message_connection,
-    boost::signals2::connection *on_connection_added_connection,
-    boost::signals2::connection *on_connection_lost_connection) {
+    const OnMessage::slot_type& on_message_slot,
+    const OnConnectionAdded::slot_type& on_connection_added_slot,
+    const OnConnectionLost::slot_type& on_connection_lost_slot,
+    Endpoint* chosen_endpoint,
+    boost::signals2::connection* on_message_connection,
+    boost::signals2::connection* on_connection_added_connection,
+    boost::signals2::connection* on_connection_lost_connection) {
   BOOST_ASSERT(chosen_endpoint);
   BOOST_ASSERT(on_message_connection);
   BOOST_ASSERT(on_connection_added_connection);
@@ -126,12 +126,12 @@ void Transport::Close() {
     multiplexer_->Close();
 }
 
-void Transport::Connect(const Endpoint &peer_endpoint, const std::string &validation_data) {
+void Transport::Connect(const Endpoint& peer_endpoint, const std::string& validation_data) {
   strand_.dispatch(std::bind(&Transport::DoConnect, shared_from_this(), peer_endpoint,
                              validation_data));
 }
 
-void Transport::DoConnect(const Endpoint &peer_endpoint, const std::string &validation_data) {
+void Transport::DoConnect(const Endpoint& peer_endpoint, const std::string& validation_data) {
   bool opened_multiplexer(false);
 
   if (!multiplexer_->IsOpen()) {
@@ -152,7 +152,7 @@ void Transport::DoConnect(const Endpoint &peer_endpoint, const std::string &vali
     StartDispatch();
 }
 
-int Transport::CloseConnection(const Endpoint &peer_endpoint) {
+int Transport::CloseConnection(const Endpoint& peer_endpoint) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_endpoint));
   if (itr == connections_.end()) {
@@ -168,9 +168,9 @@ void Transport::DoCloseConnection(ConnectionPtr connection) {
   connection->Close();
 }
 
-void Transport::Send(const Endpoint &peer_endpoint,
-                     const std::string &message,
-                     const MessageSentFunctor &message_sent_functor) {
+void Transport::Send(const Endpoint& peer_endpoint,
+                     const std::string& message,
+                     const MessageSentFunctor& message_sent_functor) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_endpoint));
   if (itr == connections_.end()) {
@@ -188,13 +188,13 @@ void Transport::Send(const Endpoint &peer_endpoint,
 }
 
 void Transport::DoSend(ConnectionPtr connection,
-                       const std::string &message,
-                       const MessageSentFunctor &message_sent_functor) {
+                       const std::string& message,
+                       const MessageSentFunctor& message_sent_functor) {
   connection->StartSending(message, message_sent_functor);
 }
 
-void Transport::Ping(const boost::asio::ip::udp::endpoint &peer_endpoint,
-                     const PingFunctor &ping_functor) {
+void Transport::Ping(const boost::asio::ip::udp::endpoint& peer_endpoint,
+                     const PingFunctor& ping_functor) {
   ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(), strand_,
                                                         multiplexer_, peer_endpoint));
   connection->Ping(this_public_key_, ping_functor);
@@ -208,7 +208,7 @@ Endpoint Transport::local_endpoint() const {
   return multiplexer_->local_endpoint();
 }
 
-bool Transport::IsTemporaryConnection(const Endpoint &peer_endpoint) {
+bool Transport::IsTemporaryConnection(const Endpoint& peer_endpoint) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_endpoint));
   if (itr == connections_.end())
@@ -216,8 +216,8 @@ bool Transport::IsTemporaryConnection(const Endpoint &peer_endpoint) {
   return (*itr)->IsTemporary();
 }
 
-void Transport::MakeConnectionPermanent(const Endpoint &peer_endpoint,
-                                        const std::string &validation_data) {
+void Transport::MakeConnectionPermanent(const Endpoint& peer_endpoint,
+                                        const std::string& validation_data) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_endpoint));
   if (itr == connections_.end()) {
@@ -274,7 +274,7 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
   StartDispatch();
 }
 
-void Transport::SignalMessageReceived(const std::string &message) {
+void Transport::SignalMessageReceived(const std::string& message) {
   strand_.dispatch(std::bind(&Transport::DoSignalMessageReceived,
                              shared_from_this(), message));
 // TODO(Prakash) Test the performance with below option.
@@ -283,7 +283,7 @@ void Transport::SignalMessageReceived(const std::string &message) {
 //                                         shared_from_this(), message));
 }
 
-void Transport::DoSignalMessageReceived(const std::string &message) {
+void Transport::DoSignalMessageReceived(const std::string& message) {
   on_message_(message);
 }
 
@@ -312,11 +312,11 @@ void Transport::DoRemoveConnection(ConnectionPtr connection) {
                       connections_empty, temporary_connection);
 }
 
-Transport::ConnectionSet::iterator Transport::FindConnection(const Endpoint &peer_endpoint) {
+Transport::ConnectionSet::iterator Transport::FindConnection(const Endpoint& peer_endpoint) {
   assert(!mutex_.try_lock());
   return std::find_if(connections_.begin(),
                       connections_.end(),
-                      [&peer_endpoint](const ConnectionPtr &connection) {
+                      [&peer_endpoint](const ConnectionPtr& connection) {
                         return connection->Socket().RemoteEndpoint() == peer_endpoint;
                       });
 }

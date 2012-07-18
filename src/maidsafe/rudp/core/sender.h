@@ -40,7 +40,7 @@ class TickTimer;
 
 class Sender {
  public:
-  explicit Sender(Peer &peer, TickTimer &tick_timer, CongestionControl &congestion_control);  // NOLINT (Fraser)
+  explicit Sender(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control);  // NOLINT (Fraser)
 
   // Get the sequence number that will be used for the next packet.
   uint32_t GetNextPacketSequenceNumber() const;
@@ -49,42 +49,42 @@ class Sender {
   bool Flushed() const;
 
   // Adds some application data to be sent. Returns number of bytes copied.
-  size_t AddData(const boost::asio::const_buffer &data);
+  size_t AddData(const boost::asio::const_buffer& data);
 
   // Notify the other side that the current connection is to be dropped
   void NotifyClose();
 
   // Handle an acknowlegement packet.
-  void HandleAck(const AckPacket &packet);
+  void HandleAck(const AckPacket& packet);
 
   // Handle an negative acknowlegement packet.
-  void HandleNegativeAck(const NegativeAckPacket &packet);
+  void HandleNegativeAck(const NegativeAckPacket& packet);
 
   // Handle a tick in the system time.
   void HandleTick();
 
   // Handle a keepalive packet.
-  void HandleKeepalive(const KeepalivePacket &packet);
+  void HandleKeepalive(const KeepalivePacket& packet);
 
   // Send a keepalive packet to the other side.
-  ReturnCode SendKeepalive(const KeepalivePacket &keepalive_packet);
+  ReturnCode SendKeepalive(const KeepalivePacket& keepalive_packet);
 
  private:
   // Disallow copying and assignment.
   Sender(const Sender&);
-  Sender &operator=(const Sender&);
+  Sender& operator=(const Sender&);
 
   // Send waiting packets.
   void DoSend();
 
   // The peer with which we are communicating.
-  Peer &peer_;
+  Peer& peer_;
 
   // The timer used to generate tick events.
-  TickTimer &tick_timer_;
+  TickTimer& tick_timer_;
 
   // The congestion control information associated with the connection.
-  CongestionControl &congestion_control_;
+  CongestionControl& congestion_control_;
 
   struct UnackedPacket {
     UnackedPacket() : packet(), lost(false), last_send_time() {}

@@ -34,13 +34,13 @@
 //  typedef std::vector<std::vector<std::pair<ReturnCode, Endpoint>>>
 //      ReceivedErrors;
 //
-//  void OnMessageReceived(const std::string &message,
+//  void OnMessageReceived(const std::string& message,
 //                         const Info &/*info*/,
-//                         std::string *response,
-//                         Timeout *timeout,
-//                         boost::mutex *mutex,
-//                         const size_t &index,
-//                         ReceivedMessages *received_messages) {
+//                         std::string* response,
+//                         Timeout* timeout,
+//                         boost::mutex* mutex,
+//                         const size_t& index,
+//                         ReceivedMessages* received_messages) {
 //    std::string index_str(boost::lexical_cast<std::string>(index));
 //    LOG(kInfo) << "Transport " << index << " received: " << message;
 //    response->assign("Transport " + index_str + " reply to \"" + message + "\"");
@@ -49,11 +49,11 @@
 //    received_messages->at(index).push_back(message);
 //  }
 //
-//  void OnError(const ReturnCode &result,
-//               const Endpoint &endpoint,
-//               boost::mutex *mutex,
-//               const size_t &index,
-//               ReceivedErrors *received_errors) {
+//  void OnError(const ReturnCode& result,
+//               const Endpoint& endpoint,
+//               boost::mutex* mutex,
+//               const size_t& index,
+//               ReceivedErrors* received_errors) {
 //    std::string index_str(boost::lexical_cast<std::string>(index));
 //    LOG(kInfo) << "Transport " << index << " received error: " << result
 //               << " from " << endpoint.ip << ":" << endpoint.port;
@@ -61,10 +61,10 @@
 //    received_errors->at(index).push_back(std::make_pair(result, endpoint));
 //  }
 //
-//  void ConnectCallback(const ReturnCode &result_in,
-//                       ReturnCode *result_out,
-//                       boost::mutex *mutex,
-//                       boost::condition_variable *cond_var) {
+//  void ConnectCallback(const ReturnCode& result_in,
+//                       ReturnCode* result_out,
+//                       boost::mutex* mutex,
+//                       boost::condition_variable* cond_var) {
 //    boost::mutex::scoped_lock lock(*mutex);
 //    *result_out = result_in;
 //    cond_var->notify_one();

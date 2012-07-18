@@ -102,7 +102,7 @@ struct Parameters {
  private:
   // Disallow copying and assignment.
   Parameters(const Parameters&);
-  Parameters &operator=(const Parameters&);
+  Parameters& operator=(const Parameters&);
 };
 
 }  // namespace rudp

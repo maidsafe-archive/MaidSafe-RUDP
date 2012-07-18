@@ -31,9 +31,9 @@ class ShutdownPacket : public ControlPacket {
   ShutdownPacket();
   virtual ~ShutdownPacket() {}
 
-  static bool IsValid(const boost::asio::const_buffer &buffer);
-  bool Decode(const boost::asio::const_buffer &buffer);
-  size_t Encode(const boost::asio::mutable_buffer &buffer) const;
+  static bool IsValid(const boost::asio::const_buffer& buffer);
+  bool Decode(const boost::asio::const_buffer& buffer);
+  size_t Encode(const boost::asio::mutable_buffer& buffer) const;
 };
 
 }  // namespace detail

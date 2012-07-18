@@ -47,7 +47,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
  protected:
   // Each node sending n messsages to all other connected nodes.
-  void RunNetworkTest(const uint16_t &num_messages, const int &messages_size) {
+  void RunNetworkTest(const uint16_t& num_messages, const int& messages_size) {
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
     std::vector<std::string> sent_messages;
     std::vector<boost::unique_future<std::vector<std::string>>> futures;  // NOLINT (Fraser)

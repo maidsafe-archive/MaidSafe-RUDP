@@ -33,16 +33,16 @@ void AckOfAckPacket::SetAckSequenceNumber(uint32_t n) {
   SetAdditionalInfo(n);
 }
 
-bool AckOfAckPacket::IsValid(const asio::const_buffer &buffer) {
+bool AckOfAckPacket::IsValid(const asio::const_buffer& buffer) {
   return (IsValidBase(buffer, kPacketType) &&
           (asio::buffer_size(buffer) == kPacketSize));
 }
 
-bool AckOfAckPacket::Decode(const asio::const_buffer &buffer) {
+bool AckOfAckPacket::Decode(const asio::const_buffer& buffer) {
   return DecodeBase(buffer, kPacketType);
 }
 
-size_t AckOfAckPacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t AckOfAckPacket::Encode(const asio::mutable_buffer& buffer) const {
   return EncodeBase(buffer);
 }
 

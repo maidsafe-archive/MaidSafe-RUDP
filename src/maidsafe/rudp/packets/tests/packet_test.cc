@@ -237,7 +237,7 @@ class ControlPacketTest : public testing::Test {
     control_packet_.SetType(n);
   }
 
-  bool IsValidBase(const boost::asio::const_buffer &buffer, uint16_t expected_packet_type) {
+  bool IsValidBase(const boost::asio::const_buffer& buffer, uint16_t expected_packet_type) {
     return control_packet_.IsValidBase(buffer, expected_packet_type);
   }
 

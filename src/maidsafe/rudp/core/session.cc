@@ -31,9 +31,9 @@ namespace rudp {
 
 namespace detail {
 
-Session::Session(Peer &peer,  // NOLINT (Fraser)
-                 TickTimer &tick_timer,
-                 boost::asio::ip::udp::endpoint &this_external_endpoint)
+Session::Session(Peer& peer,  // NOLINT (Fraser)
+                 TickTimer& tick_timer,
+                 boost::asio::ip::udp::endpoint& this_external_endpoint)
     : peer_(peer),
       tick_timer_(tick_timer),
       this_external_endpoint_(this_external_endpoint),
@@ -83,7 +83,7 @@ void Session::Close() {
   state_ = kClosed;
 }
 
-void Session::HandleHandshake(const HandshakePacket &packet) {
+void Session::HandleHandshake(const HandshakePacket& packet) {
   if (peer_.Id() == 0) {
     peer_.SetId(packet.SocketId());
   }

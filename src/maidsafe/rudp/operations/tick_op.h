@@ -33,19 +33,19 @@ namespace detail {
 template <typename TickHandler, typename Socket>
 class TickOp {
  public:
-  TickOp(TickHandler handler, Socket *socket, TickTimer *tick_timer)
+  TickOp(TickHandler handler, Socket* socket, TickTimer* tick_timer)
     : handler_(handler),
       socket_(socket),
       tick_timer_(tick_timer) {
   }
 
-  TickOp(const TickOp &L)
+  TickOp(const TickOp& L)
     : handler_(L.handler_),
       socket_(L.socket_),
       tick_timer_(L.tick_timer_) {
   }
 
-  TickOp & operator=(const TickOp &L) {
+  TickOp & operator=(const TickOp& L) {
     // check for "self assignment" and do nothing in that case
     if (this != &L) {
       delete socket_;
@@ -53,7 +53,7 @@ class TickOp {
       socket_ = L.socket_;
       tick_timer_ = L.tick_timer_;
     }
-    return *this;
+    return* this;
   }
 
   void operator()(boost::system::error_code) {
@@ -69,26 +69,26 @@ class TickOp {
     handler_(ec);
   }
 
-  friend void *asio_handler_allocate(size_t n, TickOp *op) {
+  friend void* asio_handler_allocate(size_t n, TickOp* op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, TickOp *op) {
+  friend void asio_handler_deallocate(void* p, size_t n, TickOp* op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, TickOp *op) {
+  friend void asio_handler_invoke(const Function& f, TickOp* op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
 
  private:
   TickHandler handler_;
-  Socket *socket_;
-  TickTimer *tick_timer_;
+  Socket* socket_;
+  TickTimer* tick_timer_;
 };
 
 }  // namespace detail

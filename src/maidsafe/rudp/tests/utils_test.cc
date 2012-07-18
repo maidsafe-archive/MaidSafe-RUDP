@@ -38,7 +38,7 @@ TEST(UtilsTest, BEH_EndpointIsValid) {
   try {
     boost::asio::ip::address::from_string("Rubbish");
   }
-  catch(const boost::system::system_error &system_error) {
+  catch(const boost::system::system_error& system_error) {
     error_code = system_error.code();
   }
 #ifdef WIN32
@@ -52,7 +52,7 @@ TEST(UtilsTest, BEH_EndpointIsValid) {
   try {
     boost::asio::ip::address::from_string("256.1.1.1");
   }
-  catch(const boost::system::system_error &system_error) {
+  catch(const boost::system::system_error& system_error) {
     error_code = system_error.code();
   }
   EXPECT_EQ(error_code.value(), kErrorCodeValue);

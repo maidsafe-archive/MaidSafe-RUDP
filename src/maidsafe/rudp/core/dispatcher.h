@@ -33,21 +33,21 @@ class Dispatcher {
   Dispatcher();
 
   // Add a socket. Returns a new unique id for the socket.
-  uint32_t AddSocket(Socket *socket);
+  uint32_t AddSocket(Socket* socket);
 
   // Remove the socket corresponding to the given id.
   void RemoveSocket(uint32_t id);
 
   // Handle a new packet by dispatching to the appropriate socket.
-  void HandleReceiveFrom(const boost::asio::const_buffer &data,
-                         const boost::asio::ip::udp::endpoint &endpoint);
+  void HandleReceiveFrom(const boost::asio::const_buffer& data,
+                         const boost::asio::ip::udp::endpoint& endpoint);
 
   boost::asio::ip::udp::endpoint GetAndClearJoiningPeerEndpoint();
 
  private:
   // Disallow copying and assignment.
   Dispatcher(const Dispatcher&);
-  Dispatcher &operator=(const Dispatcher&);
+  Dispatcher& operator=(const Dispatcher&);
 
   // Map of destination socket id to corresponding socket object.
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;

@@ -92,25 +92,25 @@ void DataPacket::SetDestinationSocketId(uint32_t n) {
   destination_socket_id_ = n;
 }
 
-const std::string &DataPacket::Data() const {
+const std::string& DataPacket::Data() const {
   return data_;
 }
 
-void DataPacket::SetData(const std::string &data) {
+void DataPacket::SetData(const std::string& data) {
   data_ = data;
 }
 
-bool DataPacket::IsValid(const asio::const_buffer &buffer) {
+bool DataPacket::IsValid(const asio::const_buffer& buffer) {
   return ((asio::buffer_size(buffer) >= 16) &&
           ((asio::buffer_cast<const unsigned char *>(buffer)[0] & 0x80) == 0));
 }
 
-bool DataPacket::Decode(const asio::const_buffer &buffer) {
+bool DataPacket::Decode(const asio::const_buffer& buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
     return false;
 
-  const unsigned char *p = asio::buffer_cast<const unsigned char *>(buffer);
+  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
   size_t length = asio::buffer_size(buffer);
 
   packet_sequence_number_ = (p[0] & 0x7f);
@@ -131,12 +131,12 @@ bool DataPacket::Decode(const asio::const_buffer &buffer) {
   return true;
 }
 
-size_t DataPacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t DataPacket::Encode(const asio::mutable_buffer& buffer) const {
   // Refuse to encode if the output buffer is not big enough.
   if (asio::buffer_size(buffer) < kHeaderSize + data_.size())
     return 0;
 
-  unsigned char *p = asio::buffer_cast<unsigned char *>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
 
   p[0] = ((packet_sequence_number_ >> 24) & 0x7f);
   p[1] = ((packet_sequence_number_ >> 16) & 0xff);

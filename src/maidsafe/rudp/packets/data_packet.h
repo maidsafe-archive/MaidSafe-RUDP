@@ -55,17 +55,17 @@ class DataPacket : public Packet {
   uint32_t DestinationSocketId() const;
   void SetDestinationSocketId(uint32_t n);
 
-  const std::string &Data() const;
-  void SetData(const std::string &data);
+  const std::string& Data() const;
+  void SetData(const std::string& data);
 
   template <typename Iterator>
   void SetData(Iterator begin, Iterator end) {
     data_.assign(begin, end);
   }
 
-  static bool IsValid(const boost::asio::const_buffer &buffer);
-  bool Decode(const boost::asio::const_buffer &buffer);
-  size_t Encode(const boost::asio::mutable_buffer &buffer) const;
+  static bool IsValid(const boost::asio::const_buffer& buffer);
+  bool Decode(const boost::asio::const_buffer& buffer);
+  size_t Encode(const boost::asio::mutable_buffer& buffer) const;
 
  private:
   uint32_t packet_sequence_number_;

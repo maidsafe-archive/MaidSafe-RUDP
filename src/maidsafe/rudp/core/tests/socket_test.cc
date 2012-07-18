@@ -42,17 +42,17 @@ const size_t kIterations = 50;
 
 }  // unnamed namespace
 
-void dispatch_handler(const bs::error_code &ec, Multiplexer *muxer) {
+void dispatch_handler(const bs::error_code& ec, Multiplexer* muxer) {
   if (!ec)
     muxer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, muxer));
 }
 
-void tick_handler(const bs::error_code &ec, Socket *sock) {
+void tick_handler(const bs::error_code& ec, Socket* sock) {
   if (!ec)
     sock->AsyncTick(std::bind(&tick_handler, args::_1, sock));
 }
 
-void handler1(const bs::error_code &ec, bs::error_code *out_ec) {
+void handler1(const bs::error_code& ec, bs::error_code* out_ec) {
   *out_ec = ec;
 }
 

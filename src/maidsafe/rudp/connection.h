@@ -50,21 +50,21 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
  public:
   Connection(const std::shared_ptr<Transport> &transport,
-             const boost::asio::io_service::strand &strand,
+             const boost::asio::io_service::strand& strand,
              const std::shared_ptr<detail::Multiplexer> &multiplexer,
-             const boost::asio::ip::udp::endpoint &remote);
+             const boost::asio::ip::udp::endpoint& remote);
 
-  detail::Socket &Socket();
+  detail::Socket& Socket();
 
   void Close();
   // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
   // after lifespan has passed.
   void StartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
-                       const std::string &validation_data,
-                       const boost::posix_time::time_duration &lifespan);
+                       const std::string& validation_data,
+                       const boost::posix_time::time_duration& lifespan);
   void Ping(std::shared_ptr<asymm::PublicKey> this_public_key,
             const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
-  void StartSending(const std::string &data, const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
+  void StartSending(const std::string& data, const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
   // Returns true if lifespan_timer_ expires at < pos_infin.
   bool IsTemporary() const;
   // Sets the lifespan_timer_ to expire at pos_infin.
@@ -72,47 +72,47 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
  private:
   Connection(const Connection&);
-  Connection &operator=(const Connection&);
+  Connection& operator=(const Connection&);
 
   void DoClose();
   void DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
-                         const std::string &validation_data,
-                         const boost::posix_time::time_duration &lifespan,
+                         const std::string& validation_data,
+                         const boost::posix_time::time_duration& lifespan,
                          const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
-  void DoStartSending(const std::string &data,
+  void DoStartSending(const std::string& data,
                       const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
 
-  void CheckTimeout(const boost::system::error_code &ec);
-  void CheckLifespanTimeout(const boost::system::error_code &ec);
+  void CheckTimeout(const boost::system::error_code& ec);
+  void CheckLifespanTimeout(const boost::system::error_code& ec);
   bool Stopped() const;
 
   void StartTick();
   void HandleTick();
 
   void StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
-                    const std::string &validation_data,
-                    const boost::posix_time::time_duration &lifespan,
+                    const std::string& validation_data,
+                    const boost::posix_time::time_duration& lifespan,
                     const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
-  void HandleConnect(const boost::system::error_code &ec,
-                     const std::string &validation_data,
+  void HandleConnect(const boost::system::error_code& ec,
+                     const std::string& validation_data,
                      const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
 
   void StartReadSize();
-  void HandleReadSize(const boost::system::error_code &ec);
+  void HandleReadSize(const boost::system::error_code& ec);
 
   void StartReadData();
-  void HandleReadData(const boost::system::error_code &ec, size_t length);
+  void HandleReadData(const boost::system::error_code& ec, size_t length);
 
   void StartWrite(const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
-  void HandleWrite(const boost::system::error_code &ec,
+  void HandleWrite(const boost::system::error_code& ec,
                    const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
 
   void StartProbing();
-  void DoProbe(const boost::system::error_code &ec);
-  void HandleProbe(const boost::system::error_code &ec);
+  void DoProbe(const boost::system::error_code& ec);
+  void HandleProbe(const boost::system::error_code& ec);
 
   void DispatchMessage();
-  bool EncodeData(const std::string &data);
+  bool EncodeData(const std::string& data);
 
   void InvokeSentFunctor(const std::function<void(int)> &message_sent_functor, int result) const;  // NOLINT (Fraser)
 

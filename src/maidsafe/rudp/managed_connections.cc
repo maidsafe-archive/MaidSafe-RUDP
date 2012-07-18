@@ -55,7 +55,7 @@ ManagedConnections::~ManagedConnections() {
     UniqueLock unique_lock(shared_mutex_);
     std::for_each(transports_.begin(),
                   transports_.end(),
-                  [](const TransportAndSignalConnections &element) {
+                  [](const TransportAndSignalConnections& element) {
       element.on_connection_lost_connection.disconnect();
       element.on_connection_added_connection.disconnect();
       element.on_message_connection.disconnect();
@@ -136,7 +136,7 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
     std::for_each(
         connection_map_.begin(),
         connection_map_.end(),
-        [&bootstrap_endpoints](const ConnectionMap::value_type &entry) {
+        [&bootstrap_endpoints](const ConnectionMap::value_type& entry) {
       bootstrap_endpoints.push_back(entry.first);
     });
   }
@@ -168,8 +168,8 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
   return chosen_endpoint;
 }
 
-int ManagedConnections::GetAvailableEndpoint(const Endpoint &peer_endpoint,
-                                             EndpointPair &this_endpoint_pair) {
+int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
+                                             EndpointPair& this_endpoint_pair) {
   int transports_size(0);
   {
     SharedLock shared_lock(shared_mutex_);
@@ -212,7 +212,7 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint &peer_endpoint,
     std::for_each(
         transports_.begin(),
         transports_.end(),
-        [&](const TransportAndSignalConnections &element) {
+        [&](const TransportAndSignalConnections& element) {
       if (element.transport->ConnectionsCount() < least_connections) {
         least_connections = element.transport->ConnectionsCount();
         this_endpoint_pair.external = element.transport->external_endpoint();
@@ -230,9 +230,9 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint &peer_endpoint,
   }
 }
 
-int ManagedConnections::Add(const Endpoint &this_endpoint,
-                            const Endpoint &peer_endpoint,
-                            const std::string &validation_data) {
+int ManagedConnections::Add(const Endpoint& this_endpoint,
+                            const Endpoint& peer_endpoint,
+                            const std::string& validation_data) {
   if (!IsValid(this_endpoint)) {
     LOG(kError) << "Invalid this_endpoint passed.";
     return kInvalidEndpoint;
@@ -252,7 +252,7 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
     itr = std::find_if(
         transports_.begin(),
         transports_.end(),
-        [&this_endpoint] (const TransportAndSignalConnections &element) {
+        [&this_endpoint] (const TransportAndSignalConnections& element) {
       return element.transport->external_endpoint() == this_endpoint ||
              element.transport->local_endpoint() == this_endpoint;
     });
@@ -281,7 +281,7 @@ int ManagedConnections::Add(const Endpoint &this_endpoint,
   return kSuccess;
 }
 
-void ManagedConnections::Remove(const Endpoint &peer_endpoint) {
+void ManagedConnections::Remove(const Endpoint& peer_endpoint) {
   SharedLock shared_lock(shared_mutex_);
   auto itr(connection_map_.find(peer_endpoint));
   if (itr == connection_map_.end()) {
@@ -291,8 +291,8 @@ void ManagedConnections::Remove(const Endpoint &peer_endpoint) {
   (*itr).second->CloseConnection(peer_endpoint);
 }
 
-void ManagedConnections::Send(const Endpoint &peer_endpoint,
-                              const std::string &message,
+void ManagedConnections::Send(const Endpoint& peer_endpoint,
+                              const std::string& message,
                               MessageSentFunctor message_sent_functor) {
   SharedLock shared_lock(shared_mutex_);
   auto itr(connection_map_.find(peer_endpoint));
@@ -313,7 +313,7 @@ void ManagedConnections::Send(const Endpoint &peer_endpoint,
   (*itr).second->Send(peer_endpoint, message, message_sent_functor);
 }
 
-void ManagedConnections::Ping(const boost::asio::ip::udp::endpoint &peer_endpoint,
+void ManagedConnections::Ping(const boost::asio::ip::udp::endpoint& peer_endpoint,
                               PingFunctor ping_functor) {
   if (!ping_functor) {
     LOG(kWarning) << "No functor passed - not pinging.";
@@ -339,7 +339,7 @@ void ManagedConnections::Ping(const boost::asio::ip::udp::endpoint &peer_endpoin
   // Check we're not trying to ping ourself
   if (std::find_if(transports_.begin(),
                    transports_.end(),
-                   [&peer_endpoint](const TransportAndSignalConnections &tprt_and_sigs_conns) {
+                   [&peer_endpoint](const TransportAndSignalConnections& tprt_and_sigs_conns) {
                      return tprt_and_sigs_conns.transport->external_endpoint() == peer_endpoint;
                    }) != transports_.end()) {
     LOG(kError) << "Trying to ping ourself.";
@@ -351,7 +351,7 @@ void ManagedConnections::Ping(const boost::asio::ip::udp::endpoint &peer_endpoin
   transports_[index].transport->Ping(peer_endpoint, ping_functor);
 }
 
-void ManagedConnections::OnMessageSlot(const std::string &message) {
+void ManagedConnections::OnMessageSlot(const std::string& message) {
   std::string decrypted_message;
   int result(asymm::Decrypt(message, *private_key_, &decrypted_message));
   if (result != kSuccess) {
@@ -361,7 +361,7 @@ void ManagedConnections::OnMessageSlot(const std::string &message) {
   }
 }
 
-void ManagedConnections::OnConnectionAddedSlot(const Endpoint &peer_endpoint,
+void ManagedConnections::OnConnectionAddedSlot(const Endpoint& peer_endpoint,
                                                TransportPtr transport) {
   UniqueLock unique_lock(shared_mutex_);
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
@@ -373,7 +373,7 @@ void ManagedConnections::OnConnectionAddedSlot(const Endpoint &peer_endpoint,
   }
 }
 
-void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
+void ManagedConnections::OnConnectionLostSlot(const Endpoint& peer_endpoint,
                                               TransportPtr transport,
                                               bool connections_empty,
                                               bool temporary_connection) {
@@ -411,7 +411,7 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
       auto itr(std::find_if(
           transports_.begin(),
           transports_.end(),
-          [&transport](const TransportAndSignalConnections &element) {
+          [&transport](const TransportAndSignalConnections& element) {
             return transport == element.transport;
           }));
 

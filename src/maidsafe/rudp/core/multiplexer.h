@@ -36,10 +36,10 @@ namespace detail {
 
 class Multiplexer {
  public:
-  explicit Multiplexer(boost::asio::io_service &asio_service);  // NOLINT (Fraser)
+  explicit Multiplexer(boost::asio::io_service& asio_service);  // NOLINT (Fraser)
 
   // Open the multiplexer.  If endpoint is valid, the new socket will be bound to it.
-  ReturnCode Open(const boost::asio::ip::udp::endpoint &endpoint);
+  ReturnCode Open(const boost::asio::ip::udp::endpoint& endpoint);
 
   // Whether the multiplexer is open.
   bool IsOpen() const;
@@ -60,8 +60,8 @@ class Multiplexer {
   // Called by the socket objects to send a packet. Returns kSuccess if the data was sent
   // successfully, kSendFailure otherwise.
   template <typename Packet>
-  ReturnCode SendTo(const Packet &packet,
-                    const boost::asio::ip::udp::endpoint &endpoint) {
+  ReturnCode SendTo(const Packet& packet,
+                    const boost::asio::ip::udp::endpoint& endpoint) {
     std::array<unsigned char, Parameters::kUDPPayload> data;
     auto buffer = boost::asio::buffer(&data[0], Parameters::max_size);
     if (size_t length = packet.Encode(buffer)) {
@@ -89,7 +89,7 @@ class Multiplexer {
  private:
   // Disallow copying and assignment.
   Multiplexer(const Multiplexer&);
-  Multiplexer &operator=(const Multiplexer&);
+  Multiplexer& operator=(const Multiplexer&);
 
   // The UDP socket used for all RUDP protocol communication.
   boost::asio::ip::udp::socket socket_;

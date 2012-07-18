@@ -52,11 +52,11 @@ class ControlPacket : public Packet {
   uint32_t AdditionalInfo() const;
   void SetAdditionalInfo(uint32_t n);
 
-  static bool IsValidBase(const boost::asio::const_buffer &buffer,
+  static bool IsValidBase(const boost::asio::const_buffer& buffer,
                           uint16_t expected_packet_type);
-  bool DecodeBase(const boost::asio::const_buffer &buffer,
+  bool DecodeBase(const boost::asio::const_buffer& buffer,
                   uint16_t expected_packet_type);
-  size_t EncodeBase(const boost::asio::mutable_buffer &buffer) const;
+  size_t EncodeBase(const boost::asio::mutable_buffer& buffer) const;
 
   // Prevent deletion through this type.
   virtual ~ControlPacket();

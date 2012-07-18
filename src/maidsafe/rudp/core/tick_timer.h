@@ -26,7 +26,7 @@ namespace detail {
 // move it further away.
 class TickTimer {
  public:
-  explicit TickTimer(boost::asio::io_service &asio_service)  // NOLINT (Fraser)
+  explicit TickTimer(boost::asio::io_service& asio_service)  // NOLINT (Fraser)
       : timer_(asio_service) {
     Reset();
   }
@@ -44,12 +44,12 @@ class TickTimer {
     return Now() >= timer_.expires_at();
   }
 
-  void TickAt(const boost::posix_time::ptime &time) {
+  void TickAt(const boost::posix_time::ptime& time) {
     if (time < timer_.expires_at())
       timer_.expires_at(time);
   }
 
-  void TickAfter(const boost::posix_time::time_duration &duration) { TickAt(Now() + duration); }
+  void TickAfter(const boost::posix_time::time_duration& duration) { TickAt(Now() + duration); }
 
   template <typename WaitHandler>
   void AsyncWait(WaitHandler handler) { timer_.async_wait(handler); }

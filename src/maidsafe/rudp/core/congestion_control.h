@@ -83,7 +83,7 @@ class CongestionControl {
  private:
   // Disallow copying and assignment.
   CongestionControl(const CongestionControl&);
-  CongestionControl &operator=(const CongestionControl&);
+  CongestionControl& operator=(const CongestionControl&);
 
   bool slow_start_phase_;
 

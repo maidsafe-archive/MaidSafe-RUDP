@@ -42,7 +42,7 @@ class TickTimer;
 
 class Receiver {
  public:
-  explicit Receiver(Peer &peer, TickTimer &tick_timer, CongestionControl &congestion_control);  // NOLINT (Fraser)
+  explicit Receiver(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control);  // NOLINT (Fraser)
 
   // Reset receiver so that it is ready to start receiving data from the specified sequence number.
   void Reset(uint32_t initial_sequence_number);
@@ -51,13 +51,13 @@ class Receiver {
   bool Flushed() const;
 
   // Reads some application data. Returns number of bytes copied.
-  size_t ReadData(const boost::asio::mutable_buffer &data);
+  size_t ReadData(const boost::asio::mutable_buffer& data);
 
   // Handle a data packet.
-  void HandleData(const DataPacket &packet);
+  void HandleData(const DataPacket& packet);
 
   // Handle an acknowledgement of an acknowledgement packet.
-  void HandleAckOfAck(const AckOfAckPacket &packet);
+  void HandleAckOfAck(const AckOfAckPacket& packet);
 
   // Handle a tick in the system time.
   void HandleTick();
@@ -65,7 +65,7 @@ class Receiver {
  private:
   // Disallow copying and assignment.
   Receiver(const Receiver&);
-  Receiver &operator=(const Receiver&);
+  Receiver& operator=(const Receiver&);
 
   // Helper function to calculate the available buffer size.
   uint32_t AvailableBufferSize() const;
@@ -74,13 +74,13 @@ class Receiver {
   uint32_t AckPacketSequenceNumber() const;
 
   // The peer with which we are communicating.
-  Peer &peer_;
+  Peer& peer_;
 
   // The timer used to generate tick events.
-  TickTimer &tick_timer_;
+  TickTimer& tick_timer_;
 
   // The congestion control information associated with the connection.
-  CongestionControl &congestion_control_;
+  CongestionControl& congestion_control_;
 
   struct UnreadPacket {
     UnreadPacket()

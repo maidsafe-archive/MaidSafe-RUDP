@@ -32,7 +32,7 @@ namespace rudp {
 
 namespace detail {
 
-Sender::Sender(Peer &peer, TickTimer &tick_timer, CongestionControl &congestion_control)  // NOLINT (Fraser)
+Sender::Sender(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control)  // NOLINT (Fraser)
     : peer_(peer),
       tick_timer_(tick_timer),
       congestion_control_(congestion_control),
@@ -47,21 +47,21 @@ bool Sender::Flushed() const {
   return unacked_packets_.IsEmpty();
 }
 
-size_t Sender::AddData(const asio::const_buffer &data) {
+size_t Sender::AddData(const asio::const_buffer& data) {
   if ((congestion_control_.SendWindowSize() == 0) &&
       (unacked_packets_.Size() == 0)) {
     unacked_packets_.SetMaximumSize(Parameters::default_window_size);
   } else {
     unacked_packets_.SetMaximumSize(congestion_control_.SendWindowSize());
   }
-  const unsigned char *begin = asio::buffer_cast<const unsigned char*>(data);
-  const unsigned char *ptr = begin;
-  const unsigned char *end = begin + asio::buffer_size(data);
+  const unsigned char* begin = asio::buffer_cast<const unsigned char*>(data);
+  const unsigned char* ptr = begin;
+  const unsigned char* end = begin + asio::buffer_size(data);
 
   while (!unacked_packets_.IsFull() && (ptr < end)) {
     uint32_t n = unacked_packets_.Append();
 
-    UnackedPacket &p = unacked_packets_[n];
+    UnackedPacket& p = unacked_packets_[n];
     p.packet.SetPacketSequenceNumber(n);
     p.packet.SetFirstPacketInMessage(true);
     p.packet.SetLastPacketInMessage(true);
@@ -82,7 +82,7 @@ size_t Sender::AddData(const asio::const_buffer &data) {
   return ptr - begin;
 }
 
-void Sender::HandleAck(const AckPacket &packet) {
+void Sender::HandleAck(const AckPacket& packet) {
   uint32_t seqnum = packet.PacketSequenceNumber();
 
   if (packet.HasOptionalFields()) {
@@ -109,7 +109,7 @@ void Sender::HandleAck(const AckPacket &packet) {
   }
 }
 
-void Sender::HandleNegativeAck(const NegativeAckPacket &packet) {
+void Sender::HandleNegativeAck(const NegativeAckPacket& packet) {
   // Mark the specified packets as lost.
   for (uint32_t n = unacked_packets_.Begin();
        n != unacked_packets_.End();
@@ -149,7 +149,7 @@ void Sender::DoSend() {
   for (uint32_t n = unacked_packets_.Begin();
        n != unacked_packets_.End();
        n = unacked_packets_.Next(n)) {
-    UnackedPacket &p = unacked_packets_[n];
+    UnackedPacket& p = unacked_packets_[n];
     if (p.lost) {
       // peer_.Send is a blockable function call, it will only returned when
       // the UDP socket sent out the packet successfully. So here the all
@@ -182,7 +182,7 @@ void Sender::NotifyClose() {
   peer_.Send(shut_down_packet);
 }
 
-void Sender::HandleKeepalive(const KeepalivePacket &packet) {
+void Sender::HandleKeepalive(const KeepalivePacket& packet) {
   if (!packet.IsRequest())
     return;
   KeepalivePacket response_packet;
@@ -191,7 +191,7 @@ void Sender::HandleKeepalive(const KeepalivePacket &packet) {
   SendKeepalive(response_packet);
 }
 
-ReturnCode Sender::SendKeepalive(const KeepalivePacket &keepalive_packet) {
+ReturnCode Sender::SendKeepalive(const KeepalivePacket& keepalive_packet) {
   return peer_.Send(keepalive_packet);
 }
 

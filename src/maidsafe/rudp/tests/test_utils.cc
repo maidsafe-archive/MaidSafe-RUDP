@@ -46,7 +46,7 @@ uint16_t GetRandomPort() {
 
 testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                       std::vector<Endpoint> &bootstrap_endpoints,
-                                      const int &node_count) {
+                                      const int& node_count) {
   if (node_count < 2)
     return testing::AssertionFailure() << "Network size must be greater than 1";
 
@@ -247,7 +247,7 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
                          Endpoint local_endpoint) {
   return managed_connections_->Bootstrap(
       bootstrap_endpoints,
-      [&](const std::string &message) {
+      [&](const std::string& message) {
         bool is_printable(true);
         for (auto itr(message.begin()); itr != message.end(); ++itr) {
           if (*itr < 32) {
@@ -261,7 +261,7 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
         messages_.emplace_back(message);
         SetPromiseIfDone();
       },
-      [&](const Endpoint &endpoint) {
+      [&](const Endpoint& endpoint) {
         LOG(kInfo) << id() << " -- Lost connection to " << endpoint;
         std::lock_guard<std::mutex> guard(mutex_);
         connection_lost_endpoints_.emplace_back(endpoint);
@@ -275,7 +275,7 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
       local_endpoint);
 }
 
-int Node::GetReceivedMessageCount(const std::string &message) const {
+int Node::GetReceivedMessageCount(const std::string& message) const {
   std::lock_guard<std::mutex> guard(mutex_);
   return static_cast<int>(std::count(messages_.begin(), messages_.end(), message));
 }
@@ -288,7 +288,7 @@ void Node::ResetData() {
 }
 
 boost::unique_future<std::vector<std::string>> Node::GetFutureForMessages(
-    const uint32_t &message_count) {
+    const uint32_t& message_count) {
   BOOST_ASSERT(message_count > 0);
   total_message_count_expectation_ = message_count;
   promised_ = true;

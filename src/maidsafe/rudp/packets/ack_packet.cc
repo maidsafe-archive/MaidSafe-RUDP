@@ -99,13 +99,13 @@ void AckPacket::SetEstimatedLinkCapacity(uint32_t n) {
   estimated_link_capacity_ = n;
 }
 
-bool AckPacket::IsValid(const asio::const_buffer &buffer) {
+bool AckPacket::IsValid(const asio::const_buffer& buffer) {
   return (IsValidBase(buffer, kPacketType) &&
           ((asio::buffer_size(buffer) == kPacketSize) ||
            (asio::buffer_size(buffer) == kOptionalPacketSize)));
 }
 
-bool AckPacket::Decode(const asio::const_buffer &buffer) {
+bool AckPacket::Decode(const asio::const_buffer& buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
     return false;
@@ -114,7 +114,7 @@ bool AckPacket::Decode(const asio::const_buffer &buffer) {
   if (!DecodeBase(buffer, kPacketType))
     return false;
 
-  const unsigned char *p = asio::buffer_cast<const unsigned char *>(buffer);
+  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
 //   size_t length = asio::buffer_size(buffer) - kHeaderSize;
   p += kHeaderSize;
 
@@ -131,7 +131,7 @@ bool AckPacket::Decode(const asio::const_buffer &buffer) {
   return true;
 }
 
-size_t AckPacket::Encode(const asio::mutable_buffer &buffer) const {
+size_t AckPacket::Encode(const asio::mutable_buffer& buffer) const {
   // Refuse to encode if the output buffer is not big enough.
   if (asio::buffer_size(buffer) < kPacketSize)
     return 0;
@@ -140,7 +140,7 @@ size_t AckPacket::Encode(const asio::mutable_buffer &buffer) const {
   if (EncodeBase(buffer) == 0)
     return 0;
 
-  unsigned char *p = asio::buffer_cast<unsigned char *>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
   p += kHeaderSize;
 
   EncodeUint32(packet_sequence_number_, p + 0);

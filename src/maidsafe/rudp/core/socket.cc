@@ -36,7 +36,7 @@ namespace rudp {
 
 namespace detail {
 
-Socket::Socket(Multiplexer &multiplexer)  // NOLINT (Fraser)
+Socket::Socket(Multiplexer& multiplexer)  // NOLINT (Fraser)
     : dispatcher_(multiplexer.dispatcher_),
       mutex_(),
       peer_(multiplexer),
@@ -134,7 +134,7 @@ void Socket::Close() {
 }
 
 void Socket::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
-                          const ip::udp::endpoint &remote,
+                          const ip::udp::endpoint& remote,
                           Session::Mode open_mode) {
   peer_.SetEndpoint(remote);
   peer_.SetId(0);  // Assigned when handshake response is received.
@@ -162,7 +162,7 @@ void Socket::StartProbe() {
   }
 }
 
-void Socket::StartWrite(const asio::const_buffer &data) {
+void Socket::StartWrite(const asio::const_buffer& data) {
   std::lock_guard<std::mutex> lock(mutex_);
   // Check for a no-op write.
   if (asio::buffer_size(data) == 0) {
@@ -198,7 +198,7 @@ void Socket::ProcessWrite() {
   }
 }
 
-void Socket::StartRead(const asio::mutable_buffer &data, size_t transfer_at_least) {
+void Socket::StartRead(const asio::mutable_buffer& data, size_t transfer_at_least) {
   std::lock_guard<std::mutex> lock(mutex_);
   // Check for a no-read write.
   if (asio::buffer_size(data) == 0) {
@@ -246,7 +246,7 @@ void Socket::ProcessFlush() {
   }
 }
 
-void Socket::HandleReceiveFrom(const asio::const_buffer &data, const ip::udp::endpoint &endpoint) {
+void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::endpoint& endpoint) {
   if (endpoint == peer_.Endpoint()) {
     DataPacket data_packet;
     AckPacket ack_packet;
@@ -277,7 +277,7 @@ void Socket::HandleReceiveFrom(const asio::const_buffer &data, const ip::udp::en
   }
 }
 
-void Socket::HandleHandshake(const HandshakePacket &packet) {
+void Socket::HandleHandshake(const HandshakePacket& packet) {
   bool was_connected = session_.IsConnected();
   session_.HandleHandshake(packet);
 
@@ -301,7 +301,7 @@ void Socket::HandleHandshake(const HandshakePacket &packet) {
   }
 }
 
-void Socket::HandleKeepalive(const KeepalivePacket &packet) {
+void Socket::HandleKeepalive(const KeepalivePacket& packet) {
   if (session_.IsConnected()) {
     if (packet.IsResponse()) {
       if (waiting_keepalive_sequence_number_ &&
@@ -322,7 +322,7 @@ void Socket::HandleKeepalive(const KeepalivePacket &packet) {
   }
 }
 
-void Socket::HandleData(const DataPacket &packet) {
+void Socket::HandleData(const DataPacket& packet) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     receiver_.HandleData(packet);
@@ -331,7 +331,7 @@ void Socket::HandleData(const DataPacket &packet) {
   }
 }
 
-void Socket::HandleAck(const AckPacket &packet) {
+void Socket::HandleAck(const AckPacket& packet) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     sender_.HandleAck(packet);
@@ -341,7 +341,7 @@ void Socket::HandleAck(const AckPacket &packet) {
   }
 }
 
-void Socket::HandleAckOfAck(const AckOfAckPacket &packet) {
+void Socket::HandleAckOfAck(const AckOfAckPacket& packet) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     receiver_.HandleAckOfAck(packet);
@@ -351,7 +351,7 @@ void Socket::HandleAckOfAck(const AckOfAckPacket &packet) {
   }
 }
 
-void Socket::HandleNegativeAck(const NegativeAckPacket &packet) {
+void Socket::HandleNegativeAck(const NegativeAckPacket& packet) {
   if (session_.IsConnected()) {
     sender_.HandleNegativeAck(packet);
   }

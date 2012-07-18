@@ -30,11 +30,11 @@ namespace detail {
 
 class Peer {
  public:
-  explicit Peer(Multiplexer &multiplexer)  // NOLINT (Fraser)
+  explicit Peer(Multiplexer& multiplexer)  // NOLINT (Fraser)
     : multiplexer_(multiplexer), endpoint_(), id_(0), public_key_() {}
 
-  const boost::asio::ip::udp::endpoint &Endpoint() const { return endpoint_; }
-  void SetEndpoint(const boost::asio::ip::udp::endpoint &ep) { endpoint_ = ep; }
+  const boost::asio::ip::udp::endpoint& Endpoint() const { return endpoint_; }
+  void SetEndpoint(const boost::asio::ip::udp::endpoint& ep) { endpoint_ = ep; }
 
   uint32_t Id() const { return id_; }
   void SetId(uint32_t id) { id_ = id; }
@@ -46,17 +46,17 @@ class Peer {
   }
 
   template <typename Packet>
-  ReturnCode Send(const Packet &packet) {
+  ReturnCode Send(const Packet& packet) {
     return multiplexer_.SendTo(packet, endpoint_);
   }
 
  private:
   // Disallow copying and assignment.
   Peer(const Peer&);
-  Peer &operator=(const Peer&);
+  Peer& operator=(const Peer&);
 
   // The multiplexer used to send and receive UDP packets.
-  Multiplexer &multiplexer_;
+  Multiplexer& multiplexer_;
 
   // The remote socket's endpoint and identifier.
   boost::asio::ip::udp::endpoint endpoint_;

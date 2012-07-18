@@ -37,9 +37,9 @@ class NegativeAckPacket : public ControlPacket {
   bool ContainsSequenceNumber(uint32_t n) const;
   bool HasSequenceNumbers() const;
 
-  static bool IsValid(const boost::asio::const_buffer &buffer);
-  bool Decode(const boost::asio::const_buffer &buffer);
-  size_t Encode(const boost::asio::mutable_buffer &buffer) const;
+  static bool IsValid(const boost::asio::const_buffer& buffer);
+  bool Decode(const boost::asio::const_buffer& buffer);
+  size_t Encode(const boost::asio::mutable_buffer& buffer) const;
 
  private:
   std::vector<uint32_t> sequence_numbers_;

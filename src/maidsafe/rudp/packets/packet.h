@@ -27,15 +27,15 @@ namespace detail {
 class Packet {
  public:
   // Get the destination socket id from an encoded packet.
-  static bool DecodeDestinationSocketId(uint32_t *id, const boost::asio::const_buffer &data);
+  static bool DecodeDestinationSocketId(uint32_t* id, const boost::asio::const_buffer& data);
 
  protected:
   // Prevent deletion through this type.
   virtual ~Packet();
 
   // Helper functions for encoding and decoding integers.
-  static void DecodeUint32(uint32_t *n, const unsigned char *p);
-  static void EncodeUint32(uint32_t n, unsigned char *p);
+  static void DecodeUint32(uint32_t* n, const unsigned char* p);
+  static void EncodeUint32(uint32_t n, unsigned char* p);
 };
 
 }  // namespace detail

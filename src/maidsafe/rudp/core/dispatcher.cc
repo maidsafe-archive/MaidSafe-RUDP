@@ -33,7 +33,7 @@ namespace detail {
 
 Dispatcher::Dispatcher() : sockets_(), joining_peer_endpoint_() {}
 
-uint32_t Dispatcher::AddSocket(Socket *socket) {
+uint32_t Dispatcher::AddSocket(Socket* socket) {
   // Generate a new unique id for the socket.
   uint32_t id = 0;
   while (id == 0 || id == 0xffffffff || sockets_.find(id) != sockets_.end())
@@ -48,8 +48,8 @@ void Dispatcher::RemoveSocket(uint32_t id) {
     sockets_.erase(id);
 }
 
-void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
-                                   const ip::udp::endpoint &endpoint) {
+void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
+                                   const ip::udp::endpoint& endpoint) {
   uint32_t id(0);
   if (!Packet::DecodeDestinationSocketId(&id, data)) {
     LOG(kError) << "Received a non-RUDP packet from " << endpoint;
@@ -63,7 +63,7 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
     socket_iter = std::find_if(
         sockets_.begin(),
         sockets_.end(),
-        [endpoint](const SocketMap::value_type &socket_pair) {
+        [endpoint](const SocketMap::value_type& socket_pair) {
           return socket_pair.second->RemoteEndpoint() == endpoint;
         });
   } else if (id == 0xffffffff) {
@@ -72,7 +72,7 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
     socket_iter = std::find_if(
         sockets_.begin(),
         sockets_.end(),
-        [endpoint](const SocketMap::value_type &socket_pair) {
+        [endpoint](const SocketMap::value_type& socket_pair) {
           return socket_pair.second->RemoteEndpoint() == endpoint;
         });
     if (socket_iter == sockets_.end()) {
@@ -103,7 +103,7 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer &data,
   if (socket_iter != sockets_.end()) {
     socket_iter->second->HandleReceiveFrom(data, endpoint);
   } else {
-    const unsigned char *p = asio::buffer_cast<const unsigned char*>(data);
+    const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
     LOG(kInfo) << "Received a packet \"0x" << std::hex << static_cast<int>(*p) << std::dec
                 << "\" for unknown connection " << id << " from " << endpoint;
   }
