@@ -41,9 +41,9 @@ namespace { typedef boost::asio::ip::udp::endpoint Endpoint; }  // unnamed names
 
 Transport::Transport(AsioService& asio_service, std::shared_ptr<asymm::PublicKey> this_public_key)  // NOLINT (Fraser)
     : asio_service_(asio_service),
-      this_public_key_(this_public_key),
       strand_(asio_service.service()),
       multiplexer_(new detail::Multiplexer(asio_service.service())),
+      this_public_key_(this_public_key),
       connections_(),
       mutex_(),
       on_message_(),
