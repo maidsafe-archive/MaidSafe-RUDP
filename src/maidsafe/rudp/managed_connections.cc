@@ -45,6 +45,8 @@ ManagedConnections::ManagedConnections()
     : asio_service_(Parameters::thread_count),
       message_received_functor_(),
       connection_lost_functor_(),
+      private_key_(),
+      public_key_(),
       transports_(),
       connection_map_(),
       shared_mutex_(),
