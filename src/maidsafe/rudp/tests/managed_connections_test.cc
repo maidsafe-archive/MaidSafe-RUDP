@@ -564,7 +564,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_TRUE(cond_var.wait_for(lock,
                                 std::chrono::seconds(10),
                                 [&result_arrived]() { return result_arrived; }));  // NOLINT (Fraser)
-  EXPECT_EQ(kSendFailure, result_of_send);
+  EXPECT_EQ(kMessageTooLarge, result_of_send);
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {

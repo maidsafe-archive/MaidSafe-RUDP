@@ -12,6 +12,9 @@
 
 #include "maidsafe/rudp/utils.h"
 
+#include <string>
+#include <utility>
+
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
 

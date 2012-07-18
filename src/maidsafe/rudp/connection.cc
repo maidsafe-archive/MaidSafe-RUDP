@@ -148,13 +148,15 @@ void Connection::DoStartSending(const std::string& data,
     sending_ = false;
   });
 
-  if (Stopped() || !EncodeData(data)) {
+  if (Stopped()) {
     InvokeSentFunctor(message_sent_functor, kSendFailure);
     sending_ = false;
-    return;
+  } else if (!EncodeData(data)) {
+    InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
+    sending_ = false;
+  } else {
+    strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
   }
-
-  strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
 }
 
 void Connection::CheckTimeout(const bs::error_code& ec) {
