@@ -38,8 +38,6 @@ typedef boost::upgrade_lock<boost::shared_mutex> UpgradeLock;
 typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
 typedef boost::upgrade_to_unique_lock<boost::shared_mutex> UpgradeToUniqueLock;
 
-const int kMaxTransports(10);
-
 }  // unnamed namespace
 
 ManagedConnections::ManagedConnections()
@@ -133,7 +131,7 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
       std::make_shared<Transport>(asio_service_, public_key_);
   bool bootstrap_off_existing_connection(bootstrap_endpoints.empty());
   if (bootstrap_off_existing_connection) {
-    bootstrap_endpoints.reserve(kMaxTransports * Transport::kMaxConnections());
+    bootstrap_endpoints.reserve(Parameters::max_transports * Transport::kMaxConnections());
     SharedLock shared_lock(shared_mutex_);
     std::for_each(
         connection_map_.begin(),
@@ -191,7 +189,7 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
     }
   }
 
-  if (transports_size < kMaxTransports) {
+  if (transports_size < Parameters::max_transports) {
     if (transports_size == 0) {
       LOG(kError) << "No running Transports.";
       this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
@@ -363,7 +361,7 @@ bool ManagedConnections::DirectConnected(boost::asio::ip::address& this_address)
   int current_max_count(0);
   {
     SharedLock shared_lock(shared_mutex_);
-    if (static_cast<int>(transports_.size()) < kMaxTransports)
+    if (static_cast<int>(transports_.size()) < Parameters::max_transports)
       return false;
 
     for (auto itr(transports_.begin()); itr != transports_.end(); ++itr) {
@@ -378,7 +376,7 @@ bool ManagedConnections::DirectConnected(boost::asio::ip::address& this_address)
         mode = result.first->first;
       }
 
-      if (current_max_count > kMaxTransports / 2)
+      if (current_max_count > Parameters::max_transports / 2)
         break;
     }
   }

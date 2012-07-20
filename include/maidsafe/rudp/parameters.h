@@ -29,6 +29,9 @@ struct Parameters {
   // Thread count for use of asio::io_service.
   static uint32_t thread_count;
 
+  // Maximum number of Transports per ManagedConnections object
+  static int max_transports;
+
   // Window size permitted in RUDP.
   static uint32_t default_window_size;
   static uint32_t maximum_window_size;

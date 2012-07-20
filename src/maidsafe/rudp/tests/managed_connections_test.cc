@@ -851,6 +851,50 @@ TEST_F(ManagedConnectionsTest, BEH_API_Ping) {
   EXPECT_EQ(kPingFailed, result_of_ping);
 }
 
+TEST_F(ManagedConnectionsTest, BEH_API_Resilience) {
+  Parameters::max_transports = 2;
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+  LOG(kError) << "===================================================================================================";
+
+
+  Endpoint emergency_endpoint(bootstrap_endpoints_[0].address(), Transport::kResiliencePort);
+
+  Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, emergency_endpoint)));
+  ASSERT_EQ(emergency_endpoint, chosen_endpoint);
+
+  int result_of_send(kConnectError);
+  bool result_arrived(false);
+  std::condition_variable cond_var;
+  std::mutex mutex;
+  std::unique_lock<std::mutex> lock(mutex);
+  MessageSentFunctor message_sent_functor([&](int result_in) {
+    std::lock_guard<std::mutex> lock(mutex);
+    result_of_send = result_in;
+    result_arrived = true;
+    cond_var.notify_one();
+  });
+  auto wait_for_result([&] {
+    return cond_var.wait_for(lock,
+                             std::chrono::milliseconds(100),
+                             [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
+  });
+
+  nodes_[0]->ResetData();
+  auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(2));
+  node_.managed_connections()->Send(bootstrap_endpoints_[0], "message", message_sent_functor);
+  ASSERT_TRUE(wait_for_result());
+  EXPECT_EQ(kSuccess, result_of_send);
+  ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(200)));
+  auto messages(future_messages_at_peer.get());
+  ASSERT_EQ(1U, messages.size());
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message"));
+
+  // TODO(Fraser#5#): 2012-07-20 - Can new node make permanent connection on emergency transport?
+  //                  Either way, test.
+}
+
 }  // namespace test
 
 }  // namespace rudp
