@@ -167,7 +167,7 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
 
   boost::asio::ip::address address;
   if (DirectConnected(address))
-    StartResilienceTransport(address);
+    asio_service_.service().post([=] { StartResilienceTransport(address); });
 
   return chosen_endpoint;
 }
@@ -356,16 +356,16 @@ void ManagedConnections::Ping(const Endpoint& peer_endpoint, PingFunctor ping_fu
 
 bool ManagedConnections::DirectConnected(boost::asio::ip::address& this_address) const {
   typedef std::pair<boost::asio::ip::address, boost::asio::ip::address> AddressPair;
-  std::map<AddressPair, int> endpoints_;
   AddressPair mode;  // as in average
-  int current_max_count(0);
   {
+    std::map<AddressPair, int> endpoints;
+    int current_max_count(0);
     SharedLock shared_lock(shared_mutex_);
     if (static_cast<int>(transports_.size()) < Parameters::max_transports)
       return false;
 
     for (auto itr(transports_.begin()); itr != transports_.end(); ++itr) {
-      auto result(endpoints_.insert(
+      auto result(endpoints.insert(
           std::make_pair(std::make_pair(itr->transport->external_endpoint().address(),
                                         itr->transport->local_endpoint().address()), 1)));
       if (!result.second)
@@ -408,7 +408,7 @@ void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address
   Endpoint chosen_endpoint;
   resilience_transport_.transport->Bootstrap(
       bootstrap_endpoints,
-      Endpoint(this_address, Transport::kResiliencePort),
+      Endpoint(this_address, ManagedConnections::kResiliencePort()),
       true,
       boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
       boost::bind(&ManagedConnections::OnConnectionAddedSlot, this, _1, _2),

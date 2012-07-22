@@ -853,14 +853,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_Ping) {
 
 TEST_F(ManagedConnectionsTest, BEH_API_Resilience) {
   Parameters::max_transports = 2;
-  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
+  const int kNetworkSize(3);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNetworkSize));
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-  LOG(kError) << "===================================================================================================";
-
-
-  Endpoint emergency_endpoint(bootstrap_endpoints_[0].address(), Transport::kResiliencePort);
-
+  Endpoint emergency_endpoint(bootstrap_endpoints_[0].address(),
+                              ManagedConnections::kResiliencePort());
   Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, emergency_endpoint)));
   ASSERT_EQ(emergency_endpoint, chosen_endpoint);
 
@@ -881,15 +878,29 @@ TEST_F(ManagedConnectionsTest, BEH_API_Resilience) {
                              [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
   });
 
-  nodes_[0]->ResetData();
-  auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(2));
-  node_.managed_connections()->Send(bootstrap_endpoints_[0], "message", message_sent_functor);
+  // Don't know which node managed to start the resilience transport - check messages on each.
+  std::vector<boost::unique_future<std::vector<std::string>>> future_messages_at_peers;
+  std::for_each(nodes_.begin(),
+                nodes_.end(),
+                [&future_messages_at_peers](const NodePtr &node) {
+                  node->ResetData();
+                  future_messages_at_peers.push_back(std::move(node->GetFutureForMessages(1)));
+                });
+  node_.managed_connections()->Send(emergency_endpoint, "message", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kSuccess, result_of_send);
-  ASSERT_TRUE(future_messages_at_peer.timed_wait(bptime::milliseconds(200)));
-  auto messages(future_messages_at_peer.get());
-  ASSERT_EQ(1U, messages.size());
-  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message"));
+  bool found_one(false);
+  std::for_each(future_messages_at_peers.begin(),
+                future_messages_at_peers.end(),
+                [&found_one](boost::unique_future<std::vector<std::string>> &future) {
+                  if (future.timed_wait(bptime::milliseconds(200))) {
+                    found_one = true;
+                    auto messages(future.get());
+                    ASSERT_EQ(1U, messages.size());
+                    EXPECT_EQ("message", messages.front());
+                  }
+                });
+  EXPECT_TRUE(found_one);
 
   // TODO(Fraser#5#): 2012-07-20 - Can new node make permanent connection on emergency transport?
   //                  Either way, test.

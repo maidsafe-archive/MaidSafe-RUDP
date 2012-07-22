@@ -34,8 +34,6 @@ namespace maidsafe {
 
 namespace rudp {
 
-const unsigned short Transport::kResiliencePort(5483);  // NOLINT (Fraser)
-
 namespace { typedef boost::asio::ip::udp::endpoint Endpoint; }  // unnamed namespace
 
 
@@ -120,12 +118,12 @@ void Transport::Bootstrap(
   }
 
   // If we're starting a resilience transport, check the external port is 5483
-  if (local_endpoint.port() == kResiliencePort) {
+  if (local_endpoint.port() == ManagedConnections::kResiliencePort()) {
     is_resilience_transport_ = true;
-    if (multiplexer_->external_endpoint().port() != kResiliencePort) {
+    if (multiplexer_->external_endpoint().port() != ManagedConnections::kResiliencePort()) {
       LOG(kWarning) << "Failed to start resilience transport - got port "
                     << multiplexer_->external_endpoint().port() << " instead of "
-                    << kResiliencePort;
+                    << ManagedConnections::kResiliencePort();
       *chosen_endpoint = Endpoint();
     } else {
       LOG(kInfo) << "Started resilience transport on " << multiplexer_->external_endpoint();

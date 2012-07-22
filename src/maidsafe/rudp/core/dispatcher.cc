@@ -67,8 +67,6 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
           return socket_pair.second->RemoteEndpoint() == endpoint;
         });
   } else if (id == 0xffffffff) {
-    if (sockets_.empty())
-      return;
     socket_iter = std::find_if(
         sockets_.begin(),
         sockets_.end(),
