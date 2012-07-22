@@ -167,7 +167,7 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
 
   boost::asio::ip::address address;
   if (DirectConnected(address))
-    asio_service_.service().post([=] { StartResilienceTransport(address); });
+    asio_service_.service().post([=] { StartResilienceTransport(address); });  // NOLINT (Fraser)
 
   return chosen_endpoint;
 }

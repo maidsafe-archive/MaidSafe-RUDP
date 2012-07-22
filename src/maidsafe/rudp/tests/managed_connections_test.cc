@@ -879,7 +879,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Resilience) {
   });
 
   // Don't know which node managed to start the resilience transport - check messages on each.
-  std::vector<boost::unique_future<std::vector<std::string>>> future_messages_at_peers;
+  std::vector<boost::unique_future<std::vector<std::string>>> future_messages_at_peers;  // NOLINT (Fraser)
   std::for_each(nodes_.begin(),
                 nodes_.end(),
                 [&future_messages_at_peers](const NodePtr &node) {

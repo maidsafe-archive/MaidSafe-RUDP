@@ -486,9 +486,10 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
         boost::asio::ip::address::from_string("2001:db8:85a3:8d3:1319:8a2e:370:7348"), 12345);
     handshake_packet_.SetEndpoint(endpoint);
 
-    char char_array[HandshakePacket::kMinPacketSize];
-    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
-    handshake_packet_.Encode(boost::asio::buffer(dbuffer));
+    char char_array1[HandshakePacket::kMinPacketSize];
+    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array1));
+    ASSERT_EQ(HandshakePacket::kMinPacketSize,
+              handshake_packet_.Encode(boost::asio::buffer(dbuffer)));
 
     handshake_packet_.SetRudpVersion(0);
     handshake_packet_.SetSocketType(0);
@@ -499,6 +500,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetSocketId(0);
     handshake_packet_.SetSynCookie(0);
     handshake_packet_.SetEndpoint(boost::asio::ip::udp::endpoint());
+    EXPECT_FALSE(handshake_packet_.PublicKey());
 
     handshake_packet_.Decode(dbuffer);
 
@@ -511,6 +513,76 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
     EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
     EXPECT_EQ(endpoint, handshake_packet_.Endpoint());
+    EXPECT_FALSE(handshake_packet_.PublicKey());
+
+    // Encode and decode with a valid public key
+    asymm::Keys keys;
+    asymm::GenerateKeyPair(&keys);
+    std::string encoded_key;
+    asymm::EncodePublicKey(keys.public_key, &encoded_key);
+    handshake_packet_.SetPublicKey(
+        std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey(keys.public_key)));
+    char char_array2[10000];
+    dbuffer = boost::asio::buffer(char_array2);
+
+    ASSERT_EQ(HandshakePacket::kMinPacketSize + encoded_key.size(),
+              handshake_packet_.Encode(boost::asio::buffer(dbuffer)));
+
+    handshake_packet_.SetRudpVersion(0);
+    handshake_packet_.SetSocketType(0);
+    handshake_packet_.SetInitialPacketSequenceNumber(0);
+    handshake_packet_.SetMaximumPacketSize(0);
+    handshake_packet_.SetMaximumFlowWindowSize(0);
+    handshake_packet_.SetConnectionType(0);
+    handshake_packet_.SetSocketId(0);
+    handshake_packet_.SetSynCookie(0);
+    handshake_packet_.SetEndpoint(boost::asio::ip::udp::endpoint());
+    handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>());
+
+    handshake_packet_.Decode(dbuffer);
+
+    EXPECT_EQ(0x11111111, handshake_packet_.RudpVersion());
+    EXPECT_EQ(0x22222222, handshake_packet_.SocketType());
+    EXPECT_EQ(0x44444444, handshake_packet_.InitialPacketSequenceNumber());
+    EXPECT_EQ(0x88888888, handshake_packet_.MaximumPacketSize());
+    EXPECT_EQ(0xffffffff, handshake_packet_.MaximumFlowWindowSize());
+    EXPECT_EQ(0xdddddddd, handshake_packet_.ConnectionType());
+    EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
+    EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
+    EXPECT_EQ(endpoint, handshake_packet_.Endpoint());
+    ASSERT_TRUE(handshake_packet_.PublicKey());
+    EXPECT_TRUE(asymm::MatchingPublicKeys(keys.public_key, *handshake_packet_.PublicKey()));
+
+    // Encode and decode with an invalid public key
+    handshake_packet_.SetPublicKey(
+        std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey()));
+    ASSERT_EQ(HandshakePacket::kMinPacketSize,
+              handshake_packet_.Encode(boost::asio::buffer(dbuffer)));
+
+    handshake_packet_.SetRudpVersion(0);
+    handshake_packet_.SetSocketType(0);
+    handshake_packet_.SetInitialPacketSequenceNumber(0);
+    handshake_packet_.SetMaximumPacketSize(0);
+    handshake_packet_.SetMaximumFlowWindowSize(0);
+    handshake_packet_.SetConnectionType(0);
+    handshake_packet_.SetSocketId(0);
+    handshake_packet_.SetSynCookie(0);
+    handshake_packet_.SetEndpoint(boost::asio::ip::udp::endpoint());
+    handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>());
+
+    dbuffer = boost::asio::buffer(char_array1);
+    handshake_packet_.Decode(dbuffer);
+
+    EXPECT_EQ(0x11111111, handshake_packet_.RudpVersion());
+    EXPECT_EQ(0x22222222, handshake_packet_.SocketType());
+    EXPECT_EQ(0x44444444, handshake_packet_.InitialPacketSequenceNumber());
+    EXPECT_EQ(0x88888888, handshake_packet_.MaximumPacketSize());
+    EXPECT_EQ(0xffffffff, handshake_packet_.MaximumFlowWindowSize());
+    EXPECT_EQ(0xdddddddd, handshake_packet_.ConnectionType());
+    EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
+    EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
+    EXPECT_EQ(endpoint, handshake_packet_.Endpoint());
+    EXPECT_FALSE(handshake_packet_.PublicKey());
   }
 }
 
