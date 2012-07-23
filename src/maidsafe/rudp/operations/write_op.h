@@ -29,55 +29,39 @@ template <typename WriteHandler>
 class WriteOp {
  public:
   WriteOp(WriteHandler handler,
-          const boost::system::error_code *ec,
-          const size_t *bytes_transferred)
-    : handler_(handler),
-      ec_(ec),
-      bytes_transferred_(bytes_transferred) {
-  }
-
-  WriteOp(const WriteOp &L)
-      : handler_(L.handler_),
-        ec_(L.ec_),
-        bytes_transferred_(L.bytes_transferred_) {
-  }
-
-  WriteOp & operator=(const WriteOp &L) {
-    // check for "self assignment" and do nothing in that case
-    if (this != &L) {
-      delete ec_;
-      delete bytes_transferred_;
-      handler_ = L.handler_;
-      ec_ = L.ec_;
-      bytes_transferred_ = L.bytes_transferred_;
-    }
-    return *this;
-  }
+          const boost::system::error_code* ec,
+          const size_t* bytes_transferred)
+      : handler_(handler),
+        ec_(ec),
+        bytes_transferred_(bytes_transferred) {}
 
   void operator()(boost::system::error_code) {
     handler_(*ec_, *bytes_transferred_);
   }
 
-  friend void *asio_handler_allocate(size_t n, WriteOp *op) {
+  friend void* asio_handler_allocate(size_t n, WriteOp* op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, WriteOp *op) {
+  friend void asio_handler_deallocate(void* p, size_t n, WriteOp* op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, WriteOp *op) {
+  friend void asio_handler_invoke(const Function& f, WriteOp* op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
 
  private:
+  // Disallow assignment.
+  WriteOp& operator=(const WriteOp&);
+
   WriteHandler handler_;
-  const boost::system::error_code *ec_;
-  const size_t *bytes_transferred_;
+  const boost::system::error_code* ec_;
+  const size_t* bytes_transferred_;
 };
 
 }  // namespace detail

@@ -28,49 +28,36 @@ namespace detail {
 template <typename FlushHandler>
 class FlushOp {
  public:
-  FlushOp(FlushHandler handler, const boost::system::error_code *ec)
-    : handler_(handler),
-      ec_(ec) {}
-
-  FlushOp(const FlushOp &L) : handler_(L.handler_), ec_(L.ec_) {}
-
-  FlushOp & operator=(const FlushOp &L) {
-    // check for "self assignment" and do nothing in that case
-    if (this != &L) {
-      delete ec_;
-      handler_ = L.handler_;
-      ec_ = L.ec_;
-    }
-    return *this;
-  }
+  FlushOp(FlushHandler handler, const boost::system::error_code* ec)
+      : handler_(handler),
+        ec_(ec) {}
 
   void operator()(boost::system::error_code) {
     handler_(*ec_);
   }
 
-  friend void *asio_handler_allocate(size_t n, FlushOp *op) {
+  friend void* asio_handler_allocate(size_t n, FlushOp* op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, FlushOp *op) {
+  friend void asio_handler_deallocate(void* p, size_t n, FlushOp* op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, FlushOp *op) {
+  friend void asio_handler_invoke(const Function& f, FlushOp* op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
 
  private:
-  // Disallow copying and assignment.
-//  FlushOp(const FlushOp&);
-//  FlushOp &operator=(const FlushOp&);
+  // Disallow assignment.
+  FlushOp& operator=(const FlushOp&);
 
   FlushHandler handler_;
-  const boost::system::error_code *ec_;
+  const boost::system::error_code* ec_;
 };
 
 }  // namespace detail

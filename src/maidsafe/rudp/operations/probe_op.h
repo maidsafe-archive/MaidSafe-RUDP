@@ -28,21 +28,9 @@ namespace detail {
 template <typename ProbeHandler>
 class ProbeOp {
  public:
-  ProbeOp(ProbeHandler handler, const boost::system::error_code *ec)
-    : handler_(handler),
-      ec_(ec) {}
-
-  ProbeOp(const ProbeOp &L) : handler_(L.handler_), ec_(L.ec_) {}
-
-  ProbeOp & operator=(const ProbeOp &L) {
-    // check for "self assignment" and do nothing in that case
-    if (this != &L) {
-      delete ec_;
-      handler_ = L.handler_;
-      ec_ = L.ec_;
-    }
-    return *this;
-  }
+  ProbeOp(ProbeHandler handler, const boost::system::error_code* ec)
+      : handler_(handler),
+        ec_(ec) {}
 
   void operator()(boost::system::error_code ec) {
     if (boost::asio::error::timed_out == ec)
@@ -51,25 +39,28 @@ class ProbeOp {
       handler_(*ec_);
   }
 
-  friend void *asio_handler_allocate(size_t n, ProbeOp *op) {
+  friend void* asio_handler_allocate(size_t n, ProbeOp* op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, ProbeOp *op) {
+  friend void asio_handler_deallocate(void* p, size_t n, ProbeOp* op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, ProbeOp *op) {
+  friend void asio_handler_invoke(const Function& f, ProbeOp* op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
 
  private:
+  // Disallow assignment.
+  ProbeOp& operator=(const ProbeOp&);
+
   ProbeHandler handler_;
-  const boost::system::error_code *ec_;
+  const boost::system::error_code* ec_;
 };
 
 }  // namespace detail

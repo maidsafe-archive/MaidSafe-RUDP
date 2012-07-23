@@ -28,45 +28,36 @@ namespace detail {
 template <typename ConnectHandler>
 class ConnectOp {
  public:
-  ConnectOp(ConnectHandler handler, const boost::system::error_code *ec)
-    : handler_(handler),
-      ec_(ec) {}
-
-  ConnectOp(const ConnectOp &L) : handler_(L.handler_), ec_(L.ec_) {}
-
-  ConnectOp & operator=(const ConnectOp &L) {
-    // check for "self assignment" and do nothing in that case
-    if (this != &L) {
-      delete ec_;
-      handler_ = L.handler_;
-      ec_ = L.ec_;
-    }
-    return *this;
-  }
+  ConnectOp(ConnectHandler handler, const boost::system::error_code* ec)
+      : handler_(handler),
+        ec_(ec) {}
 
   void operator()(boost::system::error_code) {
     handler_(*ec_);
   }
 
-  friend void *asio_handler_allocate(size_t n, ConnectOp *op) {
+  friend void* asio_handler_allocate(size_t n, ConnectOp* op) {
     using boost::asio::asio_handler_allocate;
     return asio_handler_allocate(n, &op->handler_);
   }
 
-  friend void asio_handler_deallocate(void *p, size_t n, ConnectOp *op) {
+  friend void asio_handler_deallocate(void* p, size_t n, ConnectOp* op) {
     using boost::asio::asio_handler_deallocate;
     asio_handler_deallocate(p, n, &op->handler_);
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function &f, ConnectOp *op) {
+  friend void asio_handler_invoke(const Function& f, ConnectOp* op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
 
  private:
+  // Disallow assignment.
+  ConnectOp& operator=(const ConnectOp&);
+
   ConnectHandler handler_;
-  const boost::system::error_code *ec_;
+  const boost::system::error_code* ec_;
 };
 
 }  // namespace detail
