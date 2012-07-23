@@ -29,20 +29,8 @@ template <typename FlushHandler>
 class FlushOp {
  public:
   FlushOp(FlushHandler handler, const boost::system::error_code* ec)
-    : handler_(handler),
-      ec_(ec) {}
-
-  FlushOp(const FlushOp& L) : handler_(L.handler_), ec_(L.ec_) {}
-
-  FlushOp & operator=(const FlushOp& L) {
-    // check for "self assignment" and do nothing in that case
-    if (this != &L) {
-      delete ec_;
-      handler_ = L.handler_;
-      ec_ = L.ec_;
-    }
-    return* this;
-  }
+      : handler_(handler),
+        ec_(ec) {}
 
   void operator()(boost::system::error_code) {
     handler_(*ec_);
@@ -65,9 +53,8 @@ class FlushOp {
   }
 
  private:
-  // Disallow copying and assignment.
-//  FlushOp(const FlushOp&);
-//  FlushOp& operator=(const FlushOp&);
+  // Disallow assignment.
+  FlushOp& operator=(const FlushOp&);
 
   FlushHandler handler_;
   const boost::system::error_code* ec_;

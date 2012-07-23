@@ -31,28 +31,9 @@ class WriteOp {
   WriteOp(WriteHandler handler,
           const boost::system::error_code* ec,
           const size_t* bytes_transferred)
-    : handler_(handler),
-      ec_(ec),
-      bytes_transferred_(bytes_transferred) {
-  }
-
-  WriteOp(const WriteOp& L)
-      : handler_(L.handler_),
-        ec_(L.ec_),
-        bytes_transferred_(L.bytes_transferred_) {
-  }
-
-  WriteOp & operator=(const WriteOp& L) {
-    // check for "self assignment" and do nothing in that case
-    if (this != &L) {
-      delete ec_;
-      delete bytes_transferred_;
-      handler_ = L.handler_;
-      ec_ = L.ec_;
-      bytes_transferred_ = L.bytes_transferred_;
-    }
-    return* this;
-  }
+      : handler_(handler),
+        ec_(ec),
+        bytes_transferred_(bytes_transferred) {}
 
   void operator()(boost::system::error_code) {
     handler_(*ec_, *bytes_transferred_);
@@ -75,6 +56,9 @@ class WriteOp {
   }
 
  private:
+  // Disallow assignment.
+  WriteOp& operator=(const WriteOp&);
+
   WriteHandler handler_;
   const boost::system::error_code* ec_;
   const size_t* bytes_transferred_;

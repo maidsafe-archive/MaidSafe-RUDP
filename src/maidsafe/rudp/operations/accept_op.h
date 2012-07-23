@@ -31,8 +31,8 @@ template <typename AcceptHandler>
 class AcceptOp {
  public:
   AcceptOp(AcceptHandler handler, Socket& socket)  // NOLINT (Fraser)
-    : handler_(handler),
-      socket_(socket) {}
+      : handler_(handler),
+        socket_(socket) {}
 
   void operator()(boost::system::error_code) {
     boost::system::error_code ec;
@@ -58,6 +58,9 @@ class AcceptOp {
   }
 
  private:
+  // Disallow assignment.
+  AcceptOp& operator=(const AcceptOp&);
+
   AcceptHandler handler_;
   Socket& socket_;
 };

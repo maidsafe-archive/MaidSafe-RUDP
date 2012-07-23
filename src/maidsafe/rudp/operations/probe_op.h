@@ -29,20 +29,8 @@ template <typename ProbeHandler>
 class ProbeOp {
  public:
   ProbeOp(ProbeHandler handler, const boost::system::error_code* ec)
-    : handler_(handler),
-      ec_(ec) {}
-
-  ProbeOp(const ProbeOp& L) : handler_(L.handler_), ec_(L.ec_) {}
-
-  ProbeOp & operator=(const ProbeOp& L) {
-    // check for "self assignment" and do nothing in that case
-    if (this != &L) {
-      delete ec_;
-      handler_ = L.handler_;
-      ec_ = L.ec_;
-    }
-    return* this;
-  }
+      : handler_(handler),
+        ec_(ec) {}
 
   void operator()(boost::system::error_code ec) {
     if (boost::asio::error::timed_out == ec)
@@ -68,6 +56,9 @@ class ProbeOp {
   }
 
  private:
+  // Disallow assignment.
+  ProbeOp& operator=(const ProbeOp&);
+
   ProbeHandler handler_;
   const boost::system::error_code* ec_;
 };

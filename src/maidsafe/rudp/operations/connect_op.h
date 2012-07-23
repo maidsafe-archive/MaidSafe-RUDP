@@ -29,20 +29,8 @@ template <typename ConnectHandler>
 class ConnectOp {
  public:
   ConnectOp(ConnectHandler handler, const boost::system::error_code* ec)
-    : handler_(handler),
-      ec_(ec) {}
-
-  ConnectOp(const ConnectOp& L) : handler_(L.handler_), ec_(L.ec_) {}
-
-  ConnectOp & operator=(const ConnectOp& L) {
-    // check for "self assignment" and do nothing in that case
-    if (this != &L) {
-      delete ec_;
-      handler_ = L.handler_;
-      ec_ = L.ec_;
-    }
-    return* this;
-  }
+      : handler_(handler),
+        ec_(ec) {}
 
   void operator()(boost::system::error_code) {
     handler_(*ec_);
@@ -65,6 +53,9 @@ class ConnectOp {
   }
 
  private:
+  // Disallow assignment.
+  ConnectOp& operator=(const ConnectOp&);
+
   ConnectHandler handler_;
   const boost::system::error_code* ec_;
 };

@@ -35,42 +35,16 @@ class DispatchOp {
              const boost::asio::mutable_buffer& buffer,
              boost::asio::ip::udp::endpoint* sender_endpoint,
              Dispatcher* dispatcher)
-    : handler_(handler),
-      socket_(socket),
-      buffer_(buffer),
-      sender_endpoint_(sender_endpoint),
-      dispatcher_(dispatcher) {
-  }
+      : handler_(handler),
+        socket_(socket),
+        buffer_(buffer),
+        sender_endpoint_(sender_endpoint),
+        dispatcher_(dispatcher) {}
 
-  DispatchOp(const DispatchOp& L)
-    : handler_(L.handler_),
-      socket_(L.socket_),
-      buffer_(L.buffer_),
-      sender_endpoint_(L.sender_endpoint_),
-      dispatcher_(L.dispatcher_) {
-  }
-
-  DispatchOp & operator=(const DispatchOp& L) {
-    // check for "self assignment" and do nothing in that case
-    if (this != &L) {
-      delete socket_;
-      delete sender_endpoint_;
-      delete dispatcher_;
-      handler_ = L.handler_;
-      socket_ = L.socket_;
-      buffer_ = L.buffer_;
-      sender_endpoint_ = L.sender_endpoint_;
-      dispatcher_ = L.dispatcher_;
-    }
-    return* this;
-  }
-
-  void operator()(const boost::system::error_code& ec,
-                  size_t bytes_transferred) {
+  void operator()(const boost::system::error_code& ec, size_t bytes_transferred) {
     boost::system::error_code local_ec = ec;
     while (!local_ec) {
-      dispatcher_->HandleReceiveFrom(boost::asio::buffer(buffer_,
-                                                         bytes_transferred),
+      dispatcher_->HandleReceiveFrom(boost::asio::buffer(buffer_, bytes_transferred),
                                      *sender_endpoint_);
 
       bytes_transferred = socket_->receive_from(boost::asio::buffer(buffer_),
@@ -97,9 +71,8 @@ class DispatchOp {
   }
 
  private:
-  // Disallow copying and assignment.
-//  DispatchOp(const DispatchOp&);
-//  DispatchOp& operator=(const DispatchOp&);
+  // Disallow assignment.
+  DispatchOp& operator=(const DispatchOp&);
 
   DispatchHandler handler_;
   boost::asio::ip::udp::socket* socket_;

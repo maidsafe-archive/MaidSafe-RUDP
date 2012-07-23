@@ -34,27 +34,9 @@ template <typename TickHandler, typename Socket>
 class TickOp {
  public:
   TickOp(TickHandler handler, Socket* socket, TickTimer* tick_timer)
-    : handler_(handler),
-      socket_(socket),
-      tick_timer_(tick_timer) {
-  }
-
-  TickOp(const TickOp& L)
-    : handler_(L.handler_),
-      socket_(L.socket_),
-      tick_timer_(L.tick_timer_) {
-  }
-
-  TickOp & operator=(const TickOp& L) {
-    // check for "self assignment" and do nothing in that case
-    if (this != &L) {
-      delete socket_;
-      handler_ = L.handler_;
-      socket_ = L.socket_;
-      tick_timer_ = L.tick_timer_;
-    }
-    return* this;
-  }
+      : handler_(handler),
+        socket_(socket),
+        tick_timer_(tick_timer) {}
 
   void operator()(boost::system::error_code) {
     boost::system::error_code ec;
@@ -86,6 +68,9 @@ class TickOp {
   }
 
  private:
+  // Disallow assignment.
+  TickOp& operator=(const TickOp&);
+
   TickHandler handler_;
   Socket* socket_;
   TickTimer* tick_timer_;
