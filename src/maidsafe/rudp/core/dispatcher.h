@@ -24,6 +24,8 @@ namespace maidsafe {
 
 namespace rudp {
 
+class ConnectionManager;
+
 namespace detail {
 
 class Socket;
@@ -31,6 +33,8 @@ class Socket;
 class Dispatcher {
  public:
   Dispatcher();
+
+  void SetConnectionManager(ConnectionManager* connection_manager);
 
   // Add a socket. Returns a new unique id for the socket.
   uint32_t AddSocket(Socket *socket);
@@ -42,8 +46,6 @@ class Dispatcher {
   void HandleReceiveFrom(const boost::asio::const_buffer &data,
                          const boost::asio::ip::udp::endpoint &endpoint);
 
-  boost::asio::ip::udp::endpoint GetAndClearJoiningPeerEndpoint();
-
  private:
   // Disallow copying and assignment.
   Dispatcher(const Dispatcher&);
@@ -52,9 +54,7 @@ class Dispatcher {
   // Map of destination socket id to corresponding socket object.
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;
   SocketMap sockets_;
-
-  // Endpoint of peer attempting to join the network via this node.
-  boost::asio::ip::udp::endpoint joining_peer_endpoint_;
+  ConnectionManager* connection_manager_;
 };
 
 }  // namespace detail

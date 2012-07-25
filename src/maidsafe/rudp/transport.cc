@@ -15,11 +15,11 @@
 
 #include <algorithm>
 #include <cassert>
-#include <functional>
 
 #include "maidsafe/common/log.h"
 
 #include "maidsafe/rudp/connection.h"
+#include "maidsafe/rudp/connection_manager.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/managed_connections.h"
@@ -34,16 +34,14 @@ namespace maidsafe {
 
 namespace rudp {
 
-namespace {
-typedef boost::asio::ip::udp::endpoint Endpoint;
-}  // unnamed namespace
+namespace { typedef boost::asio::ip::udp::endpoint Endpoint; }
 
-Transport::Transport(AsioService& asio_service)          // NOLINT (Fraser)
+
+Transport::Transport(AsioService& asio_service)  // NOLINT (Fraser)
     : asio_service_(asio_service),
       strand_(asio_service.service()),
       multiplexer_(new detail::Multiplexer(asio_service.service())),
-      connections_(),
-      mutex_(),
+      connection_manager_(),
       on_message_(),
       on_connection_added_(),
       on_connection_lost_() {}
@@ -56,13 +54,13 @@ void Transport::Bootstrap(
     const std::vector<Endpoint> &bootstrap_endpoints,
     Endpoint local_endpoint,
     bool bootstrap_off_existing_connection,
-    const OnMessage::slot_type &on_message_slot,
-    const OnConnectionAdded::slot_type &on_connection_added_slot,
-    const OnConnectionLost::slot_type &on_connection_lost_slot,
-    Endpoint *chosen_endpoint,
-    boost::signals2::connection *on_message_connection,
-    boost::signals2::connection *on_connection_added_connection,
-    boost::signals2::connection *on_connection_lost_connection) {
+    const OnMessage::slot_type& on_message_slot,
+    const OnConnectionAdded::slot_type& on_connection_added_slot,
+    const OnConnectionLost::slot_type& on_connection_lost_slot,
+    Endpoint* chosen_endpoint,
+    boost::signals2::connection* on_message_connection,
+    boost::signals2::connection* on_connection_added_connection,
+    boost::signals2::connection* on_connection_lost_connection) {
   BOOST_ASSERT(chosen_endpoint);
   BOOST_ASSERT(on_message_connection);
   BOOST_ASSERT(on_connection_added_connection);
@@ -82,6 +80,7 @@ void Transport::Bootstrap(
     return;
   }
 
+  connection_manager_.reset(new ConnectionManager(shared_from_this(), strand_, multiplexer_));
   StartDispatch();
 
   for (auto itr(bootstrap_endpoints.begin()); itr != bootstrap_endpoints.end(); ++itr) {
@@ -89,11 +88,9 @@ void Transport::Bootstrap(
       LOG(kError) << *itr << " is an invalid endpoint.";
       continue;
     }
-    ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(), strand_,
-                                                          multiplexer_, *itr));
-    connection->StartConnecting("", bootstrap_off_existing_connection ?
-                                    bptime::time_duration() :
-                                    Parameters::bootstrap_disconnection_timeout);
+    connection_manager_->Connect(*itr, "", bootstrap_off_existing_connection ?
+                                     bptime::time_duration() :
+                                     Parameters::bootstrap_disconnection_timeout);
 
     // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
     int count(0);
@@ -110,27 +107,25 @@ void Transport::Bootstrap(
     }
 
     if (IsValid(multiplexer_->external_endpoint()) && IsValid(multiplexer_->local_endpoint())) {
-      assert(*itr == connection->Socket().RemoteEndpoint());
       *chosen_endpoint = *itr;
-      return;
+      break;
     }
   }
 }
 
 void Transport::Close() {
-  boost::mutex::scoped_lock lock(mutex_);
-  for (auto it = connections_.begin(); it != connections_.end(); ++it)
-    strand_.post(std::bind(&Connection::Close, *it));
+  if (connection_manager_)
+    connection_manager_->Close();
   if (multiplexer_)
     multiplexer_->Close();
 }
 
-void Transport::Connect(const Endpoint &peer_endpoint, const std::string &validation_data) {
+void Transport::Connect(const Endpoint& peer_endpoint, const std::string& validation_data) {
   strand_.dispatch(std::bind(&Transport::DoConnect, shared_from_this(), peer_endpoint,
                              validation_data));
 }
 
-void Transport::DoConnect(const Endpoint &peer_endpoint, const std::string &validation_data) {
+void Transport::DoConnect(const Endpoint& peer_endpoint, const std::string& validation_data) {
   bool opened_multiplexer(false);
 
   if (!multiplexer_->IsOpen()) {
@@ -143,50 +138,20 @@ void Transport::DoConnect(const Endpoint &peer_endpoint, const std::string &vali
     opened_multiplexer = true;
   }
 
-  ConnectionPtr connection(std::make_shared<Connection>(shared_from_this(), strand_, multiplexer_,
-                                                        peer_endpoint));
-  connection->StartConnecting(validation_data, bptime::pos_infin);
+  connection_manager_->Connect(peer_endpoint, validation_data, bptime::pos_infin);
 
   if (opened_multiplexer)
     StartDispatch();
 }
 
-int Transport::CloseConnection(const Endpoint &peer_endpoint) {
-  boost::mutex::scoped_lock lock(mutex_);
-  auto itr(FindConnection(peer_endpoint));
-  if (itr == connections_.end()) {
-    LOG(kWarning) << "Not currently connected to " << peer_endpoint;
-    return kInvalidConnection;
-  }
-
-  strand_.dispatch(std::bind(&Transport::DoCloseConnection, shared_from_this(), *itr));
-  return kSuccess;
+int Transport::CloseConnection(const Endpoint& peer_endpoint) {
+  return connection_manager_->CloseConnection(peer_endpoint);
 }
 
-void Transport::DoCloseConnection(ConnectionPtr connection) {
-  connection->Close();
-}
-
-void Transport::Send(const Endpoint &peer_endpoint,
-                     const std::string &message,
-                     const MessageSentFunctor &message_sent_functor) {
-  boost::mutex::scoped_lock lock(mutex_);
-  auto itr(FindConnection(peer_endpoint));
-  if (itr == connections_.end()) {
-    LOG(kWarning) << "Not currently connected to " << peer_endpoint;
-    if (message_sent_functor)
-      asio_service_.service().dispatch([message_sent_functor] { message_sent_functor(false); });  // NOLINT (Fraser)
-    return;
-  }
-
-  strand_.dispatch(std::bind(&Transport::DoSend, shared_from_this(), *itr, message,
-                             message_sent_functor));
-}
-
-void Transport::DoSend(ConnectionPtr connection,
-                       const std::string &message,
-                       const MessageSentFunctor &message_sent_functor) {
-  connection->StartSending(message, message_sent_functor);
+void Transport::Send(const Endpoint& peer_endpoint,
+                     const std::string& message,
+                     const MessageSentFunctor& message_sent_functor) {
+  connection_manager_->Send(peer_endpoint, message, message_sent_functor);
 }
 
 Endpoint Transport::external_endpoint() const {
@@ -197,30 +162,17 @@ Endpoint Transport::local_endpoint() const {
   return multiplexer_->local_endpoint();
 }
 
-bool Transport::IsTemporaryConnection(const Endpoint &peer_endpoint) {
-  boost::mutex::scoped_lock lock(mutex_);
-  auto itr(FindConnection(peer_endpoint));
-  if (itr == connections_.end())
-    return false;
-  return (*itr)->IsTemporary();
+bool Transport::IsTemporaryConnection(const Endpoint& peer_endpoint) {
+  return connection_manager_->IsTemporaryConnection(peer_endpoint);
 }
 
-void Transport::MakeConnectionPermanent(const Endpoint &peer_endpoint,
-                                        const std::string &validation_data) {
-  boost::mutex::scoped_lock lock(mutex_);
-  auto itr(FindConnection(peer_endpoint));
-  if (itr == connections_.end()) {
-    LOG(kWarning) << "Not currently connected to " << peer_endpoint;
-    return;
-  }
-  (*itr)->MakePermanent();
-  strand_.dispatch(std::bind(&Transport::DoSend, shared_from_this(), *itr, validation_data,
-                             MessageSentFunctor()));
+void Transport::MakeConnectionPermanent(const Endpoint& peer_endpoint,
+                                        const std::string& validation_data) {
+  connection_manager_->MakeConnectionPermanent(peer_endpoint, validation_data);
 }
 
 size_t Transport::ConnectionsCount() const {
-  boost::mutex::scoped_lock lock(mutex_);
-  return connections_.size();
+  return connection_manager_->size();
 }
 
 void Transport::StartDispatch() {
@@ -233,36 +185,11 @@ void Transport::HandleDispatch(MultiplexerPtr multiplexer,
                                const boost::system::error_code &/*ec*/) {
   if (!multiplexer->IsOpen())
     return;
-  Endpoint joining_peer_endpoint(multiplexer->GetJoiningPeerEndpoint());
-  if (IsValid(joining_peer_endpoint)) {
-    // Check if this joining node is already connected
-    ConnectionPtr joining_connection;
-    {
-      boost::mutex::scoped_lock lock(mutex_);
-      auto itr(FindConnection(joining_peer_endpoint));
-      if (itr != connections_.end())
-        joining_connection = *itr;
-    }
-    if (joining_connection) {
-      if (!joining_connection->IsTemporary()) {
-        LOG(kWarning) << "Received another bootstrap connection request from currently "
-                      << "connected endpoint " << joining_peer_endpoint << " - closing connection.";
-        joining_connection->Close();
-      }
-    } else {
-      // Joining node is not already connected - start new temporary connection
-      ConnectionPtr connection(
-          std::make_shared<Connection>(shared_from_this(),
-                                       strand_,
-                                       multiplexer_,
-                                       joining_peer_endpoint));
-      connection->StartConnecting("", Parameters::bootstrap_disconnection_timeout);
-    }
-  }
+
   StartDispatch();
 }
 
-void Transport::SignalMessageReceived(const std::string &message) {
+void Transport::SignalMessageReceived(const std::string& message) {
   strand_.dispatch(std::bind(&Transport::DoSignalMessageReceived,
                              shared_from_this(), message));
 // TODO(Prakash) Test the performance with below option.
@@ -271,7 +198,7 @@ void Transport::SignalMessageReceived(const std::string &message) {
 //                                         shared_from_this(), message));
 }
 
-void Transport::DoSignalMessageReceived(const std::string &message) {
+void Transport::DoSignalMessageReceived(const std::string& message) {
   on_message_(message);
 }
 
@@ -280,7 +207,7 @@ void Transport::InsertConnection(ConnectionPtr connection) {
 }
 
 void Transport::DoInsertConnection(ConnectionPtr connection) {
-  connections_.insert(connection);
+  connection_manager_->InsertConnection(connection);
   on_connection_added_(connection->Socket().RemoteEndpoint(), shared_from_this());
 }
 
@@ -290,25 +217,10 @@ void Transport::RemoveConnection(ConnectionPtr connection) {
 
 void Transport::DoRemoveConnection(ConnectionPtr connection) {
   bool connections_empty(false), temporary_connection(false);
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-    connections_.erase(connection);
-    connections_empty = connections_.empty();
-    temporary_connection = connection->IsTemporary();
-  }
+  connection_manager_->RemoveConnection(connection, connections_empty, temporary_connection);
   on_connection_lost_(connection->Socket().RemoteEndpoint(), shared_from_this(),
                       connections_empty, temporary_connection);
 }
-
-Transport::ConnectionSet::iterator Transport::FindConnection(const Endpoint &peer_endpoint) {
-  assert(!mutex_.try_lock());
-  return std::find_if(connections_.begin(),
-                      connections_.end(),
-                      [&peer_endpoint](const ConnectionPtr &connection) {
-                        return connection->Socket().RemoteEndpoint() == peer_endpoint;
-                      });
-}
-
 
 }  // namespace rudp
 

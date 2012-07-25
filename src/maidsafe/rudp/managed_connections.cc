@@ -302,7 +302,7 @@ void ManagedConnections::Send(const Endpoint &peer_endpoint,
 }
 
 void ManagedConnections::OnMessageSlot(const std::string &message) {
-  message_received_functor_(message);
+  asio_service_.service().post([=] { message_received_functor_(message); });  // NOLINT (Fraser)
 }
 
 void ManagedConnections::OnConnectionAddedSlot(const Endpoint &peer_endpoint,
@@ -372,7 +372,7 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint &peer_endpoint,
   }
 
   if (should_execute_functor)
-    connection_lost_functor_(peer_endpoint);
+    asio_service_.service().post([=] { connection_lost_functor_(peer_endpoint); });  // NOLINT (Fraser)
 }
 
 }  // namespace rudp

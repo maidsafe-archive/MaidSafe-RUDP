@@ -88,10 +88,6 @@ void Multiplexer::Close() {
   external_endpoint_ = ip::udp::endpoint();
 }
 
-ip::udp::endpoint Multiplexer::GetJoiningPeerEndpoint() {
-  return dispatcher_.GetAndClearJoiningPeerEndpoint();
-}
-
 ip::udp::endpoint Multiplexer::local_endpoint() const {
   boost::system::error_code ec;
   ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
