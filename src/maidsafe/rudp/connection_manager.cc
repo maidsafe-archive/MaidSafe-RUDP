@@ -20,6 +20,7 @@
 #include "maidsafe/rudp/connection.h"
 #include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/core/multiplexer.h"
+#include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/packets/handshake_packet.h"
 #include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/utils.h"
@@ -41,7 +42,8 @@ ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
                                      MultiplexerPtr multiplexer)
     : transport_(transport),
       strand_(strand),
-      multiplexer_(multiplexer) {
+      multiplexer_(multiplexer),
+      sockets_() {
   multiplexer_->dispatcher_.SetConnectionManager(this);
 }
 
@@ -96,35 +98,89 @@ void ConnectionManager::Send(const Endpoint& peer_endpoint,
   strand_.dispatch([=] { (*itr)->StartSending(message, message_sent_functor); });  // NOLINT (Fraser)
 }
 
-void ConnectionManager::HandleReceiveFrom(const asio::const_buffer &data,
-                                          const Endpoint &joining_peer_endpoint) {
+detail::Socket* ConnectionManager::GetSocket(const asio::const_buffer& data,
+                                             const Endpoint& endpoint) {
+  uint32_t id(0);
+  if (!detail::Packet::DecodeDestinationSocketId(&id, data)) {
+    LOG(kError) << "Received a non-RUDP packet from " << endpoint;
+    return nullptr;
+  }
+
+  SocketMap::const_iterator socket_iter(sockets_.end());
+  if (id == 0) {
+    // This is a handshake packet on a newly-added socket
+    LOG(kVerbose) << "This is a handshake packet on a newly-added socket from " << endpoint;
+    socket_iter = std::find_if(
+        sockets_.begin(),
+        sockets_.end(),
+        [endpoint](const SocketMap::value_type& socket_pair) {
+          return socket_pair.second->RemoteEndpoint() == endpoint;
+        });
+  } else if (id == 0xffffffff) {
+    socket_iter = std::find_if(
+        sockets_.begin(),
+        sockets_.end(),
+        [endpoint](const SocketMap::value_type& socket_pair) {
+          return socket_pair.second->RemoteEndpoint() == endpoint;
+        });
+    if (socket_iter == sockets_.end()) {
+      // This is a handshake packet from a peer trying to ping this node or join the network
+      HandlePingFrom(data, endpoint);
+      return nullptr;
+    } else {
+      if (sockets_.size() == 1U) {
+        // This is a handshake packet from a peer replying to this node's join attempt,
+        // or from a peer starting a zero state network with this node
+        LOG(kVerbose) << "This is a handshake packet from " << endpoint
+                      << " which is replying to a join request, or starting a new network";
+      } else {
+        LOG(kVerbose) << "This is a handshake packet from " << endpoint
+                      << " which is replying to a ping request";
+      }
+    }
+  } else {
+    // This packet is intended for a specific connection.
+    socket_iter = sockets_.find(id);
+  }
+
+  if (socket_iter != sockets_.end()) {
+    return socket_iter->second/*->HandleReceiveFrom(data, endpoint)*/;
+  } else {
+    const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
+    LOG(kInfo) << "Received a packet \"0x" << std::hex << static_cast<int>(*p) << std::dec
+                << "\" for unknown connection " << id << " from " << endpoint;
+    return nullptr;
+  }
+}
+
+void ConnectionManager::HandlePingFrom(const asio::const_buffer& data, const Endpoint& endpoint) {
   detail::HandshakePacket handshake_packet;
   if (!handshake_packet.Decode(data)) {
-    LOG(kVerbose) << "Failed to decode handshake packet from " << joining_peer_endpoint
+    LOG(kVerbose) << "Failed to decode handshake packet from " << endpoint
                   << " which is trying to ping this node or join the network";
     return;
   }
 
-  LOG(kVerbose) << "This is a handshake packet from " << joining_peer_endpoint
+  LOG(kVerbose) << "This is a handshake packet from " << endpoint
                 << " which is trying to ping this node or join the network";
-  if (IsValid(joining_peer_endpoint)) {
+  if (IsValid(endpoint)) {
     // Check if this joining node is already connected
     ConnectionPtr joining_connection;
     {
       boost::mutex::scoped_lock lock(mutex_);
-      auto itr(FindConnection(joining_peer_endpoint));
+      auto itr(FindConnection(endpoint));
       if (itr != connections_.end())
         joining_connection = *itr;
     }
     if (joining_connection) {
       if (!joining_connection->IsTemporary()) {
         LOG(kWarning) << "Received another bootstrap connection request from currently "
-                      << "connected endpoint " << joining_peer_endpoint << " - closing connection.";
+                      << "connected endpoint " << endpoint << " - closing connection.";
         joining_connection->Close();
       }
     } else {
       // Joining node is not already connected - start new temporary connection
-      Connect(joining_peer_endpoint, "", Parameters::bootstrap_disconnection_timeout);
+      Connect(endpoint, "", Parameters::bootstrap_disconnection_timeout);
     }
     return;
   }
@@ -148,6 +204,21 @@ void ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoint,
   }
   (*itr)->MakePermanent();
   strand_.dispatch([=] { (*itr)->StartSending(validation_data, std::function<void(bool)>()); });  // NOLINT (Fraser)
+}
+
+uint32_t ConnectionManager::AddSocket(detail::Socket* socket) {
+  // Generate a new unique id for the socket.
+  uint32_t id = 0;
+  while (id == 0 || id == 0xffffffff || sockets_.find(id) != sockets_.end())
+    id = RandomUint32();
+
+  sockets_[id] = socket;
+  return id;
+}
+
+void ConnectionManager::RemoveSocket(uint32_t id) {
+  if (id)
+    sockets_.erase(id);
 }
 
 size_t ConnectionManager::size() const {

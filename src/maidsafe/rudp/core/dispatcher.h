@@ -16,7 +16,6 @@
 
 #include <cstdint>
 
-#include <unordered_map>
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
 
@@ -51,9 +50,6 @@ class Dispatcher {
   Dispatcher(const Dispatcher&);
   Dispatcher &operator=(const Dispatcher&);
 
-  // Map of destination socket id to corresponding socket object.
-  typedef std::unordered_map<uint32_t, Socket*> SocketMap;
-  SocketMap sockets_;
   ConnectionManager* connection_manager_;
 };
 

@@ -12,6 +12,7 @@
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
 #include <functional>
+#include <memory>
 #include <vector>
 
 #include "maidsafe/common/test.h"
@@ -19,6 +20,8 @@
 
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/socket.h"
+#include "maidsafe/rudp/connection_manager.h"
+#include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/utils.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 
@@ -42,7 +45,7 @@ const size_t kIterations = 50;
 
 }  // unnamed namespace
 
-void dispatch_handler(const bs::error_code &ec, Multiplexer *muxer) {
+void dispatch_handler(const bs::error_code &ec, std::shared_ptr<Multiplexer> muxer) {
   if (!ec)
     muxer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, muxer));
 }
@@ -61,26 +64,30 @@ TEST(SocketTest, BEH_Socket) {
   bs::error_code server_ec;
   bs::error_code client_ec;
 
-  Multiplexer server_multiplexer(io_service);
+  std::shared_ptr<Multiplexer> server_multiplexer(new Multiplexer(io_service));
+  ConnectionManager server_connection_manager(std::shared_ptr<Transport>(),
+                                              asio::io_service::strand(io_service),
+                                              server_multiplexer);
   ip::udp::endpoint server_endpoint(GetLocalIp(), maidsafe::rudp::test::GetRandomPort());
   ip::udp::endpoint client_endpoint(GetLocalIp(), maidsafe::rudp::test::GetRandomPort());
-  ReturnCode condition = server_multiplexer.Open(server_endpoint);
+  ReturnCode condition = server_multiplexer->Open(server_endpoint);
   ASSERT_EQ(kSuccess, condition);
 
-  Multiplexer client_multiplexer(io_service);
-  condition = client_multiplexer.Open(client_endpoint);
+  std::shared_ptr<Multiplexer> client_multiplexer(new Multiplexer(io_service));
+  ConnectionManager client_connection_manager(std::shared_ptr<Transport>(),
+                                              asio::io_service::strand(io_service),
+                                              client_multiplexer);
+  condition = client_multiplexer->Open(client_endpoint);
   ASSERT_EQ(kSuccess, condition);
 
-  server_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1,
-                                             &server_multiplexer));
+  server_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, server_multiplexer));
 
-  client_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1,
-                                             &client_multiplexer));
+  client_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, client_multiplexer));
 
-  Socket server_socket(server_multiplexer);
+  Socket server_socket(*server_multiplexer);
   server_ec = asio::error::would_block;
 
-  Socket client_socket(client_multiplexer);
+  Socket client_socket(*client_multiplexer);
   client_ec = asio::error::would_block;
   client_socket.AsyncConnect(server_endpoint,
                              std::bind(&handler1, args::_1, &client_ec),
@@ -138,38 +145,44 @@ TEST(SocketTest, BEH_AsyncProbe) {
   bs::error_code server_ec;
   bs::error_code client_ec;
 
-  Multiplexer server_multiplexer(io_service);
+  std::shared_ptr<Multiplexer> server_multiplexer(new Multiplexer(io_service));
+  ConnectionManager server_connection_manager(std::shared_ptr<Transport>(),
+                                              asio::io_service::strand(io_service),
+                                              server_multiplexer);
   ReturnCode result(kPendingResult);
   ip::udp::endpoint server_endpoint;
   uint8_t attempts(0);
   while ((kSuccess != result) && (attempts < 100)) {
     server_endpoint = ip::udp::endpoint(GetLocalIp(), maidsafe::rudp::test::GetRandomPort());
-    result = server_multiplexer.Open(server_endpoint);
+    result = server_multiplexer->Open(server_endpoint);
     if (kSuccess != result)
-      server_multiplexer.Close();
+      server_multiplexer->Close();
     ++attempts;
   }
   ASSERT_EQ(kSuccess, result);
 
-  Multiplexer client_multiplexer(io_service);
+  std::shared_ptr<Multiplexer> client_multiplexer(new Multiplexer(io_service));
+  ConnectionManager client_connection_manager(std::shared_ptr<Transport>(),
+                                              asio::io_service::strand(io_service),
+                                              client_multiplexer);
   ip::udp::endpoint client_endpoint;
   result = kPendingResult;
   attempts = 0;
   while ((kSuccess != result) && (attempts < 100)) {
     client_endpoint = ip::udp::endpoint(GetLocalIp(), maidsafe::rudp::test::GetRandomPort());
-    result = client_multiplexer.Open(client_endpoint);
+    result = client_multiplexer->Open(client_endpoint);
     if (kSuccess != result)
-      client_multiplexer.Close();
+      client_multiplexer->Close();
     ++attempts;
   }
   ASSERT_EQ(kSuccess, result);
 
-  server_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1, &server_multiplexer));
-  client_multiplexer.AsyncDispatch(std::bind(&dispatch_handler, args::_1, &client_multiplexer));
+  server_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, server_multiplexer));
+  client_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, client_multiplexer));
 
-  Socket not_joined_client_socket(client_multiplexer);
-  Socket client_socket(client_multiplexer);
-  Socket server_socket(server_multiplexer);
+  Socket not_joined_client_socket(*client_multiplexer);
+  Socket client_socket(*client_multiplexer);
+  Socket server_socket(*server_multiplexer);
 
   // Probing when not connected
   client_ec = asio::error::would_block;
@@ -247,8 +260,8 @@ TEST(SocketTest, BEH_AsyncProbe) {
   } while (client_ec == asio::error::would_block);
   EXPECT_EQ(asio::error::shut_down, client_ec);
 
-  server_multiplexer.Close();
-  client_multiplexer.Close();
+  server_multiplexer->Close();
+  client_multiplexer->Close();
 }
 
 }  // namespace test

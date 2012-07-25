@@ -13,6 +13,8 @@
 #ifndef MAIDSAFE_RUDP_CONNECTION_MANAGER_H_
 #define MAIDSAFE_RUDP_CONNECTION_MANAGER_H_
 
+#include <unordered_map>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <set>
@@ -32,7 +34,12 @@ namespace rudp {
 class Transport;
 class Connection;
 
-namespace detail { class Multiplexer; }
+namespace detail {
+
+class Multiplexer;
+class Socket;
+
+}  // namespace detail
 
 
 class ConnectionManager {
@@ -58,15 +65,19 @@ class ConnectionManager {
 
   void Send(const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::string& message,
-            const std::function<void(bool)> &message_sent_functor);  // NOLINT (Fraser)
-
-  // Called by the Dispatcher when a new packet arrives for the socket.
-  void HandleReceiveFrom(const boost::asio::const_buffer &data,
-                         const boost::asio::ip::udp::endpoint &joining_peer_endpoint);
+            const std::function<void(bool)>& message_sent_functor);  // NOLINT (Fraser)
 
   bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
   void MakeConnectionPermanent(const boost::asio::ip::udp::endpoint& peer_endpoint,
                                const std::string& validation_data);
+
+  // Add a socket. Returns a new unique id for the socket.
+  uint32_t AddSocket(detail::Socket* socket);
+  void RemoveSocket(uint32_t id);
+  // Called by the Dispatcher when a new packet arrives for a socket.  Can return nullptr if no
+  // appropriate socket found.
+  detail::Socket* GetSocket(const boost::asio::const_buffer& data,
+                            const boost::asio::ip::udp::endpoint& endpoint);
 
   size_t size() const;
 
@@ -77,7 +88,11 @@ class ConnectionManager {
   typedef std::shared_ptr<detail::Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionSet;
+  // Map of destination socket id to corresponding socket object.
+  typedef std::unordered_map<uint32_t, detail::Socket*> SocketMap;
 
+  void HandlePingFrom(const boost::asio::const_buffer& data,
+                      const boost::asio::ip::udp::endpoint& endpoint);
   ConnectionSet::iterator FindConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
 
   // Because the connections can be in an idle state with no pending async operations, they are kept
@@ -87,6 +102,7 @@ class ConnectionManager {
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
   std::shared_ptr<detail::Multiplexer> multiplexer_;
+  SocketMap sockets_;
 };
 
 }  // namespace rudp
