@@ -127,8 +127,7 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
 Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpoints,
                                                Endpoint local_endpoint) {
   TransportAndSignalConnections transport_and_signals_connections;
-  transport_and_signals_connections.transport =
-      std::make_shared<Transport>(asio_service_, public_key_);
+  transport_and_signals_connections.transport = std::make_shared<Transport>(asio_service_);
   bool bootstrap_off_existing_connection(bootstrap_endpoints.empty());
   if (bootstrap_off_existing_connection) {
     bootstrap_endpoints.reserve(Parameters::max_transports * Transport::kMaxConnections());
@@ -143,6 +142,7 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
   Endpoint chosen_endpoint;
   transport_and_signals_connections.transport->Bootstrap(
       bootstrap_endpoints,
+      public_key_,
       local_endpoint,
       bootstrap_off_existing_connection,
       boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
@@ -393,7 +393,7 @@ bool ManagedConnections::DirectConnected(boost::asio::ip::address& this_address)
 }
 
 void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address &this_address) {
-  resilience_transport_.transport = std::make_shared<Transport>(asio_service_, public_key_);
+  resilience_transport_.transport = std::make_shared<Transport>(asio_service_);
   std::vector<Endpoint> bootstrap_endpoints;
   {
     SharedLock shared_lock(shared_mutex_);
@@ -408,6 +408,7 @@ void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address
   Endpoint chosen_endpoint;
   resilience_transport_.transport->Bootstrap(
       bootstrap_endpoints,
+      public_key_,
       Endpoint(this_address, ManagedConnections::kResiliencePort()),
       true,
       boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
@@ -428,7 +429,7 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
   if (result != kSuccess) {
     LOG(kError) << "Failed to decrypt message.  Result: " << result;
   } else {
-    message_received_functor_(decrypted_message);
+    asio_service_.service().post([=] { message_received_functor_(decrypted_message); });  // NOLINT (Fraser)
   }
 }
 
@@ -496,7 +497,7 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint& peer_endpoint,
   }
 
   if (should_execute_functor)
-    connection_lost_functor_(peer_endpoint);
+    asio_service_.service().post([=] { connection_lost_functor_(peer_endpoint); });  // NOLINT (Fraser)
 }
 
 

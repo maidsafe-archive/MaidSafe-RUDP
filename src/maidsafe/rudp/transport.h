@@ -17,12 +17,10 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <set>
 #include <string>
 #include <vector>
 
 #include "boost/asio/strand.hpp"
-#include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/signals2/signal.hpp"
 #include "boost/thread/mutex.hpp"
@@ -38,6 +36,7 @@ namespace maidsafe {
 namespace rudp {
 
 class ManagedConnections;
+class ConnectionManager;
 class Connection;
 
 namespace detail {
@@ -66,11 +65,12 @@ class Transport : public std::enable_shared_from_this<Transport> {
       void(const boost::asio::ip::udp::endpoint&,
            std::shared_ptr<Transport>, bool, bool)> OnConnectionLost;
 
-  Transport(AsioService& asio_service, std::shared_ptr<asymm::PublicKey> this_public_key);  // NOLINT (Fraser)
+  explicit Transport(AsioService& asio_service);  // NOLINT (Fraser)
 
   virtual ~Transport();
 
   void Bootstrap(const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
+                 std::shared_ptr<asymm::PublicKey> this_public_key,
                  boost::asio::ip::udp::endpoint local_endpoint,
                  bool bootstrap_off_existing_connection,
                  const OnMessage::slot_type& on_message_slot,
@@ -81,12 +81,12 @@ class Transport : public std::enable_shared_from_this<Transport> {
                  boost::signals2::connection* on_connection_added_connection,
                  boost::signals2::connection* on_connection_lost_connection);
 
+  void Close();
+
   void Connect(const boost::asio::ip::udp::endpoint& peer_endpoint,
                const std::string& validation_data);
 
-  // Returns kSuccess if the connection existed and was closed.  Returns
-  // kInvalidConnection if the connection didn't exist.  If this causes the
-  // size of connected_endpoints_ to drop to 0, this transport will remove
+  // If this causes the size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
   int CloseConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
 
@@ -109,30 +109,20 @@ class Transport : public std::enable_shared_from_this<Transport> {
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
 
-  void Close();
-
   friend class Connection;
 
  private:
   Transport(const Transport&);
   Transport& operator=(const Transport&);
 
-  typedef std::shared_ptr<ManagedConnections> ManagedConnectionsPtr;
   typedef std::shared_ptr<detail::Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
-  typedef std::set<ConnectionPtr> ConnectionSet;
 
   void DoConnect(const boost::asio::ip::udp::endpoint& peer_endpoint,
                  const std::string& validation_data);
-  void DoCloseConnection(ConnectionPtr connection);
-  void DoSend(ConnectionPtr connection,
-              const std::string& message,
-              const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
 
   void StartDispatch();
   void HandleDispatch(MultiplexerPtr multiplexer, const boost::system::error_code& ec);
-
-  ConnectionSet::iterator FindConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
 
   void SignalMessageReceived(const std::string& message);
   void DoSignalMessageReceived(const std::string& message);
@@ -140,16 +130,11 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DoInsertConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection);
   void DoRemoveConnection(ConnectionPtr connection);
+
   AsioService& asio_service_;
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
-  std::shared_ptr<asymm::PublicKey> this_public_key_;
-
-  // Because the connections can be in an idle initial state with no pending
-  // async operations (after calling PrepareSend()), they are kept alive with
-  // a shared_ptr in this map, as well as in the async operation handlers.
-  ConnectionSet connections_;
-  mutable boost::mutex mutex_;
+  std::unique_ptr<ConnectionManager> connection_manager_;
   OnMessage on_message_;
   OnConnectionAdded on_connection_added_;
   OnConnectionLost on_connection_lost_;

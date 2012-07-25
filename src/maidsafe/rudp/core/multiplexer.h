@@ -78,13 +78,11 @@ class Multiplexer {
     return kSendFailure;
   }
 
-  // Returns endpoint of peer requesting to join the network via this node.
-  boost::asio::ip::udp::endpoint GetJoiningPeerEndpoint();
-
   boost::asio::ip::udp::endpoint local_endpoint() const;
   boost::asio::ip::udp::endpoint external_endpoint() const;
 
   friend class Socket;
+  friend class ConnectionManager;
 
  private:
   // Disallow copying and assignment.

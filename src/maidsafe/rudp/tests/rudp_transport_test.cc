@@ -56,21 +56,24 @@ class RudpTransportTest : public testing::Test {
                  peers_added(),
                  peers_lost() {
       asymm::GenerateKeyPair(&key_pair);
-      transport.reset(new Transport(asio_service,
-          std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey(key_pair.public_key))));
+      transport.reset(new Transport(asio_service));
       Endpoint chosen_endpoint;
       std::vector<Endpoint> bootstrap_endpoints;
       boost::signals2::connection on_message_connection;
       boost::signals2::connection on_connection_added_connection;
       boost::signals2::connection on_connection_lost_connection;
-      transport->Bootstrap(bootstrap_endpoints, local_endpoint, true,
-                           boost::bind(&TestPeer::OnMessageSlot, this, _1),
-                           boost::bind(&TestPeer::OnConnectionAddedSlot, this, _1, _2),
-                           boost::bind(&TestPeer::OnConnectionLostSlot, this, _1, _2, _3, _4),
-                           &chosen_endpoint,
-                           &on_message_connection,
-                           &on_connection_added_connection,
-                           &on_connection_lost_connection);
+      transport->Bootstrap(
+          bootstrap_endpoints,
+          std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey(key_pair.public_key)),
+          local_endpoint,
+          true,
+          boost::bind(&TestPeer::OnMessageSlot, this, _1),
+          boost::bind(&TestPeer::OnConnectionAddedSlot, this, _1, _2),
+          boost::bind(&TestPeer::OnConnectionLostSlot, this, _1, _2, _3, _4),
+          &chosen_endpoint,
+          &on_message_connection,
+          &on_connection_added_connection,
+          &on_connection_lost_connection);
       asio_service.Start();
     }
 
