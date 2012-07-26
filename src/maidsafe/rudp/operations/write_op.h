@@ -35,6 +35,11 @@ class WriteOp {
         ec_(ec),
         bytes_transferred_(bytes_transferred) {}
 
+  WriteOp(const WriteOp& other)
+      : handler_(other.handler_),
+        ec_(other.ec_),
+        bytes_transferred_(other.bytes_transferred_) {}
+
   void operator()(boost::system::error_code) {
     handler_(*ec_, *bytes_transferred_);
   }

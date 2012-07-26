@@ -122,7 +122,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
                  const std::string& validation_data);
 
   void StartDispatch();
-  void HandleDispatch(MultiplexerPtr multiplexer, const boost::system::error_code& ec);
+  void HandleDispatch(const boost::system::error_code& ec);
 
   void SignalMessageReceived(const std::string& message);
   void DoSignalMessageReceived(const std::string& message);

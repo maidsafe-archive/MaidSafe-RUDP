@@ -41,6 +41,13 @@ class DispatchOp {
         sender_endpoint_(sender_endpoint),
         dispatcher_(dispatcher) {}
 
+  DispatchOp(const DispatchOp& other)
+      : handler_(other.handler_),
+        socket_(other.socket_),
+        buffer_(other.buffer_),
+        sender_endpoint_(other.sender_endpoint_),
+        dispatcher_(other.dispatcher_) {}
+
   void operator()(const boost::system::error_code& ec, size_t bytes_transferred) {
     boost::system::error_code local_ec = ec;
     while (!local_ec) {

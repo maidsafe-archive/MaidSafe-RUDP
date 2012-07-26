@@ -197,14 +197,12 @@ size_t Transport::ConnectionsCount() const {
 }
 
 void Transport::StartDispatch() {
-  auto handler = strand_.wrap(std::bind(&Transport::HandleDispatch, shared_from_this(),
-                                        multiplexer_, args::_1));
+  auto handler = strand_.wrap(std::bind(&Transport::HandleDispatch, shared_from_this(), args::_1));
   multiplexer_->AsyncDispatch(handler);
 }
 
-void Transport::HandleDispatch(MultiplexerPtr multiplexer,
-                               const boost::system::error_code &/*ec*/) {
-  if (!multiplexer->IsOpen())
+void Transport::HandleDispatch(const boost::system::error_code &/*ec*/) {
+  if (!multiplexer_->IsOpen())
     return;
 
   StartDispatch();

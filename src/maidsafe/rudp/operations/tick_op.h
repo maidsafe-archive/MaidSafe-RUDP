@@ -38,6 +38,11 @@ class TickOp {
         socket_(socket),
         tick_timer_(tick_timer) {}
 
+  TickOp(const TickOp& other)
+      : handler_(other.handler_),
+        socket_(other.socket_),
+        tick_timer_(other.tick_timer_) {}
+
   void operator()(boost::system::error_code) {
     boost::system::error_code ec;
     if (socket_->IsOpen()) {

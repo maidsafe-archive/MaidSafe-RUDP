@@ -32,6 +32,8 @@ class FlushOp {
       : handler_(handler),
         ec_(ec) {}
 
+  FlushOp(const FlushOp& other) : handler_(other.handler_), ec_(other.ec_) {}
+
   void operator()(boost::system::error_code) {
     handler_(*ec_);
   }

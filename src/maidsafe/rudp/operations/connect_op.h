@@ -32,6 +32,8 @@ class ConnectOp {
       : handler_(handler),
         ec_(ec) {}
 
+  ConnectOp(const ConnectOp& other) : handler_(other.handler_), ec_(other.ec_) {}
+
   void operator()(boost::system::error_code) {
     handler_(*ec_);
   }

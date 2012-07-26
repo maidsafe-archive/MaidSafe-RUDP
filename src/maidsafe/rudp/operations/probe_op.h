@@ -32,6 +32,8 @@ class ProbeOp {
       : handler_(handler),
         ec_(ec) {}
 
+  ProbeOp(const ProbeOp& other) : handler_(other.handler_), ec_(other.ec_) {}
+
   void operator()(boost::system::error_code ec) {
     if (boost::asio::error::timed_out == ec)
       handler_(ec);

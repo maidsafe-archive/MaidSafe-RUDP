@@ -550,7 +550,8 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
     EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
     EXPECT_EQ(endpoint, handshake_packet_.Endpoint());
-    ASSERT_TRUE(handshake_packet_.PublicKey());
+    bool public_key_not_null(handshake_packet_.PublicKey());
+    ASSERT_TRUE(public_key_not_null);
     EXPECT_TRUE(asymm::MatchingPublicKeys(keys.public_key, *handshake_packet_.PublicKey()));
 
     // Encode and decode with an invalid public key
