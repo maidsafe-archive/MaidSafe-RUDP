@@ -33,22 +33,19 @@ namespace maidsafe {
 
 namespace rudp {
 
-class Transport;
-class Connection;
-
 namespace detail {
 
+class Transport;
+class Connection;
 class Multiplexer;
 class Socket;
-
-}  // namespace detail
 
 
 class ConnectionManager {
  public:
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
-                    std::shared_ptr<detail::Multiplexer> multiplexer,
+                    std::shared_ptr<Multiplexer> multiplexer,
                     std::shared_ptr<asymm::PublicKey> this_public_key);
   ~ConnectionManager();
 
@@ -77,12 +74,12 @@ class ConnectionManager {
                                const std::string& validation_data);
 
   // Add a socket. Returns a new unique id for the socket.
-  uint32_t AddSocket(detail::Socket* socket);
+  uint32_t AddSocket(Socket* socket);
   void RemoveSocket(uint32_t id);
   // Called by the Dispatcher when a new packet arrives for a socket.  Can return nullptr if no
   // appropriate socket found.
-  detail::Socket* GetSocket(const boost::asio::const_buffer& data,
-                            const boost::asio::ip::udp::endpoint& endpoint);
+  Socket* GetSocket(const boost::asio::const_buffer& data,
+                    const boost::asio::ip::udp::endpoint& endpoint);
 
   size_t size() const;
 
@@ -90,11 +87,11 @@ class ConnectionManager {
   ConnectionManager(const ConnectionManager&);
   ConnectionManager& operator=(const ConnectionManager&);
 
-  typedef std::shared_ptr<detail::Multiplexer> MultiplexerPtr;
+  typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionSet;
   // Map of destination socket id to corresponding socket object.
-  typedef std::unordered_map<uint32_t, detail::Socket*> SocketMap;
+  typedef std::unordered_map<uint32_t, Socket*> SocketMap;
 
   void HandlePingFrom(const boost::asio::const_buffer& data,
                       const boost::asio::ip::udp::endpoint& endpoint);
@@ -106,10 +103,12 @@ class ConnectionManager {
   mutable boost::mutex mutex_;
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
-  std::shared_ptr<detail::Multiplexer> multiplexer_;
+  std::shared_ptr<Multiplexer> multiplexer_;
   std::shared_ptr<asymm::PublicKey> this_public_key_;
   SocketMap sockets_;
 };
+
+}  // namespace detail
 
 }  // namespace rudp
 

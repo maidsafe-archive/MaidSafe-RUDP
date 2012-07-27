@@ -34,6 +34,8 @@ namespace maidsafe {
 
 namespace rudp {
 
+namespace detail {
+
 namespace { typedef boost::asio::ip::udp::endpoint Endpoint; }
 
 
@@ -111,10 +113,10 @@ void ConnectionManager::Send(const Endpoint& peer_endpoint,
   strand_.dispatch([=] { (*itr)->StartSending(message, message_sent_functor); });  // NOLINT (Fraser)
 }
 
-detail::Socket* ConnectionManager::GetSocket(const asio::const_buffer& data,
+Socket* ConnectionManager::GetSocket(const asio::const_buffer& data,
                                              const Endpoint& endpoint) {
   uint32_t id(0);
-  if (!detail::Packet::DecodeDestinationSocketId(&id, data)) {
+  if (!Packet::DecodeDestinationSocketId(&id, data)) {
     LOG(kError) << "Received a non-RUDP packet from " << endpoint;
     return nullptr;
   }
@@ -167,7 +169,7 @@ detail::Socket* ConnectionManager::GetSocket(const asio::const_buffer& data,
 }
 
 void ConnectionManager::HandlePingFrom(const asio::const_buffer& data, const Endpoint& endpoint) {
-  detail::HandshakePacket handshake_packet;
+  HandshakePacket handshake_packet;
   if (!handshake_packet.Decode(data)) {
     LOG(kVerbose) << "Failed to decode handshake packet from " << endpoint
                   << " which is trying to ping this node or join the network";
@@ -219,7 +221,7 @@ void ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoint,
   strand_.dispatch([=] { (*itr)->StartSending(validation_data, std::function<void(int)>()); });  // NOLINT (Fraser)
 }
 
-uint32_t ConnectionManager::AddSocket(detail::Socket* socket) {
+uint32_t ConnectionManager::AddSocket(Socket* socket) {
   // Generate a new unique id for the socket.
   uint32_t id = 0;
   while (id == 0 || id == 0xffffffff || sockets_.find(id) != sockets_.end())
@@ -263,6 +265,7 @@ ConnectionManager::ConnectionSet::iterator ConnectionManager::FindConnection(
                       });
 }
 
+}  // namespace detail
 
 }  // namespace rudp
 

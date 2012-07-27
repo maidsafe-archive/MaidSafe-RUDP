@@ -27,9 +27,7 @@ namespace rudp {
 
 namespace detail {
 
-namespace test {
-class ControlPacketTest;
-}  // namespace test
+namespace test { class ControlPacketTest; }
 
 class ControlPacket : public Packet {
  public:

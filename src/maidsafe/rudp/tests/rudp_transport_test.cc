@@ -31,6 +31,8 @@ namespace rudp {
 
 typedef asio::ip::udp::endpoint Endpoint;
 
+namespace detail {
+
 namespace test {
 
 class RudpTransportTest : public testing::Test {
@@ -44,7 +46,7 @@ class RudpTransportTest : public testing::Test {
 
  protected:
   struct TestPeer {
-    TestPeer() : local_endpoint(GetLocalIp(), GetRandomPort()),
+    TestPeer() : local_endpoint(detail::GetLocalIp(), maidsafe::rudp::test::GetRandomPort()),
                  key_pair(),
                  mutex(),
                  cond_var_connection_added(),
@@ -208,6 +210,8 @@ TEST_F(RudpTransportTest, BEH_DropConnection) {
 }
 
 }  // namespace test
+
+}  // namespace detail
 
 }  // namespace rudp
 

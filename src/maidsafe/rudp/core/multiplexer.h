@@ -32,9 +32,10 @@ namespace maidsafe {
 
 namespace rudp {
 
-class ConnectionManager;
-
 namespace detail {
+
+class ConnectionManager;
+class Socket;
 
 class Multiplexer {
  public:
@@ -83,8 +84,8 @@ class Multiplexer {
   boost::asio::ip::udp::endpoint local_endpoint() const;
   boost::asio::ip::udp::endpoint external_endpoint() const;
 
+  friend class ConnectionManager;
   friend class Socket;
-  friend class maidsafe::rudp::ConnectionManager;
 
  private:
   // Disallow copying and assignment.

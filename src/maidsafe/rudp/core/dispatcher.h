@@ -23,10 +23,9 @@ namespace maidsafe {
 
 namespace rudp {
 
-class ConnectionManager;
-
 namespace detail {
 
+class ConnectionManager;
 class Socket;
 
 class Dispatcher {

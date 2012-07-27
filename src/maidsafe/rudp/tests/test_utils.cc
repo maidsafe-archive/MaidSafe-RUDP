@@ -56,8 +56,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
     nodes.push_back(std::make_shared<Node>(i));
 
   // Setting up first two nodes
-  Endpoint endpoint0(GetLocalIp(), GetRandomPort()),
-           endpoint1(GetLocalIp(), GetRandomPort()),
+  Endpoint endpoint0(detail::GetLocalIp(), GetRandomPort()),
+           endpoint1(detail::GetLocalIp(), GetRandomPort()),
            chosen_endpoint;
 
   boost::thread thread([&] {
@@ -126,7 +126,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   // Adding nodes to each other
   for (int i(2); i != node_count; ++i) {
     Endpoint chosen_endpoint(nodes[i]->Bootstrap(bootstrap_endpoints));
-    if (!IsValid(chosen_endpoint))
+    if (!detail::IsValid(chosen_endpoint))
       return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->id();
 
     for (int j(0); j != i; ++j) {

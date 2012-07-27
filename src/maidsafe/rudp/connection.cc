@@ -27,6 +27,7 @@
 #include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/session.h"
+#include "maidsafe/rudp/core/socket.h"
 
 namespace asio = boost::asio;
 namespace bs = boost::system;
@@ -38,9 +39,11 @@ namespace maidsafe {
 
 namespace rudp {
 
+namespace detail {
+
 Connection::Connection(const std::shared_ptr<Transport> &transport,
                        const asio::io_service::strand& strand,
-                       const std::shared_ptr<detail::Multiplexer> &multiplexer,
+                       const std::shared_ptr<Multiplexer> &multiplexer,
                        const ip::udp::endpoint& remote)
     : transport_(transport),
       strand_(strand),
@@ -57,10 +60,10 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       failed_probe_count_(0),
       timeout_state_(kConnecting),
       sending_(false) {
-  static_assert((sizeof(detail::DataSize)) == 4, "DataSize must be 4 bytes.");
+  static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
 }
 
-detail::Socket& Connection::Socket() {
+Socket& Connection::Socket() {
   return socket_;
 }
 
@@ -219,16 +222,16 @@ void Connection::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
                               const PingFunctor& ping_functor) {
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(),
                                         args::_1, validation_data, ping_functor));
-  detail::Session::Mode open_mode(detail::Session::kNormal);
+  Session::Mode open_mode(Session::kNormal);
   lifespan_timer_.expires_from_now(lifespan);
   if (validation_data.empty()) {
     assert(lifespan != bptime::pos_infin);
     if (lifespan > bptime::time_duration()) {
-      open_mode = detail::Session::kBootstrapAndKeep;
+      open_mode = Session::kBootstrapAndKeep;
       lifespan_timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckLifespanTimeout,
                                                         shared_from_this(), args::_1)));
     } else {
-      open_mode = detail::Session::kBootstrapAndDrop;
+      open_mode = Session::kBootstrapAndDrop;
     }
   }
   socket_.AsyncConnect(this_public_key, remote_endpoint_, handler, open_mode);
@@ -302,8 +305,8 @@ void Connection::StartReadSize() {
     return DoClose();
   }
   receive_buffer_.clear();
-  receive_buffer_.resize(sizeof(detail::DataSize));
-  socket_.AsyncRead(asio::buffer(receive_buffer_), sizeof(detail::DataSize),
+  receive_buffer_.resize(sizeof(DataSize));
+  socket_.AsyncRead(asio::buffer(receive_buffer_), sizeof(DataSize),
                     strand_.wrap(std::bind(&Connection::HandleReadSize,
                                            shared_from_this(), args::_1)));
 }
@@ -325,7 +328,7 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
     return DoClose();
   }
 
-  detail::DataSize size = (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) |
+  DataSize size = (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) |
                            receive_buffer_.at(2)) << 8) | receive_buffer_.at(3);
 
   data_size_ = size;
@@ -393,7 +396,7 @@ void Connection::DispatchMessage() {
 
 bool Connection::EncodeData(const std::string& data) {
   // Serialize message to internal buffer
-  detail::DataSize msg_size = static_cast<detail::DataSize>(data.size());
+  DataSize msg_size = static_cast<DataSize>(data.size());
   if (static_cast<size_t>(msg_size) >
           static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
     LOG(kError) << "Data size " << msg_size << " bytes (exceeds limit of "
@@ -481,6 +484,8 @@ void Connection::InvokeSentFunctor(const MessageSentFunctor& message_sent_functo
       message_sent_functor(result);
   }
 }
+
+}  // namespace detail
 
 }  // namespace rudp
 

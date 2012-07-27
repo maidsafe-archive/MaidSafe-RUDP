@@ -36,14 +36,13 @@ namespace maidsafe {
 namespace rudp {
 
 class ManagedConnections;
-class ConnectionManager;
-class Connection;
 
 namespace detail {
+
+class ConnectionManager;
+class Connection;
 class Multiplexer;
 class Socket;
-}  // namespace detail
-
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic push
@@ -115,7 +114,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   Transport(const Transport&);
   Transport& operator=(const Transport&);
 
-  typedef std::shared_ptr<detail::Multiplexer> MultiplexerPtr;
+  typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
 
   void DoConnect(const boost::asio::ip::udp::endpoint& peer_endpoint,
@@ -142,6 +141,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
 };
 
 typedef std::shared_ptr<Transport> TransportPtr;
+
+}  // namespace detail
 
 }  // namespace rudp
 

@@ -21,6 +21,8 @@ namespace maidsafe {
 
 namespace rudp {
 
+namespace detail {
+
 // Makes a UDP socket connection to peer_endpoint.  Note, no data is sent, so no information about
 // the validity or availability of the peer is deduced.  If the retrieved local endpoint is
 // unspecified or is the loopback address, the function returns a default-constructed (invalid)
@@ -31,6 +33,8 @@ boost::asio::ip::address GetLocalIp(
 
 // Returns true if port > 1024 and the address is correctly specified.
 bool IsValid(const boost::asio::ip::udp::endpoint& endpoint);
+
+}  // namespace detail
 
 }  // namespace rudp
 

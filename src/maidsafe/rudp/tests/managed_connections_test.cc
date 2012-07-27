@@ -74,7 +74,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // Unavailable bootstrap_endpoints
   EXPECT_EQ(Endpoint(),
             node_.managed_connections()->Bootstrap(
-                std::vector<Endpoint>(1, Endpoint(GetLocalIp(), 10000)),
+                std::vector<Endpoint>(1, Endpoint(detail::GetLocalIp(), 10000)),
                 do_nothing_on_message_,
                 do_nothing_on_connection_lost_,
                 node_.private_key(),
@@ -124,7 +124,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                                   do_nothing_on_connection_lost_,
                                                                   node_.private_key(),
                                                                   node_.public_key()));
-  EXPECT_TRUE(IsValid(chosen_endpoint));
+  EXPECT_TRUE(detail::IsValid(chosen_endpoint));
   EXPECT_NE(bootstrap_endpoints_.end(),
             std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
   // Already bootstrapped
@@ -160,20 +160,20 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
                                                                   do_nothing_on_connection_lost_,
                                                                   node_.private_key(),
                                                                   node_.public_key()));
-  EXPECT_TRUE(IsValid(chosen_endpoint));
+  EXPECT_TRUE(detail::IsValid(chosen_endpoint));
   EXPECT_NE(bootstrap_endpoints_.end(),
             std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
 
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint, this_endpoint_pair));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.external));
 
   EndpointPair another_endpoint_pair;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(Endpoint(), another_endpoint_pair));
-  EXPECT_TRUE(IsValid(another_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(another_endpoint_pair.external));
+  EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(another_endpoint_pair.external));
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
   EXPECT_NE(this_endpoint_pair.external, another_endpoint_pair.external);
 }
@@ -182,7 +182,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
   // Before bootstrapping
-  Endpoint random_this_endpoint(GetLocalIp(), GetRandomPort());
+  Endpoint random_this_endpoint(detail::GetLocalIp(), GetRandomPort());
   EXPECT_EQ(kInvalidTransport,
             node_.managed_connections()->Add(random_this_endpoint,
                                              bootstrap_endpoints_[1],
@@ -198,10 +198,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   EXPECT_EQ(kSuccess,
             nodes_[0]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.external,
                                                                    peer_endpoint_pair));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
-  EXPECT_TRUE(IsValid(peer_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(peer_endpoint_pair.external));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.external));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.external));
 
   auto peer_futures(nodes_[0]->GetFutureForMessages(1));
   auto this_node_futures(node_.GetFutureForMessages(1));
@@ -258,8 +258,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   EndpointPair another_endpoint_pair;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(Endpoint(), another_endpoint_pair));
-  EXPECT_TRUE(IsValid(another_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(another_endpoint_pair.external));
+  EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(another_endpoint_pair.external));
   EXPECT_NE(another_endpoint_pair.local, this_endpoint_pair.local);
   EXPECT_NE(another_endpoint_pair.external, this_endpoint_pair.external);
   EXPECT_EQ(kConnectionAlreadyExists,
@@ -305,10 +305,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   EXPECT_EQ(kSuccess,
             nodes_[0]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.external,
                                                                    peer_endpoint_pair));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
-  EXPECT_TRUE(IsValid(peer_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(peer_endpoint_pair.external));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.external));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.external));
 
   auto peer_futures(nodes_[0]->GetFutureForMessages(1));
   auto this_node_futures(node_.GetFutureForMessages(1));
@@ -427,10 +427,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   EXPECT_EQ(kSuccess,
             nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.external,
                                                                    peer_endpoint_pair));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
-  EXPECT_TRUE(IsValid(peer_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(peer_endpoint_pair.external));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.external));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.external));
 
   auto peer_futures(nodes_[1]->GetFutureForMessages(1));
   auto this_node_futures(node_.GetFutureForMessages(1));
@@ -464,12 +464,12 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   // Unavailable endpoint
   node_.ResetData();
   nodes_[1]->ResetData();
-  node_.managed_connections()->Send(Endpoint(GetLocalIp(), GetRandomPort()),
+  node_.managed_connections()->Send(Endpoint(detail::GetLocalIp(), GetRandomPort()),
                                     "message9",
                                     MessageSentFunctor());
   result_of_send = kSuccess;
   result_arrived = false;
-  node_.managed_connections()->Send(Endpoint(GetLocalIp(), GetRandomPort()),
+  node_.managed_connections()->Send(Endpoint(detail::GetLocalIp(), GetRandomPort()),
                                     "message10",
                                     message_sent_functor);
   ASSERT_TRUE(wait_for_result());
@@ -648,7 +648,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   Parameters::bootstrap_disconnection_timeout = bptime::seconds(6);
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
   Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0])));
-  EXPECT_TRUE(IsValid(chosen_endpoint));
+  EXPECT_TRUE(detail::IsValid(chosen_endpoint));
 
   // Send within bootstrap_disconnection_timeout period from node_ to nodes_[0]
   int result_of_send(kConnectError);
@@ -801,10 +801,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_Ping) {
   EXPECT_EQ(kSuccess,
             nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.external,
                                                                    peer_endpoint_pair));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(this_endpoint_pair.external));
-  EXPECT_TRUE(IsValid(peer_endpoint_pair.local));
-  EXPECT_TRUE(IsValid(peer_endpoint_pair.external));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.external));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.external));
 
   auto peer_futures(nodes_[1]->GetFutureForMessages(1));
   auto this_node_futures(node_.GetFutureForMessages(1));

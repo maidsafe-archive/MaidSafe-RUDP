@@ -34,13 +34,15 @@ namespace maidsafe {
 
 namespace rudp {
 
+namespace detail {
+
 namespace { typedef boost::asio::ip::udp::endpoint Endpoint; }
 
 
 Transport::Transport(AsioService& asio_service)  // NOLINT (Fraser)
     : asio_service_(asio_service),
       strand_(asio_service.service()),
-      multiplexer_(new detail::Multiplexer(asio_service.service())),
+      multiplexer_(new Multiplexer(asio_service.service())),
       connection_manager_(),
       on_message_(),
       on_connection_added_(),
@@ -240,6 +242,8 @@ void Transport::DoRemoveConnection(ConnectionPtr connection) {
   on_connection_lost_(connection->Socket().RemoteEndpoint(), shared_from_this(),
                       connections_empty, temporary_connection);
 }
+
+}  // namespace detail
 
 }  // namespace rudp
 

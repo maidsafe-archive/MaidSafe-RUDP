@@ -26,6 +26,8 @@ namespace maidsafe {
 
 namespace rudp {
 
+namespace detail {
+
 namespace {
 
 ip::udp::endpoint Resolve(ip::udp::resolver& resolver,
@@ -62,6 +64,8 @@ ip::address GetLocalIp(ip::udp::endpoint peer_endpoint) {
 bool IsValid(const ip::udp::endpoint& endpoint) {
   return endpoint.port() > 1024U && !endpoint.address().is_unspecified();
 }
+
+}  // namespace detail
 
 }  // namespace rudp
 

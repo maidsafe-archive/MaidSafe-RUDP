@@ -18,10 +18,12 @@
 #include <memory>
 #include <string>
 #include <vector>
+
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/asio/strand.hpp"
+
 #include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/transport.h"
 
@@ -34,9 +36,6 @@ namespace detail {
 typedef int32_t DataSize;
 
 class Multiplexer;
-class Socket;
-
-}  // namespace detail
 
 
 #ifdef __GNUC__
@@ -51,10 +50,10 @@ class Connection : public std::enable_shared_from_this<Connection> {
  public:
   Connection(const std::shared_ptr<Transport> &transport,
              const boost::asio::io_service::strand& strand,
-             const std::shared_ptr<detail::Multiplexer> &multiplexer,
+             const std::shared_ptr<Multiplexer> &multiplexer,
              const boost::asio::ip::udp::endpoint& remote);
 
-  detail::Socket& Socket();
+  Socket& Socket();
 
   void Close();
   // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
@@ -118,8 +117,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
-  std::shared_ptr<detail::Multiplexer> multiplexer_;
-  detail::Socket socket_;
+  std::shared_ptr<Multiplexer> multiplexer_;
+  maidsafe::rudp::detail::Socket socket_;
   boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
   boost::asio::ip::udp::endpoint remote_endpoint_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
@@ -128,6 +127,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   enum TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
   bool sending_;
 };
+
+}  // namespace detail
 
 }  // namespace rudp
 

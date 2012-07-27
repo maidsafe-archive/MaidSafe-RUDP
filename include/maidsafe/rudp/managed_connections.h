@@ -33,7 +33,7 @@ namespace maidsafe {
 
 namespace rudp {
 
-class Transport;
+namespace detail { class Transport; }
 
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
 typedef std::function<void(const boost::asio::ip::udp::endpoint&)> ConnectionLostFunctor;
@@ -98,15 +98,16 @@ class ManagedConnections {
   // kWontPingAlreadyConnected.  Otherwise, kPingFailed or kSuccess is passed to ping_functor.
   void Ping(const boost::asio::ip::udp::endpoint& peer_endpoint, PingFunctor ping_functor);
 
-  friend class Transport;
+  friend class detail::Transport;
 
  private:
-  typedef std::map<boost::asio::ip::udp::endpoint, std::shared_ptr<Transport>> ConnectionMap;
+  typedef std::map<boost::asio::ip::udp::endpoint,
+                   std::shared_ptr<detail::Transport>> ConnectionMap;
 
   struct TransportAndSignalConnections {
     TransportAndSignalConnections();
     void DisconnectSignalsAndClose();
-    std::shared_ptr<Transport> transport;
+    std::shared_ptr<detail::Transport> transport;
     boost::signals2::connection on_message_connection;
     boost::signals2::connection on_connection_added_connection;
     boost::signals2::connection on_connection_lost_connection;
@@ -125,9 +126,9 @@ class ManagedConnections {
 
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const boost::asio::ip::udp::endpoint& peer_endpoint,
-                             std::shared_ptr<Transport> transport);
+                             std::shared_ptr<detail::Transport> transport);
   void OnConnectionLostSlot(const boost::asio::ip::udp::endpoint& peer_endpoint,
-                            std::shared_ptr<Transport> transport,
+                            std::shared_ptr<detail::Transport> transport,
                             bool connections_empty,
                             bool temporary_connection);
 

@@ -24,6 +24,8 @@ namespace rudp {
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
 
+namespace detail {
+
 namespace test {
 
 TEST(UtilsTest, BEH_EndpointIsValid) {
@@ -65,6 +67,8 @@ TEST(UtilsTest, BEH_EndpointIsValid) {
 }
 
 }  // namespace test
+
+}  // namespace detail
 
 }  // namespace rudp
 
