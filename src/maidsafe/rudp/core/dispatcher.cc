@@ -37,7 +37,7 @@ void Dispatcher::SetConnectionManager(ConnectionManager* connection_manager) {
   connection_manager_ = connection_manager;
 }
 
-uint32_t Dispatcher::AddSocket(Socket *socket) {
+uint32_t Dispatcher::AddSocket(Socket* socket) {
   return connection_manager_ ? connection_manager_->AddSocket(socket) : 0;
 }
 

@@ -393,7 +393,7 @@ bool ManagedConnections::DirectConnected(boost::asio::ip::address& this_address)
   return true;
 }
 
-void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address &this_address) {
+void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address& this_address) {
   resilience_transport_.transport = std::make_shared<detail::Transport>(asio_service_);
   std::vector<Endpoint> bootstrap_endpoints;
   {
