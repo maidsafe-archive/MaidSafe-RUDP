@@ -53,7 +53,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
              const std::shared_ptr<Multiplexer> &multiplexer,
              const boost::asio::ip::udp::endpoint& remote);
 
-  Socket& Socket();
+  detail::Socket& Socket();
 
   void Close();
   // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
