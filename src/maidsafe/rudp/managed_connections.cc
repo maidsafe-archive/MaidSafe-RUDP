@@ -251,10 +251,10 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
     return kEmptyValidationData;
   }
 
-  std::vector<TransportAndSignalConnections>::iterator itr;
+  std::shared_ptr<detail::Transport> transport_ptr;
   {
     UniqueLock unique_lock(shared_mutex_);
-    itr = std::find_if(
+    auto itr = std::find_if(
         transports_.begin(),
         transports_.end(),
         [&this_endpoint] (const TransportAndSignalConnections& element) {
@@ -268,10 +268,12 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
       return kInvalidTransport;
     }
 
+    transport_ptr = (*itr).transport;
+
     auto connection_map_itr = connection_map_.find(peer_endpoint);
     if (connection_map_itr != connection_map_.end()) {
       if ((*connection_map_itr).second->IsTemporaryConnection(peer_endpoint)) {
-        (*itr).transport->MakeConnectionPermanent(peer_endpoint, validation_data);
+        transport_ptr->MakeConnectionPermanent(peer_endpoint, validation_data);
         return kSuccess;
       } else {
         LOG(kError) << "A permanent managed connection to " << peer_endpoint << " already exists";
@@ -280,9 +282,9 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
     }
   }
 
-  LOG(kInfo) << "Attempting to connect from "<< (*itr).transport->external_endpoint() << " to  "
+  LOG(kInfo) << "Attempting to connect from "<< transport_ptr->external_endpoint() << " to  "
              << peer_endpoint;
-  (*itr).transport->Connect(peer_endpoint, validation_data);
+  transport_ptr->Connect(peer_endpoint, validation_data);
   return kSuccess;
 }
 
