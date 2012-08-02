@@ -718,15 +718,15 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   });
 
   // Perform sends
-  std::vector<std::thread> threads;
+  std::vector<boost::thread> threads(kNetworkSize);
   for (int i(0); i != kNetworkSize - 1; ++i) {
-    threads.push_back(std::move(std::thread(&ManagedConnections::Send,
-                                            nodes_[i]->managed_connections(),
-                                            this_node_endpoints[i],
-                                            sent_messages[i],
-                                            message_sent_functors[i])));
+    threads[i] = boost::thread(&ManagedConnections::Send,
+                               nodes_[i]->managed_connections().get(),
+                               this_node_endpoints[i],
+                               sent_messages[i],
+                               message_sent_functors[i]);
   }
-  for (std::thread& thread : threads)
+  for (boost::thread& thread : threads)
     thread.join();
 
   // Assess results
