@@ -15,6 +15,7 @@
 #define MAIDSAFE_RUDP_CORE_MULTIPLEXER_H_
 
 #include <array>  // NOLINT
+#include <mutex>
 #include <vector>
 
 #include "boost/asio/io_service.hpp"
@@ -71,6 +72,7 @@ class Multiplexer {
       boost::system::error_code ec;
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
+        std::lock_guard<std::mutex> lock(mutex_);
         LOG(kWarning) << "Error sending from " << external_endpoint_ << " to << " << endpoint
                       << " - " << ec.message();
         return kSendFailure;
@@ -104,6 +106,9 @@ class Multiplexer {
 
   // This node's external endpoint - passed to session and set during handshaking.
   boost::asio::ip::udp::endpoint external_endpoint_;
+
+  // Mutex to protect access to external_endpoint_.
+  mutable std::mutex mutex_;
 };
 
 }  // namespace detail

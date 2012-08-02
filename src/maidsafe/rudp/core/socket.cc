@@ -38,10 +38,9 @@ namespace detail {
 
 Socket::Socket(Multiplexer& multiplexer)  // NOLINT (Fraser)
     : dispatcher_(multiplexer.dispatcher_),
-      mutex_(),
       peer_(multiplexer),
       tick_timer_(multiplexer.socket_.get_io_service()),
-      session_(peer_, tick_timer_, multiplexer.external_endpoint_),
+      session_(peer_, tick_timer_, multiplexer.external_endpoint_, multiplexer.mutex_),
       congestion_control_(),
       sender_(peer_, tick_timer_, congestion_control_),
       receiver_(peer_, tick_timer_, congestion_control_),
@@ -163,7 +162,6 @@ void Socket::StartProbe() {
 }
 
 void Socket::StartWrite(const asio::const_buffer& data) {
-  std::lock_guard<std::mutex> lock(mutex_);
   // Check for a no-op write.
   if (asio::buffer_size(data) == 0) {
     waiting_write_ec_.clear();
@@ -199,7 +197,6 @@ void Socket::ProcessWrite() {
 }
 
 void Socket::StartRead(const asio::mutable_buffer& data, size_t transfer_at_least) {
-  std::lock_guard<std::mutex> lock(mutex_);
   // Check for a no-read write.
   if (asio::buffer_size(data) == 0) {
     waiting_read_ec_.clear();
@@ -323,7 +320,6 @@ void Socket::HandleKeepalive(const KeepalivePacket& packet) {
 }
 
 void Socket::HandleData(const DataPacket& packet) {
-  std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     receiver_.HandleData(packet);
     ProcessRead();
@@ -332,7 +328,6 @@ void Socket::HandleData(const DataPacket& packet) {
 }
 
 void Socket::HandleAck(const AckPacket& packet) {
-  std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     sender_.HandleAck(packet);
     ProcessRead();
@@ -342,7 +337,6 @@ void Socket::HandleAck(const AckPacket& packet) {
 }
 
 void Socket::HandleAckOfAck(const AckOfAckPacket& packet) {
-  std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     receiver_.HandleAckOfAck(packet);
     ProcessRead();
@@ -358,7 +352,6 @@ void Socket::HandleNegativeAck(const NegativeAckPacket& packet) {
 }
 
 void Socket::HandleTick() {
-  std::lock_guard<std::mutex> lock(mutex_);
   if (session_.IsConnected()) {
     sender_.HandleTick();
     receiver_.HandleTick();

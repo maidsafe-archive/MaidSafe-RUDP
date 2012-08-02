@@ -251,10 +251,10 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
     return kEmptyValidationData;
   }
 
-  std::vector<TransportAndSignalConnections>::iterator itr;
+  std::shared_ptr<detail::Transport> transport_ptr;
   {
     UniqueLock unique_lock(shared_mutex_);
-    itr = std::find_if(
+    auto itr = std::find_if(
         transports_.begin(),
         transports_.end(),
         [&this_endpoint] (const TransportAndSignalConnections& element) {
@@ -268,10 +268,12 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
       return kInvalidTransport;
     }
 
+    transport_ptr = (*itr).transport;
+
     auto connection_map_itr = connection_map_.find(peer_endpoint);
     if (connection_map_itr != connection_map_.end()) {
       if ((*connection_map_itr).second->IsTemporaryConnection(peer_endpoint)) {
-        (*itr).transport->MakeConnectionPermanent(peer_endpoint, validation_data);
+        transport_ptr->MakeConnectionPermanent(peer_endpoint, validation_data);
         return kSuccess;
       } else {
         LOG(kError) << "A permanent managed connection to " << peer_endpoint << " already exists";
@@ -280,9 +282,9 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
     }
   }
 
-  LOG(kInfo) << "Attempting to connect from "<< (*itr).transport->external_endpoint() << " to  "
+  LOG(kInfo) << "Attempting to connect from "<< transport_ptr->external_endpoint() << " to  "
              << peer_endpoint;
-  (*itr).transport->Connect(peer_endpoint, validation_data);
+  transport_ptr->Connect(peer_endpoint, validation_data);
   return kSuccess;
 }
 
@@ -305,7 +307,7 @@ void ManagedConnections::Send(const Endpoint& peer_endpoint,
     LOG(kError) << "Can't send to " << peer_endpoint << " - not in map.";
     if (message_sent_functor) {
       if (!connection_map_.empty()) {
-        asio_service_.service().dispatch([message_sent_functor] {
+        asio_service_.service().post([message_sent_functor] {
           message_sent_functor(kInvalidConnection);
         });
       } else {
@@ -334,9 +336,7 @@ void ManagedConnections::Ping(const Endpoint& peer_endpoint, PingFunctor ping_fu
   SharedLock shared_lock(shared_mutex_);
   // Check this node isn't already connected to peer
   if (connection_map_.find(peer_endpoint) != connection_map_.end()) {
-    asio_service_.service().dispatch([ping_functor] {
-      ping_functor(kWontPingAlreadyConnected);
-    });
+    asio_service_.service().post([ping_functor] { ping_functor(kWontPingAlreadyConnected); });  // NOLINT (Fraser)
     return;
   }
 
@@ -347,7 +347,7 @@ void ManagedConnections::Ping(const Endpoint& peer_endpoint, PingFunctor ping_fu
                      return tprt_and_sigs_conns.transport->external_endpoint() == peer_endpoint;
                    }) != transports_.end()) {
     LOG(kError) << "Trying to ping ourself.";
-    asio_service_.service().dispatch([ping_functor] { ping_functor(kWontPingOurself); });  // NOLINT (Fraser)
+    asio_service_.service().post([ping_functor] { ping_functor(kWontPingOurself); });  // NOLINT (Fraser)
     return;
   }
 

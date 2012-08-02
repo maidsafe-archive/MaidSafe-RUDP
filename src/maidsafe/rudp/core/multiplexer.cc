@@ -33,7 +33,8 @@ Multiplexer::Multiplexer(asio::io_service& asio_service) //NOLINT
     receive_buffer_(Parameters::max_size),
     sender_endpoint_(),
     dispatcher_(),
-    external_endpoint_() {}
+    external_endpoint_(),
+    mutex_() {}
 
 ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
   if (socket_.is_open()) {
@@ -85,6 +86,7 @@ void Multiplexer::Close() {
   if (ec)
     LOG(kWarning) << "Multiplexer closing error: " << ec.message();
   assert(!IsOpen());
+  std::lock_guard<std::mutex> lock(mutex_);
   external_endpoint_ = ip::udp::endpoint();
 }
 
@@ -99,6 +101,7 @@ ip::udp::endpoint Multiplexer::local_endpoint() const {
 }
 
 ip::udp::endpoint Multiplexer::external_endpoint() const {
+  std::lock_guard<std::mutex> lock(mutex_);
   return external_endpoint_;
 }
 

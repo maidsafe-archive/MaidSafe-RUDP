@@ -14,7 +14,6 @@
 #ifndef MAIDSAFE_RUDP_CORE_SOCKET_H_
 #define MAIDSAFE_RUDP_CORE_SOCKET_H_
 
-#include <mutex>
 #include <cstdint>
 #include <memory>
 #include <deque>
@@ -206,9 +205,6 @@ class Socket {
 
   // The dispatcher that holds this sockets registration.
   Dispatcher& dispatcher_;
-
-  // Mutex to protect access to the buffers during read/write operations.
-  std::mutex mutex_;
 
   // The remote peer with which we are communicating.
   Peer peer_;

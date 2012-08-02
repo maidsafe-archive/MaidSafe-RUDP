@@ -28,23 +28,6 @@ namespace rudp {
 
 namespace detail {
 
-namespace {
-
-ip::udp::endpoint Resolve(ip::udp::resolver& resolver,
-                          std::pair<std::string, std::string> address_and_port) {
-  try {
-    ip::udp::resolver::query query(ip::udp::v4(), address_and_port.first, address_and_port.second);
-    return* resolver.resolve(query);
-  }
-  catch(const std::exception& e) {
-    LOG(kError) << "Failed resolving " << address_and_port.first << ":" << address_and_port.second
-                << " - " << e.what();
-    return ip::udp::endpoint();
-  }
-}
-
-}  // unnamed namespace
-
 ip::address GetLocalIp(ip::udp::endpoint peer_endpoint) {
   asio::io_service io_service;
   ip::udp::socket socket(io_service);
