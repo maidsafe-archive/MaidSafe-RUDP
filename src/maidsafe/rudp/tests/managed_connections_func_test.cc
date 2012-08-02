@@ -63,15 +63,23 @@ class ManagedConnectionsFuncTest : public testing::Test {
     }
 
     // Sending messages
+    std::vector<std::vector<std::vector<int>>> send_results(                      // NOLINT (Fraser)
+        nodes_.size(),
+        std::vector<std::vector<int>>(                                            // NOLINT (Fraser)
+            nodes_.size() - 1,
+            std::vector<int>(num_messages, kReturnCodeLimit)));
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       std::vector<Endpoint> peers(nodes_.at(i)->GetConnectedEndPoints());
-      std::for_each(peers.begin(), peers.end(), [&](const Endpoint& peer) {
-        // TODO(Fraser#5#): 2012-06-14 - Use valid MessageSentFunctor and check results
-        for (uint16_t j = 0; j != num_messages; ++j) {
-          nodes_.at(i)->managed_connections()->Send(peer, sent_messages.at(i),
-                                                    MessageSentFunctor());
+      ASSERT_EQ(nodes_.size() - 1, peers.size());
+      for (uint16_t j = 0; j != peers.size(); ++j) {
+        for (uint16_t k = 0; k != num_messages; ++k) {
+          nodes_.at(i)->managed_connections()->Send(peers.at(j),
+                                                    sent_messages.at(i),
+                                                    [=, &send_results](int result_in) {
+                                                      send_results[i][j][k] = result_in;
+                                                    });
         }
-      });
+      }
     }
 
     // Waiting for all results (promises)
@@ -81,6 +89,16 @@ class ManagedConnectionsFuncTest : public testing::Test {
         EXPECT_TRUE(!messages.empty());
       } else {
         EXPECT_FALSE(true) << "Timed out on " << nodes_.at(i)->id();
+      }
+    }
+
+    // Check send results
+    for (uint16_t i = 0; i != nodes_.size(); ++i) {
+      for (uint16_t j = 0; j != nodes_.size() - 1; ++j) {
+        for (uint16_t k = 0; k != num_messages; ++k) {
+          EXPECT_EQ(kSuccess, send_results[i][j][k])
+              << "send_results[" << i << "][" << j << "][" << k << "]: " << send_results[i][j][k];
+        }
       }
     }
 
