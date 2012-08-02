@@ -14,6 +14,7 @@
 #ifndef MAIDSAFE_RUDP_CORE_SESSION_H_
 #define MAIDSAFE_RUDP_CORE_SESSION_H_
 
+#include <mutex>
 #include <cstdint>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/asio/ip/udp.hpp"
@@ -35,7 +36,8 @@ class Session {
 
   explicit Session(Peer& peer,                                                    // NOLINT (Fraser)
                    TickTimer& tick_timer,
-                   boost::asio::ip::udp::endpoint& this_external_endpoint);
+                   boost::asio::ip::udp::endpoint& this_external_endpoint,
+                   std::mutex& this_external_endpoint_mutex);
 
   // Open the session.
   void Open(uint32_t id,
@@ -90,6 +92,9 @@ class Session {
 
   // This node's external endpoint as viewed by peer.  Object owned by multiplexer.
   boost::asio::ip::udp::endpoint& this_external_endpoint_;
+
+  // Mutex protecting this_external_endpoint_.  Object owned by multiplexer.
+  std::mutex &this_external_endpoint_mutex_;
 
   // This node's public key
   std::shared_ptr<asymm::PublicKey> this_public_key_;

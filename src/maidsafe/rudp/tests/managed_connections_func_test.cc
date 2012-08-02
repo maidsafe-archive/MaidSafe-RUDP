@@ -76,17 +76,22 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Waiting for all results (promises)
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      ASSERT_TRUE(futures.at(i).timed_wait(bptime::seconds(5))) << "Timed out on "
-                                                                << nodes_.at(i)->id();
-      auto messages(futures.at(i).get());
-      EXPECT_TRUE(!messages.empty());
+      if (futures.at(i).timed_wait(bptime::seconds(5))) {
+        auto messages(futures.at(i).get());
+        EXPECT_TRUE(!messages.empty());
+      } else {
+        EXPECT_FALSE(true) << "Timed out on " << nodes_.at(i)->id();
+      }
     }
 
     // Check messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       for (uint16_t j = 0; j != sent_messages.size(); ++j) {
         if (i != j)
-          EXPECT_EQ(num_messages, nodes_.at(i)->GetReceivedMessageCount(sent_messages.at(j)));
+          EXPECT_EQ(num_messages, nodes_.at(i)->GetReceivedMessageCount(sent_messages.at(j)))
+              << nodes_.at(i)->id() << " only got "
+              << nodes_.at(i)->GetReceivedMessageCount(sent_messages.at(j)) << " out of "
+              << num_messages << " type " << sent_messages.at(j).substr(0, 10) << " messages.";
       }
     }
   }

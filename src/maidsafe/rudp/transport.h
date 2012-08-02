@@ -23,7 +23,6 @@
 #include "boost/asio/strand.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/signals2/signal.hpp"
-#include "boost/thread/mutex.hpp"
 
 #include "maidsafe/common/asio_service.h"
 #include "maidsafe/common/rsa.h"

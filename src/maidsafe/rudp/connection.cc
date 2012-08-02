@@ -419,8 +419,8 @@ void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
   }
 
   socket_.AsyncWrite(asio::buffer(send_buffer_),
-                     std::bind(&Connection::HandleWrite, shared_from_this(),
-                               args::_1, message_sent_functor));
+                     strand_.wrap(std::bind(&Connection::HandleWrite, shared_from_this(),
+                                  args::_1, message_sent_functor)));
 }
 
 void Connection::HandleWrite(const bs::error_code& ec,

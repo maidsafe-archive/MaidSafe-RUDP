@@ -33,10 +33,12 @@ namespace detail {
 
 Session::Session(Peer& peer,  // NOLINT (Fraser)
                  TickTimer& tick_timer,
-                 boost::asio::ip::udp::endpoint& this_external_endpoint)
+                 boost::asio::ip::udp::endpoint& this_external_endpoint,
+                 std::mutex& this_external_endpoint_mutex)
     : peer_(peer),
       tick_timer_(tick_timer),
       this_external_endpoint_(this_external_endpoint),
+      this_external_endpoint_mutex_(this_external_endpoint_mutex),
       this_public_key_(),
       id_(0),
       sending_sequence_number_(0),
@@ -101,6 +103,7 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
       //                  as "this local endpoint" (i.e. we connected to a peer on the same local
       //                  network), or this_external_endpoint_ was 0.0.0.0 (i.e. this is the first
       //                  connection on this transport).
+      std::lock_guard<std::mutex> lock(this_external_endpoint_mutex_);
       this_external_endpoint_ = packet.Endpoint();
     } else {
       LOG(kError) << "Invalid external endpoint in handshake: " << packet.Endpoint();
