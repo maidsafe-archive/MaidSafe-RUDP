@@ -110,6 +110,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void DoProbe(const boost::system::error_code& ec);
   void HandleProbe(const boost::system::error_code& ec);
 
+  void DoMakePermanent();
+
   void DispatchMessage();
   bool EncodeData(const std::string& data);
 

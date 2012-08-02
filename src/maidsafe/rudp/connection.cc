@@ -119,6 +119,10 @@ bool Connection::IsTemporary() const {
 }
 
 void Connection::MakePermanent() {
+  strand_.dispatch(std::bind(&Connection::DoMakePermanent, shared_from_this()));
+}
+
+void Connection::DoMakePermanent() {
   lifespan_timer_.expires_at(bptime::pos_infin);
   socket_.MakePermanent();
 }
