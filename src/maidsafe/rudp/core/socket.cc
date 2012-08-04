@@ -252,9 +252,7 @@ void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::en
     HandshakePacket handshake_packet;
     ShutdownPacket shutdown_packet;
     KeepalivePacket keepalive_packet;
-    if (keepalive_packet.Decode(data)) {
-      HandleKeepalive(keepalive_packet);
-    } else if (data_packet.Decode(data)) {
+    if (data_packet.Decode(data)) {
       HandleData(data_packet);
     } else if (ack_packet.Decode(data)) {
       HandleAck(ack_packet);
@@ -262,6 +260,8 @@ void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::en
       HandleAckOfAck(ack_of_ack_packet);
     } else if (negative_ack_packet.Decode(data)) {
       HandleNegativeAck(negative_ack_packet);
+    } else if (keepalive_packet.Decode(data)) {
+      HandleKeepalive(keepalive_packet);
     } else if (handshake_packet.Decode(data)) {
       HandleHandshake(handshake_packet);
     } else if (shutdown_packet.Decode(data)) {

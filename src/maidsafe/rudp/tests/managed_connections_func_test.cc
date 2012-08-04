@@ -49,12 +49,18 @@ class ManagedConnectionsFuncTest : public testing::Test {
   // Each node sending n messsages to all other connected nodes.
   void RunNetworkTest(const uint16_t& num_messages, const int& messages_size) {
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
-    std::vector<std::string> sent_messages;
+    std::vector<std::vector<std::string>> sent_messages;
     std::vector<boost::unique_future<std::vector<std::string>>> futures;  // NOLINT (Fraser)
 
     // Generate_messages
-    for (uint8_t i = 0; i != nodes_.size(); ++i)
-      sent_messages.push_back(std::string(messages_size, 'A' + i));
+    for (uint16_t i = 0; i != nodes_.size(); ++i) {
+      sent_messages.push_back(std::vector<std::string>());
+      std::string message_prefix(std::string("Msg from ") + nodes_[i]->id() + " ");
+      for (uint8_t j = 0; j != num_messages; ++j) {
+        sent_messages[i].push_back(
+            message_prefix + std::string(messages_size - message_prefix.size(), 'A' + j));
+      }
+    }
 
     // Get futures for messages from individual nodes
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
@@ -74,7 +80,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
       for (uint16_t j = 0; j != peers.size(); ++j) {
         for (uint16_t k = 0; k != num_messages; ++k) {
           nodes_.at(i)->managed_connections()->Send(peers.at(j),
-                                                    sent_messages.at(i),
+                                                    sent_messages[i][k],
                                                     [=, &send_results](int result_in) {
                                                       send_results[i][j][k] = result_in;
                                                     });
@@ -84,7 +90,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Waiting for all results (promises)
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      if (futures.at(i).timed_wait(bptime::seconds(5))) {
+      bptime::milliseconds timeout((num_messages * messages_size / 20) + 5000);
+      if (futures.at(i).timed_wait(timeout)) {
         auto messages(futures.at(i).get());
         EXPECT_TRUE(!messages.empty());
       } else {
@@ -94,22 +101,17 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Check send results
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      for (uint16_t j = 0; j != nodes_.size() - 1; ++j) {
+      for (uint16_t j = 0; j != nodes_.size(); ++j) {
         for (uint16_t k = 0; k != num_messages; ++k) {
-          EXPECT_EQ(kSuccess, send_results[i][j][k])
-              << "send_results[" << i << "][" << j << "][" << k << "]: " << send_results[i][j][k];
+          if (j != nodes_.size() - 1) {
+            EXPECT_EQ(kSuccess, send_results[i][j][k])
+                << "send_results[" << i << "][" << j << "][" << k << "]: " << send_results[i][j][k];
+          }
+          if (i != j) {
+            EXPECT_EQ(1U, nodes_.at(i)->GetReceivedMessageCount(sent_messages[j][k]))
+                << nodes_.at(i)->id() << " didn't receive " << sent_messages[j][k].substr(0, 20);
+          }
         }
-      }
-    }
-
-    // Check messages
-    for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      for (uint16_t j = 0; j != sent_messages.size(); ++j) {
-        if (i != j)
-          EXPECT_EQ(num_messages, nodes_.at(i)->GetReceivedMessageCount(sent_messages.at(j)))
-              << nodes_.at(i)->id() << " only got "
-              << nodes_.at(i)->GetReceivedMessageCount(sent_messages.at(j)) << " out of "
-              << num_messages << " type " << sent_messages.at(j).substr(0, 10) << " messages.";
       }
     }
   }
