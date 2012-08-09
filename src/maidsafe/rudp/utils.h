@@ -29,7 +29,8 @@ namespace detail {
 // address.
 boost::asio::ip::address GetLocalIp(
     boost::asio::ip::udp::endpoint peer_endpoint =
-        boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::from_string("203.0.113.9"), 0));
+        boost::asio::ip::udp::endpoint(
+            boost::asio::ip::address_v4::from_string("203.0.113.9"), 80));
 
 // Returns true if port > 1024 and the address is correctly specified.
 bool IsValid(const boost::asio::ip::udp::endpoint& endpoint);

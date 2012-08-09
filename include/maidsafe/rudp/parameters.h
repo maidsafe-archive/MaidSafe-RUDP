@@ -39,7 +39,7 @@ struct Parameters {
   // Packet size permitted in RUDP.  Shall not exceed the UDP payload, which is 65507.
   static uint32_t default_size;
   static uint32_t max_size;
-  enum { kUDPPayload = 65500 };
+  enum { kUDPPayload = 65507 };
 
   // Data Payload size permitted in RUDP.  Shall not exceed Packet Size defined.
   static uint32_t default_data_size;
