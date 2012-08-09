@@ -59,7 +59,8 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       data_received_(0),
       failed_probe_count_(0),
       timeout_state_(kConnecting),
-      sending_(false) {
+      sending_(false),
+      is_temporary_(true) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
 }
 
@@ -115,7 +116,7 @@ void Connection::DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public
 }
 
 bool Connection::IsTemporary() const {
-  return lifespan_timer_.expires_from_now() < bptime::pos_infin;
+  return is_temporary_;
 }
 
 void Connection::MakePermanent() {
@@ -123,6 +124,7 @@ void Connection::MakePermanent() {
 }
 
 void Connection::DoMakePermanent() {
+  is_temporary_ = false;
   lifespan_timer_.expires_at(bptime::pos_infin);
   socket_.MakePermanent();
 }

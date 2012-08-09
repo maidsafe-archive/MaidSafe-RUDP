@@ -14,6 +14,7 @@
 #ifndef MAIDSAFE_RUDP_CONNECTION_H_
 #define MAIDSAFE_RUDP_CONNECTION_H_
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <string>
@@ -128,6 +129,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   uint8_t failed_probe_count_;
   enum TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
   bool sending_;
+  std::atomic<bool> is_temporary_;
 };
 
 }  // namespace detail
