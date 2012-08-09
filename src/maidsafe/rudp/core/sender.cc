@@ -166,6 +166,8 @@ void Sender::DoSend() {
         congestion_control_.OnDataPacketSent(n);
         tick_timer_.TickAt(now + congestion_control_.SendDelay());
         return;
+      } else {
+        LOG(kVerbose) << "DoSend - failed sending packet " << n;
       }
     }
   }

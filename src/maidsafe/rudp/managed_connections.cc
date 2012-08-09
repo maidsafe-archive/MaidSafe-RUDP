@@ -472,10 +472,19 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint& peer_endpoint,
                                           " - not removing transport.  Now have ")
                    << connection_map_.size() << " connections.";
       } else {
-        assert(temporary_connection);
-        LOG(kInfo) << "Not removing managed connection from "
-                   << (*connection_itr).second->external_endpoint() << " to " << peer_endpoint
-                   << "  Now have " << connection_map_.size() << " connections.";
+        std::string msg("Not removing managed connection from ");
+        msg += (*connection_itr).second->external_endpoint().address().to_string();
+        msg += ":" + boost::lexical_cast<std::string>(
+                         (*connection_itr).second->external_endpoint().port());
+        msg += " to " + peer_endpoint.address().to_string();
+        msg += ":" + boost::lexical_cast<std::string>(peer_endpoint.port());
+        msg += "  Now have " + boost::lexical_cast<std::string>(connection_map_.size());
+        msg += " connections.";
+        LOG(kInfo) << msg;
+//        LOG(kInfo) << "Not removing managed connection from "
+//                   << (*connection_itr).second->external_endpoint() << " to " << peer_endpoint
+//                   << "  Now have " << connection_map_.size() << " connections.";
+        BOOST_ASSERT_MSG(temporary_connection, msg.c_str());
         remove_transport = false;
       }
     }
