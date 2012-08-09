@@ -42,6 +42,8 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
     return kAlreadyStarted;
   }
 
+  assert(!endpoint.address().is_unspecified());
+
   bs::error_code ec;
   socket_.open(endpoint.protocol(), ec);
 
@@ -58,19 +60,10 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
     return kSetOptionFailure;
   }
 
-  if (!endpoint.address().is_unspecified()) {
-    socket_.bind(endpoint, ec);
-    if (ec) {
-      LOG(kError) << "Multiplexer socket binding error: " << ec.message();
-      return kBindError;
-    }
-  } else {
-    // TODO(Team): Replace below with valid address and replace connect with sending data if reqd.
-    socket_.connect(ip::udp::endpoint(ip::address_v4::from_string("8.8.8.8"), 9000), ec);
-    if (ec) {
-      LOG(kError) << "Multiplexer socket connect error: " << ec.message();
-      return kConnectError;
-    }
+  socket_.bind(endpoint, ec);
+  if (ec) {
+    LOG(kError) << "Multiplexer socket binding error: " << ec.message();
+    return kBindError;
   }
 
   return kSuccess;

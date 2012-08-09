@@ -144,22 +144,8 @@ void Transport::Connect(const Endpoint& peer_endpoint, const std::string& valida
 }
 
 void Transport::DoConnect(const Endpoint& peer_endpoint, const std::string& validation_data) {
-  bool opened_multiplexer(false);
-
-  if (!multiplexer_->IsOpen()) {
-    ReturnCode result =
-        multiplexer_->Open(Endpoint(peer_endpoint.protocol(), 0));
-    if (result != kSuccess) {
-      LOG(kError) << "Failed to open multiplexer.  Error " << result;
-      return;
-    }
-    opened_multiplexer = true;
-  }
-
+  assert(multiplexer_->IsOpen());
   connection_manager_->Connect(peer_endpoint, validation_data, bptime::pos_infin);
-
-  if (opened_multiplexer)
-    StartDispatch();
 }
 
 int Transport::CloseConnection(const Endpoint& peer_endpoint) {
