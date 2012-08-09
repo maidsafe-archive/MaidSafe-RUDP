@@ -37,7 +37,8 @@ class Session {
   explicit Session(Peer& peer,                                                    // NOLINT (Fraser)
                    TickTimer& tick_timer,
                    boost::asio::ip::udp::endpoint& this_external_endpoint,
-                   std::mutex& this_external_endpoint_mutex);
+                   std::mutex& this_external_endpoint_mutex,
+                   const boost::asio::ip::udp::endpoint& this_local_endpoint);
 
   // Open the session.
   void Open(uint32_t id,
@@ -79,6 +80,8 @@ class Session {
   Session(const Session&);
   Session& operator=(const Session&);
 
+  bool CalculateEndpoint(const boost::asio::ip::udp::endpoint& this_reported_endpoint);
+
   // Helper functions to send the packets that make up the handshaking process.
   void SendPacket();
   void SendConnectionRequest();
@@ -95,6 +98,9 @@ class Session {
 
   // Mutex protecting this_external_endpoint_.  Object owned by multiplexer.
   std::mutex &this_external_endpoint_mutex_;
+
+  // This node's local endpoint.
+  const boost::asio::ip::udp::endpoint kThisLocalEndpoint_;
 
   // This node's public key
   std::shared_ptr<asymm::PublicKey> this_public_key_;

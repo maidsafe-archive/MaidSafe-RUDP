@@ -35,6 +35,10 @@ boost::asio::ip::address GetLocalIp(
 // Returns true if port > 1024 and the address is correctly specified.
 bool IsValid(const boost::asio::ip::udp::endpoint& endpoint);
 
+// Returns true if the two endpoints represent nodes on the same local network
+bool OnSameNetwork(const boost::asio::ip::udp::endpoint& endpoint1,
+                   const boost::asio::ip::udp::endpoint& endpoint2);
+
 }  // namespace detail
 
 }  // namespace rudp

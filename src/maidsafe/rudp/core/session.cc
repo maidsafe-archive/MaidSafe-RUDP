@@ -34,11 +34,12 @@ namespace detail {
 Session::Session(Peer& peer,  // NOLINT (Fraser)
                  TickTimer& tick_timer,
                  boost::asio::ip::udp::endpoint& this_external_endpoint,
-                 std::mutex& this_external_endpoint_mutex)
+                 std::mutex& this_external_endpoint_mutex,
+                 const boost::asio::ip::udp::endpoint& this_local_endpoint)
     : peer_(peer),
       tick_timer_(tick_timer),
       this_external_endpoint_(this_external_endpoint),
-      this_external_endpoint_mutex_(this_external_endpoint_mutex),
+      this_external_endpoint_mutex_(this_external_endpoint_mutex),      kThisLocalEndpoint_(this_local_endpoint),
       this_public_key_(),
       id_(0),
       sending_sequence_number_(0),
@@ -97,19 +98,8 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     SendCookie();
   } else if (state_ == kHandshaking) {
 //    if (packet.SynCookie() == 1) {
-    if (IsValid(packet.Endpoint())) {
-      // TODO(Fraser#5#): 2012-07-16 - Check that if this_external_endpoint_ != packet.Endpoint(),
-      //                  then either previous value for this_external_endpoint_ was set to the same
-      //                  as "this local endpoint" (i.e. we connected to a peer on the same local
-      //                  network), or this_external_endpoint_ was 0.0.0.0 (i.e. this is the first
-      //                  connection on this transport).
-      std::lock_guard<std::mutex> lock(this_external_endpoint_mutex_);
-      this_external_endpoint_ = packet.Endpoint();
-    } else {
-      LOG(kError) << "Invalid external endpoint in handshake: " << packet.Endpoint();
-      state_ = kClosed;
+    if (!CalculateEndpoint(packet.Endpoint()))
       return;
-    }
 
     if (!packet.PublicKey()) {
       LOG(kError) << "Handshake packet is missing peer's public key";
@@ -128,6 +118,37 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     SendCookie();
 //    }
   }
+}
+
+bool Session::CalculateEndpoint(const boost::asio::ip::udp::endpoint& this_reported_endpoint) {
+  if (!IsValid(this_reported_endpoint)) {
+    LOG(kError) << "Invalid reported external endpoint in handshake: " << this_reported_endpoint;
+    state_ = kClosed;
+    return false;
+  }
+
+  LOG(kError) << "::::::::::::::::::::::::::::::::::::::::::::: " << kThisLocalEndpoint_ << "   " << this_external_endpoint_;
+  std::lock_guard<std::mutex> lock(this_external_endpoint_mutex_);
+  if (!IsValid(this_external_endpoint_)) {
+    if (!OnSameNetwork(kThisLocalEndpoint_, peer_.Endpoint())) {
+      // This is the first non-local connection on this transport.
+      this_external_endpoint_ = this_reported_endpoint;
+      LOG(kVerbose) << "Setting this external endpoint to " << this_external_endpoint_;
+    } else {
+      LOG(kVerbose) << "Can't establish external endpoint, peer on same network as this node.";
+    }
+  } else if (this_external_endpoint_ != this_reported_endpoint) {
+    // Check to see if our external address has changed
+    if (!OnSameNetwork(kThisLocalEndpoint_, peer_.Endpoint())) {
+      // This external address has possibly changed (or the peer is lying).
+      LOG(kWarning) << "This external address is currently " << this_external_endpoint_
+                    << ", but peer at " << peer_.Endpoint()
+                    << " is reporting our endpoint as " << this_reported_endpoint;
+      // TODO(Fraser#5#): 2012-07-30 - Possibly handle this by closing the transport?
+    }
+  }
+  LOG(kError) << ":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: " << kThisLocalEndpoint_ << "   " << this_external_endpoint_;
+  return true;
 }
 
 void Session::HandleTick() {

@@ -28,6 +28,33 @@ namespace rudp {
 
 namespace detail {
 
+namespace {
+
+ip::address_v4 NetworkPrefix(const ip::address_v4& address) {
+  ip::address_v4::bytes_type network_prefix;
+  for (int i(0); i != network_prefix.size(); ++i)
+    network_prefix[i] = address.to_bytes()[i] & ip::address_v4::netmask(address).to_bytes()[i];
+  return ip::address_v4(network_prefix);
+}
+
+bool IsPrivateNetworkAddress(const ip::address_v4& address) {
+  static const ip::address_v4 kMinClassA(ip::address_v4::from_string("10.0.0.0"));
+  static const ip::address_v4 kMaxClassA(ip::address_v4::from_string("10.255.255.255"));
+  static const ip::address_v4 kMinClassB(ip::address_v4::from_string("172.16.0.0"));
+  static const ip::address_v4 kMaxClassB(ip::address_v4::from_string("172.31.255.255"));
+  static const ip::address_v4 kMinClassC(ip::address_v4::from_string("192.168.0.0"));
+  static const ip::address_v4 kMaxClassC(ip::address_v4::from_string("192.168.255.255"));
+  if (address <= kMaxClassA)
+    return address >= kMinClassA;
+  if (address <= kMaxClassB)
+    return address >= kMinClassB;
+  if (address < kMinClassC)
+    return false;
+  return address <= kMaxClassC;
+}
+
+}  // unnamed namespace
+
 ip::address GetLocalIp(ip::udp::endpoint peer_endpoint) {
   asio::io_service io_service;
   ip::udp::socket socket(io_service);
@@ -46,6 +73,24 @@ ip::address GetLocalIp(ip::udp::endpoint peer_endpoint) {
 
 bool IsValid(const ip::udp::endpoint& endpoint) {
   return endpoint.port() > 1024U && !endpoint.address().is_unspecified();
+}
+
+bool OnSameNetwork(const ip::udp::endpoint& endpoint1, const ip::udp::endpoint& endpoint2) {
+  if (endpoint1.address().is_v4() && endpoint2.address().is_v4()) {
+    ip::address_v4 address1(endpoint1.address().to_v4()), address2(endpoint2.address().to_v4());
+    return IsPrivateNetworkAddress(address1) && NetworkPrefix(address1) == NetworkPrefix(address2);
+  } else if (endpoint1.address().is_v6() && endpoint2.address().is_v6()) {
+    // TODO(Fraser#5#): 2012-07-30 - Handle IPv6 properly.
+    return endpoint1.address().to_v6().is_link_local();
+  } else if (endpoint1.address().is_v6() && endpoint1.address().to_v6().is_v4_compatible()) {
+    return OnSameNetwork(ip::udp::endpoint(endpoint1.address().to_v6().to_v4(), endpoint1.port()),
+                         endpoint2);
+  } else if (endpoint2.address().is_v6() && endpoint2.address().to_v6().is_v4_compatible()) {
+    return OnSameNetwork(endpoint1,
+                         ip::udp::endpoint(endpoint2.address().to_v6().to_v4(), endpoint2.port()));
+  } else {
+    return false;
+  }
 }
 
 }  // namespace detail

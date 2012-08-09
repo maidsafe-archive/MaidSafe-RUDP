@@ -40,7 +40,7 @@ Socket::Socket(Multiplexer& multiplexer)  // NOLINT (Fraser)
     : dispatcher_(multiplexer.dispatcher_),
       peer_(multiplexer),
       tick_timer_(multiplexer.socket_.get_io_service()),
-      session_(peer_, tick_timer_, multiplexer.external_endpoint_, multiplexer.mutex_),
+      session_(peer_, tick_timer_, multiplexer.external_endpoint_,  multiplexer.mutex_, multiplexer.local_endpoint()),
       congestion_control_(),
       sender_(peer_, tick_timer_, congestion_control_),
       receiver_(peer_, tick_timer_, congestion_control_),

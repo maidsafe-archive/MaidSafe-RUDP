@@ -99,8 +99,8 @@ void Transport::Bootstrap(
 
     // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
     int count(0);
-    while (!IsValid(multiplexer_->external_endpoint()) ||
-           !IsValid(multiplexer_->local_endpoint())) {
+    while (/*!IsValid(multiplexer_->external_endpoint()) ||
+           */!IsValid(multiplexer_->local_endpoint())) {
       if (count > 50) {
          LOG(kError) << "Timed out waiting for connection. External endpoint: "
                      << multiplexer_->external_endpoint() << "  Local endpoint: "
