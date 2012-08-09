@@ -82,7 +82,8 @@ int ConnectionManager::CloseConnection(const Endpoint& peer_endpoint) {
     return kInvalidConnection;
   }
 
-  strand_.dispatch([=] { (*itr)->Close(); });  // NOLINT (Fraser)
+  ConnectionPtr connection(*itr);
+  strand_.dispatch([=] { connection->Close(); });  // NOLINT (Fraser)
   return kSuccess;
 }
 
@@ -110,7 +111,8 @@ void ConnectionManager::Send(const Endpoint& peer_endpoint,
     return;
   }
 
-  strand_.dispatch([=] { (*itr)->StartSending(message, message_sent_functor); });  // NOLINT (Fraser)
+  ConnectionPtr connection(*itr);
+  strand_.dispatch([=] { connection->StartSending(message, message_sent_functor); });  // NOLINT (Fraser)
 }
 
 Socket* ConnectionManager::GetSocket(const asio::const_buffer& data,
@@ -217,8 +219,10 @@ void ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoint,
     LOG(kWarning) << "Not currently connected to " << peer_endpoint;
     return;
   }
-  (*itr)->MakePermanent();
-  strand_.dispatch([=] { (*itr)->StartSending(validation_data, std::function<void(int)>()); });  // NOLINT (Fraser)
+
+  ConnectionPtr connection(*itr);
+  connection->MakePermanent();
+  strand_.dispatch([=] { connection->StartSending(validation_data, std::function<void(int)>()); });  // NOLINT (Fraser)
 }
 
 uint32_t ConnectionManager::AddSocket(Socket* socket) {
