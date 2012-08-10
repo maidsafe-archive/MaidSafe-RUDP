@@ -311,7 +311,9 @@ void Socket::HandleKeepalive(const KeepalivePacket& packet) {
         return;
       } else {
         LOG(kWarning) << "Socket " << session_.Id()
-                      << " ignoring unexpected keepalive response packet from " << peer_.Endpoint();
+                      << " ignoring unexpected keepalive response " << packet.SequenceNumber()
+                      << " from " << peer_.Endpoint() << ".  Current sequence number: "
+                      << waiting_keepalive_sequence_number_;
       }
     } else {
       sender_.HandleKeepalive(packet);

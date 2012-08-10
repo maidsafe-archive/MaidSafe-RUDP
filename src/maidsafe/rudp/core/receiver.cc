@@ -115,7 +115,9 @@ void Receiver::HandleData(const DataPacket& packet) {
       p.bytes_read = 0;
     }
   } else {
-    LOG(kWarning) << "Ignoring incoming packet with seqnum " << seqnum;
+    LOG(kWarning) << "Ignoring incoming packet with seqnum " << seqnum
+                  << ".\tCurrent unread range is " << unread_packets_.Begin() << " to "
+                  << unread_packets_.End();
   }
 
   if (seqnum % congestion_control_.AckInterval() == 0) {

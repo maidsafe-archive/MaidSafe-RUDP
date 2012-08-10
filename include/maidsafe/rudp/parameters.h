@@ -42,8 +42,8 @@ struct Parameters {
   enum { kUDPPayload = 65507 };
 
   // Data Payload size permitted in RUDP.  Shall not exceed Packet Size defined.
-  static uint32_t default_data_size;
   static uint32_t max_data_size;
+  static uint32_t default_data_size;
 
   // Timeout defined for a packet to be resent.
   static Timeout default_send_timeout;
