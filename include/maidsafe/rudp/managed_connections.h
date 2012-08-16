@@ -17,6 +17,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -139,6 +140,7 @@ class ManagedConnections {
   std::shared_ptr<asymm::PublicKey> public_key_;
   std::vector<TransportAndSignalConnections> transports_;
   ConnectionMap connection_map_;
+  std::set<boost::asio::ip::udp::endpoint> pending_connections_;
   mutable boost::shared_mutex shared_mutex_;
   boost::asio::ip::address local_ip_;
   TransportAndSignalConnections resilience_transport_;
