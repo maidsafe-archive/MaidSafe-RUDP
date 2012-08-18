@@ -23,9 +23,14 @@ int Parameters::max_transports(10);
 uint32_t Parameters::default_window_size(64);
 uint32_t Parameters::maximum_window_size(512);
 uint32_t Parameters::default_size(1480);
+#ifdef MAIDSAFE_WIN32
+uint32_t Parameters::max_size(25980);
+uint32_t Parameters::max_data_size(25950);
+#else
 uint32_t Parameters::max_size(8192);
-uint32_t Parameters::default_data_size(1450);
 uint32_t Parameters::max_data_size(8162);
+#endif
+uint32_t Parameters::default_data_size(1450);
 Timeout Parameters::default_send_timeout(bptime::milliseconds(500));
 Timeout Parameters::default_receive_timeout(bptime::milliseconds(500));
 Timeout Parameters::default_send_delay(bptime::seconds(1));
@@ -38,7 +43,7 @@ Timeout Parameters::connect_timeout(bptime::seconds(5));
 Timeout Parameters::ping_timeout(bptime::seconds(2));
 Timeout Parameters::keepalive_interval(bptime::milliseconds(500));
 Timeout Parameters::keepalive_timeout(bptime::milliseconds(400));
-uint32_t Parameters::maximum_keepalive_failures(10);
+uint32_t Parameters::maximum_keepalive_failures(20);
 Timeout Parameters::bootstrap_disconnection_timeout(bptime::seconds(60));
 Timeout Parameters::disconnection_timeout(bptime::milliseconds(100));
 Parameters::ConnectionType Parameters::connection_type(Parameters::kWireless);

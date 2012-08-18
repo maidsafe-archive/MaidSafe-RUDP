@@ -48,6 +48,7 @@ ManagedConnections::ManagedConnections()
       public_key_(),
       transports_(),
       connection_map_(),
+      pending_connections_(),
       shared_mutex_(),
       local_ip_(),
       resilience_transport_() {}
@@ -254,6 +255,15 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
   std::shared_ptr<detail::Transport> transport_ptr;
   {
     UniqueLock unique_lock(shared_mutex_);
+    // Check there's not already an ongoing connection attempt to this endpoint
+    auto pending_itr = pending_connections_.find(peer_endpoint);
+    if (pending_itr == pending_connections_.end()) {
+      pending_connections_.insert(peer_endpoint);
+    } else {
+      LOG(kWarning) << "Already an ongoing connection attempt to " << peer_endpoint;
+      return kConnectAttemptAlreadyRunning;
+    }
+
     auto itr = std::find_if(
         transports_.begin(),
         transports_.end(),
@@ -265,6 +275,7 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
     if (itr == transports_.end()) {
       LOG(kError) << "No Transports have endpoint " << this_endpoint
                   << " - ensure GetAvailableEndpoint has been called first.";
+      pending_connections_.erase(peer_endpoint);
       return kInvalidTransport;
     }
 
@@ -274,9 +285,11 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
     if (connection_map_itr != connection_map_.end()) {
       if ((*connection_map_itr).second->IsTemporaryConnection(peer_endpoint)) {
         transport_ptr->MakeConnectionPermanent(peer_endpoint, validation_data);
+        pending_connections_.erase(peer_endpoint);
         return kSuccess;
       } else {
         LOG(kError) << "A permanent managed connection to " << peer_endpoint << " already exists";
+        pending_connections_.erase(peer_endpoint);
         return kConnectionAlreadyExists;
       }
     }
@@ -438,6 +451,7 @@ void ManagedConnections::OnConnectionAddedSlot(const Endpoint& peer_endpoint,
                                                detail::TransportPtr transport) {
   UniqueLock unique_lock(shared_mutex_);
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
+  pending_connections_.erase(peer_endpoint);
   if (result.second) {
     LOG(kInfo) << "Successfully connected from "<< transport->external_endpoint() << " to "
                << peer_endpoint;
@@ -488,6 +502,7 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint& peer_endpoint,
         remove_transport = false;
       }
     }
+    pending_connections_.erase(peer_endpoint);
 
     if (remove_transport) {
       auto itr(std::find_if(

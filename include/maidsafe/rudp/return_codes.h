@@ -41,6 +41,7 @@ enum ReturnCode {
   kPingFailed = -350018,
   kWontPingAlreadyConnected = -350019,
   kWontPingOurself = -350020,
+  kConnectAttemptAlreadyRunning = -350021,
 
   // Upper limit of values for this enum.
   kReturnCodeLimit = -359999
