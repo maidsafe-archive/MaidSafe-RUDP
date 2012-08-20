@@ -73,13 +73,11 @@ class Multiplexer {
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!external_endpoint_.address().is_unspecified()) {
-          LOG(kWarning) << "Error sending " << length << " bytes from " << external_endpoint_
-                        << " to << " << endpoint << " - " << ec.message();
-        }
+        LOG(kWarning) << "Error sending " << length << " bytes from " << local_endpoint()
+                      << " to << " << endpoint << " - " << ec.message();
         return kSendFailure;
       } else {
-//        LOG(kVerbose) << "Success sending " << length << " bytes from " << external_endpoint_
+//        LOG(kVerbose) << "Success sending " << length << " bytes from " << local_endpoint()
 //                      << " to << " << endpoint << "  " << IOV_MAX;
         return kSuccess;
       }

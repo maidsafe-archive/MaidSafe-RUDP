@@ -48,6 +48,7 @@ Receiver::Receiver(Peer& peer, TickTimer& tick_timer, CongestionControl& congest
       ack_sent_time_(tick_timer_.Now()) {}
 
 void Receiver::Reset(uint32_t initial_sequence_number) {
+                              LOG(kVerbose) << "Resetting receiver unread_packets_ to " << initial_sequence_number;
   unread_packets_.Reset(initial_sequence_number);
   last_ack_packet_sequence_number_ = initial_sequence_number;
 }

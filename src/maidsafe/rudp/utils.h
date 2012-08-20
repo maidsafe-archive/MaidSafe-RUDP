@@ -36,8 +36,14 @@ boost::asio::ip::address GetLocalIp(
 bool IsValid(const boost::asio::ip::udp::endpoint& endpoint);
 
 // Returns true if the two endpoints represent nodes on the same local network
-bool OnSameNetwork(const boost::asio::ip::udp::endpoint& endpoint1,
-                   const boost::asio::ip::udp::endpoint& endpoint2);
+bool OnSameLocalNetwork(const boost::asio::ip::udp::endpoint& endpoint1,
+                        const boost::asio::ip::udp::endpoint& endpoint2);
+
+// Returns true if peer_endpoint and this_external_endpoint are both non-local, or if
+// peer_endpoint and this_local_endpoint are both potentially on the same local network.
+bool IsConnectable(const boost::asio::ip::udp::endpoint& peer_endpoint,
+                   const boost::asio::ip::udp::endpoint& this_local_endpoint,
+                   const boost::asio::ip::udp::endpoint& this_external_endpoint);
 
 }  // namespace detail
 

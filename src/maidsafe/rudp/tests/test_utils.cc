@@ -63,12 +63,15 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   boost::thread thread([&] {
     chosen_endpoint = nodes[0]->Bootstrap(std::vector<Endpoint>(1, endpoint1), endpoint0);
   });
-  if (nodes[1]->Bootstrap(std::vector<Endpoint>(1, endpoint0), endpoint1) != endpoint0)
-    return testing::AssertionFailure() << "Bootstrapping failed for Node 1";
-
+  Endpoint node1_bootstrap_res(nodes[1]->Bootstrap(std::vector<Endpoint>(1, endpoint0), endpoint1));
   thread.join();
+
+  if (node1_bootstrap_res != endpoint0)
+    return testing::AssertionFailure() << "Bootstrapping failed for Node 1.  Result using "
+                                       << endpoint0 << " was " << node1_bootstrap_res;
   if (chosen_endpoint != endpoint1)
-    return testing::AssertionFailure() << "Bootstrapping failed for Node 0";
+    return testing::AssertionFailure() << "Bootstrapping failed for Node 0.  Result using "
+                                       << endpoint1 << " was " << chosen_endpoint;
 
   auto futures0(nodes[0]->GetFutureForMessages(1));
   auto futures1(nodes[1]->GetFutureForMessages(1));
@@ -147,38 +150,38 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                            << "  External: " << this_endpoint_pair.external;
       }
       LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[j]->id() << " to "
-                 << nodes[i]->id() << " with peer_endpoint " << this_endpoint_pair.external;
-      result = nodes[j]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.external,
+                 << nodes[i]->id() << " with peer_endpoint " << this_endpoint_pair.local;
+      result = nodes[j]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
                                                                      peer_endpoint_pair);
       if (result != kSuccess) {
         return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
                                            << nodes[j]->id() << " with result " << result
                                            << ".  Local: " << peer_endpoint_pair.local
                                            << "  External: " << peer_endpoint_pair.external
-                                           << "  Peer: " << this_endpoint_pair.external;
+                                           << "  Peer: " << this_endpoint_pair.local;
       }
 
       futures0 = nodes[i]->GetFutureForMessages(1);
       futures1 = nodes[j]->GetFutureForMessages(1);
       LOG(kInfo) << "Calling Add from " << nodes[i]->id() << " on "
-                  << this_endpoint_pair.external << " to " << nodes[j]->id()
-                  << " on " << peer_endpoint_pair.external;
-      result = nodes[i]->managed_connections()->Add(this_endpoint_pair.external,
-                                                    peer_endpoint_pair.external,
+                  << this_endpoint_pair.local << " to " << nodes[j]->id()
+                  << " on " << peer_endpoint_pair.local;
+      result = nodes[i]->managed_connections()->Add(this_endpoint_pair.local,
+                                                    peer_endpoint_pair.local,
                                                     nodes[i]->validation_data());
-      nodes[i]->AddConnectedEndPoint(peer_endpoint_pair.external);
+      nodes[i]->AddConnectedEndPoint(peer_endpoint_pair.local);
       if (result != kSuccess) {
         return testing::AssertionFailure() << "Add failed for " << nodes[i]->id()
                                            << " with result " << result;
       }
 
       LOG(kInfo) << "Calling Add from " << nodes[j]->id() << " on "
-                  << peer_endpoint_pair.external << " to " << nodes[i]->id()
-                  << " on " << this_endpoint_pair.external;
-      result = nodes[j]->managed_connections()->Add(peer_endpoint_pair.external,
-                                                    this_endpoint_pair.external,
+                  << peer_endpoint_pair.local << " to " << nodes[i]->id()
+                  << " on " << this_endpoint_pair.local;
+      result = nodes[j]->managed_connections()->Add(peer_endpoint_pair.local,
+                                                    this_endpoint_pair.local,
                                                     nodes[j]->validation_data());
-      nodes[j]->AddConnectedEndPoint(this_endpoint_pair.external);
+      nodes[j]->AddConnectedEndPoint(this_endpoint_pair.local);
       if (result != kSuccess) {
         return testing::AssertionFailure() << "Add failed for " << nodes[j]->id()
                                            << " with result " << result;
@@ -211,7 +214,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
             << "'s validation data as " << messages1[0] << " [should be \""
             << nodes[i]->validation_data() << "\"].";
       }
-      bootstrap_endpoints.push_back(this_endpoint_pair.external);
+      bootstrap_endpoints.push_back(this_endpoint_pair.local);
     }
   }
   return testing::AssertionSuccess();

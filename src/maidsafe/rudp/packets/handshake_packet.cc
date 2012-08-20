@@ -185,6 +185,8 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
       LOG(kError) << "Failed to validate peer's public key.";
       return false;
     }
+  } else {
+    LOG(kError) << "Failed to decode public key.";
   }
 
   return true;
@@ -194,8 +196,10 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer& buffer) const {
   std::string encoded_public_key;
   if (public_key_) {
     // Refuse to encode if the output buffer is not big enough.
-    if (asio::buffer_size(buffer) == kMinPacketSize)
+    if (asio::buffer_size(buffer) == kMinPacketSize) {
+      LOG(kError) << "Not enough space in buffer to encode public key.";
       return 0;
+    }
     asymm::EncodePublicKey(*public_key_, &encoded_public_key);
   } else {
     // Refuse to encode if the output buffer is not big enough.

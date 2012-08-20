@@ -75,22 +75,48 @@ bool IsValid(const ip::udp::endpoint& endpoint) {
   return endpoint.port() > 1024U && !endpoint.address().is_unspecified();
 }
 
-bool OnSameNetwork(const ip::udp::endpoint& endpoint1, const ip::udp::endpoint& endpoint2) {
+bool OnSameLocalNetwork(const ip::udp::endpoint& endpoint1, const ip::udp::endpoint& endpoint2) {
+                                                                  LOG(kWarning) << endpoint1 << "   " << endpoint2;
   if (endpoint1.address().is_v4() && endpoint2.address().is_v4()) {
     ip::address_v4 address1(endpoint1.address().to_v4()), address2(endpoint2.address().to_v4());
-    return IsPrivateNetworkAddress(address1) && NetworkPrefix(address1) == NetworkPrefix(address2);
+    bool on_same(IsPrivateNetworkAddress(address1) && NetworkPrefix(address1) == NetworkPrefix(address2));
+    if (!on_same) {
+      LOG(kWarning) << "Priv: " << std::boolalpha << IsPrivateNetworkAddress(address1) << "   " << NetworkPrefix(address1)
+                    << "   " << NetworkPrefix(address2) << "   " << (NetworkPrefix(address1) == NetworkPrefix(address2));
+    }
+    return on_same;
   } else if (endpoint1.address().is_v6() && endpoint2.address().is_v6()) {
     // TODO(Fraser#5#): 2012-07-30 - Handle IPv6 properly.
     return endpoint1.address().to_v6().is_link_local();
   } else if (endpoint1.address().is_v6() && endpoint1.address().to_v6().is_v4_compatible()) {
-    return OnSameNetwork(ip::udp::endpoint(endpoint1.address().to_v6().to_v4(), endpoint1.port()),
-                         endpoint2);
+    return OnSameLocalNetwork(ip::udp::endpoint(endpoint1.address().to_v6().to_v4(),
+                                                endpoint1.port()), endpoint2);
   } else if (endpoint2.address().is_v6() && endpoint2.address().to_v6().is_v4_compatible()) {
-    return OnSameNetwork(endpoint1,
-                         ip::udp::endpoint(endpoint2.address().to_v6().to_v4(), endpoint2.port()));
+    return OnSameLocalNetwork(endpoint1, ip::udp::endpoint(endpoint2.address().to_v6().to_v4(),
+                                                           endpoint2.port()));
   } else {
     return false;
   }
+}
+
+bool IsConnectable(const ip::udp::endpoint& peer_endpoint,
+                   const ip::udp::endpoint& this_local_endpoint,
+                   const ip::udp::endpoint& this_external_endpoint) {
+  if (IsValid(this_external_endpoint)) {
+    assert(this_external_endpoint.address().is_v4() ?
+           !IsPrivateNetworkAddress(this_external_endpoint.address().to_v4()) :
+           !this_external_endpoint.address().to_v6().is_link_local());
+    // return true if peer_endpoint is external
+    if (peer_endpoint.address().is_v4() &&
+        !IsPrivateNetworkAddress(peer_endpoint.address().to_v4())) {
+      return true;
+    } else if (peer_endpoint.address().is_v6() &&
+               !peer_endpoint.address().to_v6().is_link_local()) {
+      return true;
+    }
+  }
+
+  return OnSameLocalNetwork(peer_endpoint, this_local_endpoint);
 }
 
 }  // namespace detail

@@ -38,6 +38,7 @@ void Dispatcher::SetConnectionManager(ConnectionManager* connection_manager) {
 }
 
 uint32_t Dispatcher::AddSocket(Socket* socket) {
+  assert(connection_manager_);
   return connection_manager_ ? connection_manager_->AddSocket(socket) : 0;
 }
 

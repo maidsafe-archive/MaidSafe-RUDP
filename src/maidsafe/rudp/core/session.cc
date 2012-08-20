@@ -39,7 +39,8 @@ Session::Session(Peer& peer,  // NOLINT (Fraser)
     : peer_(peer),
       tick_timer_(tick_timer),
       this_external_endpoint_(this_external_endpoint),
-      this_external_endpoint_mutex_(this_external_endpoint_mutex),      kThisLocalEndpoint_(this_local_endpoint),
+      this_external_endpoint_mutex_(this_external_endpoint_mutex),
+      kThisLocalEndpoint_(this_local_endpoint),
       this_public_key_(),
       id_(0),
       sending_sequence_number_(0),
@@ -127,19 +128,19 @@ bool Session::CalculateEndpoint(const boost::asio::ip::udp::endpoint& this_repor
     return false;
   }
 
-  LOG(kError) << "::::::::::::::::::::::::::::::::::::::::::::: " << kThisLocalEndpoint_ << "   " << this_external_endpoint_;
   std::lock_guard<std::mutex> lock(this_external_endpoint_mutex_);
   if (!IsValid(this_external_endpoint_)) {
-    if (!OnSameNetwork(kThisLocalEndpoint_, peer_.Endpoint())) {
+    if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.Endpoint())) {
       // This is the first non-local connection on this transport.
       this_external_endpoint_ = this_reported_endpoint;
-      LOG(kVerbose) << "Setting this external endpoint to " << this_external_endpoint_;
+      LOG(kVerbose) << "Setting this external endpoint to " << this_external_endpoint_
+                    << " as viewed by peer at " << peer_.Endpoint() << OnSameLocalNetwork(kThisLocalEndpoint_, peer_.Endpoint());
     } else {
       LOG(kVerbose) << "Can't establish external endpoint, peer on same network as this node.";
     }
   } else if (this_external_endpoint_ != this_reported_endpoint) {
     // Check to see if our external address has changed
-    if (!OnSameNetwork(kThisLocalEndpoint_, peer_.Endpoint())) {
+    if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.Endpoint())) {
       // This external address has possibly changed (or the peer is lying).
       LOG(kWarning) << "This external address is currently " << this_external_endpoint_
                     << ", but peer at " << peer_.Endpoint()
@@ -147,11 +148,11 @@ bool Session::CalculateEndpoint(const boost::asio::ip::udp::endpoint& this_repor
       // TODO(Fraser#5#): 2012-07-30 - Possibly handle this by closing the transport?
     }
   }
-  LOG(kError) << ":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: " << kThisLocalEndpoint_ << "   " << this_external_endpoint_;
   return true;
 }
 
 void Session::HandleTick() {
+  assert(false);
   if (state_ == kProbing) {
     SendConnectionRequest();
   } else if (state_ == kHandshaking) {
@@ -167,6 +168,7 @@ void Session::SendConnectionRequest() {
   packet.SetEndpoint(peer_.Endpoint());
   packet.SetDestinationSocketId((mode_ == kNormal) ? 0 : 0xffffffff);
   packet.SetConnectionType(1);
+  packet.SetPublicKey(this_public_key_);
 
   int result(peer_.Send(packet));
   if (result != kSuccess)

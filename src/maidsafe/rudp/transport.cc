@@ -16,6 +16,9 @@
 #include <algorithm>
 #include <cassert>
 
+#include "boost/date_time/posix_time/posix_time_duration.hpp"
+#include "boost/thread/condition_variable.hpp"
+#include "boost/thread/mutex.hpp"
 #include "maidsafe/common/log.h"
 
 #include "maidsafe/rudp/connection.h"
@@ -78,14 +81,14 @@ void Transport::Bootstrap(
   *on_connection_lost_connection =
       on_connection_lost_.connect(on_connection_lost_slot);
 
+  connection_manager_.reset(
+      new ConnectionManager(shared_from_this(), strand_, multiplexer_, this_public_key));
   ReturnCode result = multiplexer_->Open(local_endpoint);
   if (result != kSuccess) {
     LOG(kError) << "Failed to open multiplexer.  Result: " << result;
     return;
   }
 
-  connection_manager_.reset(
-      new ConnectionManager(shared_from_this(), strand_, multiplexer_, this_public_key));
   StartDispatch();
 
   for (auto itr(bootstrap_endpoints.begin()); itr != bootstrap_endpoints.end(); ++itr) {
@@ -93,28 +96,50 @@ void Transport::Bootstrap(
       LOG(kError) << *itr << " is an invalid endpoint.";
       continue;
     }
+
+    // Temporarily connect to the signals until the connect attempt has succeeded or failed.
+    boost::mutex local_mutex;
+    boost::condition_variable local_cond_var;
+    bool slot_called(false);
+    auto slot_connection_added(on_connection_added_.connect(
+        [&](const Endpoint& peer_endpoint, detail::TransportPtr /*transport*/) {
+      assert(!slot_called);
+      assert(*itr == peer_endpoint);
+      boost::mutex::scoped_lock lock(local_mutex);
+      slot_called = true;
+      local_cond_var.notify_one();
+    }));
+    auto slot_connection_lost(on_connection_lost_.connect(
+        [&](const Endpoint& peer_endpoint,
+            detail::TransportPtr /*transport*/,
+            bool /*connections_empty*/,
+            bool /*temporary_connection*/) {
+      assert(!slot_called);
+      assert(*itr == peer_endpoint);
+      boost::mutex::scoped_lock lock(local_mutex);
+      slot_called = true;
+      local_cond_var.notify_one();
+    }));
+
+    boost::mutex::scoped_lock lock(local_mutex);
     connection_manager_->Connect(*itr, "", bootstrap_off_existing_connection ?
-                                     bptime::time_duration() :
-                                     Parameters::bootstrap_disconnection_timeout);
+                                      bptime::time_duration() :
+                                      Parameters::bootstrap_disconnection_timeout);
 
-    // TODO(Fraser#5#): 2012-04-25 - Wait until these are valid or timeout.
-    int count(0);
-    while (/*!IsValid(multiplexer_->external_endpoint()) ||
-           */!IsValid(multiplexer_->local_endpoint())) {
-      if (count > 50) {
-         LOG(kError) << "Timed out waiting for connection. External endpoint: "
-                     << multiplexer_->external_endpoint() << "  Local endpoint: "
-                     << multiplexer_->local_endpoint();
-         break;
-      }
-      Sleep(bptime::milliseconds(100));
-      ++count;
+    bool success(local_cond_var.timed_wait(
+        lock, Parameters::connect_timeout, [&] { return slot_called; }));  // NOLINT (Fraser)
+    slot_connection_added.disconnect();
+    slot_connection_lost.disconnect();
+    if (!success) {
+      LOG(kError) << "Timed out waiting for connection. External endpoint: "
+                  << multiplexer_->external_endpoint() << "  Local endpoint: "
+                  << multiplexer_->local_endpoint();
+      continue;
     }
-
-    if (IsValid(multiplexer_->external_endpoint()) && IsValid(multiplexer_->local_endpoint())) {
-      *chosen_endpoint = *itr;
-      break;
-    }
+    LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
+                  << " connected to " << *itr;
+    *chosen_endpoint = *itr;
+    break;
   }
 
   // If we're starting a resilience transport, check the external port is 5483

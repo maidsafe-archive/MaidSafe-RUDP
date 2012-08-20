@@ -122,6 +122,7 @@ class ManagedConnections {
       boost::asio::ip::udp::endpoint local_endpoint);
 
   bool DirectConnected(boost::asio::ip::address& this_address) const;
+  bool Connectable(const boost::asio::ip::udp::endpoint& peer_endpoint) const;
 
   void StartResilienceTransport(const boost::asio::ip::address& this_address);
 

@@ -115,8 +115,7 @@ void ConnectionManager::Send(const Endpoint& peer_endpoint,
   strand_.dispatch([=] { connection->StartSending(message, message_sent_functor); });  // NOLINT (Fraser)
 }
 
-Socket* ConnectionManager::GetSocket(const asio::const_buffer& data,
-                                             const Endpoint& endpoint) {
+Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpoint& endpoint) {
   uint32_t id(0);
   if (!Packet::DecodeDestinationSocketId(&id, data)) {
     LOG(kError) << "Received a non-RUDP packet from " << endpoint;
@@ -141,6 +140,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data,
           return socket_pair.second->RemoteEndpoint() == endpoint;
         });
     if (socket_iter == sockets_.end()) {
+      LOG(kVerbose) << "This is a Ping from " << endpoint;
       // This is a handshake packet from a peer trying to ping this node or join the network
       HandlePingFrom(data, endpoint);
       return nullptr;
