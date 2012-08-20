@@ -141,10 +141,12 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
     std::for_each(connection_map_.begin(),
                   connection_map_.end(),
                   [&](const ConnectionMap::value_type& entry) {
-      if (detail::OnSameLocalNetwork(local_endpoint, entry.first))
-        secondary_endpoints.push_back(entry.first);
-      else
-        bootstrap_endpoints.push_back(entry.first);
+      if (!entry.second->IsTemporaryConnection(entry.first)) {
+        if (detail::OnSameLocalNetwork(local_endpoint, entry.first))
+          secondary_endpoints.push_back(entry.first);
+        else
+          bootstrap_endpoints.push_back(entry.first);
+      }
     });
     std::random_shuffle(bootstrap_endpoints.begin(), bootstrap_endpoints.end());
     std::random_shuffle(secondary_endpoints.begin(), secondary_endpoints.end());

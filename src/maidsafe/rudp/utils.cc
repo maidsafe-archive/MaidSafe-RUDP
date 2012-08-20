@@ -76,7 +76,8 @@ bool IsValid(const ip::udp::endpoint& endpoint) {
 }
 
 bool OnSameLocalNetwork(const ip::udp::endpoint& endpoint1, const ip::udp::endpoint& endpoint2) {
-                                                                  LOG(kWarning) << endpoint1 << "   " << endpoint2;
+  uint16_t prt = endpoint1.port();
+                                                                  LOG(kWarning) << endpoint1 << "   " << endpoint2 << "   " << prt;
   if (endpoint1.address().is_v4() && endpoint2.address().is_v4()) {
     ip::address_v4 address1(endpoint1.address().to_v4()), address2(endpoint2.address().to_v4());
     bool on_same(IsPrivateNetworkAddress(address1) && NetworkPrefix(address1) == NetworkPrefix(address2));

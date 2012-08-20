@@ -120,6 +120,7 @@ bool Connection::IsTemporary() const {
 }
 
 void Connection::MakePermanent() {
+                                LOG(kError) << "Making permanent connection to " << socket_.RemoteEndpoint();
   strand_.dispatch(std::bind(&Connection::DoMakePermanent, shared_from_this()));
 }
 

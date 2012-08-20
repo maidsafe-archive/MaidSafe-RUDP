@@ -152,7 +152,6 @@ bool Session::CalculateEndpoint(const boost::asio::ip::udp::endpoint& this_repor
 }
 
 void Session::HandleTick() {
-  assert(false);
   if (state_ == kProbing) {
     SendConnectionRequest();
   } else if (state_ == kHandshaking) {

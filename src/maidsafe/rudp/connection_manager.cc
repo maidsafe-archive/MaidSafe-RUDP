@@ -125,7 +125,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
   SocketMap::const_iterator socket_iter(sockets_.end());
   if (id == 0) {
     // This is a handshake packet on a newly-added socket
-    LOG(kVerbose) << "This is a handshake packet on a newly-added socket from " << endpoint;
+    LOG(kVerbose) << "This is a handshake packet on a newly-added socket from " << endpoint << " this node's socket count: " << sockets_.size();
     socket_iter = std::find_if(
         sockets_.begin(),
         sockets_.end(),
@@ -140,10 +140,18 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
           return socket_pair.second->RemoteEndpoint() == endpoint;
         });
     if (socket_iter == sockets_.end()) {
-      LOG(kVerbose) << "This is a Ping from " << endpoint;
-      // This is a handshake packet from a peer trying to ping this node or join the network
-      HandlePingFrom(data, endpoint);
-      return nullptr;
+      if (sockets_.empty()) {
+        // This is a handshake packet, but this node isn't ready to receive.  Only likely during
+        // zero-state network start.
+        LOG(kVerbose) << "This is a handshake packet from " << endpoint << " which is probably "
+                      << "starting a new network, but this node has no sockets yet";
+        return nullptr;
+      } else {
+        LOG(kVerbose) << "This is a Ping from " << endpoint;
+        // This is a handshake packet from a peer trying to ping this node or join the network
+        HandlePingFrom(data, endpoint);
+        return nullptr;
+      }
     } else {
       if (sockets_.size() == 1U) {
         // This is a handshake packet from a peer replying to this node's join attempt,
@@ -247,6 +255,7 @@ size_t ConnectionManager::size() const {
 
 void ConnectionManager::InsertConnection(ConnectionPtr connection) {
   boost::mutex::scoped_lock lock(mutex_);
+                                            LOG(kWarning) << "Inserting connection to " << connection->Socket().RemoteEndpoint();
   connections_.insert(connection);
 }
 
