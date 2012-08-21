@@ -74,7 +74,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   Connection(const Connection&);
   Connection& operator=(const Connection&);
 
-  void DoClose();
+  void DoClose(bool timed_out = false);
   void DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
                          const std::string& validation_data,
                          const boost::posix_time::time_duration& lifespan,

@@ -141,12 +141,10 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
     std::for_each(connection_map_.begin(),
                   connection_map_.end(),
                   [&](const ConnectionMap::value_type& entry) {
-      if (!entry.second->IsTemporaryConnection(entry.first)) {
-        if (detail::OnSameLocalNetwork(local_endpoint, entry.first))
-          secondary_endpoints.push_back(entry.first);
-        else
-          bootstrap_endpoints.push_back(entry.first);
-      }
+      if (detail::OnSameLocalNetwork(local_endpoint, entry.first))
+        secondary_endpoints.push_back(entry.first);
+      else
+        bootstrap_endpoints.push_back(entry.first);
     });
     std::random_shuffle(bootstrap_endpoints.begin(), bootstrap_endpoints.end());
     std::random_shuffle(secondary_endpoints.begin(), secondary_endpoints.end());
@@ -304,6 +302,7 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
     auto connection_map_itr = connection_map_.find(peer_endpoint);
     if (connection_map_itr != connection_map_.end()) {
       if ((*connection_map_itr).second->IsTemporaryConnection(peer_endpoint)) {
+                                                                                      std::cout << "MAKING CONN PERMANENT\n";
         transport->MakeConnectionPermanent(peer_endpoint, validation_data);
         pending_connections_.erase(peer_endpoint);
         return kSuccess;

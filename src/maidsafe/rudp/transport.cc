@@ -101,23 +101,24 @@ void Transport::Bootstrap(
     boost::mutex local_mutex;
     boost::condition_variable local_cond_var;
     bool slot_called(false);
+    bool timed_out_connecting(false);
     auto slot_connection_added(on_connection_added_.connect(
-        [&](const Endpoint& peer_endpoint, detail::TransportPtr /*transport*/) {
+        [&](const Endpoint& /*peer_endpoint*/, detail::TransportPtr /*transport*/) {
       assert(!slot_called);
-      assert(*itr == peer_endpoint);
       boost::mutex::scoped_lock lock(local_mutex);
       slot_called = true;
       local_cond_var.notify_one();
     }));
     auto slot_connection_lost(on_connection_lost_.connect(
-        [&](const Endpoint& peer_endpoint,
+        [&](const Endpoint& /*peer_endpoint*/,
             detail::TransportPtr /*transport*/,
             bool /*connections_empty*/,
-            bool /*temporary_connection*/) {
+            bool /*temporary_connection*/,
+            bool timed_out) {
       assert(!slot_called);
-      assert(*itr == peer_endpoint);
       boost::mutex::scoped_lock lock(local_mutex);
       slot_called = true;
+      timed_out_connecting = timed_out;
       local_cond_var.notify_one();
     }));
 
@@ -126,8 +127,9 @@ void Transport::Bootstrap(
                                       bptime::time_duration() :
                                       Parameters::bootstrap_disconnection_timeout);
 
-    bool success(local_cond_var.timed_wait(
-        lock, Parameters::connect_timeout, [&] { return slot_called; }));  // NOLINT (Fraser)
+    bool success(local_cond_var.timed_wait(lock,
+                                           Parameters::connect_timeout + bptime::seconds(1),
+                                           [&] { return slot_called; }));  // NOLINT (Fraser)
     slot_connection_added.disconnect();
     slot_connection_lost.disconnect();
     if (!success) {
@@ -136,6 +138,12 @@ void Transport::Bootstrap(
                   << multiplexer_->local_endpoint();
       continue;
     }
+
+    if (timed_out_connecting) {
+      LOG(kError) << "Failed to make connection to " << *itr;
+      continue;
+    }
+
     LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
                   << " connected to " << *itr;
     *chosen_endpoint = *itr;
@@ -243,15 +251,16 @@ void Transport::DoInsertConnection(ConnectionPtr connection) {
   on_connection_added_(connection->Socket().RemoteEndpoint(), shared_from_this());
 }
 
-void Transport::RemoveConnection(ConnectionPtr connection) {
-  strand_.dispatch(std::bind(&Transport::DoRemoveConnection, shared_from_this(), connection));
+void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
+  strand_.dispatch(
+      std::bind(&Transport::DoRemoveConnection, shared_from_this(), connection, timed_out));
 }
 
-void Transport::DoRemoveConnection(ConnectionPtr connection) {
+void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
   bool connections_empty(false), temporary_connection(false);
   connection_manager_->RemoveConnection(connection, connections_empty, temporary_connection);
   on_connection_lost_(connection->Socket().RemoteEndpoint(), shared_from_this(),
-                      connections_empty, temporary_connection);
+                      connections_empty, temporary_connection, timed_out);
 }
 
 }  // namespace detail

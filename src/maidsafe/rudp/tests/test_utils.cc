@@ -163,9 +163,10 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
 
       futures0 = nodes[i]->GetFutureForMessages(1);
       futures1 = nodes[j]->GetFutureForMessages(1);
+
       LOG(kInfo) << "Calling Add from " << nodes[i]->id() << " on "
-                  << this_endpoint_pair.local << " to " << nodes[j]->id()
-                  << " on " << peer_endpoint_pair.local;
+                 << this_endpoint_pair.local << " to " << nodes[j]->id()
+                 << " on " << peer_endpoint_pair.local;
       result = nodes[i]->managed_connections()->Add(this_endpoint_pair.local,
                                                     peer_endpoint_pair.local,
                                                     nodes[i]->validation_data());
@@ -176,8 +177,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       }
 
       LOG(kInfo) << "Calling Add from " << nodes[j]->id() << " on "
-                  << peer_endpoint_pair.local << " to " << nodes[i]->id()
-                  << " on " << this_endpoint_pair.local;
+                 << peer_endpoint_pair.local << " to " << nodes[i]->id()
+                 << " on " << this_endpoint_pair.local;
       result = nodes[j]->managed_connections()->Add(peer_endpoint_pair.local,
                                                     this_endpoint_pair.local,
                                                     nodes[j]->validation_data());
@@ -260,12 +261,15 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
         }
         LOG(kInfo) << id() << " -- Received: " << (is_printable ? message.substr(0, 30) :
                                                    EncodeToHex(message.substr(0, 15)));
+                                        std::cout << id() << " -- Received: " << (is_printable ? message.substr(0, 30) :
+                                                                                   EncodeToHex(message.substr(0, 15))) << '\n';
         std::lock_guard<std::mutex> guard(mutex_);
         messages_.emplace_back(message);
         SetPromiseIfDone();
       },
       [&](const Endpoint& endpoint) {
         LOG(kInfo) << id() << " -- Lost connection to " << endpoint;
+                                                          std::cout << id() << " -- Lost connection to " << endpoint << '\n';
         std::lock_guard<std::mutex> guard(mutex_);
         connection_lost_endpoints_.emplace_back(endpoint);
         connected_endpoints_.erase(std::remove(connected_endpoints_.begin(),

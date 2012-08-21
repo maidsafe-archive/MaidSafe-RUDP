@@ -37,13 +37,26 @@ ip::address_v4 NetworkPrefix(const ip::address_v4& address) {
   return ip::address_v4(network_prefix);
 }
 
+const ip::address_v4 kMinClassA(ip::address_v4::from_string("10.0.0.0"));
+const ip::address_v4 kMaxClassA(ip::address_v4::from_string("10.255.255.255"));
+const ip::address_v4 kMinClassB(ip::address_v4::from_string("172.16.0.0"));
+const ip::address_v4 kMaxClassB(ip::address_v4::from_string("172.31.255.255"));
+const ip::address_v4 kMinClassC(ip::address_v4::from_string("192.168.0.0"));
+const ip::address_v4 kMaxClassC(ip::address_v4::from_string("192.168.255.255"));
+
 bool IsPrivateNetworkAddress(const ip::address_v4& address) {
-  static const ip::address_v4 kMinClassA(ip::address_v4::from_string("10.0.0.0"));
-  static const ip::address_v4 kMaxClassA(ip::address_v4::from_string("10.255.255.255"));
-  static const ip::address_v4 kMinClassB(ip::address_v4::from_string("172.16.0.0"));
-  static const ip::address_v4 kMaxClassB(ip::address_v4::from_string("172.31.255.255"));
-  static const ip::address_v4 kMinClassC(ip::address_v4::from_string("192.168.0.0"));
-  static const ip::address_v4 kMaxClassC(ip::address_v4::from_string("192.168.255.255"));
+  BOOST_ASSERT_MSG(!kMinClassA.is_unspecified(),
+                   (kMinClassA.to_string() + " (kMinClassA) is unspecified.").c_str());
+  BOOST_ASSERT_MSG(!kMaxClassA.is_unspecified(),
+                   (kMaxClassA.to_string() + " (kMaxClassA) is unspecified.").c_str());
+  BOOST_ASSERT_MSG(!kMinClassB.is_unspecified(),
+                   (kMinClassB.to_string() + " (kMinClassB) is unspecified.").c_str());
+  BOOST_ASSERT_MSG(!kMaxClassB.is_unspecified(),
+                   (kMaxClassB.to_string() + " (kMaxClassB) is unspecified.").c_str());
+  BOOST_ASSERT_MSG(!kMinClassC.is_unspecified(),
+                   (kMinClassC.to_string() + " (kMinClassC) is unspecified.").c_str());
+  BOOST_ASSERT_MSG(!kMaxClassC.is_unspecified(),
+                   (kMaxClassC.to_string() + " (kMaxClassC) is unspecified.").c_str());
   if (address <= kMaxClassA)
     return address >= kMinClassA;
   if (address <= kMaxClassB)
@@ -76,16 +89,9 @@ bool IsValid(const ip::udp::endpoint& endpoint) {
 }
 
 bool OnSameLocalNetwork(const ip::udp::endpoint& endpoint1, const ip::udp::endpoint& endpoint2) {
-  uint16_t prt = endpoint1.port();
-                                                                  LOG(kWarning) << endpoint1 << "   " << endpoint2 << "   " << prt;
   if (endpoint1.address().is_v4() && endpoint2.address().is_v4()) {
     ip::address_v4 address1(endpoint1.address().to_v4()), address2(endpoint2.address().to_v4());
-    bool on_same(IsPrivateNetworkAddress(address1) && NetworkPrefix(address1) == NetworkPrefix(address2));
-    if (!on_same) {
-      LOG(kWarning) << "Priv: " << std::boolalpha << IsPrivateNetworkAddress(address1) << "   " << NetworkPrefix(address1)
-                    << "   " << NetworkPrefix(address2) << "   " << (NetworkPrefix(address1) == NetworkPrefix(address2));
-    }
-    return on_same;
+    return IsPrivateNetworkAddress(address1) && NetworkPrefix(address1) == NetworkPrefix(address2);
   } else if (endpoint1.address().is_v6() && endpoint2.address().is_v6()) {
     // TODO(Fraser#5#): 2012-07-30 - Handle IPv6 properly.
     return endpoint1.address().to_v6().is_link_local();

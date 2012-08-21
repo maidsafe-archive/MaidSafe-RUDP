@@ -61,7 +61,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   typedef boost::signals2::signal<
       void(const boost::asio::ip::udp::endpoint&,
-           std::shared_ptr<Transport>, bool, bool)> OnConnectionLost;
+           std::shared_ptr<Transport>, bool, bool, bool)> OnConnectionLost;
 
   explicit Transport(AsioService& asio_service);  // NOLINT (Fraser)
 
@@ -126,8 +126,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DoSignalMessageReceived(const std::string& message);
   void InsertConnection(ConnectionPtr connection);
   void DoInsertConnection(ConnectionPtr connection);
-  void RemoveConnection(ConnectionPtr connection);
-  void DoRemoveConnection(ConnectionPtr connection);
+  void RemoveConnection(ConnectionPtr connection, bool timed_out);
+  void DoRemoveConnection(ConnectionPtr connection, bool timed_out);
 
   AsioService& asio_service_;
   boost::asio::io_service::strand strand_;

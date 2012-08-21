@@ -185,8 +185,6 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
       LOG(kError) << "Failed to validate peer's public key.";
       return false;
     }
-  } else {
-    LOG(kError) << "Failed to decode public key.";
   }
 
   return true;

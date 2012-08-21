@@ -98,6 +98,12 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     state_ = kHandshaking;
     SendCookie();
   } else if (state_ == kHandshaking) {
+    if (packet.InitialPacketSequenceNumber() == 0) {
+      LOG(kVerbose) << "Received duplicate ConnectionRequest from " << peer_.Endpoint()
+                    << "  Waiting for Cookie.";
+      return;
+    }
+
 //    if (packet.SynCookie() == 1) {
     if (!CalculateEndpoint(packet.Endpoint()))
       return;
@@ -134,7 +140,7 @@ bool Session::CalculateEndpoint(const boost::asio::ip::udp::endpoint& this_repor
       // This is the first non-local connection on this transport.
       this_external_endpoint_ = this_reported_endpoint;
       LOG(kVerbose) << "Setting this external endpoint to " << this_external_endpoint_
-                    << " as viewed by peer at " << peer_.Endpoint() << OnSameLocalNetwork(kThisLocalEndpoint_, peer_.Endpoint());
+                    << " as viewed by peer at " << peer_.Endpoint();
     } else {
       LOG(kVerbose) << "Can't establish external endpoint, peer on same network as this node.";
     }
@@ -167,7 +173,6 @@ void Session::SendConnectionRequest() {
   packet.SetEndpoint(peer_.Endpoint());
   packet.SetDestinationSocketId((mode_ == kNormal) ? 0 : 0xffffffff);
   packet.SetConnectionType(1);
-  packet.SetPublicKey(this_public_key_);
 
   int result(peer_.Send(packet));
   if (result != kSuccess)

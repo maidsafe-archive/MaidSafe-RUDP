@@ -69,18 +69,18 @@ Socket& Connection::Socket() {
 }
 
 void Connection::Close() {
-  strand_.dispatch(std::bind(&Connection::DoClose, shared_from_this()));
+  strand_.dispatch(std::bind(&Connection::DoClose, shared_from_this(), false));
 }
 
-void Connection::DoClose() {
+void Connection::DoClose(bool timed_out) {
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     // We're still connected to the transport. We need to detach and then start flushing the socket
     // to attempt a graceful closure.
     socket_.NotifyClose();
-    socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose, shared_from_this())));
-    transport->RemoveConnection(shared_from_this());
+    socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose, shared_from_this(), false)));
+    transport->RemoveConnection(shared_from_this(), timed_out);
     transport_.reset();
     sending_ = false;
     timer_.expires_from_now(Parameters::disconnection_timeout);
@@ -120,7 +120,6 @@ bool Connection::IsTemporary() const {
 }
 
 void Connection::MakePermanent() {
-                                LOG(kError) << "Making permanent connection to " << socket_.RemoteEndpoint();
   strand_.dispatch(std::bind(&Connection::DoMakePermanent, shared_from_this()));
 }
 
@@ -183,7 +182,7 @@ void Connection::CheckTimeout(const bs::error_code& ec) {
   if (timer_.expires_from_now().is_negative()) {
     // Time has run out.
     LOG(kError) << "Closing connection to " << socket_.RemoteEndpoint() << " - timed out.";
-    return DoClose();
+    return DoClose(true);
   }
 
   // Keep processing timeouts until the socket is completely closed.
@@ -272,6 +271,7 @@ void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
 void Connection::HandleConnect(const bs::error_code& ec,
                                const std::string& validation_data,
                                const PingFunctor& ping_functor) {
+                                                              std::cout << "HandleConnect with " << validation_data << '\n';
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
@@ -302,8 +302,10 @@ void Connection::HandleConnect(const bs::error_code& ec,
 
   StartProbing();
   StartReadSize();
-  if (!validation_data.empty())
+  if (!validation_data.empty()) {
+                                                              std::cout << "Sending " << validation_data << '\n';
     StartSending(validation_data, MessageSentFunctor());
+  }
 }
 
 void Connection::StartReadSize() {
