@@ -126,6 +126,14 @@ bool IsConnectable(const ip::udp::endpoint& peer_endpoint,
   return OnSameLocalNetwork(peer_endpoint, this_local_endpoint);
 }
 
+bool OnPrivateNetwork(const ip::udp::endpoint& endpoint) {
+  if (endpoint.address().is_v4())
+    return IsPrivateNetworkAddress(endpoint.address().to_v4());
+  else
+    // TODO(Fraser#5#): 2012-07-30 - Handle IPv6 properly.
+    return endpoint.address().to_v6().is_link_local();
+}
+
 }  // namespace detail
 
 }  // namespace rudp

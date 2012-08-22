@@ -80,7 +80,7 @@ class Session {
   Session(const Session&);
   Session& operator=(const Session&);
 
-  bool CalculateEndpoint(const boost::asio::ip::udp::endpoint& this_reported_endpoint);
+  bool CalculateEndpoint();
 
   // Helper functions to send the packets that make up the handshaking process.
   void SendPacket();

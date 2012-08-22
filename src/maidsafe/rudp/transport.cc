@@ -194,8 +194,7 @@ void Transport::Send(const Endpoint& peer_endpoint,
   connection_manager_->Send(peer_endpoint, message, message_sent_functor);
 }
 
-void Transport::Ping(const boost::asio::ip::udp::endpoint& peer_endpoint,
-                     const PingFunctor& ping_functor) {
+void Transport::Ping(const Endpoint& peer_endpoint, const PingFunctor& ping_functor) {
   connection_manager_->Ping(peer_endpoint, ping_functor);
 }
 
@@ -206,6 +205,11 @@ Endpoint Transport::external_endpoint() const {
 Endpoint Transport::local_endpoint() const {
   return multiplexer_->local_endpoint();
 }
+
+Endpoint Transport::ThisEndpointAsSeenByPeer(const Endpoint& peer_endpoint) {
+  return connection_manager_->ThisEndpoint(peer_endpoint);
+}
+
 
 bool Transport::IsTemporaryConnection(const Endpoint& peer_endpoint) {
   return connection_manager_->IsTemporaryConnection(peer_endpoint);

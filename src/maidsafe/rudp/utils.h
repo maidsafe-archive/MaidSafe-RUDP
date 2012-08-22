@@ -45,6 +45,9 @@ bool IsConnectable(const boost::asio::ip::udp::endpoint& peer_endpoint,
                    const boost::asio::ip::udp::endpoint& this_local_endpoint,
                    const boost::asio::ip::udp::endpoint& this_external_endpoint);
 
+// Returns true if the endpoint is within one of the ranges designated for private networks.
+bool OnPrivateNetwork(const boost::asio::ip::udp::endpoint& endpoint);
+
 }  // namespace detail
 
 }  // namespace rudp

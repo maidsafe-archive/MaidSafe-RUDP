@@ -99,13 +99,14 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     SendCookie();
   } else if (state_ == kHandshaking) {
     if (packet.InitialPacketSequenceNumber() == 0) {
-      LOG(kVerbose) << "Received duplicate ConnectionRequest from " << peer_.Endpoint()
+      LOG(kVerbose) << "Received duplicate ConnectionRequest from " << peer_.PeerEndpoint()
                     << "  Waiting for Cookie.";
       return;
     }
 
 //    if (packet.SynCookie() == 1) {
-    if (!CalculateEndpoint(packet.Endpoint()))
+    peer_.SetThisEndpoint(packet.Endpoint());
+    if (!CalculateEndpoint())
       return;
 
     if (!packet.PublicKey()) {
@@ -127,30 +128,30 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
   }
 }
 
-bool Session::CalculateEndpoint(const boost::asio::ip::udp::endpoint& this_reported_endpoint) {
-  if (!IsValid(this_reported_endpoint)) {
-    LOG(kError) << "Invalid reported external endpoint in handshake: " << this_reported_endpoint;
+bool Session::CalculateEndpoint() {
+  if (!IsValid(peer_.ThisEndpoint())) {
+    LOG(kError) << "Invalid reported external endpoint in handshake: " << peer_.ThisEndpoint();
     state_ = kClosed;
     return false;
   }
 
   std::lock_guard<std::mutex> lock(this_external_endpoint_mutex_);
   if (!IsValid(this_external_endpoint_)) {
-    if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.Endpoint())) {
+    if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.PeerEndpoint())) {
       // This is the first non-local connection on this transport.
-      this_external_endpoint_ = this_reported_endpoint;
+      this_external_endpoint_ = peer_.ThisEndpoint();
       LOG(kVerbose) << "Setting this external endpoint to " << this_external_endpoint_
-                    << " as viewed by peer at " << peer_.Endpoint();
+                    << " as viewed by peer at " << peer_.PeerEndpoint();
     } else {
       LOG(kVerbose) << "Can't establish external endpoint, peer on same network as this node.";
     }
-  } else if (this_external_endpoint_ != this_reported_endpoint) {
+  } else if (this_external_endpoint_ != peer_.ThisEndpoint()) {
     // Check to see if our external address has changed
-    if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.Endpoint())) {
+    if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.PeerEndpoint())) {
       // This external address has possibly changed (or the peer is lying).
       LOG(kWarning) << "This external address is currently " << this_external_endpoint_
-                    << ", but peer at " << peer_.Endpoint()
-                    << " is reporting our endpoint as " << this_reported_endpoint;
+                    << ", but peer at " << peer_.PeerEndpoint()
+                    << " is reporting our endpoint as " << peer_.ThisEndpoint();
       // TODO(Fraser#5#): 2012-07-30 - Possibly handle this by closing the transport?
     }
   }
@@ -170,13 +171,13 @@ void Session::SendConnectionRequest() {
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetSocketId(id_);
-  packet.SetEndpoint(peer_.Endpoint());
+  packet.SetEndpoint(peer_.PeerEndpoint());
   packet.SetDestinationSocketId((mode_ == kNormal) ? 0 : 0xffffffff);
   packet.SetConnectionType(1);
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
-    LOG(kError) << "Failed to send handshake to " << peer_.Endpoint();
+    LOG(kError) << "Failed to send handshake to " << peer_.PeerEndpoint();
 
   // Schedule another connection request.
   tick_timer_.TickAfter(bptime::milliseconds(250));
@@ -184,7 +185,7 @@ void Session::SendConnectionRequest() {
 
 void Session::SendCookie() {
   HandshakePacket packet;
-  packet.SetEndpoint(peer_.Endpoint());
+  packet.SetEndpoint(peer_.PeerEndpoint());
   packet.SetDestinationSocketId(peer_.Id());
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
@@ -198,7 +199,7 @@ void Session::SendCookie() {
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
-    LOG(kError) << "Failed to send cookie to " << peer_.Endpoint();
+    LOG(kError) << "Failed to send cookie to " << peer_.PeerEndpoint();
 
   // Schedule another cookie send.
   tick_timer_.TickAfter(bptime::milliseconds(250));

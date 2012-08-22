@@ -92,7 +92,7 @@ uint32_t Socket::BestReadBufferSize() {
 }
 
 boost::asio::ip::udp::endpoint Socket::RemoteEndpoint() const {
-  return peer_.Endpoint();
+  return peer_.PeerEndpoint();
 }
 
 uint32_t Socket::RemoteId() const {
@@ -136,7 +136,7 @@ void Socket::Close() {
 void Socket::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
                           const ip::udp::endpoint& remote,
                           Session::Mode open_mode) {
-  peer_.SetEndpoint(remote);
+  peer_.SetPeerEndpoint(remote);
   peer_.SetId(0);  // Assigned when handshake response is received.
   session_.Open(dispatcher_.AddSocket(this),
                 this_public_key,
@@ -245,7 +245,7 @@ void Socket::ProcessFlush() {
 }
 
 void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::endpoint& endpoint) {
-  if (endpoint == peer_.Endpoint()) {
+  if (endpoint == peer_.PeerEndpoint()) {
     DataPacket data_packet;
     AckPacket ack_packet;
     AckOfAckPacket ack_of_ack_packet;
@@ -313,7 +313,7 @@ void Socket::HandleKeepalive(const KeepalivePacket& packet) {
       } else {
         LOG(kWarning) << "Socket " << session_.Id()
                       << " ignoring unexpected keepalive response " << packet.SequenceNumber()
-                      << " from " << peer_.Endpoint() << ".  Current sequence number: "
+                      << " from " << peer_.PeerEndpoint() << ".  Current sequence number: "
                       << waiting_keepalive_sequence_number_;
       }
     } else {
@@ -368,6 +368,10 @@ void Socket::HandleTick() {
 
 void Socket::MakePermanent() {
   session_.MakePermanent();
+}
+
+ip::udp::endpoint Socket::ThisEndpoint() const {
+  return peer_.ThisEndpoint();
 }
 
 std::shared_ptr<asymm::PublicKey> Socket::PeerPublicKey() const {

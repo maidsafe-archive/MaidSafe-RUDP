@@ -233,6 +233,14 @@ bool ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoint,
   return true;
 }
 
+Endpoint ConnectionManager::ThisEndpoint(const Endpoint& peer_endpoint) {
+  boost::mutex::scoped_lock lock(mutex_);
+  auto itr(FindConnection(peer_endpoint));
+  if (itr == connections_.end())
+    return ip::udp::endpoint();
+  return (*itr)->Socket().ThisEndpoint();
+}
+
 uint32_t ConnectionManager::AddSocket(Socket* socket) {
   // Generate a new unique id for the socket.
   uint32_t id = 0;

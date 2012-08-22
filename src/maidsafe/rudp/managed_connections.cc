@@ -203,8 +203,15 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
     if (detail::IsValid(peer_endpoint)) {
       auto connection_map_itr = connection_map_.find(peer_endpoint);
       if (connection_map_itr != connection_map_.end()) {
-        this_endpoint_pair.external = (*connection_map_itr).second->external_endpoint();
-        this_endpoint_pair.local = (*connection_map_itr).second->local_endpoint();
+        Endpoint this_endpoint =
+            (*connection_map_itr).second->ThisEndpointAsSeenByPeer(peer_endpoint);
+        if (detail::OnPrivateNetwork(this_endpoint)) {
+          this_endpoint_pair.external = Endpoint();
+          this_endpoint_pair.local = this_endpoint;
+        } else {
+          this_endpoint_pair.external = this_endpoint;
+          this_endpoint_pair.local = Endpoint();
+        }
         return kSuccess;
       }
     }

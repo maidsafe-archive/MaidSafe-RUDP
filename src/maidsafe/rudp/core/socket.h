@@ -155,6 +155,9 @@ class Socket {
   // Changes mode of session to kNormal
   void MakePermanent();
 
+  // This node's endpoint as viewed by peer
+  boost::asio::ip::udp::endpoint ThisEndpoint() const;
+
   // Public key of remote peer, used to encrypt all outgoing messages on this socket
   std::shared_ptr<asymm::PublicKey> PeerPublicKey() const;
 
