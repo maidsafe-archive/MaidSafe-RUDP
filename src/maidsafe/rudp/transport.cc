@@ -75,11 +75,14 @@ void Transport::Bootstrap(
   BOOST_ASSERT(!multiplexer_->IsOpen());
 
   *chosen_endpoint = Endpoint();
-  *on_message_connection = on_message_.connect(on_message_slot);
+  // We want these slots to be invoked before any others connected, so that if we wait elsewhere
+  // for the other connected slot(s) to be executed, we can be assured that these main slots have
+  // already been executed at that point in time.
+  *on_message_connection = on_message_.connect(on_message_slot, boost::signals2::at_front);
   *on_connection_added_connection =
-      on_connection_added_.connect(on_connection_added_slot);
+      on_connection_added_.connect(on_connection_added_slot, boost::signals2::at_front);
   *on_connection_lost_connection =
-      on_connection_lost_.connect(on_connection_lost_slot);
+      on_connection_lost_.connect(on_connection_lost_slot, boost::signals2::at_front);
 
   connection_manager_.reset(
       new ConnectionManager(shared_from_this(), strand_, multiplexer_, this_public_key));
@@ -108,7 +111,7 @@ void Transport::Bootstrap(
       boost::mutex::scoped_lock lock(local_mutex);
       slot_called = true;
       local_cond_var.notify_one();
-    }));
+    }, boost::signals2::at_back));
     auto slot_connection_lost(on_connection_lost_.connect(
         [&](const Endpoint& /*peer_endpoint*/,
             detail::TransportPtr /*transport*/,
@@ -120,7 +123,7 @@ void Transport::Bootstrap(
       slot_called = true;
       timed_out_connecting = timed_out;
       local_cond_var.notify_one();
-    }));
+    }, boost::signals2::at_back));
 
     boost::mutex::scoped_lock lock(local_mutex);
     connection_manager_->Connect(*itr, "", bootstrap_off_existing_connection ?
@@ -208,9 +211,9 @@ bool Transport::IsTemporaryConnection(const Endpoint& peer_endpoint) {
   return connection_manager_->IsTemporaryConnection(peer_endpoint);
 }
 
-void Transport::MakeConnectionPermanent(const Endpoint& peer_endpoint,
+bool Transport::MakeConnectionPermanent(const Endpoint& peer_endpoint,
                                         const std::string& validation_data) {
-  connection_manager_->MakeConnectionPermanent(peer_endpoint, validation_data);
+  return connection_manager_->MakeConnectionPermanent(peer_endpoint, validation_data);
 }
 
 size_t Transport::ConnectionsCount() const {

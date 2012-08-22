@@ -70,7 +70,7 @@ class ConnectionManager {
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
   bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
-  void MakeConnectionPermanent(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  bool MakeConnectionPermanent(const boost::asio::ip::udp::endpoint& peer_endpoint,
                                const std::string& validation_data);
 
   // Add a socket. Returns a new unique id for the socket.

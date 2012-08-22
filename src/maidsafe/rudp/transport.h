@@ -99,7 +99,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   boost::asio::ip::udp::endpoint local_endpoint() const;
 
   bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
-  void MakeConnectionPermanent(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  bool MakeConnectionPermanent(const boost::asio::ip::udp::endpoint& peer_endpoint,
                                const std::string& validation_data);
 
   bool IsResilienceTransport() const { return is_resilience_transport_; }

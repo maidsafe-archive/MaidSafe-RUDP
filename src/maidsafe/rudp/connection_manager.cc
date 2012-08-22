@@ -210,18 +210,27 @@ bool ConnectionManager::IsTemporaryConnection(const Endpoint& peer_endpoint) {
   return (*itr)->IsTemporary();
 }
 
-void ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoint,
+bool ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoint,
                                                 const std::string& validation_data) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_endpoint));
   if (itr == connections_.end()) {
     LOG(kWarning) << "Not currently connected to " << peer_endpoint;
-    return;
+    return false;
   }
 
   ConnectionPtr connection(*itr);
   connection->MakePermanent();
-  strand_.dispatch([=] { connection->StartSending(validation_data, std::function<void(int)>()); });  // NOLINT (Fraser)
+  strand_.dispatch([=] {
+      connection->StartSending(validation_data,
+          [](int result) {
+              if (result != kSuccess) {
+                LOG(kWarning) << "Failed to send validation data while making permanent.  Result: "
+                              << result;
+              }
+          });
+      });
+  return true;
 }
 
 uint32_t ConnectionManager::AddSocket(Socket* socket) {

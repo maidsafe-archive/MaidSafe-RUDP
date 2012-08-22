@@ -271,7 +271,6 @@ void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
 void Connection::HandleConnect(const bs::error_code& ec,
                                const std::string& validation_data,
                                const PingFunctor& ping_functor) {
-                                                              std::cout << "HandleConnect with " << validation_data << '\n';
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
@@ -303,8 +302,11 @@ void Connection::HandleConnect(const bs::error_code& ec,
   StartProbing();
   StartReadSize();
   if (!validation_data.empty()) {
-                                                              std::cout << "Sending " << validation_data << '\n';
-    StartSending(validation_data, MessageSentFunctor());
+    StartSending(validation_data, [](int result) {
+        if (result != kSuccess) {
+          LOG(kWarning) << "Failed to send validation data.  Result: " << result;
+        }
+    });
   }
 }
 

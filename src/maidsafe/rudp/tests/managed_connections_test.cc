@@ -208,9 +208,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
             node_.managed_connections()->Add(this_endpoint_pair.local,
                                              peer_endpoint_pair.local,
                                              node_.validation_data()));
-  ASSERT_TRUE(peer_futures.timed_wait(bptime::seconds(3)));
+  ASSERT_TRUE(peer_futures.timed_wait(Parameters::connect_timeout));
   auto peer_messages(peer_futures.get());
-  ASSERT_TRUE(this_node_futures.timed_wait(bptime::seconds(3)));
+  ASSERT_TRUE(this_node_futures.timed_wait(Parameters::connect_timeout));
   auto this_node_messages(this_node_futures.get());
   ASSERT_EQ(1, peer_messages.size());
   ASSERT_EQ(1, this_node_messages.size());
@@ -239,11 +239,14 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
             node_.managed_connections()->Add(unavailable_endpoint,
                                              bootstrap_endpoints_[2],
                                              node_.validation_data()));
-  // TODO(Fraser#5#): 2012-06-20 - Wait for this Add attempt to timeout.
+
+  node_.ResetData();
+  this_node_futures = node_.GetFutureForMessages(1);
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->Add(this_endpoint_pair.local,
                                              unavailable_endpoint,
                                              node_.validation_data()));
+  ASSERT_FALSE(this_node_futures.timed_wait(Parameters::connect_timeout));
 
   // Re-add existing connection, on same transport and new transport
   EXPECT_EQ(kConnectionAlreadyExists,
@@ -311,9 +314,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
             node_.managed_connections()->Add(this_endpoint_pair.local,
                                              peer_endpoint_pair.local,
                                              node_.validation_data()));
-  ASSERT_TRUE(peer_futures.timed_wait(bptime::seconds(3)));
+  ASSERT_TRUE(peer_futures.timed_wait(Parameters::connect_timeout));
   auto peer_messages(peer_futures.get());
-  ASSERT_TRUE(this_node_futures.timed_wait(bptime::seconds(3)));
+  ASSERT_TRUE(this_node_futures.timed_wait(Parameters::connect_timeout));
   auto this_node_messages(this_node_futures.get());
   ASSERT_EQ(1, peer_messages.size());
   ASSERT_EQ(1, this_node_messages.size());
@@ -431,9 +434,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
             node_.managed_connections()->Add(this_endpoint_pair.local,
                                              peer_endpoint_pair.local,
                                              node_.validation_data()));
-  ASSERT_TRUE(peer_futures.timed_wait(bptime::seconds(3)));
+  ASSERT_TRUE(peer_futures.timed_wait(Parameters::connect_timeout));
   auto peer_messages(peer_futures.get());
-  ASSERT_TRUE(this_node_futures.timed_wait(bptime::seconds(3)));
+  ASSERT_TRUE(this_node_futures.timed_wait(Parameters::connect_timeout));
   auto this_node_messages(this_node_futures.get());
   ASSERT_EQ(1U, peer_messages.size());
   ASSERT_EQ(1U, this_node_messages.size());
@@ -581,9 +584,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
             node_.managed_connections()->Add(this_endpoint_pair.local,
                                              peer_endpoint_pair.local,
                                              node_.validation_data()));
-  ASSERT_TRUE(peer_futures.timed_wait(bptime::seconds(3)));
+  ASSERT_TRUE(peer_futures.timed_wait(Parameters::connect_timeout));
   auto peer_messages(peer_futures.get());
-  ASSERT_TRUE(this_node_futures.timed_wait(bptime::seconds(3)));
+  ASSERT_TRUE(this_node_futures.timed_wait(Parameters::connect_timeout));
   auto this_node_messages(this_node_futures.get());
   ASSERT_EQ(1U, peer_messages.size());
   ASSERT_EQ(1U, this_node_messages.size());
@@ -665,9 +668,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
               node_.managed_connections()->Add(this_endpoint_pair.local,
                                                peer_endpoint_pair.local,
                                                node_.validation_data()));
-    ASSERT_TRUE(peer_futures.timed_wait(bptime::seconds(3)));
+    ASSERT_TRUE(peer_futures.timed_wait(Parameters::connect_timeout));
     auto peer_messages(peer_futures.get());
-    ASSERT_TRUE(this_node_futures.timed_wait(bptime::seconds(3)));
+    ASSERT_TRUE(this_node_futures.timed_wait(Parameters::connect_timeout));
     auto this_node_messages(this_node_futures.get());
     ASSERT_EQ(1U, peer_messages.size());
     ASSERT_EQ(1U, this_node_messages.size());
@@ -901,9 +904,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_Ping) {
             node_.managed_connections()->Add(this_endpoint_pair.local,
                                              peer_endpoint_pair.local,
                                              node_.validation_data()));
-  ASSERT_TRUE(peer_futures.timed_wait(bptime::seconds(3)));
+  ASSERT_TRUE(peer_futures.timed_wait(Parameters::connect_timeout));
   auto peer_messages(peer_futures.get());
-  ASSERT_TRUE(this_node_futures.timed_wait(bptime::seconds(3)));
+  ASSERT_TRUE(this_node_futures.timed_wait(Parameters::connect_timeout));
   auto this_node_messages(this_node_futures.get());
   ASSERT_EQ(1U, peer_messages.size());
   ASSERT_EQ(1U, this_node_messages.size());

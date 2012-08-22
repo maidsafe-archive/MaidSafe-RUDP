@@ -123,6 +123,14 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
     return Endpoint();
   }
 
+  // TODO(Fraser#5#): 2012-08-22 - Work out why this sleep is required.  If we don't sleep here and
+  // immediately call GetAvailableEndpoint (in Release builds) sometimes it returns a different
+  // transport to the one here with the temporary bootstrap connection.  I don't like it.  I'm sure
+  // you don't like it.  It sucks.  But with 2 weeks to launch, it's going into next.
+  // NB - This comment entitles the reader to one box of YumYums at my expense.  You need to email
+  // me the github link to this comment, and it needs to be from the current HEAD of next.  Your
+  // claim is invalid if you tell anyone else about it.
+  Sleep(boost::posix_time::milliseconds(100));
   return new_endpoint;
 }
 
@@ -298,12 +306,17 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
     }
 
     transport = (*itr).transport;
-
     auto connection_map_itr = connection_map_.find(peer_endpoint);
     if (connection_map_itr != connection_map_.end()) {
       if ((*connection_map_itr).second->IsTemporaryConnection(peer_endpoint)) {
-                                                                                      std::cout << "MAKING CONN PERMANENT\n";
-        transport->MakeConnectionPermanent(peer_endpoint, validation_data);
+        if (!transport->MakeConnectionPermanent(peer_endpoint, validation_data)) {
+          // There's a good chance that if this error happens, we've already got a temporary
+          // (60 second) connection to this peer - i.e. this node bootstrapped off peer, but we've
+          // called GetAvailableEndpoint with an empty (or different) peer_endpoint, which returned
+          // a different transport to the one with the bootstrap connection
+          LOG(kError) << "Failed to make connection to " << peer_endpoint << " permanent.";
+          return kInvalidConnection;
+        }
         pending_connections_.erase(peer_endpoint);
         return kSuccess;
       } else {

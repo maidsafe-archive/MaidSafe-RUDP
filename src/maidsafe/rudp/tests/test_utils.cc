@@ -21,6 +21,7 @@
 #include "maidsafe/common/log.h"
 
 #include "maidsafe/rudp/managed_connections.h"
+#include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/utils.h"
 
@@ -90,11 +91,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   }
   nodes[1]->AddConnectedEndPoint(endpoint0);
 
-  if (!futures0.timed_wait(bptime::seconds(3))) {
+  if (!futures0.timed_wait(Parameters::connect_timeout)) {
     return testing::AssertionFailure() << "Failed waiting for " << nodes[0]->id()
         << " to receive " << nodes[1]->id() << "'s validation data.";
   }
-  if (!futures1.timed_wait(bptime::seconds(3))) {
+  if (!futures1.timed_wait(Parameters::connect_timeout)) {
     return testing::AssertionFailure() << "Failed waiting for " << nodes[1]->id()
         << " to receive " << nodes[0]->id() << "'s validation data.";
   }
@@ -187,11 +188,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
         return testing::AssertionFailure() << "Add failed for " << nodes[j]->id()
                                            << " with result " << result;
       }
-      if (!futures0.timed_wait(bptime::seconds(3))) {
+      if (!futures0.timed_wait(Parameters::connect_timeout)) {
         return testing::AssertionFailure() << "Failed waiting for " << nodes[i]->id()
             << " to receive " << nodes[j]->id() << "'s validation data.";
       }
-      if (!futures1.timed_wait(bptime::seconds(3))) {
+      if (!futures1.timed_wait(Parameters::connect_timeout)) {
         return testing::AssertionFailure() << "Failed waiting for " << nodes[j]->id()
             << " to receive " << nodes[i]->id() << "'s validation data.";
       }
@@ -261,15 +262,12 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
         }
         LOG(kInfo) << id() << " -- Received: " << (is_printable ? message.substr(0, 30) :
                                                    EncodeToHex(message.substr(0, 15)));
-                                        std::cout << id() << " -- Received: " << (is_printable ? message.substr(0, 30) :
-                                                                                   EncodeToHex(message.substr(0, 15))) << '\n';
         std::lock_guard<std::mutex> guard(mutex_);
         messages_.emplace_back(message);
         SetPromiseIfDone();
       },
       [&](const Endpoint& endpoint) {
         LOG(kInfo) << id() << " -- Lost connection to " << endpoint;
-                                                          std::cout << id() << " -- Lost connection to " << endpoint << '\n';
         std::lock_guard<std::mutex> guard(mutex_);
         connection_lost_endpoints_.emplace_back(endpoint);
         connected_endpoints_.erase(std::remove(connected_endpoints_.begin(),
