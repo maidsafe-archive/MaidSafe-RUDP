@@ -32,7 +32,7 @@ namespace {
 
 ip::address_v4 NetworkPrefix(const ip::address_v4& address) {
   ip::address_v4::bytes_type network_prefix;
-  for (int i(0); i != network_prefix.size(); ++i)
+  for (unsigned int i(0); i != network_prefix.size(); ++i)
     network_prefix[i] = address.to_bytes()[i] & ip::address_v4::netmask(address).to_bytes()[i];
   return ip::address_v4(network_prefix);
 }
