@@ -35,7 +35,9 @@ HandshakePacket::HandshakePacket()
       connection_type_(0),
       socket_id_(0),
       syn_cookie_(0),
-      endpoint_(),
+      request_nat_detection_port_(false),
+      nat_detection_port_(0),
+      peer_endpoint_(),
       public_key_() {
   SetType(kPacketType);
 }
@@ -117,12 +119,28 @@ void HandshakePacket::SetSynCookie(uint32_t n) {
 //      ip_address_ = address.to_v6();
 //  }
 
-asio::ip::udp::endpoint HandshakePacket::Endpoint() const {
-  return endpoint_;
+bool HandshakePacket::RequestNatDetectionPort() const {
+  return request_nat_detection_port_;
 }
 
-void HandshakePacket::SetEndpoint(const asio::ip::udp::endpoint& endpoint) {
-  endpoint_ = endpoint;
+void HandshakePacket::SetRequestNatDetectionPort(bool b) {
+  request_nat_detection_port_ = b;
+}
+
+uint16_t HandshakePacket::NatDetectionPort() const {
+  return nat_detection_port_;
+}
+
+void HandshakePacket::SetNatDetectionPort(uint16_t port) {
+  nat_detection_port_ = port;
+}
+
+asio::ip::udp::endpoint HandshakePacket::PeerEndpoint() const {
+  return peer_endpoint_;
+}
+
+void HandshakePacket::SetPeerEndpoint(const asio::ip::udp::endpoint& endpoint) {
+  peer_endpoint_ = endpoint;
 }
 
 std::shared_ptr<asymm::PublicKey> HandshakePacket::PublicKey() const {
@@ -162,8 +180,12 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   DecodeUint32(&socket_id_, p + 24);
   DecodeUint32(&syn_cookie_, p + 28);
 
+  request_nat_detection_port_ = ((p[32] & 0x80) != 0);
+  nat_detection_port_ = p[33];
+  nat_detection_port_ = ((nat_detection_port_ << 8) | p[34]);
+
   asio::ip::address_v6::bytes_type bytes;
-  std::memcpy(&bytes[0], p + 32, 16);
+  std::memcpy(&bytes[0], p + 35, 16);
   asio::ip::address_v6 ip_v6_address(bytes);
 
   asio::ip::address ip_address;
@@ -172,13 +194,13 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   else
     ip_address = ip_v6_address;
 
-  unsigned short port = p[48];
-  port = ((port << 8) | p[49]);
+  unsigned short port = p[51];
+  port = ((port << 8) | p[52]);
 
-  endpoint_ = asio::ip::udp::endpoint(ip_address, port);
+  peer_endpoint_ = asio::ip::udp::endpoint(ip_address, port);
 
   if (asio::buffer_size(buffer) != kMinPacketSize) {
-    std::string encoded_public_key(p + 50, p + length);
+    std::string encoded_public_key(p + 53, p + length);
     public_key_.reset(new asymm::PublicKey);
     asymm::DecodePublicKey(encoded_public_key, public_key_.get());
     if (!asymm::ValidateKey(*public_key_)) {
@@ -221,19 +243,23 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer& buffer) const {
   EncodeUint32(socket_id_, p + 24);
   EncodeUint32(syn_cookie_, p + 28);
 
+  p[32] = (request_nat_detection_port_ ? 0x80 : 0);
+  p[33] = ((nat_detection_port_ >> 8) & 0xff);
+  p[34] = (nat_detection_port_ & 0xff);
+
   boost::asio::ip::address_v6 ip_address;
-  if (endpoint_.address().is_v4()) {
-    ip_address = asio::ip::address_v6::v4_compatible(endpoint_.address().to_v4());
+  if (peer_endpoint_.address().is_v4()) {
+    ip_address = asio::ip::address_v6::v4_compatible(peer_endpoint_.address().to_v4());
   } else {
-    ip_address = endpoint_.address().to_v6();
+    ip_address = peer_endpoint_.address().to_v6();
   }
   asio::ip::address_v6::bytes_type bytes = ip_address.to_bytes();
-  std::memcpy(p + 32, &bytes[0], 16);
+  std::memcpy(p + 35, &bytes[0], 16);
 
-  p[48] = ((endpoint_.port() >> 8) & 0xff);
-  p[49] = (endpoint_.port() & 0xff);
+  p[51] = ((peer_endpoint_.port() >> 8) & 0xff);
+  p[52] = (peer_endpoint_.port() & 0xff);
 
-  std::memcpy(p + 50, encoded_public_key.data(), encoded_public_key.size());
+  std::memcpy(p + 53, encoded_public_key.data(), encoded_public_key.size());
 
   return kMinPacketSize + encoded_public_key.size();
 }

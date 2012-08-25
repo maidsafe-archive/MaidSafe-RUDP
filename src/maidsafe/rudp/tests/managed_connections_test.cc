@@ -60,17 +60,20 @@ class ManagedConnectionsTest : public testing::Test {
 
 TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // All invalid
+  NatType nat_type(NatType::kUnknown);
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(std::vector<Endpoint>(),
                                                                MessageReceivedFunctor(),
                                                                ConnectionLostFunctor(),
                                                                nullptr,
-                                                               nullptr));
+                                                               nullptr,
+                                                               nat_type));
   // Empty bootstrap_endpoints
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(std::vector<Endpoint>(),
                                                                do_nothing_on_message_,
                                                                do_nothing_on_connection_lost_,
                                                                node_.private_key(),
-                                                               node_.public_key()));
+                                                               node_.public_key(),
+                                                               nat_type));
   // Unavailable bootstrap_endpoints
   EXPECT_EQ(Endpoint(),
             node_.managed_connections()->Bootstrap(
@@ -78,52 +81,60 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                 do_nothing_on_message_,
                 do_nothing_on_connection_lost_,
                 node_.private_key(),
-                node_.public_key()));
+                node_.public_key(),
+                nat_type));
   // Invalid MessageReceivedFunctor
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
                                                                MessageReceivedFunctor(),
                                                                do_nothing_on_connection_lost_,
                                                                node_.private_key(),
-                                                               node_.public_key()));
+                                                               node_.public_key(),
+                                                               nat_type));
   // Invalid ConnectionLostFunctor
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
                                                                do_nothing_on_message_,
                                                                ConnectionLostFunctor(),
                                                                node_.private_key(),
-                                                               node_.public_key()));
+                                                               node_.public_key(),
+                                                               nat_type));
   // Invalid private key
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(
                         bootstrap_endpoints_,
                         do_nothing_on_message_,
                         do_nothing_on_connection_lost_,
                         std::shared_ptr<asymm::PrivateKey>(new asymm::PrivateKey),
-                        node_.public_key()));
+                        node_.public_key(),
+                        nat_type));
   // Invalid public key
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(
                         bootstrap_endpoints_,
                         do_nothing_on_message_,
                         do_nothing_on_connection_lost_,
                         node_.private_key(),
-                        std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey)));
+                        std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey),
+                        nat_type));
   // NULL private key
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
                                                                do_nothing_on_message_,
                                                                do_nothing_on_connection_lost_,
                                                                nullptr,
-                                                               node_.public_key()));
+                                                               node_.public_key(),
+                                                               nat_type));
   // NULL public key
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
                                                                do_nothing_on_message_,
                                                                do_nothing_on_connection_lost_,
                                                                node_.private_key(),
-                                                               nullptr));
+                                                               nullptr,
+                                                               nat_type));
   // Valid
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
   Endpoint chosen_endpoint(node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
                                                                   do_nothing_on_message_,
                                                                   do_nothing_on_connection_lost_,
                                                                   node_.private_key(),
-                                                                  node_.public_key()));
+                                                                  node_.public_key(),
+                                                                  nat_type));
   EXPECT_TRUE(detail::IsValid(chosen_endpoint));
   EXPECT_NE(bootstrap_endpoints_.end(),
             std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
@@ -132,7 +143,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                                do_nothing_on_message_,
                                                                do_nothing_on_connection_lost_,
                                                                node_.private_key(),
-                                                               node_.public_key()));
+                                                               node_.public_key(),
+                                                               nat_type));
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
@@ -143,34 +155,44 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   this_endpoint_pair.external = this_endpoint_pair.local =
       Endpoint(ip::address::from_string("1.1.1.1"), 1025);
   EXPECT_EQ(kNotBootstrapped,
-            node_.managed_connections()->GetAvailableEndpoint(Endpoint(), this_endpoint_pair));
+            node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
+                                                              NatType::kSymmetric,
+                                                              this_endpoint_pair));
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
   EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
   this_endpoint_pair.external = this_endpoint_pair.local =
       Endpoint(ip::address::from_string("1.1.1.1"), 1025);
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                Endpoint(ip::address::from_string("1.2.3.4"), 1026), this_endpoint_pair));
+                Endpoint(ip::address::from_string("1.2.3.4"), 1026),
+                NatType::kSymmetric,
+                this_endpoint_pair));
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
   EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
 
   //  After Bootstrapping
+  NatType nat_type(NatType::kUnknown);
   Endpoint chosen_endpoint(node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
                                                                   do_nothing_on_message_,
                                                                   do_nothing_on_connection_lost_,
                                                                   node_.private_key(),
-                                                                  node_.public_key()));
+                                                                  node_.public_key(),
+                                                                  nat_type));
   EXPECT_TRUE(detail::IsValid(chosen_endpoint));
   EXPECT_NE(bootstrap_endpoints_.end(),
             std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
 
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint, this_endpoint_pair));
+            node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint,
+                                                              NatType::kSymmetric,
+                                                              this_endpoint_pair));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
 
   EndpointPair another_endpoint_pair;
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(Endpoint(), another_endpoint_pair));
+            node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
+                                                              NatType::kSymmetric,
+                                                              another_endpoint_pair));
   EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
 }
@@ -191,9 +213,12 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   nodes_[0]->ResetData();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint, this_endpoint_pair));
+            node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint,
+                                                              NatType::kSymmetric,
+                                                              this_endpoint_pair));
   EXPECT_EQ(kSuccess,
             nodes_[0]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
+                                                                   NatType::kSymmetric,
                                                                    peer_endpoint_pair));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
@@ -255,7 +280,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
                                              node_.validation_data()));
   EndpointPair another_endpoint_pair;
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(Endpoint(), another_endpoint_pair));
+            node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
+                                                              NatType::kSymmetric,
+                                                              another_endpoint_pair));
   EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
   EXPECT_NE(another_endpoint_pair.local, this_endpoint_pair.local);
   EXPECT_EQ(kConnectionAlreadyExists,
@@ -297,9 +324,12 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   nodes_[0]->ResetData();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint, this_endpoint_pair));
+            node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint,
+                                                              NatType::kSymmetric,
+                                                              this_endpoint_pair));
   EXPECT_EQ(kSuccess,
             nodes_[0]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
+                                                                   NatType::kSymmetric,
                                                                    peer_endpoint_pair));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
@@ -417,9 +447,12 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   nodes_[1]->ResetData();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(Endpoint(), this_endpoint_pair));
+            node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
+                                                              NatType::kSymmetric,
+                                                              this_endpoint_pair));
   EXPECT_EQ(kSuccess,
             nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
+                                                                   NatType::kSymmetric,
                                                                    peer_endpoint_pair));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
@@ -570,9 +603,12 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   nodes_[1]->ResetData();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(Endpoint(), this_endpoint_pair));
+            node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
+                                                              NatType::kSymmetric,
+                                                              this_endpoint_pair));
   EXPECT_EQ(kSuccess,
             nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
+                                                                   NatType::kSymmetric,
                                                                    peer_endpoint_pair));
   auto peer_futures(nodes_[1]->GetFutureForMessages(1));
   auto this_node_futures(node_.GetFutureForMessages(1));
@@ -654,9 +690,12 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
     nodes_[i]->ResetData();
     EndpointPair this_endpoint_pair, peer_endpoint_pair;
     EXPECT_EQ(kSuccess,
-              node_.managed_connections()->GetAvailableEndpoint(Endpoint(), this_endpoint_pair));
+              node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
+                                                              NatType::kSymmetric,
+                                                              this_endpoint_pair));
     EXPECT_EQ(kSuccess,
               nodes_[i]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
+                                                                     NatType::kSymmetric,
                                                                      peer_endpoint_pair));
     auto peer_futures(nodes_[i]->GetFutureForMessages(1));
     auto this_node_futures(node_.GetFutureForMessages(1));
@@ -776,6 +815,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   result_arrived = false;
   EndpointPair this_endpoint_pair;
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(bootstrap_endpoints_[0],
+                                                                        NatType::kSymmetric,
                                                                         this_endpoint_pair));
   nodes_[0]->managed_connections()->Send(this_endpoint_pair.local, "message02",
                                          message_sent_functor);
@@ -863,6 +903,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Ping) {
   EndpointPair this_endpoint_pair;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(bootstrap_endpoints_[0],
+                                                              NatType::kSymmetric,
                                                               this_endpoint_pair));
   result_of_ping = kSuccess;
   result_arrived = false;
@@ -887,9 +928,12 @@ TEST_F(ManagedConnectionsTest, BEH_API_Ping) {
   nodes_[1]->ResetData();
   EndpointPair peer_endpoint_pair;
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(Endpoint(), this_endpoint_pair));
+            node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
+                                                              NatType::kSymmetric,
+                                                              this_endpoint_pair));
   EXPECT_EQ(kSuccess,
             nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
+                                                                   NatType::kSymmetric,
                                                                    peer_endpoint_pair));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));

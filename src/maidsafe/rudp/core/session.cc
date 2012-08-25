@@ -105,7 +105,7 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     }
 
 //    if (packet.SynCookie() == 1) {
-    peer_.SetThisEndpoint(packet.Endpoint());
+    peer_.SetThisEndpoint(packet.PeerEndpoint());
     if (!CalculateEndpoint())
       return;
 
@@ -171,7 +171,7 @@ void Session::SendConnectionRequest() {
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetSocketId(id_);
-  packet.SetEndpoint(peer_.PeerEndpoint());
+  packet.SetPeerEndpoint(peer_.PeerEndpoint());
   packet.SetDestinationSocketId((mode_ == kNormal) ? 0 : 0xffffffff);
   packet.SetConnectionType(1);
 
@@ -185,7 +185,7 @@ void Session::SendConnectionRequest() {
 
 void Session::SendCookie() {
   HandshakePacket packet;
-  packet.SetEndpoint(peer_.PeerEndpoint());
+  packet.SetPeerEndpoint(peer_.PeerEndpoint());
   packet.SetDestinationSocketId(peer_.Id());
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);

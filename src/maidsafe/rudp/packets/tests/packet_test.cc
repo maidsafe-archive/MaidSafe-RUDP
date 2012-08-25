@@ -482,9 +482,11 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetConnectionType(0xdddddddd);
     handshake_packet_.SetSocketId(0xbbbbbbbb);
     handshake_packet_.SetSynCookie(0xaaaaaaaa);
+    handshake_packet_.SetRequestNatDetectionPort(true);
+    handshake_packet_.SetNatDetectionPort(9999);
     boost::asio::ip::udp::endpoint endpoint(
         boost::asio::ip::address::from_string("2001:db8:85a3:8d3:1319:8a2e:370:7348"), 12345);
-    handshake_packet_.SetEndpoint(endpoint);
+    handshake_packet_.SetPeerEndpoint(endpoint);
 
     char char_array1[HandshakePacket::kMinPacketSize];
     boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array1));
@@ -499,7 +501,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetConnectionType(0);
     handshake_packet_.SetSocketId(0);
     handshake_packet_.SetSynCookie(0);
-    handshake_packet_.SetEndpoint(boost::asio::ip::udp::endpoint());
+    handshake_packet_.SetRequestNatDetectionPort(false);
+    handshake_packet_.SetNatDetectionPort(0);
+    handshake_packet_.SetPeerEndpoint(boost::asio::ip::udp::endpoint());
     EXPECT_FALSE(handshake_packet_.PublicKey());
 
     handshake_packet_.Decode(dbuffer);
@@ -512,7 +516,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0xdddddddd, handshake_packet_.ConnectionType());
     EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
     EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
-    EXPECT_EQ(endpoint, handshake_packet_.Endpoint());
+    EXPECT_TRUE(handshake_packet_.RequestNatDetectionPort());
+    EXPECT_EQ(9999, handshake_packet_.NatDetectionPort());
+    EXPECT_EQ(endpoint, handshake_packet_.PeerEndpoint());
     EXPECT_FALSE(handshake_packet_.PublicKey());
 
     // Encode and decode with a valid public key
@@ -536,7 +542,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetConnectionType(0);
     handshake_packet_.SetSocketId(0);
     handshake_packet_.SetSynCookie(0);
-    handshake_packet_.SetEndpoint(boost::asio::ip::udp::endpoint());
+    handshake_packet_.SetRequestNatDetectionPort(false);
+    handshake_packet_.SetNatDetectionPort(0);
+    handshake_packet_.SetPeerEndpoint(boost::asio::ip::udp::endpoint());
     handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>());
 
     handshake_packet_.Decode(dbuffer);
@@ -549,7 +557,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0xdddddddd, handshake_packet_.ConnectionType());
     EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
     EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
-    EXPECT_EQ(endpoint, handshake_packet_.Endpoint());
+    EXPECT_TRUE(handshake_packet_.RequestNatDetectionPort());
+    EXPECT_EQ(9999, handshake_packet_.NatDetectionPort());
+    EXPECT_EQ(endpoint, handshake_packet_.PeerEndpoint());
     bool public_key_not_null(handshake_packet_.PublicKey());
     ASSERT_TRUE(public_key_not_null);
     EXPECT_TRUE(asymm::MatchingPublicKeys(keys.public_key, *handshake_packet_.PublicKey()));
@@ -568,7 +578,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetConnectionType(0);
     handshake_packet_.SetSocketId(0);
     handshake_packet_.SetSynCookie(0);
-    handshake_packet_.SetEndpoint(boost::asio::ip::udp::endpoint());
+    handshake_packet_.SetRequestNatDetectionPort(false);
+    handshake_packet_.SetNatDetectionPort(0);
+    handshake_packet_.SetPeerEndpoint(boost::asio::ip::udp::endpoint());
     handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>());
 
     dbuffer = boost::asio::buffer(char_array1);
@@ -582,7 +594,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0xdddddddd, handshake_packet_.ConnectionType());
     EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
     EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
-    EXPECT_EQ(endpoint, handshake_packet_.Endpoint());
+    EXPECT_TRUE(handshake_packet_.RequestNatDetectionPort());
+    EXPECT_EQ(9999, handshake_packet_.NatDetectionPort());
+    EXPECT_EQ(endpoint, handshake_packet_.PeerEndpoint());
     EXPECT_FALSE(handshake_packet_.PublicKey());
   }
 }

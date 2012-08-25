@@ -34,7 +34,7 @@ namespace detail {
 
 class HandshakePacket : public ControlPacket {
  public:
-  enum { kMinPacketSize = ControlPacket::kHeaderSize + 50 };
+  enum { kMinPacketSize = ControlPacket::kHeaderSize + 53 };
   enum { kPacketType = 0 };
 
   HandshakePacket();
@@ -66,8 +66,14 @@ class HandshakePacket : public ControlPacket {
   uint32_t SynCookie() const;
   void SetSynCookie(uint32_t n);
 
-  boost::asio::ip::udp::endpoint Endpoint() const;
-  void SetEndpoint(const boost::asio::ip::udp::endpoint& endpoint);
+  bool RequestNatDetectionPort() const;
+  void SetRequestNatDetectionPort(bool b);
+
+  uint16_t NatDetectionPort() const;
+  void SetNatDetectionPort(uint16_t port);
+
+  boost::asio::ip::udp::endpoint PeerEndpoint() const;
+  void SetPeerEndpoint(const boost::asio::ip::udp::endpoint& endpoint);
 
   std::shared_ptr<asymm::PublicKey> PublicKey() const;
   void SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key);
@@ -85,7 +91,9 @@ class HandshakePacket : public ControlPacket {
   uint32_t connection_type_;
   uint32_t socket_id_;
   uint32_t syn_cookie_;
-  boost::asio::ip::udp::endpoint endpoint_;
+  bool request_nat_detection_port_;
+  uint16_t nat_detection_port_;
+  boost::asio::ip::udp::endpoint peer_endpoint_;
   std::shared_ptr<asymm::PublicKey> public_key_;
 };
 

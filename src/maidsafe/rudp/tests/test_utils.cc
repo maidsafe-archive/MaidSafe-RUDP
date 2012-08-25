@@ -143,6 +143,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[i]->id() << " to "
                  << nodes[j]->id() << " with peer_endpoint " << peer_endpoint;
       int result(nodes[i]->managed_connections()->GetAvailableEndpoint(peer_endpoint,
+                                                                       NatType::kSymmetric,
                                                                        this_endpoint_pair));
       if (result != kSuccess) {
         return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
@@ -153,6 +154,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[j]->id() << " to "
                  << nodes[i]->id() << " with peer_endpoint " << this_endpoint_pair.local;
       result = nodes[j]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
+                                                                     NatType::kSymmetric,
                                                                      peer_endpoint_pair);
       if (result != kSuccess) {
         return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
@@ -250,6 +252,7 @@ std::vector<std::string> Node::messages() const {
 
 Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
                          Endpoint local_endpoint) {
+  NatType nat_type(NatType::kUnknown);
   return managed_connections_->Bootstrap(
       bootstrap_endpoints,
       [&](const std::string& message) {
@@ -277,6 +280,7 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
       },
       private_key(),
       public_key(),
+      nat_type,
       local_endpoint);
 }
 
