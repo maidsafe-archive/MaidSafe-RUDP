@@ -37,12 +37,12 @@ ip::address_v4 NetworkPrefix(const ip::address_v4& address) {
   return ip::address_v4(network_prefix);
 }
 
-const ip::address_v4 kMinClassA(ip::address_v4::from_string("10.0.0.0"));
-const ip::address_v4 kMaxClassA(ip::address_v4::from_string("10.255.255.255"));
-const ip::address_v4 kMinClassB(ip::address_v4::from_string("172.16.0.0"));
-const ip::address_v4 kMaxClassB(ip::address_v4::from_string("172.31.255.255"));
-const ip::address_v4 kMinClassC(ip::address_v4::from_string("192.168.0.0"));
-const ip::address_v4 kMaxClassC(ip::address_v4::from_string("192.168.255.255"));
+const ip::address_v4 kMinClassA(167772160);   // 10.0.0.0
+const ip::address_v4 kMaxClassA(184549375);   // 10.255.255.255
+const ip::address_v4 kMinClassB(2886729728);  // 172.16.0.0
+const ip::address_v4 kMaxClassB(2887778303);  // 172.31.255.255
+const ip::address_v4 kMinClassC(3232235520);  // 192.168.0.0
+const ip::address_v4 kMaxClassC(3232301055);  // 192.168.255.255
 
 bool IsPrivateNetworkAddress(const ip::address_v4& address) {
   BOOST_ASSERT_MSG(!kMinClassA.is_unspecified(),

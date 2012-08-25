@@ -40,10 +40,16 @@ typedef std::function<void(const std::string&)> MessageReceivedFunctor;
 typedef std::function<void(const boost::asio::ip::udp::endpoint&)> ConnectionLostFunctor;
 typedef std::function<void(int)> MessageSentFunctor, PingFunctor;  // NOLINT (Fraser)
 
+enum class NatType { kSymmetric, kOther, kUnknown };
+
 struct EndpointPair {
   EndpointPair() : local(), external() {}
   boost::asio::ip::udp::endpoint local, external;
 };
+
+// Defined as 203.0.113.14:0 which falls in the 203.0.113.0/24 (TEST-NET-3) range as described in
+// RFC 5737 (http://tools.ietf.org/html/rfc5737).
+extern const boost::asio::ip::udp::endpoint kNonRoutable;
 
 
 class ManagedConnections {
@@ -55,15 +61,18 @@ class ManagedConnections {
   static unsigned short kResiliencePort() { return 5483; }  // NOLINT (Fraser)
 
   // Creates a new transport object and bootstraps it to one of the provided bootstrap_endpoints.
-  // The successfully connected endpoint is returned, or a default endpoint is returned if
-  // bootstrapping is unsuccessful.  All messages are decrypted using private_key before being
-  // passed up via MessageReceivedFunctor.  For zero-state network, pass required local_endpoint.
+  // This involves connecting to another endpoint (provided by the bootstrap peer) to establish
+  // the local NAT type, which is returned in the nat_type parameter.  The successfully-connected
+  // endpoint is returned, or a default endpoint is returned if bootstrapping is unsuccessful.  All
+  // messages are decrypted using private_key before being passed up via MessageReceivedFunctor.
+  // For zero-state network, pass required local_endpoint.
   boost::asio::ip::udp::endpoint Bootstrap(
       const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
       MessageReceivedFunctor message_received_functor,
       ConnectionLostFunctor connection_lost_functor,
       std::shared_ptr<asymm::PrivateKey> private_key,
       std::shared_ptr<asymm::PublicKey> public_key,
+      NatType& nat_type,
       boost::asio::ip::udp::endpoint local_endpoint = boost::asio::ip::udp::endpoint());
 
   // Returns a transport's EndpointPair.  Returns kNotBootstrapped if there are no running Managed
@@ -76,6 +85,7 @@ class ManagedConnections {
   // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
   // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
   int GetAvailableEndpoint(const boost::asio::ip::udp::endpoint& peer_endpoint,
+                           const NatType& peer_nat_type,
                            EndpointPair& this_endpoint_pair);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
@@ -144,6 +154,7 @@ class ManagedConnections {
   std::set<boost::asio::ip::udp::endpoint> pending_connections_;
   mutable boost::shared_mutex shared_mutex_;
   boost::asio::ip::address local_ip_;
+  NatType nat_type_;
   TransportAndSignalConnections resilience_transport_;
 #ifdef FAKE_RUDP
   std::vector<boost::asio::ip::udp::endpoint> fake_endpoints_;

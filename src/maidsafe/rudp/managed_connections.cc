@@ -31,6 +31,10 @@ namespace maidsafe {
 
 namespace rudp {
 
+// 203.0.113.14:0
+const boost::asio::ip::udp::endpoint kNonRoutable(boost::asio::ip::address_v4(3405803790), 0);
+
+
 namespace {
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
@@ -52,6 +56,7 @@ ManagedConnections::ManagedConnections()
       pending_connections_(),
       shared_mutex_(),
       local_ip_(),
+      nat_type_(NatType::kUnknown),
       resilience_transport_() {}
 
 ManagedConnections::~ManagedConnections() {
@@ -72,6 +77,7 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
                                        ConnectionLostFunctor connection_lost_functor,
                                        std::shared_ptr<asymm::PrivateKey> private_key,
                                        std::shared_ptr<asymm::PublicKey> public_key,
+                                       NatType& nat_type,
                                        Endpoint local_endpoint) {
   {
     SharedLock shared_lock(shared_mutex_);
@@ -86,12 +92,10 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
     LOG(kError) << "You must provide a valid MessageReceivedFunctor.";
     return Endpoint();
   }
-  message_received_functor_ = message_received_functor;
   if (!connection_lost_functor) {
     LOG(kError) << "You must provide a valid ConnectionLostFunctor.";
     return Endpoint();
   }
-  connection_lost_functor_ = connection_lost_functor;
   if (!private_key || !asymm::ValidateKey(*private_key) ||
       !public_key || !asymm::ValidateKey(*public_key)) {
     LOG(kError) << "You must provide a valid private and public key.";
@@ -123,14 +127,18 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
     return Endpoint();
   }
 
-  // TODO(Fraser#5#): 2012-08-22 - Work out why this sleep is required.  If we don't sleep here and
-  // immediately call GetAvailableEndpoint (in Release builds) sometimes it returns a different
-  // transport to the one here with the temporary bootstrap connection.  I don't like it.  I'm sure
-  // you don't like it.  It sucks.  But with 2 weeks to launch, it's going into next.
-  // NB - This comment entitles the reader to one box of YumYums at my expense.  You need to email
-  // me the github link to this comment, and it needs to be from the current HEAD of next.  Your
-  // claim is invalid if you tell anyone else about it.
-  Sleep(boost::posix_time::milliseconds(100));
+
+
+
+  // Identify that this node is joining the network (in handshake packet?) and have peer send through one of
+                                                         // its contacts to allow us to connect to that guy.
+
+  nat_type = nat_type_;
+
+  // Add callbacks now.
+  message_received_functor_ = message_received_functor;
+  connection_lost_functor_ = connection_lost_functor;
+
   return new_endpoint;
 }
 
@@ -194,6 +202,7 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
 }
 
 int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
+                                             const NatType& /*peer_nat_type*/,
                                              EndpointPair& this_endpoint_pair) {
   int transports_size(0);
   {
