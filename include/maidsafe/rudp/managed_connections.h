@@ -48,7 +48,7 @@ struct EndpointPair {
   boost::asio::ip::udp::endpoint local, external;
 };
 
-// Defined as 203.0.113.14:0 which falls in the 203.0.113.0/24 (TEST-NET-3) range as described in
+// Defined as 203.0.113.14:1314 which falls in the 203.0.113.0/24 (TEST-NET-3) range as described in
 // RFC 5737 (http://tools.ietf.org/html/rfc5737).
 extern const boost::asio::ip::udp::endpoint kNonRoutable;
 
@@ -79,14 +79,14 @@ class ManagedConnections {
   // Returns a transport's EndpointPair.  Returns kNotBootstrapped if there are no running Managed
   // Connections.  In this case, Bootstrap must be called to start new Managed Connections.  Returns
   // kFull if all Managed Connections already have the maximum number of running sockets.  If there
-  // are less than kMaxTransports transports running, a new one will be started and if successful,
-  // this will be the returned EndpointPair.  If peer_endpoint is known (e.g. if this is being
-  // executed by Routing::Service in response to a connection request, or if we want to make a
-  // permanent connection to a successful bootstrap endpoint) it should be passed in.  If
-  // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
-  // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
+  // are less than kMaxTransports transports running, or if this node's NAT type is symmetric and
+  // peer_endpoint is non-local, a new transport will be started and if successful, this will be the
+  // returned EndpointPair.  If peer_endpoint is known (e.g. if this is being executed by
+  // Routing::Service in response to a connection request, or if we want to make a permanent
+  // connection to a successful bootstrap endpoint) it should be passed in.  If peer_endpoint is a
+  // valid endpoint, it is checked against the current group of peers which have a temporary
+  // bootstrap connection, so that the appropriate transport's details can be returned.
   int GetAvailableEndpoint(const boost::asio::ip::udp::endpoint& peer_endpoint,
-                           const NatType& peer_nat_type,
                            EndpointPair& this_endpoint_pair);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
@@ -128,9 +128,15 @@ class ManagedConnections {
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
 
-  boost::asio::ip::udp::endpoint StartNewTransport(
+  bool StartNewTransport(
       std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints,
-      boost::asio::ip::udp::endpoint local_endpoint);
+      boost::asio::ip::udp::endpoint local_endpoint,
+      boost::asio::ip::udp::endpoint& chosen_bootstrap_endpoint,
+      EndpointPair& this_endpoint_pair);
+
+  void GetBootstrapEndpoints(const boost::asio::ip::udp::endpoint& local_endpoint,
+                             std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
+                             boost::asio::ip::address& this_external_address);
 
   // Currently only detects if this node is behind Symmetric NAT or not.
   void DetectNat();

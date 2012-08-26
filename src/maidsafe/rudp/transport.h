@@ -22,6 +22,7 @@
 
 #include "boost/asio/strand.hpp"
 #include "boost/asio/ip/udp.hpp"
+#include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/signals2/signal.hpp"
 
 #include "maidsafe/common/asio_service.h"
@@ -121,6 +122,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
+
+  bool ConnectToBootstrapEndpoint(const boost::asio::ip::udp::endpoint& bootstrap_endpoint,
+                                  const boost::posix_time::time_duration& lifespan);
 
   void DoConnect(const boost::asio::ip::udp::endpoint& peer_endpoint,
                  const std::string& validation_data);

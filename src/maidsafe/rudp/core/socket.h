@@ -76,6 +76,13 @@ class Socket {
   // Returns whether the connection is open.
   bool IsOpen() const;
 
+  // Returns whether the connection has been established (i.e. handshaking successfully completed).
+  bool IsConnected() const;
+
+  // This should only be called by the ConnectionManager if this node discovers that the peer has a
+  // different endpoint than it predicted (i.e. the peer is behind symmetric NAT).
+  void UpdatePeerEndpoint(const boost::asio::ip::udp::endpoint& remote);
+
   // Notify the peer that the socket is about to close.
   void NotifyClose();
 

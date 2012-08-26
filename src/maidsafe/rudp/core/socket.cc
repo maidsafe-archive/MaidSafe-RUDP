@@ -103,6 +103,14 @@ bool Socket::IsOpen() const {
   return session_.IsOpen();
 }
 
+bool Socket::IsConnected() const {
+  return session_.IsConnected();
+}
+
+void Socket::UpdatePeerEndpoint(const ip::udp::endpoint& remote) {
+  peer_.SetPeerEndpoint(remote);
+}
+
 void Socket::NotifyClose() {
   if (session_.IsOpen())
     sender_.NotifyClose();

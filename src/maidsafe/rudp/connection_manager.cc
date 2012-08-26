@@ -133,6 +133,19 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
         [endpoint](const SocketMap::value_type& socket_pair) {
           return socket_pair.second->RemoteEndpoint() == endpoint;
         });
+    // If the socket wasn't found, this could be a connect attempt from a peer using symmetric NAT,
+    // so the peer's port may be different to what this node was told to expect.
+    if (socket_iter == sockets_.end()) {
+      socket_iter = std::find_if(
+          sockets_.begin(),
+          sockets_.end(),
+          [endpoint](const SocketMap::value_type& socket_pair) {
+            return socket_pair.second->RemoteEndpoint().address() == endpoint.address() &&
+                   !socket_pair.second->IsConnected();
+          });
+      if (socket_iter != sockets_.end())
+        socket_iter->second->UpdatePeerEndpoint(endpoint);
+    }
   } else if (id == 0xffffffff) {
     socket_iter = std::find_if(
         sockets_.begin(),
@@ -161,7 +174,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
   }
 
   if (socket_iter != sockets_.end()) {
-    return socket_iter->second/*->HandleReceiveFrom(data, endpoint)*/;
+    return socket_iter->second;
   } else {
     const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
     LOG(kInfo) << "Received a packet \"0x" << std::hex << static_cast<int>(*p) << std::dec

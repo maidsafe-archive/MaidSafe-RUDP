@@ -31,8 +31,8 @@ namespace maidsafe {
 
 namespace rudp {
 
-// 203.0.113.14:0
-const boost::asio::ip::udp::endpoint kNonRoutable(boost::asio::ip::address_v4(3405803790), 0);
+// 203.0.113.14:1314
+const boost::asio::ip::udp::endpoint kNonRoutable(boost::asio::ip::address_v4(3405803790), 1314);
 
 
 namespace {
@@ -121,8 +121,10 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
     }
     local_endpoint = Endpoint(local_ip_, 0);
   }
-  Endpoint new_endpoint(StartNewTransport(bootstrap_endpoints, local_endpoint));
-  if (!detail::IsValid(new_endpoint)) {
+  Endpoint chosen_bootstrap_endpoint;
+  EndpointPair this_endpoint_pair;
+  if (!StartNewTransport(bootstrap_endpoints, local_endpoint, chosen_bootstrap_endpoint,
+                         this_endpoint_pair)) {
     LOG(kError) << "Failed to bootstrap managed connections.";
     return Endpoint();
   }
@@ -139,37 +141,21 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
   message_received_functor_ = message_received_functor;
   connection_lost_functor_ = connection_lost_functor;
 
-  return new_endpoint;
+  return chosen_bootstrap_endpoint;
 }
 
-Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpoints,
-                                               Endpoint local_endpoint) {
+bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpoints,
+                                           Endpoint local_endpoint,
+                                           Endpoint& chosen_bootstrap_endpoint,
+                                           EndpointPair& this_endpoint_pair) {
   TransportAndSignalConnections transport_and_signals_connections;
   transport_and_signals_connections.transport =
       std::make_shared<detail::Transport>(asio_service_, nat_type_);
   bool bootstrap_off_existing_connection(bootstrap_endpoints.empty());
-  if (bootstrap_off_existing_connection) {
-    // Favour connections which are on a different network to this to allow calculation of the new
-    // transport's external endpoint.
-    std::vector<Endpoint> secondary_endpoints;
-    bootstrap_endpoints.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
-    secondary_endpoints.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
-    SharedLock shared_lock(shared_mutex_);
-    std::for_each(connection_map_.begin(),
-                  connection_map_.end(),
-                  [&](const ConnectionMap::value_type& entry) {
-      if (detail::OnSameLocalNetwork(local_endpoint, entry.first))
-        secondary_endpoints.push_back(entry.first);
-      else
-        bootstrap_endpoints.push_back(entry.first);
-    });
-    std::random_shuffle(bootstrap_endpoints.begin(), bootstrap_endpoints.end());
-    std::random_shuffle(secondary_endpoints.begin(), secondary_endpoints.end());
-    bootstrap_endpoints.insert(bootstrap_endpoints.end(),
-                               secondary_endpoints.begin(),
-                               secondary_endpoints.end());
-  }
-  Endpoint chosen_endpoint;
+  boost::asio::ip::address external_address;
+  if (bootstrap_off_existing_connection)
+    GetBootstrapEndpoints(local_endpoint, bootstrap_endpoints, external_address);
+
   transport_and_signals_connections.transport->Bootstrap(
       bootstrap_endpoints,
       public_key_,
@@ -179,16 +165,16 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
       boost::bind(&ManagedConnections::OnConnectionAddedSlot, this, _1, _2),
       boost::bind(&ManagedConnections::OnConnectionLostSlot, this, _1, _2, _3, _4),
       boost::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, _1, _2, _3),
-      &chosen_endpoint,
+      &chosen_bootstrap_endpoint,
       &transport_and_signals_connections.on_message_connection,
       &transport_and_signals_connections.on_connection_added_connection,
       &transport_and_signals_connections.on_connection_lost_connection);
-  if (!detail::IsValid(chosen_endpoint)) {
+  if (!detail::IsValid(chosen_bootstrap_endpoint)) {
     SharedLock shared_lock(shared_mutex_);
     LOG(kWarning) << "Failed to start a new Transport.  "
                   << connection_map_.size() << " currently running.";
     transport_and_signals_connections.DisconnectSignalsAndClose();
-    return Endpoint();
+    return false;
   }
 
   {
@@ -202,7 +188,48 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
   if (DirectConnected(address))
     asio_service_.service().post([=] { StartResilienceTransport(address); });  // NOLINT (Fraser)
 
-  return chosen_endpoint;
+  this_endpoint_pair.local = transport_and_signals_connections.transport->local_endpoint();
+  if (chosen_bootstrap_endpoint == kNonRoutable) {
+    // Means this node's NAT is symmetric, so no temporary connection was attempted to establish the
+    // external endpoint.  Instead guess that it will be mapped to existing external address and
+    // local port.
+    this_endpoint_pair.external = Endpoint(external_address, this_endpoint_pair.local.port());
+  } else {
+    this_endpoint_pair.external = transport_and_signals_connections.transport->external_endpoint();
+  }
+  return true;
+}
+
+void ManagedConnections::GetBootstrapEndpoints(const Endpoint& local_endpoint,
+                                               std::vector<Endpoint>& bootstrap_endpoints,
+                                               boost::asio::ip::address& this_external_address) {
+  bool external_address_consistent(true);
+  // Favour connections which are on a different network to this to allow calculation of the new
+  // transport's external endpoint.
+  std::vector<Endpoint> secondary_endpoints;
+  bootstrap_endpoints.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
+  secondary_endpoints.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
+  SharedLock shared_lock(shared_mutex_);
+  std::for_each(connection_map_.begin(),
+                connection_map_.end(),
+                [&](const ConnectionMap::value_type& entry) {
+    if (detail::OnSameLocalNetwork(local_endpoint, entry.first)) {
+      secondary_endpoints.push_back(entry.first);
+    } else {
+      bootstrap_endpoints.push_back(entry.first);
+      if (this_external_address.is_unspecified())
+        this_external_address = entry.second->external_endpoint().address();
+      else if (this_external_address != entry.second->external_endpoint().address())
+        external_address_consistent = false;
+    }
+  });
+  if (!external_address_consistent)
+    this_external_address = boost::asio::ip::address();
+  std::random_shuffle(bootstrap_endpoints.begin(), bootstrap_endpoints.end());
+  std::random_shuffle(secondary_endpoints.begin(), secondary_endpoints.end());
+  bootstrap_endpoints.insert(bootstrap_endpoints.end(),
+                             secondary_endpoints.begin(),
+                             secondary_endpoints.end());
 }
 
 void ManagedConnections::DetectNat() {
@@ -211,12 +238,16 @@ void ManagedConnections::DetectNat() {
 }
 
 int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
-                                             const NatType& /*peer_nat_type*/,
                                              EndpointPair& this_endpoint_pair) {
   int transports_size(0);
   {
     SharedLock shared_lock(shared_mutex_);
     transports_size = static_cast<int>(transports_.size());
+    if (transports_size == 0) {
+      LOG(kError) << "No running Transports.";
+      this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
+      return kNotBootstrapped;
+    }
 
     if (detail::IsValid(peer_endpoint)) {
       auto connection_map_itr = connection_map_.find(peer_endpoint);
@@ -235,18 +266,20 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
     }
   }
 
-  if (transports_size < Parameters::max_transports) {
-    if (transports_size == 0) {
-      LOG(kError) << "No running Transports.";
-      this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
-      return kNotBootstrapped;
-    }
+  bool start_new_transport(false);
+  if (nat_type_ == NatType::kSymmetric) {
+    if (detail::IsValid(peer_endpoint))
+      start_new_transport = !detail::OnPrivateNetwork(peer_endpoint);
+    else
+      start_new_transport = true;
+  } else {
+    start_new_transport = transports_size < Parameters::max_transports;
+  }
 
-    Endpoint new_endpoint(StartNewTransport(std::vector<Endpoint>(), Endpoint(local_ip_, 0)));
-    if (detail::IsValid(new_endpoint)) {
-      UniqueLock unique_lock(shared_mutex_);
-      this_endpoint_pair.external = (*transports_.rbegin()).transport->external_endpoint();
-      this_endpoint_pair.local = (*transports_.rbegin()).transport->local_endpoint();
+  if (start_new_transport) {
+    Endpoint chosen_bootstrap_endpoint;
+    if (StartNewTransport(std::vector<Endpoint>(), Endpoint(local_ip_, 0),
+                          chosen_bootstrap_endpoint, this_endpoint_pair)) {
       return kSuccess;
     } else {
       this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
@@ -449,15 +482,8 @@ bool ManagedConnections::DirectConnected(boost::asio::ip::address& this_address)
 void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address& this_address) {
   resilience_transport_.transport = std::make_shared<detail::Transport>(asio_service_, nat_type_);
   std::vector<Endpoint> bootstrap_endpoints;
-  {
-    SharedLock shared_lock(shared_mutex_);
-    std::for_each(
-        connection_map_.begin(),
-        connection_map_.end(),
-        [&bootstrap_endpoints](const ConnectionMap::value_type& entry) {
-      bootstrap_endpoints.push_back(entry.first);
-    });
-  }
+  boost::asio::ip::address external_address;
+  GetBootstrapEndpoints(Endpoint(local_ip_, 0), bootstrap_endpoints, external_address);
 
   Endpoint chosen_endpoint;
   resilience_transport_.transport->Bootstrap(
