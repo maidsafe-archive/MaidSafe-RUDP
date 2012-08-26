@@ -93,19 +93,26 @@ TEST(SocketTest, BEH_Socket) {
 
   client_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, client_multiplexer));
 
-  Socket server_socket(*server_multiplexer);
+  NatType server_nat_type, client_nat_type;
+  Socket server_socket(*server_multiplexer, server_nat_type);
   server_ec = asio::error::would_block;
 
-  Socket client_socket(*client_multiplexer);
+  Socket client_socket(*client_multiplexer, client_nat_type);
   client_ec = asio::error::would_block;
+  auto on_nat_detection_requested_slot(
+      [](const boost::asio::ip::udp::endpoint& /*this_local_endpoint*/,
+         const boost::asio::ip::udp::endpoint& /*peer_endpoint*/,
+         uint16_t& /*another_external_port*/) {});
   client_socket.AsyncConnect(client_public_key,
                              server_endpoint,
                              std::bind(&handler1, args::_1, &client_ec),
-                             Session::kNormal);
+                             Session::kNormal,
+                             on_nat_detection_requested_slot);
   server_socket.AsyncConnect(server_public_key,
                              client_endpoint,
                              std::bind(&handler1, args::_1, &server_ec),
-                             Session::kNormal);
+                             Session::kNormal,
+                             on_nat_detection_requested_slot);
 
   do {
     io_service.run_one();
@@ -200,9 +207,10 @@ TEST(SocketTest, BEH_AsyncProbe) {
   server_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, server_multiplexer));
   client_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, client_multiplexer));
 
-  Socket not_joined_client_socket(*client_multiplexer);
-  Socket client_socket(*client_multiplexer);
-  Socket server_socket(*server_multiplexer);
+  NatType not_joined_client_nat_type, client_nat_type, server_nat_type;
+  Socket not_joined_client_socket(*client_multiplexer, not_joined_client_nat_type);
+  Socket client_socket(*client_multiplexer, client_nat_type);
+  Socket server_socket(*server_multiplexer, server_nat_type);
 
   // Probing when not connected
   client_ec = asio::error::would_block;
@@ -216,14 +224,20 @@ TEST(SocketTest, BEH_AsyncProbe) {
   server_ec = asio::error::would_block;
   client_ec = asio::error::would_block;
 
+  auto on_nat_detection_requested_slot(
+      [](const boost::asio::ip::udp::endpoint& /*this_local_endpoint*/,
+         const boost::asio::ip::udp::endpoint& /*peer_endpoint*/,
+         uint16_t& /*another_external_port*/) {});
   client_socket.AsyncConnect(client_public_key,
                              server_endpoint,
                              std::bind(&handler1, args::_1, &client_ec),
-                             Session::kNormal);
+                             Session::kNormal,
+                             on_nat_detection_requested_slot);
   server_socket.AsyncConnect(server_public_key,
                              client_endpoint,
                              std::bind(&handler1, args::_1, &server_ec),
-                             Session::kNormal);
+                             Session::kNormal,
+                             on_nat_detection_requested_slot);
 
   do {
     io_service.run_one();

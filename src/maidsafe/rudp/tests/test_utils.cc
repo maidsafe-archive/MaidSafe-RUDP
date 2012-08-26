@@ -133,6 +133,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
     if (!detail::IsValid(chosen_endpoint))
       return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->id();
 
+    NatType nat_type;
     for (int j(0); j != i; ++j) {
       nodes[i]->ResetData();
       nodes[j]->ResetData();
@@ -143,8 +144,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[i]->id() << " to "
                  << nodes[j]->id() << " with peer_endpoint " << peer_endpoint;
       int result(nodes[i]->managed_connections()->GetAvailableEndpoint(peer_endpoint,
-                                                                       NatType::kSymmetric,
-                                                                       this_endpoint_pair));
+                                                                       this_endpoint_pair,
+                                                                       nat_type));
       if (result != kSuccess) {
         return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
                                            << nodes[i]->id() << " with result " << result
@@ -154,8 +155,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[j]->id() << " to "
                  << nodes[i]->id() << " with peer_endpoint " << this_endpoint_pair.local;
       result = nodes[j]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
-                                                                     NatType::kSymmetric,
-                                                                     peer_endpoint_pair);
+                                                                     peer_endpoint_pair,
+                                                                     nat_type);
       if (result != kSuccess) {
         return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
                                            << nodes[j]->id() << " with result " << result

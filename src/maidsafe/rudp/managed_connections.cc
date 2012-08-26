@@ -238,7 +238,8 @@ void ManagedConnections::DetectNat() {
 }
 
 int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
-                                             EndpointPair& this_endpoint_pair) {
+                                             EndpointPair& this_endpoint_pair,
+                                             NatType& this_nat_type) {
   int transports_size(0);
   {
     SharedLock shared_lock(shared_mutex_);
@@ -246,6 +247,7 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
     if (transports_size == 0) {
       LOG(kError) << "No running Transports.";
       this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
+      this_nat_type = NatType::kUnknown;
       return kNotBootstrapped;
     }
 
@@ -261,6 +263,7 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
           this_endpoint_pair.external = this_endpoint;
           this_endpoint_pair.local = Endpoint();
         }
+        this_nat_type = nat_type_;
         return kSuccess;
       }
     }
@@ -280,10 +283,13 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
     Endpoint chosen_bootstrap_endpoint;
     if (StartNewTransport(std::vector<Endpoint>(), Endpoint(local_ip_, 0),
                           chosen_bootstrap_endpoint, this_endpoint_pair)) {
+      SharedLock shared_lock(shared_mutex_);
+      this_nat_type = nat_type_;
       return kSuccess;
     } else {
       this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
       SharedLock shared_lock(shared_mutex_);
+      this_nat_type = NatType::kUnknown;
       return connection_map_.empty() ? kNotBootstrapped : kTransportStartFailure;
     }
   }

@@ -152,12 +152,13 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 
   //  Before Bootstrapping
   EndpointPair this_endpoint_pair;
+  NatType nat_type;
   this_endpoint_pair.external = this_endpoint_pair.local =
       Endpoint(ip::address::from_string("1.1.1.1"), 1025);
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
-                                                              NatType::kSymmetric,
-                                                              this_endpoint_pair));
+                                                              this_endpoint_pair,
+                                                              nat_type));
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
   EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
   this_endpoint_pair.external = this_endpoint_pair.local =
@@ -165,13 +166,13 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
                 Endpoint(ip::address::from_string("1.2.3.4"), 1026),
-                NatType::kSymmetric,
-                this_endpoint_pair));
+                this_endpoint_pair,
+                nat_type));
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
   EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
 
   //  After Bootstrapping
-  NatType nat_type(NatType::kUnknown);
+  nat_type = NatType::kUnknown;
   Endpoint chosen_endpoint(node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
                                                                   do_nothing_on_message_,
                                                                   do_nothing_on_connection_lost_,
@@ -184,15 +185,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint,
-                                                              NatType::kSymmetric,
-                                                              this_endpoint_pair));
+                                                              this_endpoint_pair,
+                                                              nat_type));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
 
   EndpointPair another_endpoint_pair;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
-                                                              NatType::kSymmetric,
-                                                              another_endpoint_pair));
+                                                              another_endpoint_pair,
+                                                              nat_type));
   EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
 }
@@ -212,14 +213,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
 
   nodes_[0]->ResetData();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint,
-                                                              NatType::kSymmetric,
-                                                              this_endpoint_pair));
+                                                              this_endpoint_pair,
+                                                              nat_type));
   EXPECT_EQ(kSuccess,
             nodes_[0]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
-                                                                   NatType::kSymmetric,
-                                                                   peer_endpoint_pair));
+                                                                   peer_endpoint_pair,
+                                                                   nat_type));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
 
@@ -281,8 +283,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   EndpointPair another_endpoint_pair;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
-                                                              NatType::kSymmetric,
-                                                              another_endpoint_pair));
+                                                              another_endpoint_pair,
+                                                              nat_type));
   EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
   EXPECT_NE(another_endpoint_pair.local, this_endpoint_pair.local);
   EXPECT_EQ(kConnectionAlreadyExists,
@@ -323,14 +325,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   EXPECT_EQ(bootstrap_endpoints_[0], chosen_endpoint);
   nodes_[0]->ResetData();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint,
-                                                              NatType::kSymmetric,
-                                                              this_endpoint_pair));
+                                                              this_endpoint_pair,
+                                                              nat_type));
   EXPECT_EQ(kSuccess,
             nodes_[0]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
-                                                                   NatType::kSymmetric,
-                                                                   peer_endpoint_pair));
+                                                                   peer_endpoint_pair,
+                                                                   nat_type));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
 
@@ -446,14 +449,15 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   // After Add
   nodes_[1]->ResetData();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
-                                                              NatType::kSymmetric,
-                                                              this_endpoint_pair));
+                                                              this_endpoint_pair,
+                                                              nat_type));
   EXPECT_EQ(kSuccess,
             nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
-                                                                   NatType::kSymmetric,
-                                                                   peer_endpoint_pair));
+                                                                   peer_endpoint_pair,
+                                                                   nat_type));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
 
@@ -602,14 +606,15 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   // Connect node_ to nodes_[1]
   nodes_[1]->ResetData();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
-                                                              NatType::kSymmetric,
-                                                              this_endpoint_pair));
+                                                              this_endpoint_pair,
+                                                              nat_type));
   EXPECT_EQ(kSuccess,
             nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
-                                                                   NatType::kSymmetric,
-                                                                   peer_endpoint_pair));
+                                                                   peer_endpoint_pair,
+                                                                   nat_type));
   auto peer_futures(nodes_[1]->GetFutureForMessages(1));
   auto this_node_futures(node_.GetFutureForMessages(1));
   EXPECT_EQ(kSuccess,
@@ -689,14 +694,14 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
     node_.ResetData();
     nodes_[i]->ResetData();
     EndpointPair this_endpoint_pair, peer_endpoint_pair;
-    EXPECT_EQ(kSuccess,
-              node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
-                                                              NatType::kSymmetric,
-                                                              this_endpoint_pair));
+    NatType nat_type;
+    EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
+                                                                          this_endpoint_pair,
+                                                                          nat_type));
     EXPECT_EQ(kSuccess,
               nodes_[i]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
-                                                                     NatType::kSymmetric,
-                                                                     peer_endpoint_pair));
+                                                                     peer_endpoint_pair,
+                                                                     nat_type));
     auto peer_futures(nodes_[i]->GetFutureForMessages(1));
     auto this_node_futures(node_.GetFutureForMessages(1));
     EXPECT_EQ(kSuccess,
@@ -814,9 +819,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   result_of_send = kConnectError;
   result_arrived = false;
   EndpointPair this_endpoint_pair;
+  NatType nat_type;
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(bootstrap_endpoints_[0],
-                                                                        NatType::kSymmetric,
-                                                                        this_endpoint_pair));
+                                                                        this_endpoint_pair,
+                                                                        nat_type));
   nodes_[0]->managed_connections()->Send(this_endpoint_pair.local, "message02",
                                          message_sent_functor);
   ASSERT_TRUE(wait_for_result());
@@ -901,10 +907,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_Ping) {
   EXPECT_EQ(kSuccess, result_of_ping);
   // Ping ourself (get our existing transport's endpoint)
   EndpointPair this_endpoint_pair;
+  NatType nat_type;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(bootstrap_endpoints_[0],
-                                                              NatType::kSymmetric,
-                                                              this_endpoint_pair));
+                                                              this_endpoint_pair,
+                                                              nat_type));
   result_of_ping = kSuccess;
   result_arrived = false;
   node_.managed_connections()->Ping(this_endpoint_pair.local, ping_functor);
@@ -929,12 +936,12 @@ TEST_F(ManagedConnectionsTest, BEH_API_Ping) {
   EndpointPair peer_endpoint_pair;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
-                                                              NatType::kSymmetric,
-                                                              this_endpoint_pair));
+                                                              this_endpoint_pair,
+                                                              nat_type));
   EXPECT_EQ(kSuccess,
             nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
-                                                                   NatType::kSymmetric,
-                                                                   peer_endpoint_pair));
+                                                                   peer_endpoint_pair,
+                                                                   nat_type));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
 

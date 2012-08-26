@@ -53,12 +53,13 @@ class RudpTransportTest : public testing::Test {
                  cond_var_connection_lost(),
                  cond_var_msg_received(),
                  asio_service(Parameters::thread_count),
+                 nat_type(NatType::kUnknown),
                  transport(),
                  messages_received(),
                  peers_added(),
                  peers_lost() {
       asymm::GenerateKeyPair(&key_pair);
-      transport.reset(new Transport(asio_service));
+      transport.reset(new Transport(asio_service, nat_type));
       Endpoint chosen_endpoint;
       std::vector<Endpoint> bootstrap_endpoints;
       boost::signals2::connection on_message_connection;
@@ -72,6 +73,7 @@ class RudpTransportTest : public testing::Test {
           boost::bind(&TestPeer::OnMessageSlot, this, _1),
           boost::bind(&TestPeer::OnConnectionAddedSlot, this, _1, _2),
           boost::bind(&TestPeer::OnConnectionLostSlot, this, _1, _2, _3, _4),
+          boost::bind(&TestPeer::OnNatDetectionRequestedSlot, this, _1, _2, _3),
           &chosen_endpoint,
           &on_message_connection,
           &on_connection_added_connection,
@@ -105,6 +107,11 @@ class RudpTransportTest : public testing::Test {
       cond_var_connection_lost.notify_one();
     }
 
+    void OnNatDetectionRequestedSlot(const Endpoint& /*this_local_endpoint*/,
+                                     const asio::ip::udp::endpoint& /*peer_endpoint*/,
+                                     uint16_t& /*another_external_port*/) {
+    }
+
     Endpoint local_endpoint;
     asymm::Keys key_pair;
     boost::mutex mutex;
@@ -112,6 +119,7 @@ class RudpTransportTest : public testing::Test {
     boost::condition_variable cond_var_connection_lost;
     boost::condition_variable cond_var_msg_received;
     AsioService asio_service;
+    NatType nat_type;
     std::shared_ptr<Transport> transport;
     std::vector<std::string> messages_received;
     std::vector<Endpoint> peers_added;

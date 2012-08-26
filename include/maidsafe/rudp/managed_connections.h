@@ -76,18 +76,19 @@ class ManagedConnections {
       NatType& nat_type,
       boost::asio::ip::udp::endpoint local_endpoint = boost::asio::ip::udp::endpoint());
 
-  // Returns a transport's EndpointPair.  Returns kNotBootstrapped if there are no running Managed
-  // Connections.  In this case, Bootstrap must be called to start new Managed Connections.  Returns
-  // kFull if all Managed Connections already have the maximum number of running sockets.  If there
-  // are less than kMaxTransports transports running, or if this node's NAT type is symmetric and
-  // peer_endpoint is non-local, a new transport will be started and if successful, this will be the
-  // returned EndpointPair.  If peer_endpoint is known (e.g. if this is being executed by
-  // Routing::Service in response to a connection request, or if we want to make a permanent
-  // connection to a successful bootstrap endpoint) it should be passed in.  If peer_endpoint is a
-  // valid endpoint, it is checked against the current group of peers which have a temporary
-  // bootstrap connection, so that the appropriate transport's details can be returned.
+  // Returns a transport's EndpointPair and NatType.  Returns kNotBootstrapped if there are no
+  // running Managed Connections.  In this case, Bootstrap must be called to start new Managed
+  // Connections.  Returns kFull if all Managed Connections already have the maximum number of
+  // running sockets.  If there are less than kMaxTransports transports running, or if this node's
+  // NAT type is symmetric and peer_endpoint is non-local, a new transport will be started and if
+  // successful, this will be the returned EndpointPair.  If peer_endpoint is known (e.g. if this is
+  // being executed by Routing::Service in response to a connection request, or if we want to make a
+  // permanent connection to a successful bootstrap endpoint) it should be passed in.  If
+  // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
+  // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
   int GetAvailableEndpoint(const boost::asio::ip::udp::endpoint& peer_endpoint,
-                           EndpointPair& this_endpoint_pair);
+                           EndpointPair& this_endpoint_pair,
+                           NatType& this_nat_type);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
   // runs its message_received_functor_ with the data.  All messages sent via this connection are
