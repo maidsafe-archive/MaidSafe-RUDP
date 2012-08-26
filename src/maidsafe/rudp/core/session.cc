@@ -20,6 +20,7 @@
 #include "maidsafe/rudp/core/peer.h"
 #include "maidsafe/rudp/core/sliding_window.h"
 #include "maidsafe/rudp/core/tick_timer.h"
+#include "maidsafe/rudp/nat_type.h"
 #include "maidsafe/rudp/utils.h"
 
 namespace bptime = boost::posix_time;
@@ -35,24 +36,30 @@ Session::Session(Peer& peer,  // NOLINT (Fraser)
                  TickTimer& tick_timer,
                  boost::asio::ip::udp::endpoint& this_external_endpoint,
                  std::mutex& this_external_endpoint_mutex,
-                 const boost::asio::ip::udp::endpoint& this_local_endpoint)
+                 const boost::asio::ip::udp::endpoint& this_local_endpoint,
+                 NatType& nat_type)
     : peer_(peer),
       tick_timer_(tick_timer),
       this_external_endpoint_(this_external_endpoint),
       this_external_endpoint_mutex_(this_external_endpoint_mutex),
       kThisLocalEndpoint_(this_local_endpoint),
+      nat_type_(nat_type),
       this_public_key_(),
       id_(0),
       sending_sequence_number_(0),
       receiving_sequence_number_(0),
       peer_connection_type_(0),
+      peer_requested_nat_detetction_port_(false),
       mode_(kNormal),
-      state_(kClosed) {}
+      state_(kClosed),
+      on_nat_detection_requested_(),
+      signal_connection_() {}
 
 void Session::Open(uint32_t id,
                    std::shared_ptr<asymm::PublicKey> this_public_key,
                    uint32_t sequence_number,
-                   Mode mode) {
+                   Mode mode,
+                   const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
   assert(id != 0);
   assert(this_public_key);
   id_ = id;
@@ -60,6 +67,7 @@ void Session::Open(uint32_t id,
   sending_sequence_number_ = sequence_number;
   mode_ = mode;
   state_ = kProbing;
+  signal_connection_ = on_nat_detection_requested_.connect(on_nat_detection_requested_slot);
   SendConnectionRequest();
 }
 
@@ -84,18 +92,19 @@ uint32_t Session::PeerConnectionType() const {
 }
 
 void Session::Close() {
+  signal_connection_.disconnect();
   state_ = kClosed;
 }
 
 void Session::HandleHandshake(const HandshakePacket& packet) {
-  if (peer_.Id() == 0) {
+  if (peer_.Id() == 0)
     peer_.SetId(packet.SocketId());
-  }
 
   // TODO(Fraser#5#): 2012-04-04 - Handle SynCookies
   if (state_ == kProbing) {
 //    if (packet.ConnectionType() == 1 && packet.SynCookie() == 0)
     state_ = kHandshaking;
+    peer_requested_nat_detetction_port_ = packet.RequestNatDetectionPort();
     SendCookie();
   } else if (state_ == kHandshaking) {
     if (packet.InitialPacketSequenceNumber() == 0) {
@@ -128,35 +137,35 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
   }
 }
 
-bool Session::CalculateEndpoint() {
-  if (!IsValid(peer_.ThisEndpoint())) {
-    LOG(kError) << "Invalid reported external endpoint in handshake: " << peer_.ThisEndpoint();
-    state_ = kClosed;
-    return false;
-  }
+                          bool Session::CalculateEndpoint() {
+                            if (!IsValid(peer_.ThisEndpoint())) {
+                              LOG(kError) << "Invalid reported external endpoint in handshake: " << peer_.ThisEndpoint();
+                              state_ = kClosed;
+                              return false;
+                            }
 
-  std::lock_guard<std::mutex> lock(this_external_endpoint_mutex_);
-  if (!IsValid(this_external_endpoint_)) {
-    if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.PeerEndpoint())) {
-      // This is the first non-local connection on this transport.
-      this_external_endpoint_ = peer_.ThisEndpoint();
-      LOG(kVerbose) << "Setting this external endpoint to " << this_external_endpoint_
-                    << " as viewed by peer at " << peer_.PeerEndpoint();
-    } else {
-      LOG(kVerbose) << "Can't establish external endpoint, peer on same network as this node.";
-    }
-  } else if (this_external_endpoint_ != peer_.ThisEndpoint()) {
-    // Check to see if our external address has changed
-    if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.PeerEndpoint())) {
-      // This external address has possibly changed (or the peer is lying).
-      LOG(kWarning) << "This external address is currently " << this_external_endpoint_
-                    << ", but peer at " << peer_.PeerEndpoint()
-                    << " is reporting our endpoint as " << peer_.ThisEndpoint();
-      // TODO(Fraser#5#): 2012-07-30 - Possibly handle this by closing the transport?
-    }
-  }
-  return true;
-}
+                            std::lock_guard<std::mutex> lock(this_external_endpoint_mutex_);
+                            if (!IsValid(this_external_endpoint_)) {
+                              if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.PeerEndpoint())) {
+                                // This is the first non-local connection on this transport.
+                                this_external_endpoint_ = peer_.ThisEndpoint();
+                                LOG(kVerbose) << "Setting this external endpoint to " << this_external_endpoint_
+                                              << " as viewed by peer at " << peer_.PeerEndpoint();
+                              } else {
+                                LOG(kVerbose) << "Can't establish external endpoint, peer on same network as this node.";
+                              }
+                            } else if (this_external_endpoint_ != peer_.ThisEndpoint()) {
+                              // Check to see if our external address has changed
+                              if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.PeerEndpoint())) {
+                                // This external address has possibly changed (or the peer is lying).
+                                LOG(kWarning) << "This external address is currently " << this_external_endpoint_
+                                              << ", but peer at " << peer_.PeerEndpoint()
+                                              << " is reporting our endpoint as " << peer_.ThisEndpoint();
+                                // TODO(Fraser#5#): 2012-07-30 - Possibly handle this by closing the transport?
+                              }
+                            }
+                            return true;
+                          }
 
 void Session::HandleTick() {
   if (state_ == kProbing) {
@@ -174,6 +183,8 @@ void Session::SendConnectionRequest() {
   packet.SetPeerEndpoint(peer_.PeerEndpoint());
   packet.SetDestinationSocketId((mode_ == kNormal) ? 0 : 0xffffffff);
   packet.SetConnectionType(1);
+  packet.SetRequestNatDetectionPort(nat_type_ == NatType::kUnknown &&
+                                    !OnPrivateNetwork(peer_.PeerEndpoint()));
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
@@ -195,6 +206,11 @@ void Session::SendCookie() {
   packet.SetConnectionType(Parameters::connection_type);
   packet.SetSocketId(id_);
   packet.SetSynCookie(1);  // TODO(Team) calculate cookie
+  packet.SetRequestNatDetectionPort(false);
+  uint16_t port(0);
+  if (peer_requested_nat_detetction_port_)
+    on_nat_detection_requested_(kThisLocalEndpoint_, peer_.PeerEndpoint(), port);
+  packet.SetNatDetectionPort(port);
   packet.SetPublicKey(this_public_key_);
 
   int result(peer_.Send(packet));

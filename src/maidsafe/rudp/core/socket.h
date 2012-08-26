@@ -48,6 +48,7 @@
 #include "maidsafe/rudp/packets/negative_ack_packet.h"
 #include "maidsafe/rudp/packets/shutdown_packet.h"
 
+#include "maidsafe/rudp/nat_type.h"
 #include "maidsafe/rudp/parameters.h"
 
 namespace maidsafe {
@@ -60,7 +61,7 @@ class Dispatcher;
 
 class Socket {
  public:
-  explicit Socket(Multiplexer& multiplexer);  // NOLINT (Fraser)
+  Socket(Multiplexer& multiplexer, NatType& nat_type);  // NOLINT (Fraser)
   ~Socket();
 
   // Get the unique identifier that has been assigned to the socket.
@@ -106,10 +107,11 @@ class Socket {
   void AsyncConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
                     const boost::asio::ip::udp::endpoint& remote,
                     ConnectHandler handler,
-                    Session::Mode open_mode) {
+                    Session::Mode open_mode,
+                    Session::OnNatDetectionRequested::slot_type on_nat_detection_requested_slot) {
     ConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
     waiting_connect_.async_wait(op);
-    StartConnect(this_public_key, remote, open_mode);
+    StartConnect(this_public_key, remote, open_mode, on_nat_detection_requested_slot);
   }
 
   // Initiate an asynchronous operation to write data. The operation will
@@ -168,9 +170,11 @@ class Socket {
   Socket(const Socket&);
   Socket& operator=(const Socket&);
 
-  void StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
-                    const boost::asio::ip::udp::endpoint& remote,
-                    Session::Mode open_mode);
+  void StartConnect(
+      std::shared_ptr<asymm::PublicKey> this_public_key,
+      const boost::asio::ip::udp::endpoint& remote,
+      Session::Mode open_mode,
+      const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
   void StartWrite(const boost::asio::const_buffer& data);
   void ProcessWrite();
   void StartRead(const boost::asio::mutable_buffer& data, size_t transfer_at_least);

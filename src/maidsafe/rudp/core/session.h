@@ -18,8 +18,12 @@
 #include <cstdint>
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/asio/ip/udp.hpp"
+#include "boost/signals2/connection.hpp"
+#include "boost/signals2/signal.hpp"
 #include "maidsafe/common/rsa.h"
 #include "maidsafe/rudp/packets/handshake_packet.h"
+#include "maidsafe/rudp/nat_type.h"
+
 
 namespace maidsafe {
 
@@ -32,19 +36,25 @@ class TickTimer;
 
 class Session {
  public:
+  typedef boost::signals2::signal<void(const boost::asio::ip::udp::endpoint&,
+                                       const boost::asio::ip::udp::endpoint&,
+                                       uint16_t&)> OnNatDetectionRequested;
+
   enum Mode { kNormal, kBootstrapAndDrop, kBootstrapAndKeep };
 
   explicit Session(Peer& peer,                                                    // NOLINT (Fraser)
                    TickTimer& tick_timer,
                    boost::asio::ip::udp::endpoint& this_external_endpoint,
                    std::mutex& this_external_endpoint_mutex,
-                   const boost::asio::ip::udp::endpoint& this_local_endpoint);
+                   const boost::asio::ip::udp::endpoint& this_local_endpoint,
+                   NatType& nat_type);
 
   // Open the session.
   void Open(uint32_t id,
             std::shared_ptr<asymm::PublicKey> this_public_key,
             uint32_t sequence_number,
-            Mode mode);
+            Mode mode,
+            const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
 
   // Get whether the session is already open. May not be connected.
   bool IsOpen() const;
@@ -102,6 +112,9 @@ class Session {
   // This node's local endpoint.
   const boost::asio::ip::udp::endpoint kThisLocalEndpoint_;
 
+  // This node's NAT type.  Object owned by ManagedConnections.
+  NatType& nat_type_;
+
   // This node's public key
   std::shared_ptr<asymm::PublicKey> this_public_key_;
 
@@ -117,11 +130,17 @@ class Session {
   // The peer's connection type.
   uint32_t peer_connection_type_;
 
+  // Whether the peer requested another port to do NAT detection.
+  bool peer_requested_nat_detetction_port_;
+
   // The open mode of the session.
   Mode mode_;
 
   // The state of the session.
   enum State { kClosed, kProbing, kHandshaking, kConnected } state_;
+
+  OnNatDetectionRequested on_nat_detection_requested_;
+  boost::signals2::connection signal_connection_;
 };
 
 }  // namespace detail

@@ -36,12 +36,12 @@ namespace rudp {
 
 namespace detail {
 
-Socket::Socket(Multiplexer& multiplexer)  // NOLINT (Fraser)
+Socket::Socket(Multiplexer& multiplexer, NatType& nat_type)  // NOLINT (Fraser)
     : dispatcher_(multiplexer.dispatcher_),
       peer_(multiplexer),
       tick_timer_(multiplexer.socket_.get_io_service()),
       session_(peer_, tick_timer_, multiplexer.external_endpoint_, multiplexer.mutex_,
-               multiplexer.local_endpoint()),
+               multiplexer.local_endpoint(), nat_type),
       congestion_control_(),
       sender_(peer_, tick_timer_, congestion_control_),
       receiver_(peer_, tick_timer_, congestion_control_),
@@ -133,15 +133,18 @@ void Socket::Close() {
   waiting_probe_.cancel();
 }
 
-void Socket::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
-                          const ip::udp::endpoint& remote,
-                          Session::Mode open_mode) {
+void Socket::StartConnect(
+    std::shared_ptr<asymm::PublicKey> this_public_key,
+    const ip::udp::endpoint& remote,
+    Session::Mode open_mode,
+    const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
   peer_.SetPeerEndpoint(remote);
   peer_.SetId(0);  // Assigned when handshake response is received.
   session_.Open(dispatcher_.AddSocket(this),
                 this_public_key,
                 sender_.GetNextPacketSequenceNumber(),
-                open_mode);
+                open_mode,
+                on_nat_detection_requested_slot);
 }
 
 void Socket::StartProbe() {

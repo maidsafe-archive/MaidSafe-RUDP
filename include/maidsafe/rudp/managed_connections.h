@@ -30,6 +30,9 @@
 #include "maidsafe/common/asio_service.h"
 #include "maidsafe/common/rsa.h"
 
+#include "maidsafe/rudp/nat_type.h"
+
+
 namespace maidsafe {
 
 namespace rudp {
@@ -39,8 +42,6 @@ namespace detail { class Transport; }
 typedef std::function<void(const std::string&)> MessageReceivedFunctor;
 typedef std::function<void(const boost::asio::ip::udp::endpoint&)> ConnectionLostFunctor;
 typedef std::function<void(int)> MessageSentFunctor, PingFunctor;  // NOLINT (Fraser)
-
-enum class NatType { kSymmetric, kOther, kUnknown };
 
 struct EndpointPair {
   EndpointPair() : local(), external() {}
@@ -131,6 +132,9 @@ class ManagedConnections {
       std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints,
       boost::asio::ip::udp::endpoint local_endpoint);
 
+  // Currently only detects if this node is behind Symmetric NAT or not.
+  void DetectNat();
+
   bool DirectConnected(boost::asio::ip::address& this_address) const;
   bool Connectable(const boost::asio::ip::udp::endpoint& peer_endpoint) const;
 
@@ -143,6 +147,12 @@ class ManagedConnections {
                             std::shared_ptr<detail::Transport> transport,
                             bool connections_empty,
                             bool temporary_connection);
+  // This signal is fired by Session when a connecting peer requests to use this peer for NAT
+  // detection.  The peer will attempt to connect to another one of this node's transports using
+  // its current transport.  This node (if suitable) will begin pinging the peer.
+  void OnNatDetectionRequestedSlot(const boost::asio::ip::udp::endpoint& this_local_endpoint,
+                                   const boost::asio::ip::udp::endpoint& peer_endpoint,
+                                   uint16_t& another_external_port);
 
   AsioService asio_service_;
   MessageReceivedFunctor message_received_functor_;

@@ -110,9 +110,6 @@ bool IsConnectable(const ip::udp::endpoint& peer_endpoint,
                    const ip::udp::endpoint& this_local_endpoint,
                    const ip::udp::endpoint& this_external_endpoint) {
   if (IsValid(this_external_endpoint)) {
-    assert(this_external_endpoint.address().is_v4() ?
-           !IsPrivateNetworkAddress(this_external_endpoint.address().to_v4()) :
-           !this_external_endpoint.address().to_v6().is_link_local());
     // return true if peer_endpoint is external
     if (peer_endpoint.address().is_v4() &&
         !IsPrivateNetworkAddress(peer_endpoint.address().to_v4())) {

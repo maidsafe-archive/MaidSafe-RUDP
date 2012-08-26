@@ -90,6 +90,7 @@ int ConnectionManager::CloseConnection(const Endpoint& peer_endpoint) {
 void ConnectionManager::Ping(const boost::asio::ip::udp::endpoint& peer_endpoint,
                              const std::function<void(int)> &ping_functor) {  // NOLINT (Fraser)
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
+    assert(ping_functor);
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_,
                                                           peer_endpoint));
     connection->Ping(this_public_key_, ping_functor);

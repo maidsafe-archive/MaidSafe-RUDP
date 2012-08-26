@@ -42,14 +42,16 @@ namespace detail {
 namespace { typedef boost::asio::ip::udp::endpoint Endpoint; }
 
 
-Transport::Transport(AsioService& asio_service)  // NOLINT (Fraser)
+Transport::Transport(AsioService& asio_service, NatType& nat_type)  // NOLINT (Fraser)
     : asio_service_(asio_service),
+      nat_type_(nat_type),
       strand_(asio_service.service()),
       multiplexer_(new Multiplexer(asio_service.service())),
       connection_manager_(),
       on_message_(),
       on_connection_added_(),
       on_connection_lost_(),
+      on_nat_detection_requested_slot_(),
       is_resilience_transport_(false) {}
 
 Transport::~Transport() {
@@ -64,6 +66,7 @@ void Transport::Bootstrap(
     const OnMessage::slot_type& on_message_slot,
     const OnConnectionAdded::slot_type& on_connection_added_slot,
     const OnConnectionLost::slot_type& on_connection_lost_slot,
+    const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
     Endpoint* chosen_endpoint,
     boost::signals2::connection* on_message_connection,
     boost::signals2::connection* on_connection_added_connection,
@@ -72,10 +75,11 @@ void Transport::Bootstrap(
   BOOST_ASSERT(on_message_connection);
   BOOST_ASSERT(on_connection_added_connection);
   BOOST_ASSERT(on_connection_lost_connection);
+  BOOST_ASSERT(on_nat_detection_requested_slot);
   BOOST_ASSERT(!multiplexer_->IsOpen());
 
   *chosen_endpoint = Endpoint();
-  // We want these slots to be invoked before any others connected, so that if we wait elsewhere
+  // We want these 3 slots to be invoked before any others connected, so that if we wait elsewhere
   // for the other connected slot(s) to be executed, we can be assured that these main slots have
   // already been executed at that point in time.
   *on_message_connection = on_message_.connect(on_message_slot, boost::signals2::at_front);
@@ -83,6 +87,8 @@ void Transport::Bootstrap(
       on_connection_added_.connect(on_connection_added_slot, boost::signals2::at_front);
   *on_connection_lost_connection =
       on_connection_lost_.connect(on_connection_lost_slot, boost::signals2::at_front);
+
+  on_nat_detection_requested_slot_ = on_nat_detection_requested_slot;
 
   connection_manager_.reset(
       new ConnectionManager(shared_from_this(), strand_, multiplexer_, this_public_key));

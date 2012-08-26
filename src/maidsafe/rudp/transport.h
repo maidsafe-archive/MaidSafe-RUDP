@@ -27,7 +27,9 @@
 #include "maidsafe/common/asio_service.h"
 #include "maidsafe/common/rsa.h"
 
+#include "maidsafe/rudp/nat_type.h"
 #include "maidsafe/rudp/parameters.h"
+#include "maidsafe/rudp/core/session.h"
 
 
 namespace maidsafe {
@@ -63,21 +65,23 @@ class Transport : public std::enable_shared_from_this<Transport> {
       void(const boost::asio::ip::udp::endpoint&,
            std::shared_ptr<Transport>, bool, bool, bool)> OnConnectionLost;
 
-  explicit Transport(AsioService& asio_service);  // NOLINT (Fraser)
+  Transport(AsioService& asio_service, NatType& nat_type_);  // NOLINT (Fraser)
 
   virtual ~Transport();
 
-  void Bootstrap(const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
-                 std::shared_ptr<asymm::PublicKey> this_public_key,
-                 boost::asio::ip::udp::endpoint local_endpoint,
-                 bool bootstrap_off_existing_connection,
-                 const OnMessage::slot_type& on_message_slot,
-                 const OnConnectionAdded::slot_type& on_connection_added_slot,
-                 const OnConnectionLost::slot_type& on_connection_lost_slot,
-                 boost::asio::ip::udp::endpoint* chosen_endpoint,
-                 boost::signals2::connection* on_message_connection,
-                 boost::signals2::connection* on_connection_added_connection,
-                 boost::signals2::connection* on_connection_lost_connection);
+  void Bootstrap(
+      const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
+      std::shared_ptr<asymm::PublicKey> this_public_key,
+      boost::asio::ip::udp::endpoint local_endpoint,
+      bool bootstrap_off_existing_connection,
+      const OnMessage::slot_type& on_message_slot,
+      const OnConnectionAdded::slot_type& on_connection_added_slot,
+      const OnConnectionLost::slot_type& on_connection_lost_slot,
+      const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
+      boost::asio::ip::udp::endpoint* chosen_endpoint,
+      boost::signals2::connection* on_message_connection,
+      boost::signals2::connection* on_connection_added_connection,
+      boost::signals2::connection* on_connection_lost_connection);
 
   void Close();
 
@@ -132,12 +136,14 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DoRemoveConnection(ConnectionPtr connection, bool timed_out);
 
   AsioService& asio_service_;
+  NatType& nat_type_;
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
   std::unique_ptr<ConnectionManager> connection_manager_;
   OnMessage on_message_;
   OnConnectionAdded on_connection_added_;
   OnConnectionLost on_connection_lost_;
+  Session::OnNatDetectionRequested::slot_function_type on_nat_detection_requested_slot_;
   bool is_resilience_transport_;
 };
 

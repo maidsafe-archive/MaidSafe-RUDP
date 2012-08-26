@@ -48,7 +48,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
     : transport_(transport),
       strand_(strand),
       multiplexer_(multiplexer),
-      socket_(*multiplexer_),
+      socket_(*multiplexer_, transport->nat_type_),
       timer_(strand_.get_io_service()),
       probe_interval_timer_(strand_.get_io_service()),
       lifespan_timer_(strand_.get_io_service()),
@@ -240,9 +240,12 @@ void Connection::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
       open_mode = Session::kBootstrapAndDrop;
     }
   }
-  socket_.AsyncConnect(this_public_key, remote_endpoint_, handler, open_mode);
-  timer_.expires_from_now(ping_functor ? Parameters::ping_timeout : Parameters::connect_timeout);
-  timeout_state_ = kConnecting;
+  if (std::shared_ptr<Transport> transport = transport_.lock()) {
+    socket_.AsyncConnect(this_public_key, remote_endpoint_, handler, open_mode,
+                         transport->on_nat_detection_requested_slot_);
+    timer_.expires_from_now(ping_functor ? Parameters::ping_timeout : Parameters::connect_timeout);
+    timeout_state_ = kConnecting;
+  }
 }
 
 void Connection::CheckLifespanTimeout(const bs::error_code& ec) {

@@ -145,7 +145,8 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
 Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpoints,
                                                Endpoint local_endpoint) {
   TransportAndSignalConnections transport_and_signals_connections;
-  transport_and_signals_connections.transport = std::make_shared<detail::Transport>(asio_service_);
+  transport_and_signals_connections.transport =
+      std::make_shared<detail::Transport>(asio_service_, nat_type_);
   bool bootstrap_off_existing_connection(bootstrap_endpoints.empty());
   if (bootstrap_off_existing_connection) {
     // Favour connections which are on a different network to this to allow calculation of the new
@@ -177,6 +178,7 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
       boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
       boost::bind(&ManagedConnections::OnConnectionAddedSlot, this, _1, _2),
       boost::bind(&ManagedConnections::OnConnectionLostSlot, this, _1, _2, _3, _4),
+      boost::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, _1, _2, _3),
       &chosen_endpoint,
       &transport_and_signals_connections.on_message_connection,
       &transport_and_signals_connections.on_connection_added_connection,
@@ -194,11 +196,18 @@ Endpoint ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_e
     transports_.push_back(transport_and_signals_connections);
   }
 
+                                                                                            DetectNat();
+
   boost::asio::ip::address address;
   if (DirectConnected(address))
     asio_service_.service().post([=] { StartResilienceTransport(address); });  // NOLINT (Fraser)
 
   return chosen_endpoint;
+}
+
+void ManagedConnections::DetectNat() {
+  //lock
+  //if ()
 }
 
 int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
@@ -418,48 +427,27 @@ void ManagedConnections::Ping(const Endpoint& peer_endpoint, PingFunctor ping_fu
 }
 
 bool ManagedConnections::DirectConnected(boost::asio::ip::address& this_address) const {
-  typedef std::pair<boost::asio::ip::address, boost::asio::ip::address> AddressPair;
-  AddressPair mode;  // as in average
-  {
-    std::map<AddressPair, int> endpoints;
-    int current_max_count(0);
-    SharedLock shared_lock(shared_mutex_);
-    if (static_cast<int>(transports_.size()) < Parameters::max_transports)
-      return false;
+  if (nat_type_ == NatType::kUnknown || nat_type_ == NatType::kSymmetric)
+    return false;
 
-    for (auto itr(transports_.begin()); itr != transports_.end(); ++itr) {
-      auto result(endpoints.insert(
-          std::make_pair(std::make_pair(itr->transport->local_endpoint().address(),
-                                        itr->transport->external_endpoint().address()), 1)));
-      if (!result.second)
-        ++(result.first->second);
-
-      if (result.first->second > current_max_count) {
-        current_max_count = result.first->second;
-        mode = result.first->first;
-      }
-
-      // TODO(Fraser#5#): 2012-08-18 - Consider continuing iterating through all transports and
-      // stopping those whose addresses don't match mode.  Or even all transports in case minority
-      // are correct.
-      if (current_max_count > Parameters::max_transports / 2)
-        break;
-    }
-  }
-
-  if (mode.first != mode.second) {
-    LOG(kInfo) << "This node is not direct-connected.  Its external address is " << mode.first
-               << " and its local address is " << mode.second;
+  SharedLock shared_lock(shared_mutex_);
+  if (transports_.empty())
+    return false;
+  detail::TransportPtr transport(transports_.front().transport);
+  if (transport->external_endpoint() != transport->local_endpoint()) {
+    LOG(kInfo) << "This node is not direct-connected.  Its external endpoint is "
+               << transport->external_endpoint() << " and its local endpoint is "
+               << transport->local_endpoint();
     return false;
   }
 
-  this_address = mode.first;
-  LOG(kInfo) << "This node is direct-connected on " << mode.first;
+  this_address = transport->local_endpoint().address();
+  LOG(kInfo) << "This node is direct-connected on " << transport->local_endpoint();
   return true;
 }
 
 void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address& this_address) {
-  resilience_transport_.transport = std::make_shared<detail::Transport>(asio_service_);
+  resilience_transport_.transport = std::make_shared<detail::Transport>(asio_service_, nat_type_);
   std::vector<Endpoint> bootstrap_endpoints;
   {
     SharedLock shared_lock(shared_mutex_);
@@ -480,6 +468,7 @@ void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address
       boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
       boost::bind(&ManagedConnections::OnConnectionAddedSlot, this, _1, _2),
       boost::bind(&ManagedConnections::OnConnectionLostSlot, this, _1, _2, _3, _4),
+      boost::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, _1, _2, _3),
       &chosen_endpoint,
       &resilience_transport_.on_message_connection,
       &resilience_transport_.on_connection_added_connection,
@@ -505,8 +494,8 @@ void ManagedConnections::OnConnectionAddedSlot(const Endpoint& peer_endpoint,
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
   pending_connections_.erase(peer_endpoint);
   if (result.second) {
-    LOG(kInfo) << "Successfully connected from "<< transport->local_endpoint() << " to "
-               << peer_endpoint;
+    LOG(kSuccess) << "Successfully connected from "<< transport->local_endpoint() << " to "
+                  << peer_endpoint;
   } else {
     LOG(kError) << transport->local_endpoint() << " is already connected to " << peer_endpoint;
   }
@@ -576,6 +565,32 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint& peer_endpoint,
 
   if (should_execute_functor)
     asio_service_.service().post([=] { connection_lost_functor_(peer_endpoint); });  // NOLINT (Fraser)
+}
+
+void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_endpoint,
+                                                     const Endpoint& peer_endpoint,
+                                                     uint16_t& another_external_port) {
+  if (nat_type_ == NatType::kUnknown || nat_type_ == NatType::kSymmetric) {
+    another_external_port = 0;
+    return;
+  }
+
+  SharedLock lock(shared_mutex_);
+  auto itr(std::find_if(
+      transports_.begin(),
+      transports_.end(),
+      [&this_local_endpoint](const TransportAndSignalConnections& element) {
+        return this_local_endpoint != element.transport->local_endpoint();
+      }));
+
+  if (itr == transports_.end()) {
+    another_external_port = 0;
+    return;
+  }
+
+  another_external_port = (*itr).transport->external_endpoint().port();
+  // This node doesn't care about the Ping result, but Ping should not be given a NULL functor.
+  (*itr).transport->Ping(peer_endpoint, [](int) {});
 }
 
 
