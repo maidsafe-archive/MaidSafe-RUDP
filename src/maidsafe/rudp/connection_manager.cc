@@ -87,7 +87,7 @@ int ConnectionManager::CloseConnection(const Endpoint& peer_endpoint) {
   return kSuccess;
 }
 
-void ConnectionManager::Ping(const boost::asio::ip::udp::endpoint& peer_endpoint,
+void ConnectionManager::Ping(const Endpoint& peer_endpoint,
                              const std::function<void(int)> &ping_functor) {  // NOLINT (Fraser)
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     assert(ping_functor);
@@ -251,9 +251,18 @@ Endpoint ConnectionManager::ThisEndpoint(const Endpoint& peer_endpoint) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_endpoint));
   if (itr == connections_.end())
-    return ip::udp::endpoint();
+    return Endpoint();
   return (*itr)->Socket().ThisEndpoint();
 }
+
+Endpoint ConnectionManager::RemoteNatDetectionEndpoint(const Endpoint& peer_endpoint) {
+  boost::mutex::scoped_lock lock(mutex_);
+  auto itr(FindConnection(peer_endpoint));
+  if (itr == connections_.end())
+    return Endpoint();
+  return (*itr)->Socket().RemoteNatDetectionEndpoint();
+}
+
 
 uint32_t ConnectionManager::AddSocket(Socket* socket) {
   // Generate a new unique id for the socket.

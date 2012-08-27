@@ -129,12 +129,6 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
     return Endpoint();
   }
 
-
-
-
-  // Identify that this node is joining the network (in handshake packet?) and have peer send through one of
-                                                         // its contacts to allow us to connect to that guy.
-
   nat_type = nat_type_;
 
   // Add callbacks now.
@@ -182,8 +176,6 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
     transports_.push_back(transport_and_signals_connections);
   }
 
-                                                                                            DetectNat();
-
   boost::asio::ip::address address;
   if (DirectConnected(address))
     asio_service_.service().post([=] { StartResilienceTransport(address); });  // NOLINT (Fraser)
@@ -230,11 +222,6 @@ void ManagedConnections::GetBootstrapEndpoints(const Endpoint& local_endpoint,
   bootstrap_endpoints.insert(bootstrap_endpoints.end(),
                              secondary_endpoints.begin(),
                              secondary_endpoints.end());
-}
-
-void ManagedConnections::DetectNat() {
-  //lock
-  //if ()
 }
 
 int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
@@ -622,7 +609,7 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
 
   another_external_port = (*itr).transport->external_endpoint().port();
   // This node doesn't care about the Ping result, but Ping should not be given a NULL functor.
-  (*itr).transport->Ping(peer_endpoint, [](int) {});
+  (*itr).transport->Ping(peer_endpoint, [](int) {});  // NOLINT (Fraser)
 }
 
 

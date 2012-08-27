@@ -69,6 +69,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   bool IsTemporary() const;
   // Sets the lifespan_timer_ to expire at pos_infin.
   void MakePermanent();
+  // Get the remote endpoint offered for NAT detection.
+  boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
 
  private:
   Connection(const Connection&);

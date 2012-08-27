@@ -85,6 +85,8 @@ class Session {
 
   Mode mode() const;
 
+  boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
+
  private:
   // Disallow copying and assignment.
   Session(const Session&);
@@ -132,6 +134,9 @@ class Session {
 
   // Whether the peer requested another port to do NAT detection.
   bool peer_requested_nat_detetction_port_;
+
+  // Endpoint offered by peer for this node to perform NAT detection
+  boost::asio::ip::udp::endpoint peer_nat_detection_endpoint_;
 
   // The open mode of the session.
   Mode mode_;

@@ -23,8 +23,9 @@
 
 #include "maidsafe/common/log.h"
 
-#include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/managed_connections.h"
+#include "maidsafe/rudp/transport.h"
+#include "maidsafe/rudp/utils.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 #include "maidsafe/rudp/core/session.h"
 #include "maidsafe/rudp/core/socket.h"
@@ -129,6 +130,10 @@ void Connection::DoMakePermanent() {
   socket_.MakePermanent();
 }
 
+ip::udp::endpoint Connection::RemoteNatDetectionEndpoint() const {
+  return socket_.RemoteNatDetectionEndpoint();
+}
+
 void Connection::StartSending(const std::string& data,
                               const MessageSentFunctor& message_sent_functor) {
   if (sending_) {
@@ -151,9 +156,6 @@ void Connection::DoStartSending(const std::string& data,
   sending_ = true;
   MessageSentFunctor wrapped_functor([&, message_sent_functor](int result) {
     InvokeSentFunctor(message_sent_functor, result);
-//    MessageSentFunctor sent_functor(message_sent_functor);
-//    if (sent_functor)
-//      sent_functor(result);
     sending_ = false;
   });
 

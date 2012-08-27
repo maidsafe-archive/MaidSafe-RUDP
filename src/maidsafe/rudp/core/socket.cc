@@ -91,7 +91,7 @@ uint32_t Socket::BestReadBufferSize() {
   return congestion_control_.BestReadBufferSize();
 }
 
-boost::asio::ip::udp::endpoint Socket::RemoteEndpoint() const {
+ip::udp::endpoint Socket::RemoteEndpoint() const {
   return peer_.PeerEndpoint();
 }
 
@@ -109,6 +109,10 @@ bool Socket::IsConnected() const {
 
 void Socket::UpdatePeerEndpoint(const ip::udp::endpoint& remote) {
   peer_.SetPeerEndpoint(remote);
+}
+
+ip::udp::endpoint Socket::RemoteNatDetectionEndpoint() const {
+  return session_.RemoteNatDetectionEndpoint();
 }
 
 void Socket::NotifyClose() {

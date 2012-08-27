@@ -139,9 +139,6 @@ class ManagedConnections {
                              std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
                              boost::asio::ip::address& this_external_address);
 
-  // Currently only detects if this node is behind Symmetric NAT or not.
-  void DetectNat();
-
   bool DirectConnected(boost::asio::ip::address& this_address) const;
   bool Connectable(const boost::asio::ip::udp::endpoint& peer_endpoint) const;
 

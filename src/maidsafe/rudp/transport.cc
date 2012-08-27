@@ -148,7 +148,7 @@ bool Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
   auto slot_connection_added(on_connection_added_.connect(
       [&](const Endpoint& /*peer_endpoint*/, detail::TransportPtr /*transport*/) {
     assert(!slot_called);
-    boost::mutex::scoped_lock lock(local_mutex);
+    boost::mutex::scoped_lock local_lock(local_mutex);
     slot_called = true;
     local_cond_var.notify_one();
   }, boost::signals2::at_back));
@@ -159,7 +159,7 @@ bool Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
           bool /*temporary_connection*/,
           bool timed_out) {
     assert(!slot_called);
-    boost::mutex::scoped_lock lock(local_mutex);
+    boost::mutex::scoped_lock local_lock(local_mutex);
     slot_called = true;
     timed_out_connecting = timed_out;
     local_cond_var.notify_one();
@@ -169,8 +169,8 @@ bool Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
   connection_manager_->Connect(bootstrap_endpoint, "", lifespan);
 
   bool success(local_cond_var.timed_wait(lock,
-                                          Parameters::connect_timeout + bptime::seconds(1),
-                                          [&] { return slot_called; }));  // NOLINT (Fraser)
+                                         Parameters::connect_timeout + bptime::seconds(1),
+                                         [&] { return slot_called; }));  // NOLINT (Fraser)
   slot_connection_added.disconnect();
   slot_connection_lost.disconnect();
   if (!success) {
@@ -183,6 +183,26 @@ bool Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
   if (timed_out_connecting) {
     LOG(kError) << "Failed to make connection to " << bootstrap_endpoint;
     return false;
+  }
+
+  Endpoint nat_detection_endpoint(
+      connection_manager_->RemoteNatDetectionEndpoint(bootstrap_endpoint));
+  if (IsValid(nat_detection_endpoint)) {
+    int result(kPendingResult);
+    connection_manager_->Ping(nat_detection_endpoint,
+                              [&](int result_in) {
+                                boost::mutex::scoped_lock local_lock(local_mutex);
+                                result = result_in;
+                                local_cond_var.notify_one();
+                              });
+
+    success = local_cond_var.timed_wait(lock,
+                                        Parameters::ping_timeout + bptime::seconds(1),
+                                        [&] { return result != kPendingResult; });  // NOLINT (Fraser)
+    if (!success || result != kSuccess) {
+      LOG(kWarning) << "Timed out waiting for NAT detection ping - setting NAT type to symmetric";
+      nat_type_ = NatType::kSymmetric;
+    }
   }
 
   return true;

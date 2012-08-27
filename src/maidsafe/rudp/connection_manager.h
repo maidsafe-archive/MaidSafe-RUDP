@@ -76,6 +76,10 @@ class ConnectionManager {
   // This node's endpoint as viewed by peer
   boost::asio::ip::udp::endpoint ThisEndpoint(const boost::asio::ip::udp::endpoint& peer_endpoint);
 
+  // Get the remote endpoint offered for NAT detection by peer.
+  boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint(
+      const boost::asio::ip::udp::endpoint& peer_endpoint);
+
   // Add a socket. Returns a new unique id for the socket.
   uint32_t AddSocket(Socket* socket);
   void RemoveSocket(uint32_t id);

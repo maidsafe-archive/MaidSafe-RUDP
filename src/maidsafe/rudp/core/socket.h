@@ -83,6 +83,9 @@ class Socket {
   // different endpoint than it predicted (i.e. the peer is behind symmetric NAT).
   void UpdatePeerEndpoint(const boost::asio::ip::udp::endpoint& remote);
 
+  // Get the remote endpoint offered for NAT detection.
+  boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
+
   // Notify the peer that the socket is about to close.
   void NotifyClose();
 

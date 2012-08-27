@@ -50,6 +50,7 @@ Session::Session(Peer& peer,  // NOLINT (Fraser)
       receiving_sequence_number_(0),
       peer_connection_type_(0),
       peer_requested_nat_detetction_port_(false),
+      peer_nat_detection_endpoint_(),
       mode_(kNormal),
       state_(kClosed),
       on_nat_detection_requested_(),
@@ -128,6 +129,10 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     peer_connection_type_ = packet.ConnectionType();
     receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
     peer_.SetPublicKey(packet.PublicKey());
+    if (packet.NatDetectionPort() != 0) {
+      peer_nat_detection_endpoint_ = boost::asio::ip::udp::endpoint(peer_.PeerEndpoint().address(),
+                                                                    packet.NatDetectionPort());
+    }
 
     if (mode_ == kBootstrapAndDrop)
       return;
@@ -137,35 +142,51 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
   }
 }
 
-                          bool Session::CalculateEndpoint() {
-                            if (!IsValid(peer_.ThisEndpoint())) {
-                              LOG(kError) << "Invalid reported external endpoint in handshake: " << peer_.ThisEndpoint();
-                              state_ = kClosed;
-                              return false;
-                            }
+bool Session::CalculateEndpoint() {
+  if (!IsValid(peer_.ThisEndpoint())) {
+    LOG(kError) << "Invalid reported external endpoint in handshake: " << peer_.ThisEndpoint();
+    state_ = kClosed;
+    return false;
+  }
 
-                            std::lock_guard<std::mutex> lock(this_external_endpoint_mutex_);
-                            if (!IsValid(this_external_endpoint_)) {
-                              if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.PeerEndpoint())) {
-                                // This is the first non-local connection on this transport.
-                                this_external_endpoint_ = peer_.ThisEndpoint();
-                                LOG(kVerbose) << "Setting this external endpoint to " << this_external_endpoint_
-                                              << " as viewed by peer at " << peer_.PeerEndpoint();
-                              } else {
-                                LOG(kVerbose) << "Can't establish external endpoint, peer on same network as this node.";
-                              }
-                            } else if (this_external_endpoint_ != peer_.ThisEndpoint()) {
-                              // Check to see if our external address has changed
-                              if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.PeerEndpoint())) {
-                                // This external address has possibly changed (or the peer is lying).
-                                LOG(kWarning) << "This external address is currently " << this_external_endpoint_
-                                              << ", but peer at " << peer_.PeerEndpoint()
-                                              << " is reporting our endpoint as " << peer_.ThisEndpoint();
-                                // TODO(Fraser#5#): 2012-07-30 - Possibly handle this by closing the transport?
-                              }
-                            }
-                            return true;
-                          }
+  std::lock_guard<std::mutex> lock(this_external_endpoint_mutex_);
+  if (!IsValid(this_external_endpoint_)) {
+    if (!OnSameLocalNetwork(kThisLocalEndpoint_, peer_.PeerEndpoint())) {
+      // This is the first non-local connection on this transport.
+      this_external_endpoint_ = peer_.ThisEndpoint();
+      LOG(kVerbose) << "Setting this external endpoint to " << this_external_endpoint_
+                    << " as viewed by peer at " << peer_.PeerEndpoint();
+    } else {
+      LOG(kVerbose) << "Can't establish external endpoint, peer on same network as this node.";
+    }
+  } else {
+    if (this_external_endpoint_ == peer_.ThisEndpoint()) {
+      if (nat_type_ == NatType::kSymmetric) {
+        LOG(kError) << "NAT type has been set to symmetric, but peer at " << peer_.PeerEndpoint()
+                    << " is reporting our endpoint as " << peer_.ThisEndpoint()
+                    << " which is what it's already been reported as by another peer.";
+      }
+      nat_type_ = NatType::kOther;
+    } else {
+      // Check to see if our external address has changed
+      if (OnSameLocalNetwork(kThisLocalEndpoint_, peer_.PeerEndpoint())) {
+        LOG(kError) << "This external address is currently " << this_external_endpoint_
+                    << " and local is " << kThisLocalEndpoint_ << ", but peer at "
+                    << peer_.PeerEndpoint() << " is reporting our endpoint as "
+                    << peer_.ThisEndpoint();
+      } else {
+        // This external address has possibly changed (or the peer is lying), but probably this
+        // means this node is behind symmetric NAT.
+        LOG(kWarning) << "This external address is currently " << this_external_endpoint_
+                      << ", but peer at " << peer_.PeerEndpoint()
+                      << " is reporting our endpoint as " << peer_.ThisEndpoint()
+                      << " - setting NAT type to symmetric.";
+        nat_type_ = NatType::kSymmetric;
+      }
+    }
+  }
+  return true;
+}
 
 void Session::HandleTick() {
   if (state_ == kProbing) {
@@ -228,6 +249,11 @@ void Session::MakePermanent() {
 Session::Mode Session::mode() const {
   return mode_;
 }
+
+boost::asio::ip::udp::endpoint Session::RemoteNatDetectionEndpoint() const {
+  return peer_nat_detection_endpoint_;
+}
+
 
 }  // namespace detail
 
