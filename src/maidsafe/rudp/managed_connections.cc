@@ -171,6 +171,16 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
     return false;
   }
 
+  if (!detail::IsValid(transport_and_signals_connections.transport->external_endpoint())) {
+    // Means this node's NAT is symmetric, so no temporary connection was attempted to establish the
+    // external endpoint.  Instead guess that it will be mapped to existing external address and
+    // local port.
+    assert(chosen_bootstrap_endpoint == kNonRoutable);
+    transport_and_signals_connections.transport->SetBestGuessExternalEndpoint(
+        Endpoint(external_address,
+                 transport_and_signals_connections.transport->local_endpoint().port()));
+  }
+
   {
     UniqueLock unique_lock(shared_mutex_);
     transports_.push_back(transport_and_signals_connections);
@@ -181,14 +191,10 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
     asio_service_.service().post([=] { StartResilienceTransport(address); });  // NOLINT (Fraser)
 
   this_endpoint_pair.local = transport_and_signals_connections.transport->local_endpoint();
-  if (chosen_bootstrap_endpoint == kNonRoutable) {
-    // Means this node's NAT is symmetric, so no temporary connection was attempted to establish the
-    // external endpoint.  Instead guess that it will be mapped to existing external address and
-    // local port.
-    this_endpoint_pair.external = Endpoint(external_address, this_endpoint_pair.local.port());
-  } else {
-    this_endpoint_pair.external = transport_and_signals_connections.transport->external_endpoint();
-  }
+  this_endpoint_pair.external = transport_and_signals_connections.transport->external_endpoint();
+
+  LOG(kVerbose) << "Started a new transport on " << this_endpoint_pair.external << " / "
+                << this_endpoint_pair.local << " - NAT: " << static_cast<int>(nat_type_);
   return true;
 }
 

@@ -104,6 +104,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   boost::asio::ip::udp::endpoint local_endpoint() const;
   boost::asio::ip::udp::endpoint ThisEndpointAsSeenByPeer(
       const boost::asio::ip::udp::endpoint& peer_endpoint);
+  void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
 
   bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
   bool MakeConnectionPermanent(const boost::asio::ip::udp::endpoint& peer_endpoint,

@@ -34,6 +34,7 @@ Multiplexer::Multiplexer(asio::io_service& asio_service) //NOLINT
     sender_endpoint_(),
     dispatcher_(),
     external_endpoint_(),
+    best_guess_external_endpoint_(),
     mutex_() {}
 
 ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
@@ -95,7 +96,7 @@ ip::udp::endpoint Multiplexer::local_endpoint() const {
 
 ip::udp::endpoint Multiplexer::external_endpoint() const {
   std::lock_guard<std::mutex> lock(mutex_);
-  return external_endpoint_;
+  return IsValid(external_endpoint_) ? external_endpoint_ : best_guess_external_endpoint_;
 }
 
 }  // namespace detail

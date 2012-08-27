@@ -251,6 +251,9 @@ Endpoint Transport::ThisEndpointAsSeenByPeer(const Endpoint& peer_endpoint) {
   return connection_manager_->ThisEndpoint(peer_endpoint);
 }
 
+void Transport::SetBestGuessExternalEndpoint(const Endpoint& external_endpoint) {
+  connection_manager_->SetBestGuessExternalEndpoint(external_endpoint);
+}
 
 bool Transport::IsTemporaryConnection(const Endpoint& peer_endpoint) {
   return connection_manager_->IsTemporaryConnection(peer_endpoint);

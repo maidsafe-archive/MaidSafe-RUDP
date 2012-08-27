@@ -76,6 +76,10 @@ class ConnectionManager {
   // This node's endpoint as viewed by peer
   boost::asio::ip::udp::endpoint ThisEndpoint(const boost::asio::ip::udp::endpoint& peer_endpoint);
 
+  // Called by Transport when bootstrapping a new transport but when we don't create a temporary
+  // connection to establish external endpoint (i.e this node's NAT is symmetric)
+  void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
+
   // Get the remote endpoint offered for NAT detection by peer.
   boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint(
       const boost::asio::ip::udp::endpoint& peer_endpoint);

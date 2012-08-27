@@ -86,6 +86,8 @@ class Multiplexer {
   }
 
   boost::asio::ip::udp::endpoint local_endpoint() const;
+
+  // Returns external_endpoint_ if valid, else best_guess_external_endpoint_.
   boost::asio::ip::udp::endpoint external_endpoint() const;
 
   friend class ConnectionManager;
@@ -108,6 +110,10 @@ class Multiplexer {
 
   // This node's external endpoint - passed to session and set during handshaking.
   boost::asio::ip::udp::endpoint external_endpoint_;
+
+  // This node's best guess at its external endpoint - set when bootstrapping a new transport
+  // which is behind symmetric NAT, therefore no actual temporary connection is made.
+  boost::asio::ip::udp::endpoint best_guess_external_endpoint_;
 
   // Mutex to protect access to external_endpoint_.
   mutable std::mutex mutex_;

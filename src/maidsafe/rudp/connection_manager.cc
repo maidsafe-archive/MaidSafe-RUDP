@@ -141,6 +141,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
           sockets_.end(),
           [endpoint](const SocketMap::value_type& socket_pair) {
             return socket_pair.second->RemoteEndpoint().address() == endpoint.address() &&
+                   !OnPrivateNetwork(socket_pair.second->RemoteEndpoint()) &&
                    !socket_pair.second->IsConnected();
           });
       if (socket_iter != sockets_.end())
@@ -253,6 +254,10 @@ Endpoint ConnectionManager::ThisEndpoint(const Endpoint& peer_endpoint) {
   if (itr == connections_.end())
     return Endpoint();
   return (*itr)->Socket().ThisEndpoint();
+}
+
+void ConnectionManager::SetBestGuessExternalEndpoint(const Endpoint& external_endpoint) {
+  multiplexer_->best_guess_external_endpoint_ = external_endpoint;
 }
 
 Endpoint ConnectionManager::RemoteNatDetectionEndpoint(const Endpoint& peer_endpoint) {
