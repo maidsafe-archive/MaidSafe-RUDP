@@ -171,11 +171,10 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
     return false;
   }
 
-  if (!detail::IsValid(transport_and_signals_connections.transport->external_endpoint())) {
-    // Means this node's NAT is symmetric, so no temporary connection was attempted to establish the
-    // external endpoint.  Instead guess that it will be mapped to existing external address and
-    // local port.
-    assert(chosen_bootstrap_endpoint == kNonRoutable);
+  if (!detail::IsValid(transport_and_signals_connections.transport->external_endpoint()) &&
+      !external_address.is_unspecified()) {
+    // Means this node's NAT is symmetric or unknown, so guess that it will be mapped to existing
+    // external address and local port.
     transport_and_signals_connections.transport->SetBestGuessExternalEndpoint(
         Endpoint(external_address,
                  transport_and_signals_connections.transport->local_endpoint().port()));
