@@ -72,13 +72,15 @@ class Multiplexer {
       boost::system::error_code ec;
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
+#ifndef NDEBUG
         std::lock_guard<std::mutex> lock(mutex_);
-        LOG(kWarning) << "Error sending " << length << " bytes from " << local_endpoint()
-                      << " to << " << endpoint << " - " << ec.message();
+        if (!local_endpoint().address().is_unspecified()) {
+          LOG(kWarning) << "Error sending " << length << " bytes from " << local_endpoint()
+                        << " to << " << endpoint << " - " << ec.message();
+        }
+#endif
         return kSendFailure;
       } else {
-//        LOG(kVerbose) << "Success sending " << length << " bytes from " << local_endpoint()
-//                      << " to << " << endpoint << "  " << IOV_MAX;
         return kSuccess;
       }
     }
