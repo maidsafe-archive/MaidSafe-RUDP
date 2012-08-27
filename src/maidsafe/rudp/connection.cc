@@ -217,6 +217,9 @@ void Connection::HandleTick() {
 //    }
 //  }
 
+  if (timeout_state_ == kConnecting && !multiplexer_->IsOpen())
+    return DoClose();
+
   // We need to keep ticking during a graceful shutdown.
   if (timeout_state_ == kClosing && timer_.expires_from_now().is_negative())
     return DoClose();

@@ -518,8 +518,8 @@ void ManagedConnections::OnConnectionAddedSlot(const Endpoint& peer_endpoint,
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
   pending_connections_.erase(peer_endpoint);
   if (result.second) {
-    LOG(kSuccess) << "Successfully connected from "<< transport->local_endpoint() << " to "
-                  << peer_endpoint;
+    LOG(kSuccess) << "Successfully connected from " << transport->external_endpoint() << " / "
+                  << transport->local_endpoint() << " to " << peer_endpoint;
   } else {
     LOG(kError) << transport->local_endpoint() << " is already connected to " << peer_endpoint;
   }

@@ -88,7 +88,8 @@ ip::udp::endpoint Multiplexer::local_endpoint() const {
   boost::system::error_code ec;
   ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
   if (ec) {
-    LOG(kError) << ec.message();
+    if (IsOpen())
+      LOG(kError) << ec.message();
     return ip::udp::endpoint();
   }
   return local_endpoint;

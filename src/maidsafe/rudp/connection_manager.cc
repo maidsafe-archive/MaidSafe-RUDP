@@ -117,6 +117,9 @@ void ConnectionManager::Send(const Endpoint& peer_endpoint,
 }
 
 Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpoint& endpoint) {
+  if (sockets_.empty())
+    return nullptr;
+
   uint32_t id(0);
   if (!Packet::DecodeDestinationSocketId(&id, data)) {
     LOG(kError) << "Received a non-RUDP packet from " << endpoint;

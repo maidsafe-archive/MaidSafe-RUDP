@@ -221,8 +221,8 @@ void Transport::Connect(const Endpoint& peer_endpoint, const std::string& valida
 }
 
 void Transport::DoConnect(const Endpoint& peer_endpoint, const std::string& validation_data) {
-  assert(multiplexer_->IsOpen());
-  connection_manager_->Connect(peer_endpoint, validation_data, bptime::pos_infin);
+  if (multiplexer_->IsOpen())
+    connection_manager_->Connect(peer_endpoint, validation_data, bptime::pos_infin);
 }
 
 int Transport::CloseConnection(const Endpoint& peer_endpoint) {
