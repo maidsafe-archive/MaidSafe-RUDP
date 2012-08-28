@@ -49,7 +49,8 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
   socket_.open(endpoint.protocol(), ec);
 
   if (ec) {
-    LOG(kError) << "Multiplexer socket opening error: " << ec.message();
+    LOG(kError) << "Multiplexer socket opening error while attempting on " << endpoint
+                << "  Error: " << ec.message();
     return kInvalidAddress;
   }
 
@@ -57,13 +58,15 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
   socket_.io_control(nbio, ec);
 
   if (ec) {
-    LOG(kError) << "Multiplexer setting option error: " << ec.message();
+    LOG(kError) << "Multiplexer setting option error while attempting on " << endpoint
+                << "  Error: " << ec.message();
     return kSetOptionFailure;
   }
 
   socket_.bind(endpoint, ec);
   if (ec) {
-    LOG(kError) << "Multiplexer socket binding error: " << ec.message();
+    LOG(kError) << "Multiplexer socket binding error while attempting on " << endpoint
+                << "  Error: " << ec.message();
     return kBindError;
   }
 
