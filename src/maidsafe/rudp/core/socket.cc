@@ -51,6 +51,8 @@ Socket::Socket(Multiplexer& multiplexer, NatType& nat_type)  // NOLINT (Fraser)
       waiting_write_buffer_(),
       waiting_write_ec_(),
       waiting_write_bytes_transferred_(0),
+      waiting_write_message_number_(0),
+      message_sent_functors_(),
       waiting_read_(multiplexer.socket_.get_io_service()),
       waiting_read_buffer_(),
       waiting_read_transfer_at_least_(0),
@@ -177,7 +179,9 @@ void Socket::StartProbe() {
   }
 }
 
-void Socket::StartWrite(const asio::const_buffer& data) {
+void Socket::StartWrite(const asio::const_buffer& data,
+                        const std::function<void(int)>& message_sent_functor) {
+  static uint32_t message_number(0);
   // Check for a no-op write.
   if (asio::buffer_size(data) == 0) {
     waiting_write_ec_.clear();
@@ -190,6 +194,8 @@ void Socket::StartWrite(const asio::const_buffer& data) {
   // buffer.
   waiting_write_buffer_ = data;
   waiting_write_bytes_transferred_ = 0;
+  waiting_write_message_number_ = message_number++;
+  message_sent_functors_[waiting_write_message_number_] = message_sent_functor;
   ProcessWrite();
 }
 
@@ -199,7 +205,7 @@ void Socket::ProcessWrite() {
     return;
 
   // Copy whatever data we can into the write buffer.
-  size_t length = sender_.AddData(waiting_write_buffer_);
+  size_t length = sender_.AddData(waiting_write_buffer_, waiting_write_message_number_);
   waiting_write_buffer_ = waiting_write_buffer_ + length;
   waiting_write_bytes_transferred_ += length;
   // If we have finished writing all of the data then it's time to trigger the write's completion
@@ -209,6 +215,7 @@ void Socket::ProcessWrite() {
     // The write is done. Trigger the write's completion handler.
     waiting_write_ec_.clear();
     waiting_write_.cancel();
+    waiting_write_message_number_ = 0;
   }
 }
 
@@ -347,7 +354,17 @@ void Socket::HandleData(const DataPacket& packet) {
 
 void Socket::HandleAck(const AckPacket& packet) {
   if (session_.IsConnected()) {
-    sender_.HandleAck(packet);
+    std::vector<uint32_t> completed_message_numbers;
+    sender_.HandleAck(packet, completed_message_numbers);
+    for (auto num : completed_message_numbers) {
+      auto itr(message_sent_functors_.find(num));
+      if (itr == message_sent_functors_.end()) {
+        LOG(kError) << "Lost sent functor for message " << num;
+      } else {
+        (*itr).second(kSuccess);
+        message_sent_functors_.erase(itr);
+      }
+    }
     ProcessRead();
     ProcessWrite();
     ProcessFlush();

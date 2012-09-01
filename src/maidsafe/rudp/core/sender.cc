@@ -47,7 +47,8 @@ bool Sender::Flushed() const {
   return unacked_packets_.IsEmpty();
 }
 
-size_t Sender::AddData(const asio::const_buffer& data) {
+size_t Sender::AddData(const asio::const_buffer& data, const uint32_t& message_number) {
+                                          LOG(kSuccess) << "               ADD DATA " << message_number << "    " << asio::buffer_size(data);
   if ((congestion_control_.SendWindowSize() == 0) &&
       (unacked_packets_.Size() == 0)) {
     unacked_packets_.SetMaximumSize(Parameters::default_window_size);
@@ -59,18 +60,18 @@ size_t Sender::AddData(const asio::const_buffer& data) {
   const unsigned char* end = begin + asio::buffer_size(data);
 
   while (!unacked_packets_.IsFull() && (ptr < end)) {
+    size_t length = std::min<size_t>(congestion_control_.SendDataSize(),
+                                     end - ptr);
     uint32_t n = unacked_packets_.Append();
 
     UnackedPacket& p = unacked_packets_[n];
     p.packet.SetPacketSequenceNumber(n);
     p.packet.SetFirstPacketInMessage(true);
-    p.packet.SetLastPacketInMessage(true);
+    p.packet.SetLastPacketInMessage(ptr + length == end);
     p.packet.SetInOrder(true);
-    p.packet.SetMessageNumber(0);
+    p.packet.SetMessageNumber(message_number);
     p.packet.SetTimeStamp(0);
     p.packet.SetDestinationSocketId(peer_.Id());
-    size_t length = std::min<size_t>(congestion_control_.SendDataSize(),
-                                     end - ptr);
     p.packet.SetData(ptr, ptr + length);
     p.lost = true;  // Mark as lost so that DoSend() will send it.
 
@@ -82,7 +83,7 @@ size_t Sender::AddData(const asio::const_buffer& data) {
   return ptr - begin;
 }
 
-void Sender::HandleAck(const AckPacket& packet) {
+void Sender::HandleAck(const AckPacket& packet, std::vector<uint32_t>& completed_message_numbers) {
   uint32_t seqnum = packet.PacketSequenceNumber();
 
   if (packet.HasOptionalFields()) {
@@ -102,8 +103,14 @@ void Sender::HandleAck(const AckPacket& packet) {
   peer_.Send(response_packet);
 
   if (unacked_packets_.Contains(seqnum) || unacked_packets_.End() == seqnum) {
-    while (unacked_packets_.Begin() != seqnum)
+    while (unacked_packets_.Begin() != seqnum) {
+      if (unacked_packets_.Front().packet.LastPacketInMessage()) {
+        completed_message_numbers.push_back(unacked_packets_.Front().packet.MessageNumber());
+//        LOG(kWarning) << "Received ACK for last packet in message " << unacked_packets_.Front().packet.MessageNumber();
+        std::cout << boost::posix_time::microsec_clock::universal_time() << "   Received ACK for last packet in message " << unacked_packets_.Front().packet.MessageNumber() << std::endl;
+      }
       unacked_packets_.Remove();
+    }
 
     DoSend();
   }
@@ -136,6 +143,7 @@ void Sender::HandleTick() {
            + congestion_control_.SendTimeout()) < tick_timer_.Now()) {
         congestion_control_.OnSendTimeout(n);
         unacked_packets_[n].lost = true;
+                                                                      LOG(kVerbose) << "Lost packet " << n;
       }
     }
   }
@@ -165,6 +173,7 @@ void Sender::DoSend() {
         p.last_send_time = now;
         congestion_control_.OnDataPacketSent(n);
         tick_timer_.TickAt(now + congestion_control_.SendDelay());
+                                                                      LOG(kVerbose) << "Sent packet " << n;
         return;
       } else {
         LOG(kVerbose) << "DoSend - failed sending packet " << n;

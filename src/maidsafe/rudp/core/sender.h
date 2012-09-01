@@ -49,13 +49,14 @@ class Sender {
   bool Flushed() const;
 
   // Adds some application data to be sent. Returns number of bytes copied.
-  size_t AddData(const boost::asio::const_buffer& data);
+  size_t AddData(const boost::asio::const_buffer& data, const uint32_t& message_number);
 
   // Notify the other side that the current connection is to be dropped
   void NotifyClose();
 
-  // Handle an acknowlegement packet.
-  void HandleAck(const AckPacket& packet);
+  // Handle an acknowlegement packet.  Inserts the message_number for any completed messages
+  // received so their sent functors can be invoked by Socket.
+  void HandleAck(const AckPacket& packet, std::vector<uint32_t>& completed_message_numbers);
 
   // Handle an negative acknowlegement packet.
   void HandleNegativeAck(const NegativeAckPacket& packet);

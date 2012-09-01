@@ -436,8 +436,8 @@ void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
     InvokeSentFunctor(message_sent_functor, kSendFailure);
     return DoClose();
   }
-
   socket_.AsyncWrite(asio::buffer(send_buffer_),
+                     message_sent_functor,
                      strand_.wrap(std::bind(&Connection::HandleWrite, shared_from_this(),
                                   args::_1, message_sent_functor)));
 }
@@ -462,7 +462,9 @@ void Connection::HandleWrite(const bs::error_code& ec,
     return DoClose();
   }
 
-  InvokeSentFunctor(message_sent_functor, kSuccess);
+  std::cout << boost::posix_time::microsec_clock::universal_time() << "  Message sent functor would have been called with kSuccess here." << std::endl;
+
+//  InvokeSentFunctor(message_sent_functor, kSuccess);
 }
 
 void Connection::StartProbing() {

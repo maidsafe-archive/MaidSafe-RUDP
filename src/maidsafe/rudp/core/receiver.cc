@@ -68,6 +68,7 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer& data) {
        (n != unread_packets_.End()) && (ptr < end);
        n = unread_packets_.Next(n)) {
     UnreadPacket& p = unread_packets_[n];
+//    LOG(kSuccess) << p.packet.MessageNumber() << std::boolalpha << "\t" << p.packet.FirstPacketInMessage() << "\t" << p.packet.LastPacketInMessage();
     if (p.lost) {
       break;
     } else if (p.packet.Data().size() > p.bytes_read) {
@@ -159,8 +160,8 @@ void Receiver::HandleTick() {
   if ((ack_packet_seqnum != last_ack_packet_sequence_number_) ||
       (!acks_.IsEmpty() &&
        (acks_.Back().send_time + congestion_control_.AckTimeout() <= now))) {
-    if (acks_.IsFull())
-      acks_.Remove();
+                                                                                          //if (acks_.IsFull())
+                                                                                          //  acks_.Remove();
     congestion_control_.OnGenerateAck(ack_packet_seqnum);
     uint32_t n = acks_.Append();
     Ack& a = acks_[n];

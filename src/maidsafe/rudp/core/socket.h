@@ -126,12 +126,16 @@ class Socket {
 
   // Initiate an asynchronous operation to write data. The operation will
   // generally complete immediately unless congestion has caused the internal
-  // buffer for unprocessed send data to fill up.
+  // buffer for unprocessed send data to fill up. when the operation completes, the handler is
+  // invoked, but the message_sent_functor is not invoked until the last packet of the message has
+  // been acknowledged by the peer.
   template <typename WriteHandler>
-  void AsyncWrite(const boost::asio::const_buffer& data, WriteHandler handler) {
+  void AsyncWrite(const boost::asio::const_buffer& data,
+                  const std::function<void(int)>& message_sent_functor,
+                  WriteHandler handler) {
     WriteOp<WriteHandler> op(handler, &waiting_write_ec_, &waiting_write_bytes_transferred_);
     waiting_write_.async_wait(op);
-    StartWrite(data);
+    StartWrite(data, message_sent_functor);
   }
 
   // Initiate an asynchronous operation to read data.
@@ -185,7 +189,8 @@ class Socket {
       const boost::asio::ip::udp::endpoint& remote,
       Session::Mode open_mode,
       const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
-  void StartWrite(const boost::asio::const_buffer& data);
+  void StartWrite(const boost::asio::const_buffer& data,
+                  const std::function<void(int)>& message_sent_functor);
   void ProcessWrite();
   void StartRead(const boost::asio::mutable_buffer& data, size_t transfer_at_least);
   void ProcessRead();
@@ -256,6 +261,8 @@ class Socket {
   boost::asio::const_buffer waiting_write_buffer_;
   boost::system::error_code waiting_write_ec_;
   size_t waiting_write_bytes_transferred_;
+  uint32_t waiting_write_message_number_;
+  std::map<uint32_t, std::function<void(int)>> message_sent_functors_;
 
   // This class allows only one outstanding asynchronous read operation at a
   // time. The following data members store the pending read, its associated
