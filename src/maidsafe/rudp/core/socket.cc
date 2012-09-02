@@ -195,6 +195,8 @@ void Socket::StartWrite(const asio::const_buffer& data,
   waiting_write_buffer_ = data;
   waiting_write_bytes_transferred_ = 0;
   waiting_write_message_number_ = message_number++;
+  if (waiting_write_message_number_ == 0)
+    waiting_write_message_number_ = message_number++;
   message_sent_functors_[waiting_write_message_number_] = message_sent_functor;
   ProcessWrite();
 }
