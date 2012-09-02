@@ -141,8 +141,6 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       if (chosen_endpoint == bootstrap_endpoints[j])
         peer_endpoint = chosen_endpoint;
       EndpointPair this_endpoint_pair, peer_endpoint_pair;
-      LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[i]->id() << " to "
-                 << nodes[j]->id() << " with peer_endpoint " << peer_endpoint;
       int result(nodes[i]->managed_connections()->GetAvailableEndpoint(peer_endpoint,
                                                                        this_endpoint_pair,
                                                                        nat_type));
@@ -151,9 +149,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                            << nodes[i]->id() << " with result " << result
                                            << ".  Local: " << this_endpoint_pair.local
                                            << "  External: " << this_endpoint_pair.external;
+      } else {
+        LOG(kInfo) << "GetAvailableEndpoint on " << nodes[i]->id() << " to "
+                   << nodes[j]->id() << " with peer_endpoint " << peer_endpoint << " returned "
+                   << this_endpoint_pair.external << " / " << this_endpoint_pair.local;
       }
-      LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[j]->id() << " to "
-                 << nodes[i]->id() << " with peer_endpoint " << this_endpoint_pair.local;
       result = nodes[j]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
                                                                      peer_endpoint_pair,
                                                                      nat_type);
@@ -163,6 +163,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                            << ".  Local: " << peer_endpoint_pair.local
                                            << "  External: " << peer_endpoint_pair.external
                                            << "  Peer: " << this_endpoint_pair.local;
+      } else {
+        LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[j]->id() << " to "
+                   << nodes[i]->id() << " with peer_endpoint " << this_endpoint_pair.local
+                   << " returned " << peer_endpoint_pair.external << " / "
+                   << peer_endpoint_pair.local;
       }
 
       futures0 = nodes[i]->GetFutureForMessages(1);
