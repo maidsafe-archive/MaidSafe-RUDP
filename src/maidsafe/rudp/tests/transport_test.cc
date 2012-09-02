@@ -40,7 +40,7 @@ class RudpTransportTest : public testing::Test {
   RudpTransportTest()
       : transports_(),
         network_size_(2),
-        kTimeOut_(Parameters::keepalive_interval * Parameters::maximum_keepalive_failures) {}
+        kTimeOut_(Parameters::keepalive_interval * (Parameters::maximum_keepalive_failures + 1)) {}
 
   ~RudpTransportTest() {}
 
@@ -153,15 +153,30 @@ class RudpTransportTest : public testing::Test {
 
 TEST_F(RudpTransportTest, BEH_Connection) {
   ConnectTestPeers();
-  int send_result(kConnectError);
+
   transports_[1]->messages_received.clear();
   std::string msg_content(RandomString(256));
-  transports_[0]->transport->Send(transports_[1]->local_endpoint, msg_content,
-                                  [&](int result) { send_result = result; });  // NOLINT (Fraser)
+
+  int send_result(kGeneralError);
+  bool message_sent(false);
+  boost::mutex send_mutex;
+  boost::condition_variable send_cond_var;
+  boost::mutex::scoped_lock send_lock(send_mutex);
+  auto message_sent_functor([&](int result_in) {
+    boost::mutex::scoped_lock lock(send_mutex);
+    send_result = result_in;
+    message_sent = true;
+    send_cond_var.notify_one();
+  });
+
   boost::mutex::scoped_lock lock(transports_[1]->mutex);
+  transports_[0]->transport->Send(transports_[1]->local_endpoint, msg_content,
+                                  message_sent_functor);  // NOLINT (Fraser)
   EXPECT_TRUE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
+  EXPECT_TRUE(transports_[0]->cond_var_msg_received.timed_wait(
+      send_lock, kTimeOut_, [&message_sent]() { return message_sent; }));  // NOLINT (Fraser)
   EXPECT_EQ(kSuccess, send_result);
-  EXPECT_EQ(1U, transports_[1]->messages_received.size());
+  ASSERT_EQ(1U, transports_[1]->messages_received.size());
   EXPECT_NE(msg_content, transports_[1]->messages_received[0]);
   std::string decrypted_msg;
   EXPECT_EQ(kSuccess, asymm::Decrypt(transports_[1]->messages_received[0],

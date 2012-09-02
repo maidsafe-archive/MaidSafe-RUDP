@@ -63,6 +63,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       sending_(false),
       is_temporary_(true) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
+  timer_.expires_from_now(bptime::pos_infin);
 }
 
 Socket& Connection::Socket() {
