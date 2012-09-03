@@ -161,8 +161,9 @@ void Receiver::HandleTick() {
   if ((ack_packet_seqnum != last_ack_packet_sequence_number_) ||
       (!acks_.IsEmpty() &&
        (acks_.Back().send_time + congestion_control_.AckTimeout() <= now))) {
-                                                                                          //if (acks_.IsFull())
-                                                                                          //  acks_.Remove();
+// TODO(Fraser#5#): 2012-09-03 - Confirm this is OK to be removed.
+//    if (acks_.IsFull())
+//      acks_.Remove();
     congestion_control_.OnGenerateAck(ack_packet_seqnum);
     uint32_t n = acks_.Append();
     Ack& a = acks_[n];
