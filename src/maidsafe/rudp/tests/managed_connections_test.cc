@@ -139,12 +139,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   EXPECT_NE(bootstrap_endpoints_.end(),
             std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
   // Already bootstrapped
-  EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                               do_nothing_on_message_,
-                                                               do_nothing_on_connection_lost_,
-                                                               node_.private_key(),
-                                                               node_.public_key(),
-                                                               nat_type));
+  chosen_endpoint = node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                           do_nothing_on_message_,
+                                                            do_nothing_on_connection_lost_,
+                                                           node_.private_key(),
+                                                           node_.public_key(),
+                                                           nat_type);
+  EXPECT_TRUE(detail::IsValid(chosen_endpoint));
+  EXPECT_NE(bootstrap_endpoints_.end(),
+            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {

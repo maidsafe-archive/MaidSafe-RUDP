@@ -32,7 +32,7 @@ namespace maidsafe {
 namespace rudp {
 
 // 203.0.113.14:1314
-const boost::asio::ip::udp::endpoint kNonRoutable(boost::asio::ip::address_v4(3405803790), 1314);
+const boost::asio::ip::udp::endpoint kNonRoutable(boost::asio::ip::address_v4(3405803790U), 1314);
 
 
 namespace {
@@ -197,6 +197,9 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
 void ManagedConnections::GetBootstrapEndpoints(const Endpoint& local_endpoint,
                                                std::vector<Endpoint>& bootstrap_endpoints,
                                                boost::asio::ip::address& this_external_address) {
+  // TODO(Fraser#5#): 2012-09-03 - Remove this sleep.  Added as workaround for failing
+  //                               SetupNetwork (test_utils.cc) on Linux.
+  Sleep(boost::posix_time::milliseconds(10));
   bool external_address_consistent(true);
   // Favour connections which are on a different network to this to allow calculation of the new
   // transport's external endpoint.
@@ -255,16 +258,16 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
         this_nat_type = nat_type_;
         return kSuccess;
 #ifndef NDEBUG
-      } else {
-        std::string msg("Expected to find a connection to ");
-        msg += peer_endpoint.address().to_string() + ":";
-        msg += boost::lexical_cast<std::string>(peer_endpoint.port());
-        msg += " in map, but map only contains\n";
-        for (auto conn : connection_map_) {
-          msg += conn.first.address().to_string() + ":";
-          msg += boost::lexical_cast<std::string>(conn.first.port()) + "\n";
-        }
-        LOG(kInfo) << msg;
+//      } else {
+//        std::string msg("Expected to find a connection to ");
+//        msg += peer_endpoint.address().to_string() + ":";
+//        msg += boost::lexical_cast<std::string>(peer_endpoint.port());
+//        msg += " in map, but map only contains\n";
+//        for (auto conn : connection_map_) {
+//          msg += conn.first.address().to_string() + ":";
+//          msg += boost::lexical_cast<std::string>(conn.first.port()) + "\n";
+//        }
+//        LOG(kInfo) << msg;
 #endif
       }
     }
