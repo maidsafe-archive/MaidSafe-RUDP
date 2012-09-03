@@ -17,6 +17,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
 #include <vector>
@@ -25,7 +26,6 @@
 #include "boost/asio/ip/udp.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/signals2/connection.hpp"
-#include "boost/thread/shared_mutex.hpp"
 
 #include "maidsafe/common/asio_service.h"
 #include "maidsafe/common/rsa.h"
@@ -166,7 +166,7 @@ class ManagedConnections {
   std::vector<TransportAndSignalConnections> transports_;
   ConnectionMap connection_map_;
   std::set<boost::asio::ip::udp::endpoint> pending_connections_;
-  mutable boost::shared_mutex shared_mutex_;
+  mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
   NatType nat_type_;
   TransportAndSignalConnections resilience_transport_;

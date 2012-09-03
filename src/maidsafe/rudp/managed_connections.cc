@@ -54,14 +54,14 @@ ManagedConnections::ManagedConnections()
       transports_(),
       connection_map_(),
       pending_connections_(),
-      shared_mutex_(),
+      mutex_(),
       local_ip_(),
       nat_type_(NatType::kUnknown),
       resilience_transport_() {}
 
 ManagedConnections::~ManagedConnections() {
   {
-    UniqueLock unique_lock(shared_mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     std::for_each(transports_.begin(),
                   transports_.end(),
                   [](TransportAndSignalConnections& element) {
@@ -80,7 +80,7 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
                                        NatType& nat_type,
                                        Endpoint local_endpoint) {
   {
-    SharedLock shared_lock(shared_mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     if (!connection_map_.empty()) {
       LOG(kError) << "Already bootstrapped.";
       return Endpoint();
@@ -164,7 +164,7 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
       &transport_and_signals_connections.on_connection_added_connection,
       &transport_and_signals_connections.on_connection_lost_connection);
   if (!detail::IsValid(chosen_bootstrap_endpoint)) {
-    SharedLock shared_lock(shared_mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     LOG(kWarning) << "Failed to start a new Transport.  "
                   << connection_map_.size() << " currently running.";
     transport_and_signals_connections.DisconnectSignalsAndClose();
@@ -181,7 +181,7 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
   }
 
   {
-    UniqueLock unique_lock(shared_mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     transports_.push_back(transport_and_signals_connections);
   }
 
@@ -206,7 +206,7 @@ void ManagedConnections::GetBootstrapEndpoints(const Endpoint& local_endpoint,
   std::vector<Endpoint> secondary_endpoints;
   bootstrap_endpoints.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
   secondary_endpoints.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
-  SharedLock shared_lock(shared_mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   std::for_each(connection_map_.begin(),
                 connection_map_.end(),
                 [&](const ConnectionMap::value_type& entry) {
@@ -234,7 +234,7 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
                                              NatType& this_nat_type) {
   int transports_size(0);
   {
-    SharedLock shared_lock(shared_mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     transports_size = static_cast<int>(transports_.size());
     if (transports_size == 0) {
       LOG(kError) << "No running Transports.";
@@ -257,6 +257,18 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
         }
         this_nat_type = nat_type_;
         return kSuccess;
+#ifndef NDEBUG
+      } else {
+        std::string msg("Expected to find a connection to ");
+        msg += peer_endpoint.address().to_string() + ":";
+        msg += boost::lexical_cast<std::string>(peer_endpoint.port());
+        msg += " in map, but map only contains\n";
+        for (auto conn : connection_map_) {
+          msg += conn.first.address().to_string() + ":";
+          msg += boost::lexical_cast<std::string>(conn.first.port()) + "\n";
+        }
+        LOG(kInfo) << msg;
+#endif
       }
     }
   }
@@ -275,12 +287,12 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
     Endpoint chosen_bootstrap_endpoint;
     if (StartNewTransport(std::vector<Endpoint>(), Endpoint(local_ip_, 0),
                           chosen_bootstrap_endpoint, this_endpoint_pair)) {
-      SharedLock shared_lock(shared_mutex_);
+      std::lock_guard<std::mutex> lock(mutex_);
       this_nat_type = nat_type_;
       return kSuccess;
     } else {
       this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
-      SharedLock shared_lock(shared_mutex_);
+      std::lock_guard<std::mutex> lock(mutex_);
       this_nat_type = NatType::kUnknown;
       return connection_map_.empty() ? kNotBootstrapped : kTransportStartFailure;
     }
@@ -291,7 +303,7 @@ int ManagedConnections::GetAvailableEndpoint(const Endpoint& peer_endpoint,
   // have established our external address)
   {
     size_t least_connections(detail::Transport::kMaxConnections());
-    SharedLock shared_lock(shared_mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     std::for_each(
         transports_.begin(),
         transports_.end(),
@@ -336,7 +348,7 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
 
   detail::TransportPtr transport;
   {
-    UniqueLock unique_lock(shared_mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     // Check there's not already an ongoing connection attempt to this endpoint
     auto pending_itr = pending_connections_.find(peer_endpoint);
     if (pending_itr == pending_connections_.end()) {
@@ -390,7 +402,7 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
 }
 
 void ManagedConnections::Remove(const Endpoint& peer_endpoint) {
-  SharedLock shared_lock(shared_mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto itr(connection_map_.find(peer_endpoint));
   if (itr == connection_map_.end()) {
     LOG(kWarning) << "Can't remove " << peer_endpoint << " - not in map.";
@@ -402,7 +414,7 @@ void ManagedConnections::Remove(const Endpoint& peer_endpoint) {
 void ManagedConnections::Send(const Endpoint& peer_endpoint,
                               const std::string& message,
                               MessageSentFunctor message_sent_functor) {
-  SharedLock shared_lock(shared_mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto itr(connection_map_.find(peer_endpoint));
   if (itr == connection_map_.end()) {
     LOG(kError) << "Can't send to " << peer_endpoint << " - not in map.";
@@ -434,7 +446,7 @@ void ManagedConnections::Ping(const Endpoint& peer_endpoint, PingFunctor ping_fu
     return;
   }
 
-  SharedLock shared_lock(shared_mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   // Check this node isn't already connected to peer
   if (connection_map_.find(peer_endpoint) != connection_map_.end()) {
     asio_service_.service().post([ping_functor] { ping_functor(kWontPingAlreadyConnected); });  // NOLINT (Fraser)
@@ -461,7 +473,7 @@ bool ManagedConnections::DirectConnected(boost::asio::ip::address& this_address)
   if (nat_type_ == NatType::kUnknown || nat_type_ == NatType::kSymmetric)
     return false;
 
-  SharedLock shared_lock(shared_mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   if (transports_.empty())
     return false;
   detail::TransportPtr transport(transports_.front().transport);
@@ -514,7 +526,7 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
 
 void ManagedConnections::OnConnectionAddedSlot(const Endpoint& peer_endpoint,
                                                detail::TransportPtr transport) {
-  UniqueLock unique_lock(shared_mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
   pending_connections_.erase(peer_endpoint);
   if (result.second) {
@@ -532,7 +544,7 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint& peer_endpoint,
   bool should_execute_functor(false);
   {
     bool remove_transport(connections_empty && !transport->IsResilienceTransport());
-    UniqueLock unique_lock(shared_mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     auto connection_itr(connection_map_.find(peer_endpoint));
     if (connection_itr == connection_map_.end()) {
       if (temporary_connection)
@@ -599,7 +611,7 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
     return;
   }
 
-  SharedLock lock(shared_mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto itr(std::find_if(
       transports_.begin(),
       transports_.end(),

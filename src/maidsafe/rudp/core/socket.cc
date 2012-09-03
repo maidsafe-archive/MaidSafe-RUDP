@@ -180,7 +180,7 @@ void Socket::StartProbe() {
 }
 
 void Socket::StartWrite(const asio::const_buffer& data,
-                        const std::function<void(int)>& message_sent_functor) {
+                        const std::function<void(int)>& message_sent_functor) {  // NOLINT (Fraser)
   static uint32_t message_number(0);
   // Check for a no-op write.
   if (asio::buffer_size(data) == 0) {

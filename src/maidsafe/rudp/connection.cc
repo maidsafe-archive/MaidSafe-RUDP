@@ -42,6 +42,15 @@ namespace rudp {
 
 namespace detail {
 
+namespace {
+
+std::ostream& operator<<(std::ostream& ostream, const Multiplexer& multiplexer) {
+  ostream << multiplexer.external_endpoint() << " / " << multiplexer.local_endpoint();
+  return ostream;
+}
+
+}  // unnamed namespace
+
 Connection::Connection(const std::shared_ptr<Transport> &transport,
                        const asio::io_service::strand& strand,
                        const std::shared_ptr<Multiplexer> &multiplexer,
@@ -184,7 +193,8 @@ void Connection::CheckTimeout(const bs::error_code& ec) {
 
   if (timer_.expires_from_now().is_negative()) {
     // Time has run out.
-    LOG(kError) << "Closing connection to " << socket_.RemoteEndpoint() << " - timed out.";
+    LOG(kError) << "Closing connection from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+                << " - timed out.";
     return DoClose(true);
   }
 
@@ -264,12 +274,13 @@ void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
 
   if (lifespan_timer_.expires_from_now() != bptime::pos_infin) {
     if (lifespan_timer_.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
-      LOG(kInfo) << "Closing connection to " << socket_.RemoteEndpoint() << "  Lifespan remaining: "
+      LOG(kInfo) << "Closing connection from " << *multiplexer_ << " to "
+                 << socket_.RemoteEndpoint() << "  Lifespan remaining: "
                  << lifespan_timer_.expires_from_now();
       return DoClose();
     } else {
-      LOG(kInfo) << "Spuriously checking lifespan timeout of connection to "
-                 << socket_.RemoteEndpoint() << "  Lifespan remaining: "
+      LOG(kInfo) << "Spuriously checking lifespan timeout of connection from " << *multiplexer_
+                 << " to " << socket_.RemoteEndpoint() << "  Lifespan remaining: "
                  << lifespan_timer_.expires_from_now();
       lifespan_timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckLifespanTimeout,
                                                         shared_from_this(), args::_1)));
@@ -283,7 +294,8 @@ void Connection::HandleConnect(const bs::error_code& ec,
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
-      LOG(kError) << "Failed to connect to " << socket_.RemoteEndpoint() << " - " << ec.message();
+      LOG(kError) << "Failed to connect from " << *multiplexer_ << " to "
+                  << socket_.RemoteEndpoint() << " - " << ec.message();
 #endif
     if (ping_functor)
       ping_functor(kPingFailed);
@@ -291,10 +303,12 @@ void Connection::HandleConnect(const bs::error_code& ec,
   }
 
   if (Stopped()) {
-    if (ping_functor)
+    if (ping_functor) {
       ping_functor(kSuccess);
-    else
-      LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint() << " already stopped.";
+    } else {
+      LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+                    << " already stopped.";
+    }
     return DoClose();
   }
 
@@ -311,9 +325,10 @@ void Connection::HandleConnect(const bs::error_code& ec,
   StartProbing();
   StartReadSize();
   if (!validation_data.empty()) {
-    StartSending(validation_data, [](int result) {
+    StartSending(validation_data, [this](int result) {
         if (result != kSuccess) {
-          LOG(kWarning) << "Failed to send validation data.  Result: " << result;
+          LOG(kWarning) << "Failed to send validation data from " << *multiplexer_ << " to "
+                         << socket_.RemoteEndpoint() << "  Result: " << result;
         }
     });
   }
@@ -321,7 +336,8 @@ void Connection::HandleConnect(const bs::error_code& ec,
 
 void Connection::StartReadSize() {
   if (Stopped()) {
-    LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint() << " already stopped.";
+    LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+                  << " already stopped.";
     return DoClose();
   }
   receive_buffer_.clear();
@@ -335,16 +351,16 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped()) {
-      LOG(kWarning) << "Failed to read size from " << socket_.RemoteEndpoint() << " - "
-                    << ec.message();
+      LOG(kWarning) << "Failed to read size.  Connection from " << *multiplexer_ << " to "
+                    << socket_.RemoteEndpoint() << " error - " << ec.message();
     }
 #endif
     return DoClose();
   }
 
   if (Stopped()) {
-    LOG(kWarning) << "Failed to read size from " << socket_.RemoteEndpoint()
-                  << " - connection stopped.";
+    LOG(kWarning) << "Failed to read size.  Connection from " << *multiplexer_ << " to "
+                  << socket_.RemoteEndpoint() << " already stopped.";
     return DoClose();
   }
 
@@ -359,7 +375,8 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
 
 void Connection::StartReadData() {
   if (Stopped()) {
-    LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint() << " already stopped.";
+    LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+                  << " already stopped.";
     return DoClose();
   }
   size_t buffer_size = data_received_;
@@ -376,16 +393,16 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped()) {
-      LOG(kError) << "Failed to read data from " << socket_.RemoteEndpoint()
-                  << " - " << ec.message();
+      LOG(kError) << "Failed to read data.  Connection from " << *multiplexer_ << " to "
+                  << socket_.RemoteEndpoint() << " error - " << ec.message();
     }
 #endif
     return DoClose();
   }
 
   if (Stopped()) {
-    LOG(kError) << "Failed to read data from " << socket_.RemoteEndpoint()
-                << " - connection stopped.";
+    LOG(kError) << "Failed to read data.  Connection from " << *multiplexer_ << " to "
+                << socket_.RemoteEndpoint() << " already stopped.";
     return DoClose();
   }
 
@@ -433,7 +450,8 @@ bool Connection::EncodeData(const std::string& data) {
 
 void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
   if (Stopped()) {
-    LOG(kError) << "Failed to write to " << socket_.RemoteEndpoint() << " - connection stopped.";
+    LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+                << " - connection stopped.";
     InvokeSentFunctor(message_sent_functor, kSendFailure);
     return DoClose();
   }
@@ -448,8 +466,8 @@ void Connection::HandleWrite(const bs::error_code& ec,
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped()) {
-      LOG(kError) << "Failed to write to " << socket_.RemoteEndpoint()
-                  << " - " << ec.message();
+      LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+                  << " error - " << ec.message();
     }
 #endif
     InvokeSentFunctor(message_sent_functor, kSendFailure);
@@ -457,14 +475,14 @@ void Connection::HandleWrite(const bs::error_code& ec,
   }
 
   if (Stopped()) {
-    LOG(kError) << "Failed to write to " << socket_.RemoteEndpoint()
+    LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
                 << " - connection stopped.";
     InvokeSentFunctor(message_sent_functor, kSendFailure);
     return DoClose();
   }
 
-  std::cout << boost::posix_time::microsec_clock::universal_time() << "  Message sent functor would have been called with kSuccess here." << std::endl;
-
+//  LOG(kInfo) << boost::posix_time::microsec_clock::universal_time()
+//             << "  Message sent functor would have been called with kSuccess here.";
 //  InvokeSentFunctor(message_sent_functor, kSuccess);
 }
 
@@ -494,7 +512,8 @@ void Connection::HandleProbe(const bs::error_code& ec) {
     bs::error_code ignored_ec;
     DoProbe(ignored_ec);
   } else {
-    LOG(kWarning) << "Failed to probe " << socket_.RemoteEndpoint() << " - " << ec.message();
+    LOG(kWarning) << "Failed to probe from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+                  << " error - " << ec.message();
     return DoClose();
   }
 }

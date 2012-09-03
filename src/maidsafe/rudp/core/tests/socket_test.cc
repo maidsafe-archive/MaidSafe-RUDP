@@ -136,7 +136,7 @@ TEST(SocketTest, BEH_Socket) {
     std::vector<unsigned char> client_buffer(kBufferSize, 'A');
     client_ec = asio::error::would_block;
     client_socket.AsyncWrite(asio::buffer(client_buffer),
-                             [](int) {},
+                             [](int) {},  // NOLINT (Fraser)
                              std::bind(&handler1, args::_1, &client_ec));
 
     do {

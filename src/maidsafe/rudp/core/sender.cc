@@ -48,7 +48,7 @@ bool Sender::Flushed() const {
 }
 
 size_t Sender::AddData(const asio::const_buffer& data, const uint32_t& message_number) {
-                                          LOG(kSuccess) << "               ADD DATA " << message_number << "    " << asio::buffer_size(data);
+//  LOG(kSuccess) << "            ADD DATA " << message_number << "    " << asio::buffer_size(data);
   if ((congestion_control_.SendWindowSize() == 0) &&
       (unacked_packets_.Size() == 0)) {
     unacked_packets_.SetMaximumSize(Parameters::default_window_size);
@@ -106,8 +106,8 @@ void Sender::HandleAck(const AckPacket& packet, std::vector<uint32_t>& completed
     while (unacked_packets_.Begin() != seqnum) {
       if (unacked_packets_.Front().packet.LastPacketInMessage()) {
         completed_message_numbers.push_back(unacked_packets_.Front().packet.MessageNumber());
-//        LOG(kWarning) << "Received ACK for last packet in message " << unacked_packets_.Front().packet.MessageNumber();
-        std::cout << boost::posix_time::microsec_clock::universal_time() << "   Received ACK for last packet in message " << unacked_packets_.Front().packet.MessageNumber() << std::endl;
+//        LOG(kVerbose) << "Received ACK for last packet in message "
+//                      << unacked_packets_.Front().packet.MessageNumber();
       }
       unacked_packets_.Remove();
     }
@@ -143,7 +143,7 @@ void Sender::HandleTick() {
            + congestion_control_.SendTimeout()) < tick_timer_.Now()) {
         congestion_control_.OnSendTimeout(n);
         unacked_packets_[n].lost = true;
-                                                                      LOG(kVerbose) << "Lost packet " << n;
+        // LOG(kVerbose) << "Lost packet " << n;
       }
     }
   }
@@ -173,7 +173,7 @@ void Sender::DoSend() {
         p.last_send_time = now;
         congestion_control_.OnDataPacketSent(n);
         tick_timer_.TickAt(now + congestion_control_.SendDelay());
-                                                                      LOG(kVerbose) << "Sent packet " << n;
+        // LOG(kVerbose) << "Sent packet " << n;
         return;
       } else {
         LOG(kVerbose) << "DoSend - failed sending packet " << n;

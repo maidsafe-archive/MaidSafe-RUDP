@@ -15,6 +15,7 @@
 #define MAIDSAFE_RUDP_CORE_SENDER_H_
 
 #include <cstdint>
+#include <vector>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"

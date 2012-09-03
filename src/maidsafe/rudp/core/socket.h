@@ -15,6 +15,8 @@
 #define MAIDSAFE_RUDP_CORE_SOCKET_H_
 
 #include <cstdint>
+#include <functional>
+#include <map>
 #include <memory>
 #include <deque>
 
@@ -131,7 +133,7 @@ class Socket {
   // been acknowledged by the peer.
   template <typename WriteHandler>
   void AsyncWrite(const boost::asio::const_buffer& data,
-                  const std::function<void(int)>& message_sent_functor,
+                  const std::function<void(int)>& message_sent_functor,  // NOLINT (Fraser)
                   WriteHandler handler) {
     WriteOp<WriteHandler> op(handler, &waiting_write_ec_, &waiting_write_bytes_transferred_);
     waiting_write_.async_wait(op);
@@ -190,7 +192,7 @@ class Socket {
       Session::Mode open_mode,
       const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
   void StartWrite(const boost::asio::const_buffer& data,
-                  const std::function<void(int)>& message_sent_functor);
+                  const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
   void ProcessWrite();
   void StartRead(const boost::asio::mutable_buffer& data, size_t transfer_at_least);
   void ProcessRead();
@@ -262,7 +264,7 @@ class Socket {
   boost::system::error_code waiting_write_ec_;
   size_t waiting_write_bytes_transferred_;
   uint32_t waiting_write_message_number_;
-  std::map<uint32_t, std::function<void(int)>> message_sent_functors_;
+  std::map<uint32_t, std::function<void(int)>> message_sent_functors_;  // NOLINT (Fraser)
 
   // This class allows only one outstanding asynchronous read operation at a
   // time. The following data members store the pending read, its associated

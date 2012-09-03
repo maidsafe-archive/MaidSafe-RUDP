@@ -158,11 +158,12 @@ bool Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
           bool /*connections_empty*/,
           bool /*temporary_connection*/,
           bool timed_out) {
-    assert(!slot_called);
     boost::mutex::scoped_lock local_lock(local_mutex);
-    slot_called = true;
-    timed_out_connecting = timed_out;
-    local_cond_var.notify_one();
+    if (!slot_called) {
+      slot_called = true;
+      timed_out_connecting = timed_out;
+      local_cond_var.notify_one();
+    }
   }, boost::signals2::at_back));
 
   boost::mutex::scoped_lock lock(local_mutex);

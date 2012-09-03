@@ -408,7 +408,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   });
   auto wait_for_result([&](int count) {
     return cond_var.wait_for(lock,
-                                                                           std::chrono::milliseconds(100000),
+                             std::chrono::seconds(10),
                              [&]() { return result_arrived_count == count; });  // NOLINT (Fraser)
   });
 
@@ -457,11 +457,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
 
   ASSERT_TRUE(wait_for_result(kRepeatCount));
   EXPECT_EQ(kSuccess, result_of_send);
-                                      ASSERT_TRUE(peer_futures.timed_wait(bptime::milliseconds(200000)));
+  ASSERT_TRUE(peer_futures.timed_wait(bptime::seconds(120)));
   peer_messages = peer_futures.get();
   ASSERT_EQ(static_cast<size_t>(kRepeatCount), peer_messages.size());
   for (auto peer_message : peer_messages)
     EXPECT_EQ(kMessage, peer_message);
+}
+
+TEST_F(ManagedConnectionsTest, BEH_API_Setup) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 4));
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_Send) {

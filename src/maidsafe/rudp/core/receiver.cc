@@ -68,7 +68,8 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer& data) {
        (n != unread_packets_.End()) && (ptr < end);
        n = unread_packets_.Next(n)) {
     UnreadPacket& p = unread_packets_[n];
-//    LOG(kSuccess) << p.packet.MessageNumber() << std::boolalpha << "\t" << p.packet.FirstPacketInMessage() << "\t" << p.packet.LastPacketInMessage();
+//    LOG(kSuccess) << p.packet.MessageNumber() << std::boolalpha << "\t"
+//                  << p.packet.FirstPacketInMessage() << "\t" << p.packet.LastPacketInMessage();
     if (p.lost) {
       break;
     } else if (p.packet.Data().size() > p.bytes_read) {
