@@ -62,11 +62,8 @@ ManagedConnections::ManagedConnections()
 ManagedConnections::~ManagedConnections() {
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    std::for_each(transports_.begin(),
-                  transports_.end(),
-                  [](TransportAndSignalConnections& element) {
-      element.DisconnectSignalsAndClose();
-    });
+    for (auto transport : transports_)
+      transport.DisconnectSignalsAndClose();
   }
   resilience_transport_.DisconnectSignalsAndClose();
   asio_service_.Stop();
@@ -81,11 +78,11 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
                                        Endpoint local_endpoint) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!connection_map_.empty()) {
-      LOG(kError) << "Already bootstrapped.";
-      return Endpoint();
-    }
-    BOOST_ASSERT(transports_.empty());
+    for (auto transport : transports_)
+      transport.DisconnectSignalsAndClose();
+    transports_.clear();
+    resilience_transport_.DisconnectSignalsAndClose();
+    connection_map_.clear();
   }
 
   if (!message_received_functor) {

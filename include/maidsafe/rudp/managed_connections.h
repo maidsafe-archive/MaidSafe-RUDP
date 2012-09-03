@@ -66,7 +66,8 @@ class ManagedConnections {
   // the local NAT type, which is returned in the nat_type parameter.  The successfully-connected
   // endpoint is returned, or a default endpoint is returned if bootstrapping is unsuccessful.  All
   // messages are decrypted using private_key before being passed up via MessageReceivedFunctor.
-  // For zero-state network, pass required local_endpoint.
+  // For zero-state network, pass required local_endpoint.  If there are any existing transports
+  // they are destroyed and all connections closed.
   boost::asio::ip::udp::endpoint Bootstrap(
       const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
       MessageReceivedFunctor message_received_functor,
