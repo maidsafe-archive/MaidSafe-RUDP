@@ -70,6 +70,7 @@ ManagedConnections::~ManagedConnections() {
 }
 
 Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
+                                       bool start_resilience_transport,
                                        MessageReceivedFunctor message_received_functor,
                                        ConnectionLostFunctor connection_lost_functor,
                                        std::shared_ptr<asymm::PrivateKey> private_key,
@@ -132,6 +133,9 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
   message_received_functor_ = message_received_functor;
   connection_lost_functor_ = connection_lost_functor;
 
+  if (start_resilience_transport)
+    asio_service_.service().post([=] { StartResilienceTransport(); });  // NOLINT (Fraser)
+
   return chosen_bootstrap_endpoint;
 }
 
@@ -146,6 +150,8 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
   boost::asio::ip::address external_address;
   if (bootstrap_off_existing_connection)
     GetBootstrapEndpoints(local_endpoint, bootstrap_endpoints, external_address);
+  else
+    bootstrap_endpoints.insert(bootstrap_endpoints.begin(), Endpoint(local_ip_, kResiliencePort()));
 
   transport_and_signals_connections.transport->Bootstrap(
       bootstrap_endpoints,
@@ -181,10 +187,6 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
     std::lock_guard<std::mutex> lock(mutex_);
     transports_.push_back(transport_and_signals_connections);
   }
-
-  boost::asio::ip::address address;
-  if (DirectConnected(address))
-    asio_service_.service().post([=] { StartResilienceTransport(address); });  // NOLINT (Fraser)
 
   this_endpoint_pair.local = transport_and_signals_connections.transport->local_endpoint();
   this_endpoint_pair.external = transport_and_signals_connections.transport->external_endpoint();
@@ -488,27 +490,7 @@ void ManagedConnections::Ping(const Endpoint& peer_endpoint, PingFunctor ping_fu
   transports_[index].transport->Ping(peer_endpoint, ping_functor);
 }
 
-bool ManagedConnections::DirectConnected(boost::asio::ip::address& this_address) const {
-  if (nat_type_ == NatType::kUnknown || nat_type_ == NatType::kSymmetric)
-    return false;
-
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (transports_.empty())
-    return false;
-  detail::TransportPtr transport(transports_.front().transport);
-  if (transport->external_endpoint() != transport->local_endpoint()) {
-    LOG(kInfo) << "This node is not direct-connected.  Its external endpoint is "
-               << transport->external_endpoint() << " and its local endpoint is "
-               << transport->local_endpoint();
-    return false;
-  }
-
-  this_address = transport->local_endpoint().address();
-  LOG(kInfo) << "This node is direct-connected on " << transport->local_endpoint();
-  return true;
-}
-
-void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address& this_address) {
+void ManagedConnections::StartResilienceTransport() {
   resilience_transport_.transport = std::make_shared<detail::Transport>(asio_service_, nat_type_);
   std::vector<Endpoint> bootstrap_endpoints;
   boost::asio::ip::address external_address;
@@ -518,7 +500,7 @@ void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address
   resilience_transport_.transport->Bootstrap(
       bootstrap_endpoints,
       public_key_,
-      Endpoint(this_address, ManagedConnections::kResiliencePort()),
+      Endpoint(local_ip_, ManagedConnections::kResiliencePort()),
       true,
       boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
       boost::bind(&ManagedConnections::OnConnectionAddedSlot, this, _1, _2),

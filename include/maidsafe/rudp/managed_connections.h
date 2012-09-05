@@ -62,14 +62,18 @@ class ManagedConnections {
   static unsigned short kResiliencePort() { return 5483; }  // NOLINT (Fraser)
 
   // Creates a new transport object and bootstraps it to one of the provided bootstrap_endpoints.
-  // This involves connecting to another endpoint (provided by the bootstrap peer) to establish
-  // the local NAT type, which is returned in the nat_type parameter.  The successfully-connected
-  // endpoint is returned, or a default endpoint is returned if bootstrapping is unsuccessful.  All
-  // messages are decrypted using private_key before being passed up via MessageReceivedFunctor.
-  // For zero-state network, pass required local_endpoint.  If there are any existing transports
-  // they are destroyed and all connections closed.
+  // It first tries bootstrapping to "own_local_address:5483".  Bootstrapping involves connecting to
+  // the peer, then connecting again to another endpoint (provided by the same bootstrap peer) to
+  // establish the local NAT type, which is returned in the nat_type parameter.  The successfully-
+  // connected endpoint is returned, or a default endpoint is returned if bootstrapping is
+  // unsuccessful.  If bootstrapping is successful and start_resilience_transport is true, the node
+  // starts a transport on port 5483.  All messages are decrypted using private_key before being
+  // passed up via MessageReceivedFunctor.  Before bootstrapping begins, if there are any existing
+  // transports they are destroyed and all connections closed.  For zero-state network, pass the
+  // required local_endpoint.
   boost::asio::ip::udp::endpoint Bootstrap(
       const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
+      bool start_resilience_transport,
       MessageReceivedFunctor message_received_functor,
       ConnectionLostFunctor connection_lost_functor,
       std::shared_ptr<asymm::PrivateKey> private_key,
@@ -144,10 +148,9 @@ class ManagedConnections {
                              std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
                              boost::asio::ip::address& this_external_address);
 
-  bool DirectConnected(boost::asio::ip::address& this_address) const;
   bool Connectable(const boost::asio::ip::udp::endpoint& peer_endpoint) const;
 
-  void StartResilienceTransport(const boost::asio::ip::address& this_address);
+  void StartResilienceTransport();
 
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const boost::asio::ip::udp::endpoint& peer_endpoint,

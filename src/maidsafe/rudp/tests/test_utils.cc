@@ -261,6 +261,7 @@ Endpoint Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
   NatType nat_type(NatType::kUnknown);
   return managed_connections_->Bootstrap(
       bootstrap_endpoints,
+      false,
       [&](const std::string& message) {
         bool is_printable(true);
         for (auto itr(message.begin()); itr != message.end(); ++itr) {

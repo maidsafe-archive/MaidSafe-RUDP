@@ -62,6 +62,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // All invalid
   NatType nat_type(NatType::kUnknown);
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(std::vector<Endpoint>(),
+                                                               false,
                                                                MessageReceivedFunctor(),
                                                                ConnectionLostFunctor(),
                                                                nullptr,
@@ -69,6 +70,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                                nat_type));
   // Empty bootstrap_endpoints
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(std::vector<Endpoint>(),
+                                                               false,
                                                                do_nothing_on_message_,
                                                                do_nothing_on_connection_lost_,
                                                                node_.private_key(),
@@ -78,6 +80,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   EXPECT_EQ(Endpoint(),
             node_.managed_connections()->Bootstrap(
                 std::vector<Endpoint>(1, Endpoint(detail::GetLocalIp(), 10000)),
+                false,
                 do_nothing_on_message_,
                 do_nothing_on_connection_lost_,
                 node_.private_key(),
@@ -85,6 +88,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                 nat_type));
   // Invalid MessageReceivedFunctor
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                               false,
                                                                MessageReceivedFunctor(),
                                                                do_nothing_on_connection_lost_,
                                                                node_.private_key(),
@@ -92,6 +96,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                                nat_type));
   // Invalid ConnectionLostFunctor
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                               false,
                                                                do_nothing_on_message_,
                                                                ConnectionLostFunctor(),
                                                                node_.private_key(),
@@ -100,6 +105,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // Invalid private key
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(
                         bootstrap_endpoints_,
+                        false,
                         do_nothing_on_message_,
                         do_nothing_on_connection_lost_,
                         std::shared_ptr<asymm::PrivateKey>(new asymm::PrivateKey),
@@ -108,6 +114,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // Invalid public key
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(
                         bootstrap_endpoints_,
+                        false,
                         do_nothing_on_message_,
                         do_nothing_on_connection_lost_,
                         node_.private_key(),
@@ -115,6 +122,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                         nat_type));
   // NULL private key
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                               false,
                                                                do_nothing_on_message_,
                                                                do_nothing_on_connection_lost_,
                                                                nullptr,
@@ -122,6 +130,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                                nat_type));
   // NULL public key
   EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                               false,
                                                                do_nothing_on_message_,
                                                                do_nothing_on_connection_lost_,
                                                                node_.private_key(),
@@ -130,6 +139,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // Valid
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
   Endpoint chosen_endpoint(node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                                  false,
                                                                   do_nothing_on_message_,
                                                                   do_nothing_on_connection_lost_,
                                                                   node_.private_key(),
@@ -140,8 +150,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
             std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
   // Already bootstrapped
   chosen_endpoint = node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                           false,
                                                            do_nothing_on_message_,
-                                                            do_nothing_on_connection_lost_,
+                                                           do_nothing_on_connection_lost_,
                                                            node_.private_key(),
                                                            node_.public_key(),
                                                            nat_type);
@@ -177,6 +188,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   //  After Bootstrapping
   nat_type = NatType::kUnknown;
   Endpoint chosen_endpoint(node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                                  false,
                                                                   do_nothing_on_message_,
                                                                   do_nothing_on_connection_lost_,
                                                                   node_.private_key(),
