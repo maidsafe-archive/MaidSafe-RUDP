@@ -91,11 +91,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   }
   nodes[1]->AddConnectedEndPoint(endpoint0);
 
-  if (!futures0.timed_wait(Parameters::connect_timeout)) {
+  if (!futures0.timed_wait(Parameters::rendezvous_connect_timeout)) {
     return testing::AssertionFailure() << "Failed waiting for " << nodes[0]->id()
         << " to receive " << nodes[1]->id() << "'s validation data.";
   }
-  if (!futures1.timed_wait(Parameters::connect_timeout)) {
+  if (!futures1.timed_wait(Parameters::rendezvous_connect_timeout)) {
     return testing::AssertionFailure() << "Failed waiting for " << nodes[1]->id()
         << " to receive " << nodes[0]->id() << "'s validation data.";
   }
@@ -196,11 +196,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
         return testing::AssertionFailure() << "Add failed for " << nodes[j]->id()
                                            << " with result " << result;
       }
-      if (!futures0.timed_wait(Parameters::connect_timeout)) {
+      if (!futures0.timed_wait(Parameters::rendezvous_connect_timeout)) {
         return testing::AssertionFailure() << "Failed waiting for " << nodes[i]->id()
             << " to receive " << nodes[j]->id() << "'s validation data.";
       }
-      if (!futures1.timed_wait(Parameters::connect_timeout)) {
+      if (!futures1.timed_wait(Parameters::rendezvous_connect_timeout)) {
         return testing::AssertionFailure() << "Failed waiting for " << nodes[j]->id()
             << " to receive " << nodes[i]->id() << "'s validation data.";
       }

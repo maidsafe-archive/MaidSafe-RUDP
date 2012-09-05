@@ -39,12 +39,13 @@ Timeout Parameters::default_ack_timeout(bptime::seconds(1));
 Timeout Parameters::ack_interval(bptime::milliseconds(100));
 Timeout Parameters::speed_calculate_inverval(bptime::seconds(10));
 uint32_t Parameters::slow_speed_threshold(1024);
-Timeout Parameters::connect_timeout(bptime::seconds(5));
+Timeout Parameters::rendezvous_connect_timeout(bptime::seconds(5));
+Timeout Parameters::bootstrap_connect_timeout(bptime::seconds(2));
 Timeout Parameters::ping_timeout(bptime::seconds(2));
 Timeout Parameters::keepalive_interval(bptime::milliseconds(500));
 Timeout Parameters::keepalive_timeout(bptime::milliseconds(400));
 uint32_t Parameters::maximum_keepalive_failures(20);
-Timeout Parameters::bootstrap_disconnection_timeout(bptime::minutes(10));
+Timeout Parameters::bootstrap_connection_lifespan(bptime::minutes(10));
 Timeout Parameters::disconnection_timeout(bptime::milliseconds(100));
 Parameters::ConnectionType Parameters::connection_type(Parameters::kWireless);
 

@@ -104,7 +104,7 @@ void Transport::Bootstrap(
   if (bootstrap_off_existing_connection)
     try_connect = (nat_type_ != NatType::kSymmetric);
   else
-    lifespan = Parameters::bootstrap_disconnection_timeout;
+    lifespan = Parameters::bootstrap_connection_lifespan;
 
   if (try_connect) {
     for (auto itr(bootstrap_endpoints.begin()); itr != bootstrap_endpoints.end(); ++itr) {
@@ -167,10 +167,11 @@ bool Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
   }, boost::signals2::at_back));
 
   boost::mutex::scoped_lock lock(local_mutex);
-  connection_manager_->Connect(bootstrap_endpoint, "", lifespan);
+  connection_manager_->Connect(bootstrap_endpoint, "", Parameters::bootstrap_connect_timeout,
+                               lifespan);
 
   bool success(local_cond_var.timed_wait(lock,
-                                         Parameters::connect_timeout + bptime::seconds(1),
+                                         Parameters::ping_timeout + bptime::seconds(1),
                                          [&] { return slot_called; }));  // NOLINT (Fraser)
   slot_connection_added.disconnect();
   slot_connection_lost.disconnect();
@@ -223,7 +224,8 @@ void Transport::Connect(const Endpoint& peer_endpoint, const std::string& valida
 
 void Transport::DoConnect(const Endpoint& peer_endpoint, const std::string& validation_data) {
   if (multiplexer_->IsOpen())
-    connection_manager_->Connect(peer_endpoint, validation_data, bptime::pos_infin);
+    connection_manager_->Connect(peer_endpoint, validation_data,
+                                 Parameters::rendezvous_connect_timeout, bptime::pos_infin);
 }
 
 int Transport::CloseConnection(const Endpoint& peer_endpoint) {

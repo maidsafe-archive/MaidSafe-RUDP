@@ -105,23 +105,27 @@ void Connection::DoClose(bool timed_out) {
 
 void Connection::StartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
                                  const std::string& validation_data,
+                                 const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(),
-                             this_public_key, validation_data, lifespan, PingFunctor()));
+                             this_public_key, validation_data, connect_attempt_timeout, lifespan,
+                             PingFunctor()));
 }
 
 void Connection::Ping(std::shared_ptr<asymm::PublicKey> this_public_key,
                       const PingFunctor& ping_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(),
-                             this_public_key, "", bptime::time_duration(), ping_functor));
+                             this_public_key, "", Parameters::ping_timeout, bptime::time_duration(),
+                             ping_functor));
 }
 
 void Connection::DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
                                    const std::string& validation_data,
+                                   const boost::posix_time::time_duration& connect_attempt_timeout,
                                    const boost::posix_time::time_duration& lifespan,
                                    const PingFunctor& ping_functor) {
   StartTick();
-  StartConnect(this_public_key, validation_data, lifespan, ping_functor);
+  StartConnect(this_public_key, validation_data, connect_attempt_timeout, lifespan, ping_functor);
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
 }
@@ -240,6 +244,7 @@ void Connection::HandleTick() {
 
 void Connection::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
                               const std::string& validation_data,
+                              const boost::posix_time::time_duration& connect_attempt_timeout,
                               const boost::posix_time::time_duration& lifespan,
                               const PingFunctor& ping_functor) {
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(),
@@ -259,7 +264,7 @@ void Connection::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     socket_.AsyncConnect(this_public_key, remote_endpoint_, handler, open_mode,
                          transport->on_nat_detection_requested_slot_);
-    timer_.expires_from_now(ping_functor ? Parameters::ping_timeout : Parameters::connect_timeout);
+    timer_.expires_from_now(connect_attempt_timeout);
     timeout_state_ = kConnecting;
   }
 }

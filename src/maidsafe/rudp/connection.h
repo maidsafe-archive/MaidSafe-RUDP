@@ -61,6 +61,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   // after lifespan has passed.
   void StartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
                        const std::string& validation_data,
+                       const boost::posix_time::time_duration& connect_attempt_timeout,
                        const boost::posix_time::time_duration& lifespan);
   void Ping(std::shared_ptr<asymm::PublicKey> this_public_key,
             const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
@@ -79,6 +80,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void DoClose(bool timed_out = false);
   void DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
                          const std::string& validation_data,
+                         const boost::posix_time::time_duration& connect_attempt_timeout,
                          const boost::posix_time::time_duration& lifespan,
                          const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
   void DoStartSending(const std::string& data,
@@ -93,6 +95,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
                     const std::string& validation_data,
+                    const boost::posix_time::time_duration& connect_attempt_timeout,
                     const boost::posix_time::time_duration& lifespan,
                     const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
   void HandleConnect(const boost::system::error_code& ec,

@@ -66,11 +66,13 @@ void ConnectionManager::Close() {
 
 void ConnectionManager::Connect(const Endpoint& peer_endpoint,
                                 const std::string& validation_data,
+                                const bptime::time_duration& connect_attempt_timeout,
                                 const bptime::time_duration& lifespan) {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_,
                                                           peer_endpoint));
-    connection->StartConnecting(this_public_key_, validation_data, lifespan);
+    connection->StartConnecting(this_public_key_, validation_data, connect_attempt_timeout,
+                                lifespan);
   }
 }
 
@@ -215,7 +217,8 @@ void ConnectionManager::HandlePingFrom(const asio::const_buffer& data, const End
       }
     } else {
       // Joining node is not already connected - start new temporary connection
-      Connect(endpoint, "", Parameters::bootstrap_disconnection_timeout);
+      Connect(endpoint, "", Parameters::bootstrap_connect_timeout,
+              Parameters::bootstrap_connection_lifespan);
     }
     return;
   }

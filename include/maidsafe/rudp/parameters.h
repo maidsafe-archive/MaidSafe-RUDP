@@ -70,8 +70,11 @@ struct Parameters {
   // Slow speed threshold to force the socket closed, in bits/s.
   static uint32_t slow_speed_threshold;
 
-  // Timeout during connection establishment.
-  static Timeout connect_timeout;
+  // Timeout during normal peer-to-peer connection establishment.
+  static Timeout rendezvous_connect_timeout;
+
+  // Timeout during connection establishment while bootstrapping a new transport.
+  static Timeout bootstrap_connect_timeout;
 
   // Timeout during ping attempt.
   static Timeout ping_timeout;
@@ -85,8 +88,8 @@ struct Parameters {
   // Maximum sequential keepalive failures allowed before connection is closed.
   static uint32_t maximum_keepalive_failures;
 
-  // Timeout defined to disconnect Bootstrapping connection.
-  static Timeout bootstrap_disconnection_timeout;
+  // Maximum length of time for Bootstrapping connection to exist.
+  static Timeout bootstrap_connection_lifespan;
 
   // Timeout defined for allowing flushing pending data after Connection::Close is called.
   static Timeout disconnection_timeout;
