@@ -316,6 +316,17 @@ ConnectionManager::ConnectionSet::iterator ConnectionManager::FindConnection(
                       });
 }
 
+std::string ConnectionManager::DebugString() {
+  std::string s;
+  boost::mutex::scoped_lock lock(mutex_);
+  for (auto c : connections_) {
+    s += "\t\t" + c->Socket().RemoteEndpoint().address().to_string() + ":";
+    s += boost::lexical_cast<std::string>(c->Socket().RemoteEndpoint().port());
+    s += std::string("  Is temporary: ") + (c->IsTemporary() ? "true\n" : "false\n");
+  }
+  return s;
+}
+
 }  // namespace detail
 
 }  // namespace rudp

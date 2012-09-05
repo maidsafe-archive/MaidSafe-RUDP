@@ -94,6 +94,8 @@ class ConnectionManager {
 
   size_t size() const;
 
+  std::string DebugString();
+
  private:
   ConnectionManager(const ConnectionManager&);
   ConnectionManager& operator=(const ConnectionManager&);

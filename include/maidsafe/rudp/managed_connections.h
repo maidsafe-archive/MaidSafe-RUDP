@@ -158,6 +158,7 @@ class ManagedConnections {
   void OnNatDetectionRequestedSlot(const boost::asio::ip::udp::endpoint& this_local_endpoint,
                                    const boost::asio::ip::udp::endpoint& peer_endpoint,
                                    uint16_t& another_external_port);
+  std::string DebugString();
 
   AsioService asio_service_;
   MessageReceivedFunctor message_received_functor_;

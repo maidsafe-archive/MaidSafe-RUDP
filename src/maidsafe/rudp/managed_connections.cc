@@ -515,6 +515,12 @@ void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address
 }
 
 void ManagedConnections::OnMessageSlot(const std::string& message) {
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();
+  }
+
   std::string decrypted_message;
   int result(asymm::Decrypt(message, *private_key_, &decrypted_message));
   if (result != kSuccess) {
@@ -527,6 +533,12 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
 void ManagedConnections::OnConnectionAddedSlot(const Endpoint& peer_endpoint,
                                                detail::TransportPtr transport) {
   std::lock_guard<std::mutex> lock(mutex_);
+
+    std::string s("\n++++++++++++ OnConnectionAddedSlot to ");
+    s += peer_endpoint.address().to_string() + ":";
+    s += boost::lexical_cast<std::string>(peer_endpoint.port()) + " ++++++++++++\n" + DebugString();
+    LOG(kVerbose) << s;
+
   auto result(connection_map_.insert(std::make_pair(peer_endpoint, transport)));
   pending_connections_.erase(peer_endpoint);
   if (result.second) {
@@ -545,6 +557,12 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint& peer_endpoint,
   {
     bool remove_transport(connections_empty && !transport->IsResilienceTransport());
     std::lock_guard<std::mutex> lock(mutex_);
+
+    std::string s("\n************ OnConnectionLostSlot to ");
+    s += peer_endpoint.address().to_string() + ":";
+    s += boost::lexical_cast<std::string>(peer_endpoint.port()) + " ************\n" + DebugString();
+    LOG(kVerbose) << s;
+
     auto connection_itr(connection_map_.find(peer_endpoint));
     if (connection_itr == connection_map_.end()) {
       if (temporary_connection)
@@ -599,8 +617,10 @@ void ManagedConnections::OnConnectionLostSlot(const Endpoint& peer_endpoint,
     }
   }
 
-  if (should_execute_functor)
+  if (should_execute_functor) {
+    LOG(kVerbose) << "Firing connection_lost_functor_ for " << peer_endpoint;
     asio_service_.service().post([=] { connection_lost_functor_(peer_endpoint); });  // NOLINT (Fraser)
+  }
 }
 
 void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_endpoint,
@@ -643,6 +663,35 @@ void ManagedConnections::TransportAndSignalConnections::DisconnectSignalsAndClos
   on_message_connection.disconnect();
   if (transport)
     transport->Close();
+}
+
+std::string ManagedConnections::DebugString() {
+  std::string s = "This node's own transports and their peer connections:\n";
+  for (auto t : transports_)
+    s += t.transport->DebugString();
+
+  s += "\nThis node's own ConnectionMap:\n";
+  for (auto c : connection_map_) {
+    s += std::string("\tPeer ") + c.first.address().to_string() + ":";
+    s += boost::lexical_cast<std::string>(c.first.port()) + " connected to this node's ";
+    s += c.second->external_endpoint().address().to_string() + ":";
+    s += boost::lexical_cast<std::string>(c.second->external_endpoint().port()) + " / ";
+    s += c.second->local_endpoint().address().to_string() + ":";
+    s += boost::lexical_cast<std::string>(c.second->local_endpoint().port()) + "\n";
+  }
+
+  s += "\nThis node's pending connections:\n";
+  for (auto p : pending_connections_) {
+    s += "\t" + p.address().to_string() + ":";
+    s += boost::lexical_cast<std::string>(p.port()) + "\n";
+  }
+
+  s += "\nThis node's resilience transport:\n";
+  s += (resilience_transport_.transport ? resilience_transport_.transport->DebugString() :
+                                          "\tNot running");
+  s += "\n\n";
+
+  return s;
 }
 
 }  // namespace rudp

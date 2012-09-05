@@ -315,6 +315,20 @@ void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
                       connections_empty, temporary_connection, timed_out);
 }
 
+std::string Transport::DebugString() {
+  std::string s = std::string("\t") + external_endpoint().address().to_string() + ":";
+  s += boost::lexical_cast<std::string>(external_endpoint().port()) + " / ";
+  s += local_endpoint().address().to_string() + ":";
+  s += boost::lexical_cast<std::string>(local_endpoint().port());
+  switch (nat_type_) {
+    case NatType::kSymmetric: s += "   Symmetric NAT\n"; break;
+    case NatType::kOther:     s += "   Other NAT\n";     break;
+    case NatType::kUnknown:   s += "   Unknown NAT\n";   break;
+  }
+  s += connection_manager_->DebugString();
+  return s;
+}
+
 }  // namespace detail
 
 }  // namespace rudp

@@ -115,6 +115,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   size_t ConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
 
+  std::string DebugString();
+
   friend class Connection;
 
  private:
