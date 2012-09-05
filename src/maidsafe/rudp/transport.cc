@@ -230,10 +230,10 @@ int Transport::CloseConnection(const Endpoint& peer_endpoint) {
   return connection_manager_->CloseConnection(peer_endpoint);
 }
 
-void Transport::Send(const Endpoint& peer_endpoint,
+bool Transport::Send(const Endpoint& peer_endpoint,
                      const std::string& message,
                      const MessageSentFunctor& message_sent_functor) {
-  connection_manager_->Send(peer_endpoint, message, message_sent_functor);
+  return connection_manager_->Send(peer_endpoint, message, message_sent_functor);
 }
 
 void Transport::Ping(const Endpoint& peer_endpoint, const PingFunctor& ping_functor) {
@@ -260,9 +260,8 @@ bool Transport::IsTemporaryConnection(const Endpoint& peer_endpoint) {
   return connection_manager_->IsTemporaryConnection(peer_endpoint);
 }
 
-bool Transport::MakeConnectionPermanent(const Endpoint& peer_endpoint,
-                                        const std::string& validation_data) {
-  return connection_manager_->MakeConnectionPermanent(peer_endpoint, validation_data);
+bool Transport::MakeConnectionPermanent(const Endpoint& peer_endpoint) {
+  return connection_manager_->MakeConnectionPermanent(peer_endpoint);
 }
 
 size_t Transport::ConnectionsCount() const {

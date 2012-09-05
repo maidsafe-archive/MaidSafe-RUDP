@@ -97,7 +97,7 @@ void ConnectionManager::Ping(const Endpoint& peer_endpoint,
   }
 }
 
-void ConnectionManager::Send(const Endpoint& peer_endpoint,
+bool ConnectionManager::Send(const Endpoint& peer_endpoint,
                              const std::string& message,
                              const std::function<void(int)>& message_sent_functor) {  // NOLINT (Fraser)
   boost::mutex::scoped_lock lock(mutex_);
@@ -109,11 +109,12 @@ void ConnectionManager::Send(const Endpoint& peer_endpoint,
         message_sent_functor(kInvalidConnection);
       });
     }
-    return;
+    return false;
   }
 
   ConnectionPtr connection(*itr);
   strand_.dispatch([=] { connection->StartSending(message, message_sent_functor); });  // NOLINT (Fraser)
+  return true;
 }
 
 Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpoint& endpoint) {
@@ -228,8 +229,7 @@ bool ConnectionManager::IsTemporaryConnection(const Endpoint& peer_endpoint) {
   return (*itr)->IsTemporary();
 }
 
-bool ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoint,
-                                                const std::string& validation_data) {
+bool ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoint) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_endpoint));
   if (itr == connections_.end()) {
@@ -239,15 +239,6 @@ bool ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoint,
 
   ConnectionPtr connection(*itr);
   connection->MakePermanent();
-  strand_.dispatch([=] {
-      connection->StartSending(validation_data,
-          [](int result) {
-              if (result != kSuccess) {
-                LOG(kWarning) << "Failed to send validation data while making permanent.  Result: "
-                              << result;
-              }
-          });
-      });
   return true;
 }
 

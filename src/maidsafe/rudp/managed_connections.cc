@@ -197,9 +197,6 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
 void ManagedConnections::GetBootstrapEndpoints(const Endpoint& local_endpoint,
                                                std::vector<Endpoint>& bootstrap_endpoints,
                                                boost::asio::ip::address& this_external_address) {
-  // TODO(Fraser#5#): 2012-09-03 - Remove this sleep.  Added as workaround for failing
-  //                               SetupNetwork (test_utils.cc) on Linux.
-  Sleep(boost::posix_time::milliseconds(10));
   bool external_address_consistent(true);
   // Favour connections which are on a different network to this to allow calculation of the new
   // transport's external endpoint.
@@ -377,16 +374,27 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
     auto connection_map_itr = connection_map_.find(peer_endpoint);
     if (connection_map_itr != connection_map_.end()) {
       if ((*connection_map_itr).second->IsTemporaryConnection(peer_endpoint)) {
-        if (!transport->MakeConnectionPermanent(peer_endpoint, validation_data)) {
+        if (transport->Send(peer_endpoint,
+                            validation_data,
+                            [](int result) {
+                              if (result != kSuccess) {
+                                LOG(kWarning) << "Failed to send validation data on bootstrap "
+                                              << "connection.  Result: " << result;
+                              }
+                            })) {
+          pending_connections_.erase(peer_endpoint);
+          return kSuccess;
+        } else {
           // There's a good chance that if this error happens, we've already got a temporary
-          // (60 second) connection to this peer - i.e. this node bootstrapped off peer, but we've
-          // called GetAvailableEndpoint with an empty (or different) peer_endpoint, which returned
-          // a different transport to the one with the bootstrap connection
-          LOG(kError) << "Failed to make connection to " << peer_endpoint << " permanent.";
-          return kInvalidConnection;
+          // (60 second) connection to this peer - i.e. peer bootstrapped off this node, and before
+          // the connection was added, this node called GetAvailableEndpoint, the peer's
+          // endpoint wasn't found in the map, so a this node started a new transport.  Less likely
+          // is the case where this node bootstrapped off peer, but we've called
+          // GetAvailableEndpoint with an empty (or different) peer_endpoint, which returned a
+          // different transport to the one with the bootstrap connection, or peer bootstrapped
+          LOG(kWarning) << "Failed to make existing temporary connection to " << peer_endpoint
+                        << " permanent.  Trying to establish new connection.";
         }
-        pending_connections_.erase(peer_endpoint);
-        return kSuccess;
       } else {
         LOG(kError) << "A permanent managed connection to " << peer_endpoint << " already exists";
         pending_connections_.erase(peer_endpoint);
@@ -398,6 +406,17 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
   LOG(kInfo) << "Attempting to connect from "<< transport->local_endpoint() << " to  "
              << peer_endpoint;
   transport->Connect(peer_endpoint, validation_data);
+  return kSuccess;
+}
+
+int ManagedConnections::MarkConnectionAsValid(const Endpoint& peer_endpoint) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  auto itr(connection_map_.find(peer_endpoint));
+  if (itr == connection_map_.end()) {
+    LOG(kWarning) << "Can't mark connection to " << peer_endpoint << " as valid - not in map.";
+    return kInvalidConnection;
+  }
+  (*itr).second->MakeConnectionPermanent(peer_endpoint);
   return kSuccess;
 }
 
@@ -515,7 +534,6 @@ void ManagedConnections::StartResilienceTransport(const boost::asio::ip::address
 }
 
 void ManagedConnections::OnMessageSlot(const std::string& message) {
-
   {
     std::lock_guard<std::mutex> lock(mutex_);
     LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();

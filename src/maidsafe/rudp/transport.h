@@ -93,7 +93,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   // itself from ManagedConnections which will cause it to be destroyed.
   int CloseConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
 
-  void Send(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  bool Send(const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::string& message,
             const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
 
@@ -107,8 +107,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
 
   bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
-  bool MakeConnectionPermanent(const boost::asio::ip::udp::endpoint& peer_endpoint,
-                               const std::string& validation_data);
+  bool MakeConnectionPermanent(const boost::asio::ip::udp::endpoint& peer_endpoint);
 
   bool IsResilienceTransport() const { return is_resilience_transport_; }
 

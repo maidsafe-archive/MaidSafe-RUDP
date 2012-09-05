@@ -98,6 +98,10 @@ class ManagedConnections {
           const boost::asio::ip::udp::endpoint& peer_endpoint,
           const std::string& validation_data);
 
+  // Marks the connection to peer_endpoint as valid.  If it exists and is already permanent, or
+  // is successfully upgraded to permanent, then the function returns kSuccess.
+  int MarkConnectionAsValid(const boost::asio::ip::udp::endpoint& peer_endpoint);
+
   // Drops the connection with peer.
   void Remove(const boost::asio::ip::udp::endpoint& peer_endpoint);
 
