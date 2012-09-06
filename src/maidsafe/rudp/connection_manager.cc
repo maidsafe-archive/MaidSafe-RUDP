@@ -325,9 +325,10 @@ std::string ConnectionManager::DebugString() {
   std::string s;
   boost::mutex::scoped_lock lock(mutex_);
   for (auto c : connections_) {
-    s += "\t\t" + c->Socket().RemoteEndpoint().address().to_string() + ":";
+    s += "\t\tPeer " + c->Socket().RemoteEndpoint().address().to_string() + ":";
     s += boost::lexical_cast<std::string>(c->Socket().RemoteEndpoint().port());
-    s += std::string("  Is temporary: ") + (c->IsTemporary() ? "true\n" : "false\n");
+    s += std::string("  ") + (c->IsTemporary() ? "Temporary" : "Permanent");
+    s += std::string("   Expires in ") + bptime::to_simple_string(c->ExpiresFromNow()) + "\n";
   }
   return s;
 }

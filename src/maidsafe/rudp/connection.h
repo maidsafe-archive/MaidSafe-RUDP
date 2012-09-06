@@ -73,6 +73,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
   // Get the remote endpoint offered for NAT detection.
   boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
 
+                // Temporary helper for debugging
+                boost::posix_time::time_duration ExpiresFromNow() const { return lifespan_timer_.expires_from_now(); }
+
  private:
   Connection(const Connection&);
   Connection& operator=(const Connection&);

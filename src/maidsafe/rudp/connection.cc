@@ -197,8 +197,8 @@ void Connection::CheckTimeout(const bs::error_code& ec) {
 
   if (timer_.expires_from_now().is_negative()) {
     // Time has run out.
-    LOG(kWarning) << "Failed to connect from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
-                  << " - timed out.";
+    LOG(kWarning) << "Failed to connect from " << *multiplexer_ << " to "
+                  << socket_.RemoteEndpoint() << " - timed out.";
     return DoClose(true);
   }
 
