@@ -28,7 +28,7 @@ namespace rudp {
 
 namespace detail {
 
-Multiplexer::Multiplexer(asio::io_service& asio_service) //NOLINT
+Multiplexer::Multiplexer(asio::io_service& asio_service)  // NOLINT
   : socket_(asio_service),
     receive_buffer_(Parameters::max_size),
     sender_endpoint_(),

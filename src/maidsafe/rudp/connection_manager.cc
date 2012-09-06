@@ -150,8 +150,14 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
                    !OnPrivateNetwork(socket_pair.second->RemoteEndpoint()) &&
                    !socket_pair.second->IsConnected();
           });
-      if (socket_iter != sockets_.end())
+      if (socket_iter != sockets_.end()) {
+        LOG(kVerbose) << "\t\t\tUpdating peer's endpoint from "
+                      << socket_iter->second->RemoteEndpoint() << " to " << endpoint;
         socket_iter->second->UpdatePeerEndpoint(endpoint);
+        LOG(kVerbose) << "\t\t\tPeer's endpoint now: "
+                      << socket_iter->second->RemoteEndpoint() << "  and guessed port = "
+                      << socket_iter->second->PeerGuessedPort();
+      }
     }
   } else if (id == 0xffffffff) {
     socket_iter = std::find_if(
@@ -236,6 +242,7 @@ Endpoint ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoin
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_endpoint));
   if (itr == connections_.end()) {
+    LOG(kVerbose) << "Trying to find " << peer_endpoint << " in MakeConnectionPermanent.";
     // Try to find peers whose guessed-at endpoints weren't correct, but to whom this node still
     // managed to connect (and hence updated the peer's endpoint)
     itr = std::find_if(connections_.begin(),
@@ -243,6 +250,7 @@ Endpoint ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoin
                        [&peer_endpoint](const ConnectionPtr& connection)->bool {
                          Endpoint peer_guessed(connection->Socket().RemoteEndpoint().address(),
                                                connection->Socket().PeerGuessedPort());
+                         LOG(kVerbose) << "\t\t\tGuessed-at endpoint: " << peer_guessed;
                          return peer_guessed == peer_endpoint;
                        });
     if (itr == connections_.end()) {
