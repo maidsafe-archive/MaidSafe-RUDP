@@ -413,12 +413,21 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
 
 Endpoint ManagedConnections::MarkConnectionAsValid(const Endpoint& peer_endpoint) {
   std::lock_guard<std::mutex> lock(mutex_);
+  Endpoint found_peer;
   auto itr(connection_map_.find(peer_endpoint));
   if (itr == connection_map_.end()) {
+    // Try in case peer is behind symmetric router
+    for (auto transport : transports_) {
+      found_peer = transport.transport->MakeConnectionPermanent(peer_endpoint);
+      if (!found_peer.address().is_unspecified())
+        break;
+    }
     LOG(kWarning) << "Can't mark connection to " << peer_endpoint << " as valid - not in map.";
-    return Endpoint();
+    found_peer = Endpoint();
+  } else {
+    found_peer = (*itr).second->MakeConnectionPermanent(peer_endpoint);
   }
-  return (*itr).second->MakeConnectionPermanent(peer_endpoint);
+  return found_peer;
 }
 
 void ManagedConnections::Remove(const Endpoint& peer_endpoint) {
