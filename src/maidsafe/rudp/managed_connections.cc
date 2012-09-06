@@ -70,7 +70,7 @@ ManagedConnections::~ManagedConnections() {
 }
 
 Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
-                                       bool start_resilience_transport,
+                                       bool /*start_resilience_transport*/,
                                        MessageReceivedFunctor message_received_functor,
                                        ConnectionLostFunctor connection_lost_functor,
                                        std::shared_ptr<asymm::PrivateKey> private_key,
@@ -133,8 +133,8 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
   message_received_functor_ = message_received_functor;
   connection_lost_functor_ = connection_lost_functor;
 
-  if (start_resilience_transport)
-    asio_service_.service().post([=] { StartResilienceTransport(); });  // NOLINT (Fraser)
+//  if (start_resilience_transport)
+//    asio_service_.service().post([=] { StartResilienceTransport(); });  // NOLINT (Fraser)
 
   return chosen_bootstrap_endpoint;
 }
@@ -150,8 +150,8 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
   boost::asio::ip::address external_address;
   if (bootstrap_off_existing_connection)
     GetBootstrapEndpoints(local_endpoint, bootstrap_endpoints, external_address);
-  else
-    bootstrap_endpoints.insert(bootstrap_endpoints.begin(), Endpoint(local_ip_, kResiliencePort()));
+  //else
+  //  bootstrap_endpoints.insert(bootstrap_endpoints.begin(), Endpoint(local_ip_, kResiliencePort()));
 
   transport_and_signals_connections.transport->Bootstrap(
       bootstrap_endpoints,
