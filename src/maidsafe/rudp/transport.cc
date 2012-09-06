@@ -93,7 +93,9 @@ void Transport::Bootstrap(
       new ConnectionManager(shared_from_this(), strand_, multiplexer_, this_public_key));
   ReturnCode result = multiplexer_->Open(local_endpoint);
   if (result != kSuccess) {
-    LOG(kError) << "Failed to open multiplexer.  Result: " << result;
+    if (!(local_endpoint.port() == ManagedConnections::kResiliencePort() && result == kBindError)) {
+      LOG(kError) << "Failed to open multiplexer.  Result: " << result;
+    }
     return;
   }
 
@@ -105,6 +107,11 @@ void Transport::Bootstrap(
     try_connect = (nat_type_ != NatType::kSymmetric);
   else
     lifespan = Parameters::bootstrap_connection_lifespan;
+
+  if (local_endpoint.port() == ManagedConnections::kResiliencePort()) {
+    is_resilience_transport_ = true;
+    try_connect = false;
+  }
 
   if (try_connect) {
     for (auto itr(bootstrap_endpoints.begin()); itr != bootstrap_endpoints.end(); ++itr) {
@@ -119,16 +126,16 @@ void Transport::Bootstrap(
     *chosen_endpoint = kNonRoutable;
   }
 
-  // If we're starting a resilience transport, check the external port is 5483
-  if (local_endpoint.port() == ManagedConnections::kResiliencePort()) {
-    is_resilience_transport_ = true;
-    if (multiplexer_->external_endpoint().port() != ManagedConnections::kResiliencePort()) {
+  if (is_resilience_transport_) {
+    if (multiplexer_->external_endpoint().port() != ManagedConnections::kResiliencePort() &&
+        multiplexer_->local_endpoint().port() != ManagedConnections::kResiliencePort()) {
       LOG(kWarning) << "Failed to start resilience transport - got port "
                     << multiplexer_->external_endpoint().port() << " instead of "
                     << ManagedConnections::kResiliencePort();
       *chosen_endpoint = Endpoint();
     } else {
-      LOG(kInfo) << "Started resilience transport on " << multiplexer_->external_endpoint();
+      LOG(kInfo) << "Started resilience transport on " << multiplexer_->external_endpoint() << " / "
+                 << multiplexer_->local_endpoint();
     }
   }
 }
