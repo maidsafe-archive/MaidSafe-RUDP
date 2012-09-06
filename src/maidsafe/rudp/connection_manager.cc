@@ -232,17 +232,28 @@ bool ConnectionManager::IsTemporaryConnection(const Endpoint& peer_endpoint) {
   return (*itr)->IsTemporary();
 }
 
-bool ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoint) {
+Endpoint ConnectionManager::MakeConnectionPermanent(const Endpoint& peer_endpoint) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_endpoint));
   if (itr == connections_.end()) {
-    LOG(kWarning) << "Not currently connected to " << peer_endpoint;
-    return false;
+    // Try to find peers whose guessed-at endpoints weren't correct, but to whom this node still
+    // managed to connect (and hence updated the peer's endpoint)
+    itr = std::find_if(connections_.begin(),
+                       connections_.end(),
+                       [&peer_endpoint](const ConnectionPtr& connection)->bool {
+                         Endpoint peer_guessed(connection->Socket().RemoteEndpoint().address(),
+                                               connection->Socket().PeerGuessedPort());
+                         return peer_guessed == peer_endpoint;
+                       });
+    if (itr == connections_.end()) {
+      LOG(kWarning) << "Not currently connected to " << peer_endpoint;
+      return Endpoint();
+    }
   }
 
   ConnectionPtr connection(*itr);
   connection->MakePermanent();
-  return true;
+  return connection->Socket().RemoteEndpoint();
 }
 
 Endpoint ConnectionManager::ThisEndpoint(const Endpoint& peer_endpoint) {

@@ -411,15 +411,14 @@ int ManagedConnections::Add(const Endpoint& this_endpoint,
   return kSuccess;
 }
 
-int ManagedConnections::MarkConnectionAsValid(const Endpoint& peer_endpoint) {
+Endpoint ManagedConnections::MarkConnectionAsValid(const Endpoint& peer_endpoint) {
   std::lock_guard<std::mutex> lock(mutex_);
   auto itr(connection_map_.find(peer_endpoint));
   if (itr == connection_map_.end()) {
     LOG(kWarning) << "Can't mark connection to " << peer_endpoint << " as valid - not in map.";
-    return kInvalidConnection;
+    return Endpoint();
   }
-  (*itr).second->MakeConnectionPermanent(peer_endpoint);
-  return kSuccess;
+  return (*itr).second->MakeConnectionPermanent(peer_endpoint);
 }
 
 void ManagedConnections::Remove(const Endpoint& peer_endpoint) {

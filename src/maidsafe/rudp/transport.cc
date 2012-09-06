@@ -178,7 +178,7 @@ bool Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
                                lifespan);
 
   bool success(local_cond_var.timed_wait(lock,
-                                         Parameters::ping_timeout + bptime::seconds(1),
+                                         Parameters::bootstrap_connect_timeout + bptime::seconds(1),
                                          [&] { return slot_called; }));  // NOLINT (Fraser)
   slot_connection_added.disconnect();
   slot_connection_lost.disconnect();
@@ -190,7 +190,7 @@ bool Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
   }
 
   if (timed_out_connecting) {
-    LOG(kError) << "Failed to make connection to " << bootstrap_endpoint;
+    LOG(kInfo) << "Failed to make bootstrap connection to " << bootstrap_endpoint;
     return false;
   }
 
@@ -269,7 +269,7 @@ bool Transport::IsTemporaryConnection(const Endpoint& peer_endpoint) {
   return connection_manager_->IsTemporaryConnection(peer_endpoint);
 }
 
-bool Transport::MakeConnectionPermanent(const Endpoint& peer_endpoint) {
+Endpoint Transport::MakeConnectionPermanent(const Endpoint& peer_endpoint) {
   return connection_manager_->MakeConnectionPermanent(peer_endpoint);
 }
 

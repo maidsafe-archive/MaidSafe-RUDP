@@ -31,7 +31,12 @@ namespace detail {
 class Peer {
  public:
   explicit Peer(Multiplexer& multiplexer)  // NOLINT (Fraser)
-    : multiplexer_(multiplexer), peer_endpoint_(), this_endpoint_(), id_(0), public_key_() {}
+      : multiplexer_(multiplexer),
+        peer_endpoint_(),
+        this_endpoint_(),
+        id_(0),
+        public_key_(),
+        peer_guessed_port_(0) {}
 
   // Endpoint of peer
   const boost::asio::ip::udp::endpoint& PeerEndpoint() const { return peer_endpoint_; }
@@ -49,6 +54,9 @@ class Peer {
     assert(asymm::ValidateKey(*public_key));
     public_key_ = public_key;
   }
+
+  uint16_t PeerGuessedPort() const { return peer_guessed_port_; }
+  void SetPeerGuessedPort() { peer_guessed_port_ = peer_endpoint_.port(); }
 
   template <typename Packet>
   ReturnCode Send(const Packet& packet) {
@@ -68,6 +76,10 @@ class Peer {
   // The remote socket's identifier.
   uint32_t id_;
   std::shared_ptr<asymm::PublicKey> public_key_;
+  // The port originally guessed by the peer when passing its details to this node.  This will be
+  // set by the ConnectionManager if it detects that the peer's actual external port is different to
+  // the one provided by the peer as its best guess.
+  uint16_t peer_guessed_port_;
 };
 
 }  // namespace detail

@@ -103,8 +103,13 @@ class ManagedConnections {
           const std::string& validation_data);
 
   // Marks the connection to peer_endpoint as valid.  If it exists and is already permanent, or
-  // is successfully upgraded to permanent, then the function returns kSuccess.
-  int MarkConnectionAsValid(const boost::asio::ip::udp::endpoint& peer_endpoint);
+  // is successfully upgraded to permanent, then the function is successful and returns the peer's
+  // connected endpoint.  This will normally be the same as is passed in "peer_endpoint".  However,
+  // if the peer is behind symmetric NAT, the expected port and the actual connected port could be
+  // different.  If the peer_endpoint doesn't exist in the list of current connection, failure is
+  // indicated by returning a default-constructed endpoint.
+  boost::asio::ip::udp::endpoint MarkConnectionAsValid(
+      const boost::asio::ip::udp::endpoint& peer_endpoint);
 
   // Drops the connection with peer.
   void Remove(const boost::asio::ip::udp::endpoint& peer_endpoint);

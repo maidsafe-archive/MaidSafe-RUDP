@@ -85,6 +85,10 @@ class Socket {
   // different endpoint than it predicted (i.e. the peer is behind symmetric NAT).
   void UpdatePeerEndpoint(const boost::asio::ip::udp::endpoint& remote);
 
+  // If the peer endpoint was updated using UpdatePeerEndpoint, this returns the port originally
+  // provided by the peer as its best guess.  Otherwise 0 is returned.
+  uint16_t PeerGuessedPort() const;
+
   // Get the remote endpoint offered for NAT detection.
   boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
 

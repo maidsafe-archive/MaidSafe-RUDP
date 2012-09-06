@@ -72,7 +72,8 @@ class ConnectionManager {
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
   bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
-  bool MakeConnectionPermanent(const boost::asio::ip::udp::endpoint& peer_endpoint);
+  boost::asio::ip::udp::endpoint MakeConnectionPermanent(
+      const boost::asio::ip::udp::endpoint& peer_endpoint);
 
   // This node's endpoint as viewed by peer
   boost::asio::ip::udp::endpoint ThisEndpoint(const boost::asio::ip::udp::endpoint& peer_endpoint);

@@ -110,8 +110,11 @@ bool Socket::IsConnected() const {
 }
 
 void Socket::UpdatePeerEndpoint(const ip::udp::endpoint& remote) {
+  peer_.SetPeerGuessedPort();
   peer_.SetPeerEndpoint(remote);
 }
+
+uint16_t Socket::PeerGuessedPort() const { return peer_.PeerGuessedPort(); }
 
 ip::udp::endpoint Socket::RemoteNatDetectionEndpoint() const {
   return session_.RemoteNatDetectionEndpoint();
