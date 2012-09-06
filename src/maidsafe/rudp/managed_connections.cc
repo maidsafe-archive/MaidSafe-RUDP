@@ -432,6 +432,7 @@ Endpoint ManagedConnections::MarkConnectionAsValid(const Endpoint& peer_endpoint
 
 void ManagedConnections::Remove(const Endpoint& peer_endpoint) {
   std::lock_guard<std::mutex> lock(mutex_);
+                          BOOST_ASSERT_MSG(connection_map_.size() >= 64, "Connection map has < 64 elements.");
   auto itr(connection_map_.find(peer_endpoint));
   if (itr == connection_map_.end()) {
     LOG(kWarning) << "Can't remove " << peer_endpoint << " - not in map.";
