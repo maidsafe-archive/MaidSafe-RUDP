@@ -65,8 +65,10 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
 
   socket_.bind(endpoint, ec);
   if (ec) {
-    LOG(kError) << "Multiplexer socket binding error while attempting on " << endpoint
-                << "  Error: " << ec.message();
+    if (!(endpoint.port() == 5483 && ec == boost::system::errc::address_in_use)) {
+      LOG(kError) << "Multiplexer socket binding error while attempting on " << endpoint
+                  << "  Error: " << ec.value();
+    }
     return kBindError;
   }
 
