@@ -42,12 +42,14 @@ namespace { typedef boost::asio::ip::udp::endpoint Endpoint; }
 ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
                                      const boost::asio::io_service::strand& strand,
                                      MultiplexerPtr multiplexer,
+                                     const std::string& this_node_id,
                                      std::shared_ptr<asymm::PublicKey> this_public_key)
     : connections_(),
       mutex_(),
       transport_(transport),
       strand_(strand),
       multiplexer_(multiplexer),
+      kThisNodeId_(this_node_id),
       this_public_key_(this_public_key),
       sockets_() {
   multiplexer_->dispatcher_.SetConnectionManager(this);

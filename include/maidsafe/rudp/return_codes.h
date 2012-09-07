@@ -43,6 +43,8 @@ enum ReturnCode {
   kWontPingAlreadyConnected = -350020,
   kWontPingOurself = -350021,
   kConnectAttemptAlreadyRunning = -350022,
+  kInvalidId = -350023,
+  kNoPendingConnectAttempt = -350024,
 
   // Upper limit of values for this enum.
   kReturnCodeLimit = -359999

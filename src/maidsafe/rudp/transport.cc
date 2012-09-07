@@ -59,6 +59,7 @@ Transport::~Transport() {
 
 void Transport::Bootstrap(
     const std::vector<Endpoint> &bootstrap_endpoints,
+    const std::string& this_node_id,
     std::shared_ptr<asymm::PublicKey> this_public_key,
     Endpoint local_endpoint,
     bool bootstrap_off_existing_connection,
@@ -89,8 +90,8 @@ void Transport::Bootstrap(
 
   on_nat_detection_requested_slot_ = on_nat_detection_requested_slot;
 
-  connection_manager_.reset(
-      new ConnectionManager(shared_from_this(), strand_, multiplexer_, this_public_key));
+  connection_manager_.reset(new ConnectionManager(shared_from_this(), strand_, multiplexer_,
+                                                  this_node_id, this_public_key));
   ReturnCode result = multiplexer_->Open(local_endpoint);
   if (result != kSuccess) {
     if (!(local_endpoint.port() == ManagedConnections::kResiliencePort() && result == kBindError)) {

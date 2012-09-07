@@ -14,6 +14,6 @@
 
 int main(int argc, char **argv) {
   maidsafe::log::FilterMap filter;
-  filter["*"] = maidsafe::log::kInfo;
+  filter["*"] = maidsafe::log::kVerbose;
   return ExecuteMain(argc, argv, filter, true, maidsafe::log::ColourMode::kFullLine);
 }

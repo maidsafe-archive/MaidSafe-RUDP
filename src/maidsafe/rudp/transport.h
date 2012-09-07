@@ -72,6 +72,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   void Bootstrap(
       const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
+      const std::string& this_node_id,
       std::shared_ptr<asymm::PublicKey> this_public_key,
       boost::asio::ip::udp::endpoint local_endpoint,
       bool bootstrap_off_existing_connection,

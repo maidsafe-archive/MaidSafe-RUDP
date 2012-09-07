@@ -90,6 +90,7 @@ class HandshakePacket : public ControlPacket {
   uint32_t maximum_flow_window_size_;
   uint32_t connection_type_;
   uint32_t socket_id_;
+  std::string node_id_;
   uint32_t syn_cookie_;
   bool request_nat_detection_port_;
   uint16_t nat_detection_port_;

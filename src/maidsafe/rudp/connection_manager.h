@@ -46,6 +46,7 @@ class ConnectionManager {
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
                     std::shared_ptr<Multiplexer> multiplexer,
+                    const std::string& this_node_id,
                     std::shared_ptr<asymm::PublicKey> this_public_key);
   ~ConnectionManager();
 
@@ -119,6 +120,7 @@ class ConnectionManager {
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
   std::shared_ptr<Multiplexer> multiplexer_;
+  const std::string kThisNodeId_;
   std::shared_ptr<asymm::PublicKey> this_public_key_;
   SocketMap sockets_;
 };

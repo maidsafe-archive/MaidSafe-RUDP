@@ -68,6 +68,12 @@ bool IsPrivateNetworkAddress(const ip::address_v4& address) {
 
 }  // unnamed namespace
 
+
+bool IsValidNodeId(const std::string& node_id) {
+  static const std::string kZeroId(64, 0);
+  return (node_id.size() == 64) && (node_id != kZeroId);
+}
+
 ip::address GetLocalIp(ip::udp::endpoint peer_endpoint) {
   asio::io_service io_service;
   ip::udp::socket socket(io_service);
