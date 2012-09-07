@@ -67,25 +67,21 @@ void Transport::Bootstrap(
     const OnConnectionAdded::slot_type& on_connection_added_slot,
     const OnConnectionLost::slot_type& on_connection_lost_slot,
     const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
-    Endpoint* chosen_endpoint,
-    boost::signals2::connection* on_message_connection,
-    boost::signals2::connection* on_connection_added_connection,
-    boost::signals2::connection* on_connection_lost_connection) {
-  BOOST_ASSERT(chosen_endpoint);
-  BOOST_ASSERT(on_message_connection);
-  BOOST_ASSERT(on_connection_added_connection);
-  BOOST_ASSERT(on_connection_lost_connection);
+    std::string& chosen_id,
+    boost::signals2::connection& on_message_connection,
+    boost::signals2::connection& on_connection_added_connection,
+    boost::signals2::connection& on_connection_lost_connection) {
   BOOST_ASSERT(on_nat_detection_requested_slot);
   BOOST_ASSERT(!multiplexer_->IsOpen());
 
-  *chosen_endpoint = Endpoint();
+  chosen_id.clear();
   // We want these 3 slots to be invoked before any others connected, so that if we wait elsewhere
   // for the other connected slot(s) to be executed, we can be assured that these main slots have
   // already been executed at that point in time.
-  *on_message_connection = on_message_.connect(on_message_slot, boost::signals2::at_front);
-  *on_connection_added_connection =
+  on_message_connection = on_message_.connect(on_message_slot, boost::signals2::at_front);
+  on_connection_added_connection =
       on_connection_added_.connect(on_connection_added_slot, boost::signals2::at_front);
-  *on_connection_lost_connection =
+  on_connection_lost_connection =
       on_connection_lost_.connect(on_connection_lost_slot, boost::signals2::at_front);
 
   on_nat_detection_requested_slot_ = on_nat_detection_requested_slot;

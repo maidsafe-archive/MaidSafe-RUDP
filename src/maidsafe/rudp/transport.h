@@ -80,10 +80,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
       const OnConnectionAdded::slot_type& on_connection_added_slot,
       const OnConnectionLost::slot_type& on_connection_lost_slot,
       const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
-      boost::asio::ip::udp::endpoint* chosen_endpoint,
-      boost::signals2::connection* on_message_connection,
-      boost::signals2::connection* on_connection_added_connection,
-      boost::signals2::connection* on_connection_lost_connection);
+      std::string& chosen_id,
+      boost::signals2::connection& on_message_connection,
+      boost::signals2::connection& on_connection_added_connection,
+      boost::signals2::connection& on_connection_lost_connection);
 
   void Close();
 

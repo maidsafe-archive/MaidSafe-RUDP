@@ -39,9 +39,9 @@ namespace rudp {
 
 namespace detail { class Transport; }
 
-typedef std::function<void(const std::string&)> MessageReceivedFunctor;
-typedef std::function<void(const boost::asio::ip::udp::endpoint&)> ConnectionLostFunctor;
-typedef std::function<void(int)> MessageSentFunctor, PingFunctor;  // NOLINT (Fraser)
+typedef std::function<void(const std::string& /*message*/)> MessageReceivedFunctor;
+typedef std::function<void(const std::string& /*peer_id*/)> ConnectionLostFunctor;
+typedef std::function<void(int /*result*/)> MessageSentFunctor, PingFunctor;  // NOLINT (Fraser)
 
 struct EndpointPair {
   EndpointPair() : local(), external() {}
@@ -157,7 +157,6 @@ class ManagedConnections {
   bool StartNewTransport(
       std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints,
       boost::asio::ip::udp::endpoint local_endpoint,
-      TransportAndSignalConnections& transport_and_signals_connections,
       std::string& chosen_bootstrap_node_id);
 
   void GetBootstrapEndpoints(const boost::asio::ip::udp::endpoint& local_endpoint,
@@ -192,6 +191,8 @@ class ManagedConnections {
   std::shared_ptr<asymm::PrivateKey> private_key_;
   std::shared_ptr<asymm::PublicKey> public_key_;
   ConnectionMap connections_;
+  std::shared_ptr<detail::Transport> transport_with_least_connections_;
+  size_t transport_count_;
   mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
   NatType nat_type_;
