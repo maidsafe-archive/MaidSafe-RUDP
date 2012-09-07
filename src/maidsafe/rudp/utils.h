@@ -23,7 +23,7 @@ namespace rudp {
 
 namespace detail {
 
-// Returns true if size == 64 and not comprised fully of 0s.
+// Returns true if size == 64.
 bool IsValidNodeId(const std::string& node_id);
 
 // Makes a UDP socket connection to peer_endpoint.  Note, no data is sent, so no information about

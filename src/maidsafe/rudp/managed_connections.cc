@@ -52,40 +52,36 @@ ManagedConnections::ManagedConnections()
       this_node_id_(),
       private_key_(),
       public_key_(),
-      transports_(),
-      connection_map_(),
-      pending_connections_(),
+      connections_(),
       mutex_(),
       local_ip_(),
-      nat_type_(NatType::kUnknown),
-      resilience_transport_() {}
+      nat_type_(NatType::kUnknown) {}
 
 ManagedConnections::~ManagedConnections() {
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    for (auto transport : transports_)
-      transport.DisconnectSignalsAndClose();
+    for (auto element : connections_)
+      element.second.transport_details.DisconnectSignalsAndClose();
   }
-  resilience_transport_.DisconnectSignalsAndClose();
+//  resilience_transport_.DisconnectSignalsAndClose();
   asio_service_.Stop();
 }
 
-Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
-                                       bool /*start_resilience_transport*/,
-                                       MessageReceivedFunctor message_received_functor,
-                                       ConnectionLostFunctor connection_lost_functor,
-                                       const std::string& this_node_id,
-                                       std::shared_ptr<asymm::PrivateKey> private_key,
-                                       std::shared_ptr<asymm::PublicKey> public_key,
-                                       NatType& nat_type,
-                                       Endpoint local_endpoint) {
+std::string ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
+                                          bool /*start_resilience_transport*/,
+                                          MessageReceivedFunctor message_received_functor,
+                                          ConnectionLostFunctor connection_lost_functor,
+                                          const std::string& this_node_id,
+                                          std::shared_ptr<asymm::PrivateKey> private_key,
+                                          std::shared_ptr<asymm::PublicKey> public_key,
+                                          NatType& nat_type,
+                                          Endpoint local_endpoint) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    for (auto transport : transports_)
-      transport.DisconnectSignalsAndClose();
-    transports_.clear();
-    resilience_transport_.DisconnectSignalsAndClose();
-    connection_map_.clear();
+    for (auto element : connections_)
+      element.second.transport_details.DisconnectSignalsAndClose();
+//    resilience_transport_.DisconnectSignalsAndClose();
+    connections_.clear();
   }
 
   if (!message_received_functor) {
@@ -126,10 +122,11 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
     }
     local_endpoint = Endpoint(local_ip_, 0);
   }
-  Endpoint chosen_bootstrap_endpoint;
-  std::shared_ptr<detail::Transport> new_transport =
-      StartNewTransport(bootstrap_endpoints, local_endpoint, chosen_bootstrap_endpoint);
-  if (!new_transport) {
+
+  TransportAndSignalConnections transport_and_signals_connections;
+  std::string chosen_bootstrap_node_id;
+  if (!StartNewTransport(bootstrap_endpoints, local_endpoint, transport_and_signals_connections,
+                         chosen_bootstrap_node_id)) {
     LOG(kError) << "Failed to bootstrap managed connections.";
     return Endpoint();
   }
@@ -145,10 +142,11 @@ Endpoint ManagedConnections::Bootstrap(const std::vector<Endpoint> &bootstrap_en
   return chosen_bootstrap_endpoint;
 }
 
-std::shared_ptr<detail::Transport> ManagedConnections::StartNewTransport(
+bool ManagedConnections::StartNewTransport(
     std::vector<Endpoint> bootstrap_endpoints,
     Endpoint local_endpoint,
-    Endpoint& chosen_bootstrap_endpoint) {
+    TransportAndSignalConnections& transport_and_signals_connections,
+    std::string& chosen_bootstrap_node_id) {
   TransportAndSignalConnections transport_and_signals_connections;
   transport_and_signals_connections.transport =
       std::make_shared<detail::Transport>(asio_service_, nat_type_);
@@ -175,8 +173,7 @@ std::shared_ptr<detail::Transport> ManagedConnections::StartNewTransport(
       &transport_and_signals_connections.on_connection_lost_connection);
   if (!detail::IsValid(chosen_bootstrap_endpoint)) {
     std::lock_guard<std::mutex> lock(mutex_);
-    LOG(kWarning) << "Failed to start a new Transport.  "
-                  << connection_map_.size() << " currently running.";
+    LOG(kWarning) << "Failed to start a new Transport.";
     transport_and_signals_connections.DisconnectSignalsAndClose();
     return std::shared_ptr<detail::Transport>();
   }
@@ -698,6 +695,43 @@ void ManagedConnections::TransportAndSignalConnections::DisconnectSignalsAndClos
 ManagedConnections::ConnectionDetails::ConnectionDetails()
     : transport_details(),
       state(ConnectionState::kTemporary) {}
+
+std::shared_ptr<detail::Transport> ManagedConnections::ConnectionDetails::transport() const {
+  return transport_details.transport;
+}
+
+
+
+template <typename Elem, typename Traits>
+std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
+                                             const ManagedConnections::ConnectionState &state) {
+  boost::system::error_code error_code;
+  std::string state_str;
+  switch (state) {
+    case ConnectionState::kPending:
+      state_str = "kPending";
+      break;
+    case ConnectionState::kBootstrapping:
+      state_str = "kBootstrapping";
+      break;
+    case ConnectionState::kTemporary:
+      state_str = "kTemporary";
+      break;
+    case ConnectionState::kUnvalidated:
+      state_str = "kUnvalidated";
+      break;
+    case ConnectionState::kPermanent:
+      state_str = "kPermanent";
+      break;
+    default:
+      state_str = "Invalid";
+      break;
+  }
+  
+  for (std::string::iterator i = s.begin(); i != s.end(); ++i)
+    ostream << ostream.widen(*i);
+  return ostream;
+}
 
 std::string ManagedConnections::DebugString() {
   std::string s = "This node's own transports and their peer connections:\n";

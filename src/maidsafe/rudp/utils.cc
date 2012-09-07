@@ -68,10 +68,8 @@ bool IsPrivateNetworkAddress(const ip::address_v4& address) {
 
 }  // unnamed namespace
 
-
 bool IsValidNodeId(const std::string& node_id) {
-  static const std::string kZeroId(64, 0);
-  return (node_id.size() == 64) && (node_id != kZeroId);
+  return node_id.size() == 64U;
 }
 
 ip::address GetLocalIp(ip::udp::endpoint peer_endpoint) {

@@ -71,7 +71,7 @@ class ManagedConnections {
   // passed up via MessageReceivedFunctor.  Before bootstrapping begins, if there are any existing
   // transports they are destroyed and all connections closed.  For zero-state network, pass the
   // required local_endpoint.
-  boost::asio::ip::udp::endpoint Bootstrap(
+  std::string Bootstrap(
       const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
       bool start_resilience_transport,
       MessageReceivedFunctor message_received_functor,
@@ -143,19 +143,22 @@ class ManagedConnections {
     boost::signals2::connection on_connection_lost_connection;
   };
   struct ConnectionDetails {
+    ConnectionDetails();
+    std::shared_ptr<detail::Transport> transport() const;
     TransportAndSignalConnections transport_details;
     ConnectionState state;
   };
 
-  typedef std::map<std::string, ConnectionDetails> ConnectionMap;
+  typedef std::multimap<std::string, ConnectionDetails> ConnectionMap;
 
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
 
-  std::shared_ptr<detail::Transport> StartNewTransport(
+  bool StartNewTransport(
       std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints,
       boost::asio::ip::udp::endpoint local_endpoint,
-      boost::asio::ip::udp::endpoint& chosen_bootstrap_endpoint);
+      TransportAndSignalConnections& transport_and_signals_connections,
+      std::string& chosen_bootstrap_node_id);
 
   void GetBootstrapEndpoints(const boost::asio::ip::udp::endpoint& local_endpoint,
                              std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
@@ -188,11 +191,11 @@ class ManagedConnections {
   std::string this_node_id_;
   std::shared_ptr<asymm::PrivateKey> private_key_;
   std::shared_ptr<asymm::PublicKey> public_key_;
-  ConnectionMap connection_map_;
+  ConnectionMap connections_;
   mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
   NatType nat_type_;
-  TransportAndSignalConnections resilience_transport_;
+//  TransportAndSignalConnections resilience_transport_;
 };
 
 }  // namespace rudp
