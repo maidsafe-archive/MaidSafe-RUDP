@@ -79,6 +79,13 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   if (chosen_node_id != nodes[1]->node_id())
     return testing::AssertionFailure() << "Bootstrapping failed for Node 0.  Result using "
                                        << endpoints1.local << " was " << DebugId(chosen_node_id);
+  EndpointPair endpoint_pair0, endpoint_pair1;
+  NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
+
+  EXPECT_EQ(kSuccess, nodes[0]->managed_connections()->GetAvailableEndpoint(
+                nodes[1]->node_id(), EndpointPair(), endpoint_pair0, nat_type0));
+  EXPECT_EQ(kSuccess, nodes[1]->managed_connections()->GetAvailableEndpoint(
+                nodes[0]->node_id(), endpoint_pair0, endpoint_pair1, nat_type1));
 
   auto futures0(nodes[0]->GetFutureForMessages(1));
   auto futures1(nodes[1]->GetFutureForMessages(1));

@@ -57,110 +57,121 @@ class ManagedConnectionsTest : public testing::Test {
   MessageReceivedFunctor do_nothing_on_message_;
   ConnectionLostFunctor do_nothing_on_connection_lost_;
 };
-/*
+
 TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // All invalid
   NatType nat_type(NatType::kUnknown);
-  EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(std::vector<Endpoint>(),
-                                                               false,
-                                                               MessageReceivedFunctor(),
-                                                               ConnectionLostFunctor(),
-                                                               nullptr,
-                                                               nullptr,
-                                                               nat_type));
+  EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(std::vector<Endpoint>(),
+                                                             false,
+                                                             MessageReceivedFunctor(),
+                                                             ConnectionLostFunctor(),
+                                                             NodeId(),
+                                                             nullptr,
+                                                             nullptr,
+                                                             nat_type));
   // Empty bootstrap_endpoints
-  EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(std::vector<Endpoint>(),
-                                                               false,
-                                                               do_nothing_on_message_,
-                                                               do_nothing_on_connection_lost_,
-                                                               node_.private_key(),
-                                                               node_.public_key(),
-                                                               nat_type));
+  EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(std::vector<Endpoint>(),
+                                                             false,
+                                                             do_nothing_on_message_,
+                                                             do_nothing_on_connection_lost_,
+                                                             node_.node_id(),
+                                                             node_.private_key(),
+                                                             node_.public_key(),
+                                                             nat_type));
+  // FIXME
   // Unavailable bootstrap_endpoints
-  EXPECT_EQ(Endpoint(),
-            node_.managed_connections()->Bootstrap(
-                std::vector<Endpoint>(1, Endpoint(detail::GetLocalIp(), 10000)),
-                false,
-                do_nothing_on_message_,
-                do_nothing_on_connection_lost_,
-                node_.private_key(),
-                node_.public_key(),
-                nat_type));
+//  EXPECT_EQ(NodeId(),
+//            node_.managed_connections()->Bootstrap(
+//                std::vector<Endpoint>(1, Endpoint(detail::GetLocalIp(), 10000)),
+//                false,
+//                do_nothing_on_message_,
+//                do_nothing_on_connection_lost_,
+//                node_.node_id(),
+//                node_.private_key(),
+//                node_.public_key(),
+//                nat_type));
   // Invalid MessageReceivedFunctor
-  EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                               false,
-                                                               MessageReceivedFunctor(),
-                                                               do_nothing_on_connection_lost_,
-                                                               node_.private_key(),
-                                                               node_.public_key(),
-                                                               nat_type));
+  EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                             false,
+                                                             MessageReceivedFunctor(),
+                                                             do_nothing_on_connection_lost_,
+                                                             node_.node_id(),
+                                                             node_.private_key(),
+                                                             node_.public_key(),
+                                                             nat_type));
   // Invalid ConnectionLostFunctor
-  EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                               false,
-                                                               do_nothing_on_message_,
-                                                               ConnectionLostFunctor(),
-                                                               node_.private_key(),
-                                                               node_.public_key(),
-                                                               nat_type));
+  EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                             false,
+                                                             do_nothing_on_message_,
+                                                             ConnectionLostFunctor(),
+                                                             node_.node_id(),
+                                                             node_.private_key(),
+                                                             node_.public_key(),
+                                                             nat_type));
   // Invalid private key
-  EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(
-                        bootstrap_endpoints_,
-                        false,
-                        do_nothing_on_message_,
-                        do_nothing_on_connection_lost_,
-                        std::shared_ptr<asymm::PrivateKey>(new asymm::PrivateKey),
-                        node_.public_key(),
-                        nat_type));
+  EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(
+                       bootstrap_endpoints_,
+                       false,
+                       do_nothing_on_message_,
+                       do_nothing_on_connection_lost_,
+                       node_.node_id(),
+                       std::shared_ptr<asymm::PrivateKey>(new asymm::PrivateKey),
+                       node_.public_key(),
+                       nat_type));
   // Invalid public key
-  EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(
-                        bootstrap_endpoints_,
-                        false,
-                        do_nothing_on_message_,
-                        do_nothing_on_connection_lost_,
-                        node_.private_key(),
-                        std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey),
-                        nat_type));
+  EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(
+                       bootstrap_endpoints_,
+                       false,
+                       do_nothing_on_message_,
+                       do_nothing_on_connection_lost_,
+                       node_.node_id(),
+                       node_.private_key(),
+                       std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey),
+                       nat_type));
   // NULL private key
-  EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                               false,
-                                                               do_nothing_on_message_,
-                                                               do_nothing_on_connection_lost_,
-                                                               nullptr,
-                                                               node_.public_key(),
-                                                               nat_type));
+  EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                             false,
+                                                             do_nothing_on_message_,
+                                                             do_nothing_on_connection_lost_,
+                                                             node_.node_id(),
+                                                             nullptr,
+                                                             node_.public_key(),
+                                                             nat_type));
   // NULL public key
-  EXPECT_EQ(Endpoint(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                               false,
-                                                               do_nothing_on_message_,
-                                                               do_nothing_on_connection_lost_,
-                                                               node_.private_key(),
-                                                               nullptr,
-                                                               nat_type));
+  EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                             false,
+                                                             do_nothing_on_message_,
+                                                             do_nothing_on_connection_lost_,
+                                                             node_.node_id(),
+                                                             node_.private_key(),
+                                                             nullptr,
+                                                             nat_type));
   // Valid
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
-  Endpoint chosen_endpoint(node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                                  false,
-                                                                  do_nothing_on_message_,
-                                                                  do_nothing_on_connection_lost_,
-                                                                  node_.private_key(),
-                                                                  node_.public_key(),
-                                                                  nat_type));
-  EXPECT_TRUE(detail::IsValid(chosen_endpoint));
-  EXPECT_NE(bootstrap_endpoints_.end(),
-            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
-  // Already bootstrapped
-  chosen_endpoint = node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                           false,
-                                                           do_nothing_on_message_,
-                                                           do_nothing_on_connection_lost_,
-                                                           node_.private_key(),
-                                                           node_.public_key(),
-                                                           nat_type);
-  EXPECT_TRUE(detail::IsValid(chosen_endpoint));
-  EXPECT_NE(bootstrap_endpoints_.end(),
-            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
+  NodeId chosen_node(node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                            false,
+                                                            do_nothing_on_message_,
+                                                            do_nothing_on_connection_lost_,
+                                                            node_.node_id(),
+                                                            node_.private_key(),
+                                                            node_.public_key(),
+                                                            nat_type));
+  EXPECT_FALSE(chosen_node.Empty());
+//  EXPECT_NE(bootstrap_endpoints_.end(),
+//            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
+//  // Already bootstrapped
+//  chosen_endpoint = node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+//                                                           false,
+//                                                           do_nothing_on_message_,
+//                                                           do_nothing_on_connection_lost_,
+//                                                           node_.private_key(),
+//                                                           node_.public_key(),
+//                                                           nat_type);
+//  EXPECT_TRUE(detail::IsValid(chosen_endpoint));
+//  EXPECT_NE(bootstrap_endpoints_.end(),
+//            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
 }
-
+/*
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
