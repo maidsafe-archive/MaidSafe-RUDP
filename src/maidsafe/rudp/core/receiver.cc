@@ -167,7 +167,7 @@ void Receiver::HandleTick() {
     congestion_control_.OnGenerateAck(ack_packet_seqnum);
     uint32_t n = acks_.Append();
     Ack& a = acks_[n];
-    a.packet.SetDestinationSocketId(peer_.Id());
+    a.packet.SetDestinationSocketId(peer_.SocketId());
     a.packet.SetAckSequenceNumber(n);
     a.packet.SetPacketSequenceNumber(ack_packet_seqnum);
     a.packet.SetHasOptionalFields(true);
@@ -193,7 +193,7 @@ void Receiver::HandleTick() {
 
   // Generate a negative acknowledgement packet to request missing packets.
   NegativeAckPacket negative_ack;
-  negative_ack.SetDestinationSocketId(peer_.Id());
+  negative_ack.SetDestinationSocketId(peer_.SocketId());
   uint32_t n = unread_packets_.Begin();
   while (n != unread_packets_.End()) {
     if (unread_packets_[n].lost) {

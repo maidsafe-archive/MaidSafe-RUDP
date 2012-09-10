@@ -94,17 +94,17 @@ int ConnectionManager::AddPending(const NodeId& peer_id,
                                                                                         return kSuccess;
 }
 
-int ConnectionManager::CloseConnection(const NodeId& peer_id) {
+bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
     LOG(kWarning) << "Not currently connected to " << DebugId(peer_id);
-    return kInvalidConnection;
+    return false;
   }
 
   ConnectionPtr connection(*itr);
   strand_.dispatch([=] { connection->Close(); });  // NOLINT (Fraser)
-  return kSuccess;
+  return true;
 }
 
 void ConnectionManager::RemoveConnection(ConnectionPtr connection,
@@ -118,15 +118,24 @@ void ConnectionManager::RemoveConnection(ConnectionPtr connection,
 }
 
 
-int ConnectionManager::RemovePending(const NodeId& peer_id) {
+bool ConnectionManager::RemovePending(const NodeId& peer_id) {
   boost::mutex::scoped_lock lock(mutex_);
-                                                                                        pendings_.erase(peer_id);
-                                                                                        return kSuccess;
+  return pendings_.erase(peer_id) != 0U;
 }
 
 bool ConnectionManager::HasNormalConnectionTo(const NodeId& peer_id) const {
   boost::mutex::scoped_lock lock(mutex_);
   return FindConnection(peer_id) != connections_.end();
+}
+
+ConnectionManager::ConnectionPtr ConnectionManager::GetConnection(const NodeId& peer_id) {
+  boost::mutex::scoped_lock lock(mutex_);
+  auto itr(FindConnection(peer_id));
+  if (itr == connections_.end()) {
+    LOG(kWarning) << "Not currently connected to " << DebugId(peer_id);
+    return ConnectionPtr();
+  }
+  return *itr;
 }
 
 void ConnectionManager::Ping(const NodeId& peer_id,
@@ -277,17 +286,21 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
 //  return (*itr)->IsTemporary();
 //}
 
-int ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id) {
+bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
     LOG(kWarning) << "Not currently connected to " << DebugId(peer_id);
-    return kInvalidConnection;
+    return false;
   }
+  //if ((*itr)->state() != Connection::State::kUnvalidated) {
+  //  LOG(kWarning) << "Current connection to " << DebugId(peer_id) << " has state "
+  //                << (*itr)->state();
+  //  return false;
+  //}
 
-  ConnectionPtr connection(*itr);
-  connection->MakePermanent();
-  return kSuccess;
+  (*itr)->MakePermanent();
+  return true;
 }
 
 Endpoint ConnectionManager::ThisEndpoint(const NodeId& peer_id) {

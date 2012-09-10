@@ -197,7 +197,7 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   DecodeUint32(&connection_type_, p + 20);
   DecodeUint32(&connection_reason_, p + 24);
   DecodeUint32(&socket_id_, p + 28);
-  node_id_ = NodeId(std::string(p + 32, p + 95));
+  node_id_ = NodeId(std::string(p + 32, p + 96));
   DecodeUint32(&syn_cookie_, p + 96);
 
   request_nat_detection_port_ = ((p[100] & 0x80) != 0);

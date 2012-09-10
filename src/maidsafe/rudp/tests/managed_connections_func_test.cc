@@ -75,7 +75,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
             nodes_.size() - 1,
             std::vector<int>(num_messages, kReturnCodeLimit)));
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      std::vector<Endpoint> peers(nodes_.at(i)->GetConnectedEndPoints());
+      std::vector<NodeId> peers(nodes_.at(i)->GetConnectedNodeIds());
       ASSERT_EQ(nodes_.size() - 1, peers.size());
       for (uint16_t j = 0; j != peers.size(); ++j) {
         for (uint16_t k = 0; k != num_messages; ++k) {

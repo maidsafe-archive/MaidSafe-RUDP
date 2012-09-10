@@ -539,37 +539,6 @@ void Connection::InvokeSentFunctor(const MessageSentFunctor& message_sent_functo
   }
 }
 
-template <typename Elem, typename Traits>
-std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
-                                             const Connection::State &state) {
-  boost::system::error_code error_code;
-  std::string state_str;
-  switch (state) {
-    case Connection::State::kPending:
-      state_str = "kPending";
-      break;
-    case Connection::State::kTemporary:
-      state_str = "kTemporary";
-      break;
-    case Connection::State::kBootstrapping:
-      state_str = "kBootstrapping";
-      break;
-    case Connection::State::kUnvalidated:
-      state_str = "kUnvalidated";
-      break;
-    case Connection::State::kPermanent:
-      state_str = "kPermanent";
-      break;
-    default:
-      state_str = "Invalid";
-      break;
-  }
-  
-  for (std::string::iterator i = s.begin(); i != s.end(); ++i)
-    ostream << ostream.widen(*i);
-  return ostream;
-}
-
 }  // namespace detail
 
 }  // namespace rudp

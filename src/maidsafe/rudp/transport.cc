@@ -282,7 +282,7 @@ void Transport::DoConnect(const NodeId& peer_id,
                                Parameters::rendezvous_connect_timeout, bptime::pos_infin);
 }
 
-int Transport::CloseConnection(const NodeId& peer_id) {
+bool Transport::CloseConnection(const NodeId& peer_id) {
   return connection_manager_->CloseConnection(peer_id);
 }
 
@@ -303,12 +303,16 @@ int Transport::AddPending(const NodeId& peer_id,
   return connection_manager_->AddPending(peer_id, peer_endpoint);
 }
 
-int Transport::RemovePending(const NodeId& peer_id) {
+bool Transport::RemovePending(const NodeId& peer_id) {
   return connection_manager_->RemovePending(peer_id);
 }
 
 bool Transport::HasNormalConnectionTo(const NodeId& peer_id) const {
   return connection_manager_->HasNormalConnectionTo(peer_id);
+}
+
+std::shared_ptr<Connection> Transport::GetConnection(const NodeId& peer_id) {
+  return connection_manager_->GetConnection(peer_id);
 }
 
 Endpoint Transport::external_endpoint() const {
@@ -331,7 +335,7 @@ void Transport::SetBestGuessExternalEndpoint(const Endpoint& external_endpoint) 
 //  return connection_manager_->IsTemporaryConnection(peer_endpoint);
 //}
 
-int Transport::MakeConnectionPermanent(const NodeId& peer_id) {
+bool Transport::MakeConnectionPermanent(const NodeId& peer_id) {
   return connection_manager_->MakeConnectionPermanent(peer_id);
 }
 

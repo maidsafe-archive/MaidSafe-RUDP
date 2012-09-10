@@ -71,7 +71,7 @@ size_t Sender::AddData(const asio::const_buffer& data, const uint32_t& message_n
     p.packet.SetInOrder(true);
     p.packet.SetMessageNumber(message_number);
     p.packet.SetTimeStamp(0);
-    p.packet.SetDestinationSocketId(peer_.Id());
+    p.packet.SetDestinationSocketId(peer_.SocketId());
     p.packet.SetData(ptr, ptr + length);
     p.lost = true;  // Mark as lost so that DoSend() will send it.
 
@@ -98,7 +98,7 @@ void Sender::HandleAck(const AckPacket& packet, std::vector<uint32_t>& completed
   }
 
   AckOfAckPacket response_packet;
-  response_packet.SetDestinationSocketId(peer_.Id());
+  response_packet.SetDestinationSocketId(peer_.SocketId());
   response_packet.SetAckSequenceNumber(packet.AckSequenceNumber());
   peer_.Send(response_packet);
 
@@ -189,7 +189,7 @@ void Sender::DoSend() {
 
 void Sender::NotifyClose() {
   ShutdownPacket shut_down_packet;
-  shut_down_packet.SetDestinationSocketId(peer_.Id());
+  shut_down_packet.SetDestinationSocketId(peer_.SocketId());
   peer_.Send(shut_down_packet);
 }
 
@@ -198,7 +198,7 @@ void Sender::HandleKeepalive(const KeepalivePacket& packet) {
     return;
   KeepalivePacket response_packet;
   response_packet.SetSequenceNumber(packet.SequenceNumber() + 1);
-  response_packet.SetDestinationSocketId(peer_.Id());
+  response_packet.SetDestinationSocketId(peer_.SocketId());
   SendKeepalive(response_packet);
 }
 

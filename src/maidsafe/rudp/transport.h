@@ -91,7 +91,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   // If this causes the size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
-  int CloseConnection(const NodeId& peer_id);
+  bool CloseConnection(const NodeId& peer_id);
 
   bool Send(const NodeId& peer_id,
             const std::string& message,
@@ -103,9 +103,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   int AddPending(const NodeId& peer_id,
                  const boost::asio::ip::udp::endpoint& peer_endpoint);
-  int RemovePending(const NodeId& peer_id);
+  bool RemovePending(const NodeId& peer_id);
 
   bool HasNormalConnectionTo(const NodeId& peer_id) const;
+  std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
   boost::asio::ip::udp::endpoint external_endpoint() const;
   boost::asio::ip::udp::endpoint local_endpoint() const;
@@ -113,7 +114,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
 
   //bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
-  int MakeConnectionPermanent(const NodeId& peer_id);
+  bool MakeConnectionPermanent(const NodeId& peer_id);
 
   bool IsResilienceTransport() const { return is_resilience_transport_; }
 

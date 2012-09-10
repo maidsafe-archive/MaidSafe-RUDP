@@ -37,6 +37,7 @@ class TickTimer;
 class Session {
  public:
   typedef boost::signals2::signal<void(const boost::asio::ip::udp::endpoint&,
+                                       const NodeId&,
                                        const boost::asio::ip::udp::endpoint&,
                                        uint16_t&)> OnNatDetectionRequested;
 

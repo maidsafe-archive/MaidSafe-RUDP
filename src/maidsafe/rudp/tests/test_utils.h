@@ -19,6 +19,7 @@
 
 #include "boost/asio/ip/udp.hpp"
 #include "boost/thread/future.hpp"
+#include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
@@ -51,13 +52,15 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
 class Node {
  public:
   explicit Node(int id);
-  std::vector<Endpoint> connection_lost_endpoints() const;
+  std::vector<NodeId> connection_lost_node_ids() const;
   std::vector<std::string> messages() const;
-  Endpoint Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
-                     Endpoint local_endpoint = Endpoint());
+  NodeId Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
+                   Endpoint local_endpoint = Endpoint());
   boost::unique_future<std::vector<std::string>> GetFutureForMessages(
       const uint32_t& message_count);
   std::string id() const { return key_pair_.identity; }
+  NodeId node_id() const { return node_id_; }
+  std::string debug_node_id() const { return DebugId(node_id_); }
   std::string validation_data() const { return key_pair_.validation_token; }
   std::shared_ptr<asymm::PrivateKey> private_key() const {
       return std::shared_ptr<asymm::PrivateKey>(new asymm::PrivateKey(key_pair_.private_key)); }
@@ -66,19 +69,20 @@ class Node {
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
   int GetReceivedMessageCount(const std::string& message) const;
   void ResetData();
-  std::vector<Endpoint> GetConnectedEndPoints() { return connected_endpoints_; }
-  void AddConnectedEndPoint(const Endpoint& connected_endpoints) {
-    connected_endpoints_.push_back(connected_endpoints);
+  std::vector<NodeId> GetConnectedNodeIds() { return connected_node_ids_; }
+  void AddConnectedNodeId(const NodeId& connected_node_id) {
+    connected_node_ids_.push_back(connected_node_id);
   }
 
 
  private:
   void SetPromiseIfDone();
 
+  NodeId node_id_;
   asymm::Keys key_pair_;
   mutable std::mutex mutex_;
-  std::vector<Endpoint> connection_lost_endpoints_;
-  std::vector<Endpoint> connected_endpoints_;
+  std::vector<NodeId> connection_lost_node_ids_;
+  std::vector<NodeId> connected_node_ids_;
   std::vector<std::string> messages_;
   ManagedConnectionsPtr managed_connections_;
   bool promised_;

@@ -253,7 +253,7 @@ void Session::SendCookie() {
   packet.SetRequestNatDetectionPort(false);
   uint16_t port(0);
   if (peer_requested_nat_detection_port_)
-    on_nat_detection_requested_(kThisLocalEndpoint_, peer_.PeerEndpoint(), port);
+    on_nat_detection_requested_(kThisLocalEndpoint_, peer_.node_id(), peer_.PeerEndpoint(), port);
   packet.SetNatDetectionPort(port);
   packet.SetPublicKey(this_public_key_);
 

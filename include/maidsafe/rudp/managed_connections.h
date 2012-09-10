@@ -121,7 +121,7 @@ class ManagedConnections {
 
   // Try to ping remote_endpoint.  If this node is already connected, ping_functor is invoked with
   // kWontPingAlreadyConnected.  Otherwise, kPingFailed or kSuccess is passed to ping_functor.
-  void Ping(boost::asio::ip::udp::endpoint peer_endpoint, PingFunctor ping_functor);
+  //void Ping(boost::asio::ip::udp::endpoint peer_endpoint, PingFunctor ping_functor);
 
   friend class detail::Transport;
 
@@ -145,8 +145,7 @@ class ManagedConnections {
       boost::asio::ip::udp::endpoint local_endpoint,
       NodeId& chosen_bootstrap_node_id);
 
-  void GetBootstrapEndpoints(const boost::asio::ip::udp::endpoint& local_endpoint,
-                             std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
+  void GetBootstrapEndpoints(std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
                              boost::asio::ip::address& this_external_address);
 
   bool GetThisEndpointPair(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
@@ -166,6 +165,7 @@ class ManagedConnections {
   // detection.  The peer will attempt to connect to another one of this node's transports using
   // its current transport.  This node (if suitable) will begin pinging the peer.
   void OnNatDetectionRequestedSlot(const boost::asio::ip::udp::endpoint& this_local_endpoint,
+                                   const NodeId& peer_id,
                                    const boost::asio::ip::udp::endpoint& peer_endpoint,
                                    uint16_t& another_external_port);
   std::string DebugString();
