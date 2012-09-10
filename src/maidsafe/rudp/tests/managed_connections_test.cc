@@ -171,7 +171,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
 //  EXPECT_NE(bootstrap_endpoints_.end(),
 //            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
 }
-/*
+
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
@@ -181,16 +181,21 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   this_endpoint_pair.external = this_endpoint_pair.local =
       Endpoint(ip::address::from_string("1.1.1.1"), 1025);
   EXPECT_EQ(kNotBootstrapped,
-            node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
+            node_.managed_connections()->GetAvailableEndpoint(NodeId(NodeId::kRandomId),
+                                                              EndpointPair(),
                                                               this_endpoint_pair,
                                                               nat_type));
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
   EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
   this_endpoint_pair.external = this_endpoint_pair.local =
       Endpoint(ip::address::from_string("1.1.1.1"), 1025);
+  EndpointPair endpoint_pair;
+  endpoint_pair.local = endpoint_pair.external =
+          Endpoint(ip::address::from_string("1.2.3.4"), 1026);
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                Endpoint(ip::address::from_string("1.2.3.4"), 1026),
+                NodeId(NodeId::kRandomId),
+                endpoint_pair,
                 this_endpoint_pair,
                 nat_type));
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
@@ -198,26 +203,29 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 
   //  After Bootstrapping
   nat_type = NatType::kUnknown;
-  Endpoint chosen_endpoint(node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                                  false,
-                                                                  do_nothing_on_message_,
-                                                                  do_nothing_on_connection_lost_,
-                                                                  node_.private_key(),
-                                                                  node_.public_key(),
-                                                                  nat_type));
-  EXPECT_TRUE(detail::IsValid(chosen_endpoint));
-  EXPECT_NE(bootstrap_endpoints_.end(),
-            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
+  NodeId chosen_node(node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                            false,
+                                                            do_nothing_on_message_,
+                                                            do_nothing_on_connection_lost_,
+                                                            node_.node_id(),
+                                                            node_.private_key(),
+                                                            node_.public_key(),
+                                                            nat_type));
+  EXPECT_FALSE(chosen_node.Empty());
+//  EXPECT_NE(bootstrap_endpoints_.end(),
+//            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
 
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint,
+            node_.managed_connections()->GetAvailableEndpoint(chosen_node,
+                                                              EndpointPair(),
                                                               this_endpoint_pair,
                                                               nat_type));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
 
   EndpointPair another_endpoint_pair;
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
+            node_.managed_connections()->GetAvailableEndpoint(NodeId(NodeId::kRandomId),
+                                                              EndpointPair(),
                                                               another_endpoint_pair,
                                                               nat_type));
   EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
@@ -228,38 +236,47 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
   // Before bootstrapping
-  Endpoint random_this_endpoint(detail::GetLocalIp(), GetRandomPort());
   EXPECT_EQ(kInvalidTransport,
-            node_.managed_connections()->Add(random_this_endpoint,
-                                             bootstrap_endpoints_[1],
+            node_.managed_connections()->Add(NodeId(NodeId::kRandomId),
+                                             EndpointPair(),
+                                             node_.validation_data()));
+  EndpointPair random_peer_endpoint;
+  random_peer_endpoint.local = Endpoint(detail::GetLocalIp(), GetRandomPort());
+  random_peer_endpoint.external = Endpoint(detail::GetLocalIp(), GetRandomPort());
+
+  EXPECT_EQ(kInvalidTransport,
+            node_.managed_connections()->Add(NodeId(NodeId::kRandomId),
+                                             random_peer_endpoint,
                                              node_.validation_data()));
   // Valid
-  Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0])));
-  EXPECT_EQ(bootstrap_endpoints_[0], chosen_endpoint);
+  NodeId chosen_node(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0])));
+  EXPECT_FALSE(chosen_node.Empty());
 
   nodes_[0]->ResetData();
-  EndpointPair this_endpoint_pair, peer_endpoint_pair;
-  NatType nat_type;
+  EndpointPair peer_endpoint_pair, this_endpoint_pair;
+  NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(chosen_endpoint,
+            node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(),
+                                                              EndpointPair(),
                                                               this_endpoint_pair,
-                                                              nat_type));
+                                                              nat_type1));
   EXPECT_EQ(kSuccess,
-            nodes_[0]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
+            nodes_[0]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
+                                                                   this_endpoint_pair,
                                                                    peer_endpoint_pair,
-                                                                   nat_type));
-  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+                                                                   nat_type0));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
 
   auto peer_futures(nodes_[0]->GetFutureForMessages(1));
   auto this_node_futures(node_.GetFutureForMessages(1));
   EXPECT_EQ(kSuccess,
-            nodes_[0]->managed_connections()->Add(peer_endpoint_pair.local,
-                                                  this_endpoint_pair.local,
+            nodes_[0]->managed_connections()->Add(node_.node_id(),
+                                                  this_endpoint_pair,
                                                   nodes_[0]->validation_data()));
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->Add(this_endpoint_pair.local,
-                                             peer_endpoint_pair.local,
+            node_.managed_connections()->Add(nodes_[0]->node_id(),
+                                             peer_endpoint_pair,
                                              node_.validation_data()));
   ASSERT_TRUE(peer_futures.timed_wait(Parameters::rendezvous_connect_timeout));
   auto peer_messages(peer_futures.get());
@@ -273,52 +290,57 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
 
   // Invalid endpoints
   EXPECT_EQ(kInvalidEndpoint,
-            node_.managed_connections()->Add(this_endpoint_pair.local,
-                                             Endpoint(),
+            node_.managed_connections()->Add(nodes_[1]->node_id(),
+                                             EndpointPair(),
                                              node_.validation_data()));
-  EXPECT_EQ(kInvalidEndpoint,
-            node_.managed_connections()->Add(Endpoint(),
-                                             bootstrap_endpoints_[1],
+  // Invalid peer_id
+  EXPECT_EQ(kInvalidId,
+            node_.managed_connections()->Add(NodeId(),
+                                             peer_endpoint_pair,
                                              node_.validation_data()));
   // Empty validation_data
   EXPECT_EQ(kEmptyValidationData,
-            node_.managed_connections()->Add(this_endpoint_pair.local,
-                                             peer_endpoint_pair.local,
+            node_.managed_connections()->Add(nodes_[0]->node_id(),
+                                             peer_endpoint_pair,
                                              ""));
 
   // Unavailable endpoints
+  peer_endpoint_pair.local = bootstrap_endpoints_[2];
   Endpoint unavailable_endpoint(ip::address::from_string("1.1.1.1"), GetRandomPort());
   EXPECT_EQ(kInvalidTransport,
-            node_.managed_connections()->Add(unavailable_endpoint,
-                                             bootstrap_endpoints_[2],
+            node_.managed_connections()->Add(nodes_[2]->node_id(),
+                                             peer_endpoint_pair,
                                              node_.validation_data()));
 
   node_.ResetData();
   this_node_futures = node_.GetFutureForMessages(1);
+  peer_endpoint_pair.local = bootstrap_endpoints_[2];
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->Add(this_endpoint_pair.local,
-                                             unavailable_endpoint,
+            node_.managed_connections()->Add(nodes_[0]->node_id(),
+                                             peer_endpoint_pair,
                                              node_.validation_data()));
   ASSERT_FALSE(this_node_futures.timed_wait(Parameters::rendezvous_connect_timeout));
 
   // Re-add existing connection, on same transport and new transport
   EXPECT_EQ(kConnectionAlreadyExists,
-            node_.managed_connections()->Add(this_endpoint_pair.local,
-                                             peer_endpoint_pair.local,
+            node_.managed_connections()->Add(nodes_[0]->node_id(),
+                                             peer_endpoint_pair,
                                              node_.validation_data()));
   EndpointPair another_endpoint_pair;
+  NatType nat_type(NatType::kUnknown);
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
+            node_.managed_connections()->GetAvailableEndpoint(NodeId(NodeId::kRandomId),
+                                                              EndpointPair(),
                                                               another_endpoint_pair,
                                                               nat_type));
   EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
   EXPECT_NE(another_endpoint_pair.local, this_endpoint_pair.local);
   EXPECT_EQ(kConnectionAlreadyExists,
-            node_.managed_connections()->Add(another_endpoint_pair.local,
-                                             peer_endpoint_pair.local,
+            node_.managed_connections()->Add(nodes_[0]->node_id(),
+                                             another_endpoint_pair,
                                              node_.validation_data()));
 }
-
+/*
 TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 4));
   auto wait_for_signals([&](int node_index)->bool {
