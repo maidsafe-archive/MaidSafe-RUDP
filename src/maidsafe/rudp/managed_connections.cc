@@ -114,7 +114,7 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
   if (zero_state) {
     local_ip_ = local_endpoint.address();
   } else {
-    local_ip_ = detail::GetLocalIp();
+    local_ip_ = GetLocalIp();
     if (local_ip_.is_unspecified()) {
       LOG(kError) << "Failed to retrieve local IP.";
       return NodeId();

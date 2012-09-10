@@ -68,22 +68,6 @@ bool IsPrivateNetworkAddress(const ip::address_v4& address) {
 
 }  // unnamed namespace
 
-ip::address GetLocalIp(ip::udp::endpoint peer_endpoint) {
-  asio::io_service io_service;
-  ip::udp::socket socket(io_service);
-  try {
-    socket.connect(peer_endpoint);
-    if (socket.local_endpoint().address().is_unspecified() ||
-        socket.local_endpoint().address().is_loopback())
-      return ip::address();
-    return socket.local_endpoint().address();
-  }
-  catch(const std::exception& e) {
-    LOG(kError) << "Failed trying to connect to " << peer_endpoint << " - " << e.what();
-    return ip::address();
-  }
-}
-
 bool IsValid(const ip::udp::endpoint& endpoint) {
   return endpoint.port() > 1024U && !endpoint.address().is_unspecified();
 }
