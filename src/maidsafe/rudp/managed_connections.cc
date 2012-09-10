@@ -136,7 +136,8 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
 //  if (start_resilience_transport)
 //    asio_service_.service().post([=] { StartResilienceTransport(); });  // NOLINT (Fraser)
 
-  return (zero_state ? NodeId() : chosen_bootstrap_node_id);
+//  return (zero_state ? NodeId() : chosen_bootstrap_node_id);
+  return chosen_bootstrap_node_id;
 }
 
 bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpoints,

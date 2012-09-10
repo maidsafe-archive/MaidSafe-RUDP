@@ -72,13 +72,13 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       nodes[1]->Bootstrap(std::vector<Endpoint>(1, endpoints0.local), endpoints1.local));
   thread.join();
 
-  //if (node1_bootstrap_res != nodes[0]->node_id())
-  //  return testing::AssertionFailure() << "Bootstrapping failed for Node 1.  Result using "
-  //                                     << endpoints0.local << " was "
-  //                                     << DebugId(node1_bootstrap_res);
-  //if (chosen_node_id != nodes[1]->node_id())
-  //  return testing::AssertionFailure() << "Bootstrapping failed for Node 0.  Result using "
-  //                                     << endpoints1.local << " was " << DebugId(chosen_node_id);
+  if (node1_bootstrap_res != nodes[0]->node_id())
+    return testing::AssertionFailure() << "Bootstrapping failed for Node 1.  Result using "
+                                       << endpoints0.local << " was "
+                                       << DebugId(node1_bootstrap_res);
+  if (chosen_node_id != nodes[1]->node_id())
+    return testing::AssertionFailure() << "Bootstrapping failed for Node 0.  Result using "
+                                       << endpoints1.local << " was " << DebugId(chosen_node_id);
 
   auto futures0(nodes[0]->GetFutureForMessages(1));
   auto futures1(nodes[1]->GetFutureForMessages(1));
