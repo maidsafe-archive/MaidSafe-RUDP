@@ -22,6 +22,7 @@
 #include "boost/asio/ip/udp.hpp"
 #include "boost/system/error_code.hpp"
 
+#include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
 #include "maidsafe/rudp/packets/control_packet.h"
@@ -34,7 +35,7 @@ namespace detail {
 
 class HandshakePacket : public ControlPacket {
  public:
-  enum { kMinPacketSize = ControlPacket::kHeaderSize + 53 };
+  enum { kMinPacketSize = ControlPacket::kHeaderSize + 121 };
   enum { kPacketType = 0 };
 
   HandshakePacket();
@@ -60,8 +61,14 @@ class HandshakePacket : public ControlPacket {
   uint32_t ConnectionType() const;
   void SetConnectionType(uint32_t n);
 
+  uint32_t ConnectionReason() const;
+  void SetConnectionReason(uint32_t n);
+
   uint32_t SocketId() const;
   void SetSocketId(uint32_t n);
+
+  NodeId node_id() const;
+  void set_node_id(NodeId node_id);
 
   uint32_t SynCookie() const;
   void SetSynCookie(uint32_t n);
@@ -89,8 +96,9 @@ class HandshakePacket : public ControlPacket {
   uint32_t maximum_packet_size_;
   uint32_t maximum_flow_window_size_;
   uint32_t connection_type_;
+  uint32_t connection_reason_;
   uint32_t socket_id_;
-  std::string node_id_;
+  NodeId node_id_;
   uint32_t syn_cookie_;
   bool request_nat_detection_port_;
   uint16_t nat_detection_port_;

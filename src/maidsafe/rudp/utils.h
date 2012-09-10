@@ -23,9 +23,6 @@ namespace rudp {
 
 namespace detail {
 
-// Returns true if size == 64.
-bool IsValidNodeId(const std::string& node_id);
-
 // Makes a UDP socket connection to peer_endpoint.  Note, no data is sent, so no information about
 // the validity or availability of the peer is deduced.  If the retrieved local endpoint is
 // unspecified or is the loopback address, the function returns a default-constructed (invalid)

@@ -29,6 +29,7 @@
 
 #include "maidsafe/common/asio_service.h"
 #include "maidsafe/common/rsa.h"
+#include "maidsafe/common/node_id.h"
 
 #include "maidsafe/rudp/nat_type.h"
 
@@ -40,7 +41,7 @@ namespace rudp {
 namespace detail { class Transport; }
 
 typedef std::function<void(const std::string& /*message*/)> MessageReceivedFunctor;
-typedef std::function<void(const std::string& /*peer_id*/)> ConnectionLostFunctor;
+typedef std::function<void(const NodeId& /*peer_id*/)> ConnectionLostFunctor;
 typedef std::function<void(int /*result*/)> MessageSentFunctor, PingFunctor;  // NOLINT (Fraser)
 
 struct EndpointPair {
@@ -71,12 +72,12 @@ class ManagedConnections {
   // passed up via MessageReceivedFunctor.  Before bootstrapping begins, if there are any existing
   // transports they are destroyed and all connections closed.  For zero-state network, pass the
   // required local_endpoint.
-  std::string Bootstrap(
-      const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
+  NodeId Bootstrap(
+      const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
       bool start_resilience_transport,
       MessageReceivedFunctor message_received_functor,
       ConnectionLostFunctor connection_lost_functor,
-      const std::string& this_node_id,
+      NodeId this_node_id,
       std::shared_ptr<asymm::PrivateKey> private_key,
       std::shared_ptr<asymm::PublicKey> public_key,
       NatType& nat_type,
@@ -92,15 +93,15 @@ class ManagedConnections {
   // permanent connection to a successful bootstrap endpoint) it should be passed in.  If
   // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
   // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
-  int GetAvailableEndpoint(const std::string& peer_id,
-                           const EndpointPair& peer_endpoint_pair,
+  int GetAvailableEndpoint(NodeId peer_id,
+                           EndpointPair peer_endpoint_pair,
                            EndpointPair& this_endpoint_pair,
                            NatType& this_nat_type);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
   // runs its message_received_functor_ with the data.  All messages sent via this connection are
   // encrypted for the peer.
-  int Add(const std::string& peer_id, const std::string& validation_data);
+  int Add(NodeId peer_id, EndpointPair peer_endpoint_pair, std::string validation_data);
 
   // Marks the connection to peer_endpoint as valid.  If it exists and is already permanent, or
   // is successfully upgraded to permanent, then the function is successful and returns the peer's
@@ -108,32 +109,23 @@ class ManagedConnections {
   // if the peer is behind symmetric NAT, the expected port and the actual connected port could be
   // different.  If the peer_endpoint doesn't exist in the list of current connection, failure is
   // indicated by returning a default-constructed endpoint.
-  int MarkConnectionAsValid(const std::string& peer_id);
+  int MarkConnectionAsValid(NodeId peer_id);
 
   // Drops the connection with peer.
-  void Remove(const std::string& peer_id);
+  void Remove(NodeId peer_id);
 
   // Sends the message to the peer.  If the message is sent successfully, the message_sent_functor
   // is executed with input of kSuccess.  If there is no existing connection to peer_id,
   // kInvalidConnection is used.
-  void Send(const std::string& peer_id,
-            const std::string& message,
-            MessageSentFunctor message_sent_functor);
+  void Send(NodeId peer_id, std::string message, MessageSentFunctor message_sent_functor);
 
   // Try to ping remote_endpoint.  If this node is already connected, ping_functor is invoked with
   // kWontPingAlreadyConnected.  Otherwise, kPingFailed or kSuccess is passed to ping_functor.
-  void Ping(const boost::asio::ip::udp::endpoint& peer_endpoint, PingFunctor ping_functor);
+  void Ping(boost::asio::ip::udp::endpoint peer_endpoint, PingFunctor ping_functor);
 
   friend class detail::Transport;
 
  private:
-  enum class ConnectionState {
-    kPending,        // GetAvailableEndpoint has been called, but connection has not yet been made
-    kBootstrapping,  // Incoming or outgoing short-lived (unvalidated) connection
-    kTemporary,      // Not used for sending messages; ping, peer external IP or NAT detection, etc.
-    kUnvalidated,    // Permanent connection which has not been validated
-    kPermanent       // Validated permanent connection
-  };
   struct TransportAndSignalConnections {
     TransportAndSignalConnections();
     void DisconnectSignalsAndClose();
@@ -142,14 +134,8 @@ class ManagedConnections {
     boost::signals2::connection on_connection_added_connection;
     boost::signals2::connection on_connection_lost_connection;
   };
-  struct ConnectionDetails {
-    ConnectionDetails();
-    std::shared_ptr<detail::Transport> transport() const;
-    TransportAndSignalConnections transport_details;
-    ConnectionState state;
-  };
 
-  typedef std::multimap<std::string, ConnectionDetails> ConnectionMap;
+  typedef std::multimap<NodeId, TransportAndSignalConnections> TransportMap;
 
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
@@ -157,22 +143,22 @@ class ManagedConnections {
   bool StartNewTransport(
       std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints,
       boost::asio::ip::udp::endpoint local_endpoint,
-      std::string& chosen_bootstrap_node_id);
+      NodeId& chosen_bootstrap_node_id);
 
   void GetBootstrapEndpoints(const boost::asio::ip::udp::endpoint& local_endpoint,
                              std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
                              boost::asio::ip::address& this_external_address);
 
-  bool GetThisEndpointPair(const std::string& peer_id, EndpointPair& this_endpoint_pair);
+  bool GetThisEndpointPair(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
 
   bool Connectable(const boost::asio::ip::udp::endpoint& peer_endpoint) const;
 
   void StartResilienceTransport();
 
   void OnMessageSlot(const std::string& message);
-  void OnConnectionAddedSlot(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void OnConnectionAddedSlot(const NodeId& peer_id,
                              std::shared_ptr<detail::Transport> transport);
-  void OnConnectionLostSlot(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void OnConnectionLostSlot(const NodeId& peer_id,
                             std::shared_ptr<detail::Transport> transport,
                             bool connections_empty,
                             bool temporary_connection);
@@ -187,12 +173,10 @@ class ManagedConnections {
   AsioService asio_service_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
-  std::string this_node_id_;
+  NodeId this_node_id_;
   std::shared_ptr<asymm::PrivateKey> private_key_;
   std::shared_ptr<asymm::PublicKey> public_key_;
-  ConnectionMap connections_;
-  std::shared_ptr<detail::Transport> transport_with_least_connections_;
-  size_t transport_count_;
+  TransportMap transports_;
   mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
   NatType nat_type_;

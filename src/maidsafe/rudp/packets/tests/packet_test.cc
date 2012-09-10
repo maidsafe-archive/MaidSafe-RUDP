@@ -473,6 +473,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0U, handshake_packet_.Encode(boost::asio::buffer(char_array)));
   }
   {
+    NodeId node_id(NodeId::kRandomId);
     // Encode and Decode a Handshake Packet
     handshake_packet_.SetRudpVersion(0x11111111);
     handshake_packet_.SetSocketType(0x22222222);
@@ -480,7 +481,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetMaximumPacketSize(0x88888888);
     handshake_packet_.SetMaximumFlowWindowSize(0xffffffff);
     handshake_packet_.SetConnectionType(0xdddddddd);
+    handshake_packet_.SetConnectionReason(0x33333333);
     handshake_packet_.SetSocketId(0xbbbbbbbb);
+    handshake_packet_.set_node_id(node_id);
     handshake_packet_.SetSynCookie(0xaaaaaaaa);
     handshake_packet_.SetRequestNatDetectionPort(true);
     handshake_packet_.SetNatDetectionPort(9999);
@@ -499,7 +502,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetMaximumPacketSize(0);
     handshake_packet_.SetMaximumFlowWindowSize(0);
     handshake_packet_.SetConnectionType(0);
+    handshake_packet_.SetConnectionReason(0);
     handshake_packet_.SetSocketId(0);
+    handshake_packet_.set_node_id(NodeId());
     handshake_packet_.SetSynCookie(0);
     handshake_packet_.SetRequestNatDetectionPort(false);
     handshake_packet_.SetNatDetectionPort(0);
@@ -514,7 +519,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0x88888888, handshake_packet_.MaximumPacketSize());
     EXPECT_EQ(0xffffffff, handshake_packet_.MaximumFlowWindowSize());
     EXPECT_EQ(0xdddddddd, handshake_packet_.ConnectionType());
+    EXPECT_EQ(0x33333333, handshake_packet_.ConnectionReason());
     EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
+    EXPECT_EQ(node_id, handshake_packet_.node_id());
     EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
     EXPECT_TRUE(handshake_packet_.RequestNatDetectionPort());
     EXPECT_EQ(9999, handshake_packet_.NatDetectionPort());
@@ -540,7 +547,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetMaximumPacketSize(0);
     handshake_packet_.SetMaximumFlowWindowSize(0);
     handshake_packet_.SetConnectionType(0);
+    handshake_packet_.SetConnectionReason(0);
     handshake_packet_.SetSocketId(0);
+    handshake_packet_.set_node_id(NodeId());
     handshake_packet_.SetSynCookie(0);
     handshake_packet_.SetRequestNatDetectionPort(false);
     handshake_packet_.SetNatDetectionPort(0);
@@ -555,7 +564,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0x88888888, handshake_packet_.MaximumPacketSize());
     EXPECT_EQ(0xffffffff, handshake_packet_.MaximumFlowWindowSize());
     EXPECT_EQ(0xdddddddd, handshake_packet_.ConnectionType());
+    EXPECT_EQ(0x33333333, handshake_packet_.ConnectionReason());
     EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
+    EXPECT_EQ(node_id, handshake_packet_.node_id());
     EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
     EXPECT_TRUE(handshake_packet_.RequestNatDetectionPort());
     EXPECT_EQ(9999, handshake_packet_.NatDetectionPort());
@@ -576,7 +587,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetMaximumPacketSize(0);
     handshake_packet_.SetMaximumFlowWindowSize(0);
     handshake_packet_.SetConnectionType(0);
+    handshake_packet_.SetConnectionReason(0);
     handshake_packet_.SetSocketId(0);
+    handshake_packet_.set_node_id(NodeId());
     handshake_packet_.SetSynCookie(0);
     handshake_packet_.SetRequestNatDetectionPort(false);
     handshake_packet_.SetNatDetectionPort(0);
@@ -592,7 +605,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0x88888888, handshake_packet_.MaximumPacketSize());
     EXPECT_EQ(0xffffffff, handshake_packet_.MaximumFlowWindowSize());
     EXPECT_EQ(0xdddddddd, handshake_packet_.ConnectionType());
+    EXPECT_EQ(0x33333333, handshake_packet_.ConnectionReason());
     EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
+    EXPECT_EQ(node_id, handshake_packet_.node_id());
     EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
     EXPECT_TRUE(handshake_packet_.RequestNatDetectionPort());
     EXPECT_EQ(9999, handshake_packet_.NatDetectionPort());

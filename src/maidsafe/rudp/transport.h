@@ -26,8 +26,10 @@
 #include "boost/signals2/signal.hpp"
 
 #include "maidsafe/common/asio_service.h"
+#include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
+#include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/nat_type.h"
 #include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/core/session.h"
@@ -36,8 +38,6 @@
 namespace maidsafe {
 
 namespace rudp {
-
-class ManagedConnections;
 
 namespace detail {
 
@@ -59,12 +59,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef boost::signals2::signal<void(const std::string&)> OnMessage;
 
   typedef boost::signals2::signal<
-      void(const boost::asio::ip::udp::endpoint&,
-           std::shared_ptr<Transport>)> OnConnectionAdded;
+      void(const NodeId&, std::shared_ptr<Transport>)> OnConnectionAdded;
 
   typedef boost::signals2::signal<
-      void(const boost::asio::ip::udp::endpoint&,
-           std::shared_ptr<Transport>, bool, bool, bool)> OnConnectionLost;
+      void(const NodeId&, std::shared_ptr<Transport>, bool, bool, bool)> OnConnectionLost;
 
   Transport(AsioService& asio_service, NatType& nat_type_);  // NOLINT (Fraser)
 
@@ -72,7 +70,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   void Bootstrap(
       const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
-      const std::string& this_node_id,
+      const NodeId& this_node_id,
       std::shared_ptr<asymm::PublicKey> this_public_key,
       boost::asio::ip::udp::endpoint local_endpoint,
       bool bootstrap_off_existing_connection,
@@ -80,40 +78,46 @@ class Transport : public std::enable_shared_from_this<Transport> {
       const OnConnectionAdded::slot_type& on_connection_added_slot,
       const OnConnectionLost::slot_type& on_connection_lost_slot,
       const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
-      std::string& chosen_id,
+      NodeId& chosen_id,
       boost::signals2::connection& on_message_connection,
       boost::signals2::connection& on_connection_added_connection,
       boost::signals2::connection& on_connection_lost_connection);
 
   void Close();
 
-  void Connect(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void Connect(const NodeId& peer_id,
+               const EndpointPair& peer_endpoint_pair,
                const std::string& validation_data);
 
   // If this causes the size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
-  int CloseConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
+  int CloseConnection(const NodeId& peer_id);
 
-  bool Send(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  bool Send(const NodeId& peer_id,
             const std::string& message,
             const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
 
-  void Ping(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void Ping(const NodeId& peer_id,
+            const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
+
+  int AddPending(const NodeId& peer_id,
+                 const boost::asio::ip::udp::endpoint& peer_endpoint);
+  int RemovePending(const NodeId& peer_id);
+
+  bool HasNormalConnectionTo(const NodeId& peer_id) const;
 
   boost::asio::ip::udp::endpoint external_endpoint() const;
   boost::asio::ip::udp::endpoint local_endpoint() const;
-  boost::asio::ip::udp::endpoint ThisEndpointAsSeenByPeer(
-      const boost::asio::ip::udp::endpoint& peer_endpoint);
+  boost::asio::ip::udp::endpoint ThisEndpointAsSeenByPeer(const NodeId& peer_id);
   void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
 
-  bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
-  boost::asio::ip::udp::endpoint MakeConnectionPermanent(
-      const boost::asio::ip::udp::endpoint& peer_endpoint);
+  //bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
+  int MakeConnectionPermanent(const NodeId& peer_id);
 
   bool IsResilienceTransport() const { return is_resilience_transport_; }
 
-  size_t ConnectionsCount() const;
+  size_t NormalConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
 
   std::string DebugString();
@@ -127,14 +131,18 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
 
-  bool ConnectToBootstrapEndpoint(const boost::asio::ip::udp::endpoint& bootstrap_endpoint,
-                                  const boost::posix_time::time_duration& lifespan);
+  NodeId ConnectToBootstrapEndpoint(const boost::asio::ip::udp::endpoint& bootstrap_endpoint,
+                                    const boost::posix_time::time_duration& lifespan);
 
-  void DoConnect(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void DoConnect(const NodeId& peer_id,
+                 const EndpointPair& peer_endpoint_pair,
                  const std::string& validation_data);
 
   void StartDispatch();
   void HandleDispatch(const boost::system::error_code& ec);
+
+  NodeId node_id() const;
+  std::shared_ptr<asymm::PublicKey> public_key() const;
 
   void SignalMessageReceived(const std::string& message);
   void DoSignalMessageReceived(const std::string& message);

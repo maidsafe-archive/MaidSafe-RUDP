@@ -45,6 +45,7 @@ enum ReturnCode {
   kConnectAttemptAlreadyRunning = -350022,
   kInvalidId = -350023,
   kNoPendingConnectAttempt = -350024,
+  kBootstrapUpgradeFailure = -350025,
 
   // Upper limit of values for this enum.
   kReturnCodeLimit = -359999

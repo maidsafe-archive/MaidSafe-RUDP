@@ -93,12 +93,16 @@ uint32_t Socket::BestReadBufferSize() {
   return congestion_control_.BestReadBufferSize();
 }
 
-ip::udp::endpoint Socket::RemoteEndpoint() const {
+ip::udp::endpoint Socket::PeerEndpoint() const {
   return peer_.PeerEndpoint();
 }
 
-uint32_t Socket::RemoteId() const {
-  return peer_.Id();
+uint32_t Socket::PeerSocketId() const {
+  return peer_.SocketId();
+}
+
+NodeId Socket::PeerNodeId() const {
+  return peer_.node_id();
 }
 
 bool Socket::IsOpen() const {
@@ -135,7 +139,7 @@ void Socket::Close() {
   }
   session_.Close();
 //  peer_.SetEndpoint(ip::udp::endpoint());
-  peer_.SetId(0);
+  peer_.SetSocketId(0);
   tick_timer_.Cancel();
   waiting_connect_.cancel();
   waiting_write_ec_ = asio::error::operation_aborted;
@@ -151,13 +155,17 @@ void Socket::Close() {
 }
 
 void Socket::StartConnect(
+    const NodeId& this_node_id,
     std::shared_ptr<asymm::PublicKey> this_public_key,
     const ip::udp::endpoint& remote,
+    const NodeId& peer_node_id,
     Session::Mode open_mode,
     const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
   peer_.SetPeerEndpoint(remote);
-  peer_.SetId(0);  // Assigned when handshake response is received.
+  peer_.set_node_id(peer_node_id);
+  peer_.SetSocketId(0);  // Assigned when handshake response is received.
   session_.Open(dispatcher_.AddSocket(this),
+                this_node_id,
                 this_public_key,
                 sender_.GetNextPacketSequenceNumber(),
                 open_mode,
@@ -173,7 +181,7 @@ void Socket::StartProbe() {
     return;
   }
   KeepalivePacket keepalive_packet;
-  keepalive_packet.SetDestinationSocketId(peer_.Id());
+  keepalive_packet.SetDestinationSocketId(peer_.SocketId());
   keepalive_packet.SetSequenceNumber(waiting_keepalive_sequence_number_);
   if (kSuccess != sender_.SendKeepalive(keepalive_packet)) {
     waiting_probe_ec_ = boost::asio::error::try_again;

@@ -53,8 +53,7 @@ std::ostream& operator<<(std::ostream& ostream, const Multiplexer& multiplexer) 
 
 Connection::Connection(const std::shared_ptr<Transport> &transport,
                        const asio::io_service::strand& strand,
-                       const std::shared_ptr<Multiplexer> &multiplexer,
-                       const ip::udp::endpoint& remote)
+                       const std::shared_ptr<Multiplexer> &multiplexer)
     : transport_(transport),
       strand_(strand),
       multiplexer_(multiplexer),
@@ -62,15 +61,17 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       timer_(strand_.get_io_service()),
       probe_interval_timer_(strand_.get_io_service()),
       lifespan_timer_(strand_.get_io_service()),
-      remote_endpoint_(remote),
+      peer_node_id_(),
+      peer_endpoint_(),
       send_buffer_(),
       receive_buffer_(),
       data_size_(0),
       data_received_(0),
       failed_probe_count_(0),
-      timeout_state_(kConnecting),
-      sending_(false),
-      is_temporary_(true) {
+      state_(State::kPending),
+      state_mutex_(),
+      timeout_state_(TimeoutState::kConnecting),
+      sending_(false) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
   timer_.expires_from_now(bptime::pos_infin);
 }
@@ -95,7 +96,7 @@ void Connection::DoClose(bool timed_out) {
     transport_.reset();
     sending_ = false;
     timer_.expires_from_now(Parameters::disconnection_timeout);
-    timeout_state_ = kClosing;
+    timeout_state_ = TimeoutState::kClosing;
   } else {
     // We've already had a go at graceful closure. Just tear down the socket.
     socket_.Close();
@@ -103,35 +104,41 @@ void Connection::DoClose(bool timed_out) {
   }
 }
 
-void Connection::StartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
+void Connection::StartConnecting(const NodeId& peer_node_id,
+                                 const ip::udp::endpoint& peer_endpoint,
                                  const std::string& validation_data,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan) {
-  strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(),
-                             this_public_key, validation_data, connect_attempt_timeout, lifespan,
+  strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
+                             peer_endpoint, validation_data, connect_attempt_timeout, lifespan,
                              PingFunctor()));
 }
 
-void Connection::Ping(std::shared_ptr<asymm::PublicKey> this_public_key,
+void Connection::Ping(const NodeId& peer_node_id,
+                      const ip::udp::endpoint& peer_endpoint,
                       const PingFunctor& ping_functor) {
-  strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(),
-                             this_public_key, "", Parameters::ping_timeout, bptime::time_duration(),
+  strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
+                             peer_endpoint, "", Parameters::ping_timeout, bptime::time_duration(),
                              ping_functor));
 }
 
-void Connection::DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
+void Connection::DoStartConnecting(const NodeId& peer_node_id,
+                                   const ip::udp::endpoint& peer_endpoint,
                                    const std::string& validation_data,
                                    const boost::posix_time::time_duration& connect_attempt_timeout,
                                    const boost::posix_time::time_duration& lifespan,
                                    const PingFunctor& ping_functor) {
+  peer_node_id_ = peer_node_id;
+  peer_endpoint_ = peer_endpoint;
   StartTick();
-  StartConnect(this_public_key, validation_data, connect_attempt_timeout, lifespan, ping_functor);
+  StartConnect(validation_data, connect_attempt_timeout, lifespan, ping_functor);
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
 }
 
-bool Connection::IsTemporary() const {
-  return is_temporary_;
+Connection::State Connection::state() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  return state_;
 }
 
 void Connection::MakePermanent() {
@@ -139,9 +146,10 @@ void Connection::MakePermanent() {
 }
 
 void Connection::DoMakePermanent() {
-  is_temporary_ = false;
   lifespan_timer_.expires_at(bptime::pos_infin);
   socket_.MakePermanent();
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  state_ = State::kPermanent;
 }
 
 ip::udp::endpoint Connection::RemoteNatDetectionEndpoint() const {
@@ -198,7 +206,7 @@ void Connection::CheckTimeout(const bs::error_code& ec) {
   if (timer_.expires_from_now().is_negative()) {
     // Time has run out.
     LOG(kWarning) << "Failed to connect from " << *multiplexer_ << " to "
-                  << socket_.RemoteEndpoint() << " - timed out.";
+                  << socket_.PeerEndpoint() << " - timed out.";
     return DoClose(true);
   }
 
@@ -226,24 +234,23 @@ void Connection::HandleTick() {
 
     // If transmission speed is too slow, the socket shall be forced closed
 //    if (socket_.IsSlowTransmission(sent_length)) {
-//      LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint()
+//      LOG(kWarning) << "Connection to " << socket_.PeerEndpoint()
 //                    << " has slow transmission - closing now.";
 //      return DoClose();
 //    }
 //  }
 
-  if (timeout_state_ == kConnecting && !multiplexer_->IsOpen())
+  if (timeout_state_ == TimeoutState::kConnecting && !multiplexer_->IsOpen())
     return DoClose();
 
   // We need to keep ticking during a graceful shutdown.
-  if (timeout_state_ == kClosing && timer_.expires_from_now().is_negative())
+  if (timeout_state_ == TimeoutState::kClosing && timer_.expires_from_now().is_negative())
     return DoClose();
 
   StartTick();
 }
 
-void Connection::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
-                              const std::string& validation_data,
+void Connection::StartConnect(const std::string& validation_data,
                               const boost::posix_time::time_duration& connect_attempt_timeout,
                               const boost::posix_time::time_duration& lifespan,
                               const PingFunctor& ping_functor) {
@@ -262,10 +269,11 @@ void Connection::StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
     }
   }
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    socket_.AsyncConnect(this_public_key, remote_endpoint_, handler, open_mode,
+    socket_.AsyncConnect(transport->node_id(), transport->public_key(), peer_endpoint_,
+                         peer_node_id_, handler, open_mode,
                          transport->on_nat_detection_requested_slot_);
     timer_.expires_from_now(connect_attempt_timeout);
-    timeout_state_ = kConnecting;
+    timeout_state_ = TimeoutState::kConnecting;
   }
 }
 
@@ -280,12 +288,12 @@ void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
   if (lifespan_timer_.expires_from_now() != bptime::pos_infin) {
     if (lifespan_timer_.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
       LOG(kInfo) << "Closing connection from " << *multiplexer_ << " to "
-                 << socket_.RemoteEndpoint() << "  Lifespan remaining: "
+                 << socket_.PeerEndpoint() << "  Lifespan remaining: "
                  << lifespan_timer_.expires_from_now();
       return DoClose();
     } else {
       LOG(kInfo) << "Spuriously checking lifespan timeout of connection from " << *multiplexer_
-                 << " to " << socket_.RemoteEndpoint() << "  Lifespan remaining: "
+                 << " to " << socket_.PeerEndpoint() << "  Lifespan remaining: "
                  << lifespan_timer_.expires_from_now();
       lifespan_timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckLifespanTimeout,
                                                         shared_from_this(), args::_1)));
@@ -300,7 +308,7 @@ void Connection::HandleConnect(const bs::error_code& ec,
 #ifndef NDEBUG
     if (!Stopped())
       LOG(kError) << "Failed to connect from " << *multiplexer_ << " to "
-                  << socket_.RemoteEndpoint() << " - " << ec.message();
+                  << socket_.PeerEndpoint() << " - " << ec.message();
 #endif
     if (ping_functor)
       ping_functor(kPingFailed);
@@ -311,7 +319,7 @@ void Connection::HandleConnect(const bs::error_code& ec,
     if (ping_functor) {
       ping_functor(kSuccess);
     } else {
-      LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+      LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                     << " already stopped.";
     }
     return DoClose();
@@ -325,7 +333,7 @@ void Connection::HandleConnect(const bs::error_code& ec,
   }
 
   timer_.expires_at(boost::posix_time::pos_infin);
-  timeout_state_ = kConnected;
+  timeout_state_ = TimeoutState::kConnected;
 
   StartProbing();
   StartReadSize();
@@ -333,7 +341,7 @@ void Connection::HandleConnect(const bs::error_code& ec,
     StartSending(validation_data, [this](int result) {
         if (result != kSuccess) {
           LOG(kWarning) << "Failed to send validation data from " << *multiplexer_ << " to "
-                         << socket_.RemoteEndpoint() << "  Result: " << result;
+                         << socket_.PeerEndpoint() << "  Result: " << result;
         }
     });
   }
@@ -341,7 +349,7 @@ void Connection::HandleConnect(const bs::error_code& ec,
 
 void Connection::StartReadSize() {
   if (Stopped()) {
-    LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+    LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                   << " already stopped.";
     return DoClose();
   }
@@ -357,7 +365,7 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
 #ifndef NDEBUG
     if (!Stopped()) {
       LOG(kWarning) << "Failed to read size.  Connection from " << *multiplexer_ << " to "
-                    << socket_.RemoteEndpoint() << " error - " << ec.message();
+                    << socket_.PeerEndpoint() << " error - " << ec.message();
     }
 #endif
     return DoClose();
@@ -365,7 +373,7 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
 
   if (Stopped()) {
     LOG(kWarning) << "Failed to read size.  Connection from " << *multiplexer_ << " to "
-                  << socket_.RemoteEndpoint() << " already stopped.";
+                  << socket_.PeerEndpoint() << " already stopped.";
     return DoClose();
   }
 
@@ -380,7 +388,7 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
 
 void Connection::StartReadData() {
   if (Stopped()) {
-    LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+    LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                   << " already stopped.";
     return DoClose();
   }
@@ -399,7 +407,7 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
 #ifndef NDEBUG
     if (!Stopped()) {
       LOG(kError) << "Failed to read data.  Connection from " << *multiplexer_ << " to "
-                  << socket_.RemoteEndpoint() << " error - " << ec.message();
+                  << socket_.PeerEndpoint() << " error - " << ec.message();
     }
 #endif
     return DoClose();
@@ -407,7 +415,7 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
 
   if (Stopped()) {
     LOG(kError) << "Failed to read data.  Connection from " << *multiplexer_ << " to "
-                << socket_.RemoteEndpoint() << " already stopped.";
+                << socket_.PeerEndpoint() << " already stopped.";
     return DoClose();
   }
 
@@ -421,7 +429,7 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
 //      timer_.expires_from_now(Parameters::speed_calculate_inverval);
 //    // If transmission speed is too slow, the socket shall be forced closed
 //    if (socket_.IsSlowTransmission(length)) {
-//      LOG(kWarning) << "Connection to " << socket_.RemoteEndpoint()
+//      LOG(kWarning) << "Connection to " << socket_.PeerEndpoint()
 //                    << " has slow transmission - closing now.";
 //      return DoClose();
 //    }
@@ -455,7 +463,7 @@ bool Connection::EncodeData(const std::string& data) {
 
 void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
   if (Stopped()) {
-    LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+    LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                 << " - connection stopped.";
     InvokeSentFunctor(message_sent_functor, kSendFailure);
     return DoClose();
@@ -471,7 +479,7 @@ void Connection::HandleWrite(const bs::error_code& ec,
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped()) {
-      LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+      LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                   << " error - " << ec.message();
     }
 #endif
@@ -480,7 +488,7 @@ void Connection::HandleWrite(const bs::error_code& ec,
   }
 
   if (Stopped()) {
-    LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+    LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                 << " - connection stopped.";
     InvokeSentFunctor(message_sent_functor, kSendFailure);
     return DoClose();
@@ -517,7 +525,7 @@ void Connection::HandleProbe(const bs::error_code& ec) {
     bs::error_code ignored_ec;
     DoProbe(ignored_ec);
   } else {
-    LOG(kWarning) << "Failed to probe from " << *multiplexer_ << " to " << socket_.RemoteEndpoint()
+    LOG(kWarning) << "Failed to probe from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                   << " error - " << ec.message();
     return DoClose();
   }
@@ -529,6 +537,37 @@ void Connection::InvokeSentFunctor(const MessageSentFunctor& message_sent_functo
     if (std::shared_ptr<Transport> transport = transport_.lock())
       message_sent_functor(result);
   }
+}
+
+template <typename Elem, typename Traits>
+std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
+                                             const Connection::State &state) {
+  boost::system::error_code error_code;
+  std::string state_str;
+  switch (state) {
+    case Connection::State::kPending:
+      state_str = "kPending";
+      break;
+    case Connection::State::kTemporary:
+      state_str = "kTemporary";
+      break;
+    case Connection::State::kBootstrapping:
+      state_str = "kBootstrapping";
+      break;
+    case Connection::State::kUnvalidated:
+      state_str = "kUnvalidated";
+      break;
+    case Connection::State::kPermanent:
+      state_str = "kPermanent";
+      break;
+    default:
+      state_str = "Invalid";
+      break;
+  }
+  
+  for (std::string::iterator i = s.begin(); i != s.end(); ++i)
+    ostream << ostream.widen(*i);
+  return ostream;
 }
 
 }  // namespace detail

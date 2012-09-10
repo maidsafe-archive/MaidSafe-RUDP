@@ -26,6 +26,7 @@
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 #include "boost/thread/mutex.hpp"
 
+#include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
 
@@ -39,6 +40,7 @@ class Transport;
 class Connection;
 class Multiplexer;
 class Socket;
+class HandshakePacket;
 
 
 class ConnectionManager {
@@ -46,46 +48,51 @@ class ConnectionManager {
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
                     std::shared_ptr<Multiplexer> multiplexer,
-                    const std::string& this_node_id,
+                    const NodeId& this_node_id,
                     std::shared_ptr<asymm::PublicKey> this_public_key);
   ~ConnectionManager();
 
   void Close();
 
-  void Connect(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void Connect(const NodeId& peer_id,
+               const boost::asio::ip::udp::endpoint& peer_endpoint,
                const std::string& validation_data,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan);
   void InsertConnection(std::shared_ptr<Connection> connection);
+  int AddPending(const NodeId& peer_id,
+                 const boost::asio::ip::udp::endpoint& peer_endpoint);
 
   // Returns kSuccess if the connection existed and was closed.  Returns
   // kInvalidConnection if the connection didn't exist.
-  int CloseConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
+  int CloseConnection(const NodeId& peer_id);
   void RemoveConnection(std::shared_ptr<Connection> connection,
                         bool& connections_empty,
                         bool& temporary_connection);
+  int RemovePending(const NodeId& peer_id);
 
-  void Ping(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  bool HasNormalConnectionTo(const NodeId& peer_id) const;
+
+  void Ping(const NodeId& peer_id,
+            const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
-  bool Send(const boost::asio::ip::udp::endpoint& peer_endpoint,
+  bool Send(const NodeId& peer_id,
             const std::string& message,
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
-  bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
-  boost::asio::ip::udp::endpoint MakeConnectionPermanent(
-      const boost::asio::ip::udp::endpoint& peer_endpoint);
+  //bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
+  int MakeConnectionPermanent(const NodeId& peer_id);
 
   // This node's endpoint as viewed by peer
-  boost::asio::ip::udp::endpoint ThisEndpoint(const boost::asio::ip::udp::endpoint& peer_endpoint);
+  boost::asio::ip::udp::endpoint ThisEndpoint(const NodeId& peer_id);
 
   // Called by Transport when bootstrapping a new transport but when we don't create a temporary
   // connection to establish external endpoint (i.e this node's NAT is symmetric)
   void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
 
   // Get the remote endpoint offered for NAT detection by peer.
-  boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint(
-      const boost::asio::ip::udp::endpoint& peer_endpoint);
+  boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint(const NodeId& peer_id);
 
   // Add a socket. Returns a new unique id for the socket.
   uint32_t AddSocket(Socket* socket);
@@ -95,7 +102,10 @@ class ConnectionManager {
   Socket* GetSocket(const boost::asio::const_buffer& data,
                     const boost::asio::ip::udp::endpoint& endpoint);
 
-  size_t size() const;
+  size_t NormalConnectionsCount() const;
+
+  NodeId node_id() const;
+  std::shared_ptr<asymm::PublicKey> public_key() const;
 
   std::string DebugString();
 
@@ -109,18 +119,19 @@ class ConnectionManager {
   // Map of destination socket id to corresponding socket object.
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;
 
-  void HandlePingFrom(const boost::asio::const_buffer& data,
+  void HandlePingFrom(const HandshakePacket& handshake_packet,
                       const boost::asio::ip::udp::endpoint& endpoint);
-  ConnectionSet::iterator FindConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
+  ConnectionSet::iterator FindConnection(const NodeId& peer_id) const;
 
   // Because the connections can be in an idle state with no pending async operations, they are kept
   // alive with a shared_ptr in this set, as well as in the async operation handlers.
-  ConnectionSet connections_;
+  ConnectionSet connections_, temporaries_;
+  std::map<NodeId, boost::asio::ip::udp::endpoint> pendings_;
   mutable boost::mutex mutex_;
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
   std::shared_ptr<Multiplexer> multiplexer_;
-  const std::string kThisNodeId_;
+  const NodeId kThisNodeId_;
   std::shared_ptr<asymm::PublicKey> this_public_key_;
   SocketMap sockets_;
 };

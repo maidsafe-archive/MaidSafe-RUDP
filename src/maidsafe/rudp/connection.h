@@ -14,7 +14,7 @@
 #ifndef MAIDSAFE_RUDP_CONNECTION_H_
 #define MAIDSAFE_RUDP_CONNECTION_H_
 
-#include <atomic>
+#include <mutex>
 #include <functional>
 #include <memory>
 #include <string>
@@ -49,26 +49,34 @@ class Connection : public std::enable_shared_from_this<Connection> {
 #endif
 
  public:
+  enum class State {
+    kPending,        // GetAvailableEndpoint has been called, but connection has not yet been made
+    kTemporary,      // Not used for sending messages; ping, peer external IP or NAT detection, etc.
+    kBootstrapping,  // Incoming or outgoing short-lived (unvalidated) connection
+    kUnvalidated,    // Permanent connection which has not been validated
+    kPermanent       // Validated permanent connection
+  };
+
   Connection(const std::shared_ptr<Transport> &transport,
              const boost::asio::io_service::strand& strand,
-             const std::shared_ptr<Multiplexer> &multiplexer,
-             const boost::asio::ip::udp::endpoint& remote);
+             const std::shared_ptr<Multiplexer> &multiplexer);
 
   detail::Socket& Socket();
 
   void Close();
   // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
   // after lifespan has passed.
-  void StartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
+  void StartConnecting(const NodeId& peer_node_id,
+                       const boost::asio::ip::udp::endpoint& peer_endpoint,
                        const std::string& validation_data,
                        const boost::posix_time::time_duration& connect_attempt_timeout,
                        const boost::posix_time::time_duration& lifespan);
-  void Ping(std::shared_ptr<asymm::PublicKey> this_public_key,
+  void Ping(const NodeId& peer_node_id,
+            const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
   void StartSending(const std::string& data, const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
-  // Returns true if lifespan_timer_ expires at < pos_infin.
-  bool IsTemporary() const;
-  // Sets the lifespan_timer_ to expire at pos_infin.
+  State state() const;
+  // Sets the state_ to kPermanent and sets the lifespan_timer_ to expire at pos_infin.
   void MakePermanent();
   // Get the remote endpoint offered for NAT detection.
   boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
@@ -81,7 +89,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   Connection& operator=(const Connection&);
 
   void DoClose(bool timed_out = false);
-  void DoStartConnecting(std::shared_ptr<asymm::PublicKey> this_public_key,
+  void DoStartConnecting(const NodeId& peer_node_id,
+                         const boost::asio::ip::udp::endpoint& peer_endpoint,
                          const std::string& validation_data,
                          const boost::posix_time::time_duration& connect_attempt_timeout,
                          const boost::posix_time::time_duration& lifespan,
@@ -96,8 +105,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartTick();
   void HandleTick();
 
-  void StartConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
-                    const std::string& validation_data,
+  void StartConnect(const std::string& validation_data,
                     const boost::posix_time::time_duration& connect_attempt_timeout,
                     const boost::posix_time::time_duration& lifespan,
                     const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
@@ -131,14 +139,20 @@ class Connection : public std::enable_shared_from_this<Connection> {
   std::shared_ptr<Multiplexer> multiplexer_;
   maidsafe::rudp::detail::Socket socket_;
   boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
-  boost::asio::ip::udp::endpoint remote_endpoint_;
+  NodeId peer_node_id_;
+  boost::asio::ip::udp::endpoint peer_endpoint_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   size_t data_size_, data_received_;
   uint8_t failed_probe_count_;
-  enum TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
+  State state_;
+  mutable std::mutex state_mutex_;
+  enum class TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
   bool sending_;
-  std::atomic<bool> is_temporary_;
 };
+
+template <typename Elem, typename Traits>
+std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
+                                             const Connection::State &state);
 
 }  // namespace detail
 

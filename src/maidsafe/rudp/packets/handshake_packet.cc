@@ -33,7 +33,9 @@ HandshakePacket::HandshakePacket()
       maximum_packet_size_(0),
       maximum_flow_window_size_(0),
       connection_type_(0),
+      connection_reason_(0),
       socket_id_(0),
+      node_id_(),
       syn_cookie_(0),
       request_nat_detection_port_(false),
       nat_detection_port_(0),
@@ -90,12 +92,28 @@ void HandshakePacket::SetConnectionType(uint32_t n) {
   connection_type_ = n;
 }
 
+uint32_t HandshakePacket::ConnectionReason() const {
+  return connection_reason_;
+}
+
+void HandshakePacket::SetConnectionReason(uint32_t n) {
+  connection_reason_ = n;
+}
+
 uint32_t HandshakePacket::SocketId() const {
   return socket_id_;
 }
 
 void HandshakePacket::SetSocketId(uint32_t n) {
   socket_id_ = n;
+}
+
+NodeId HandshakePacket::node_id() const {
+  return node_id_;
+}
+
+void HandshakePacket::set_node_id(NodeId node_id) {
+  node_id_ = node_id;
 }
 
 uint32_t HandshakePacket::SynCookie() const {
@@ -177,15 +195,17 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   DecodeUint32(&maximum_packet_size_, p + 12);
   DecodeUint32(&maximum_flow_window_size_, p + 16);
   DecodeUint32(&connection_type_, p + 20);
-  DecodeUint32(&socket_id_, p + 24);
-  DecodeUint32(&syn_cookie_, p + 28);
+  DecodeUint32(&connection_reason_, p + 24);
+  DecodeUint32(&socket_id_, p + 28);
+  node_id_ = NodeId(std::string(p + 32, p + 95));
+  DecodeUint32(&syn_cookie_, p + 96);
 
-  request_nat_detection_port_ = ((p[32] & 0x80) != 0);
-  nat_detection_port_ = p[33];
-  nat_detection_port_ = ((nat_detection_port_ << 8) | p[34]);
+  request_nat_detection_port_ = ((p[100] & 0x80) != 0);
+  nat_detection_port_ = p[101];
+  nat_detection_port_ = ((nat_detection_port_ << 8) | p[102]);
 
   asio::ip::address_v6::bytes_type bytes;
-  std::memcpy(&bytes[0], p + 35, 16);
+  std::memcpy(&bytes[0], p + 103, 16);
   asio::ip::address_v6 ip_v6_address(bytes);
 
   asio::ip::address ip_address;
@@ -194,13 +214,13 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   else
     ip_address = ip_v6_address;
 
-  unsigned short port = p[51];
-  port = ((port << 8) | p[52]);
+  unsigned short port = p[119];
+  port = ((port << 8) | p[120]);
 
   peer_endpoint_ = asio::ip::udp::endpoint(ip_address, port);
 
   if (asio::buffer_size(buffer) != kMinPacketSize) {
-    std::string encoded_public_key(p + 53, p + length);
+    std::string encoded_public_key(p + 121, p + length);
     public_key_.reset(new asymm::PublicKey);
     asymm::DecodePublicKey(encoded_public_key, public_key_.get());
     if (!asymm::ValidateKey(*public_key_)) {
@@ -240,12 +260,14 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer& buffer) const {
   EncodeUint32(maximum_packet_size_, p + 12);
   EncodeUint32(maximum_flow_window_size_, p + 16);
   EncodeUint32(connection_type_, p + 20);
-  EncodeUint32(socket_id_, p + 24);
-  EncodeUint32(syn_cookie_, p + 28);
+  EncodeUint32(connection_reason_, p + 24);
+  EncodeUint32(socket_id_, p + 28);
+  std::memcpy(p + 32, node_id_.String().data(), 64);
+  EncodeUint32(syn_cookie_, p + 96);
 
-  p[32] = (request_nat_detection_port_ ? 0x80 : 0);
-  p[33] = ((nat_detection_port_ >> 8) & 0xff);
-  p[34] = (nat_detection_port_ & 0xff);
+  p[100] = (request_nat_detection_port_ ? 0x80 : 0);
+  p[101] = ((nat_detection_port_ >> 8) & 0xff);
+  p[102] = (nat_detection_port_ & 0xff);
 
   boost::asio::ip::address_v6 ip_address;
   if (peer_endpoint_.address().is_v4()) {
@@ -254,12 +276,12 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer& buffer) const {
     ip_address = peer_endpoint_.address().to_v6();
   }
   asio::ip::address_v6::bytes_type bytes = ip_address.to_bytes();
-  std::memcpy(p + 35, &bytes[0], 16);
+  std::memcpy(p + 103, &bytes[0], 16);
 
-  p[51] = ((peer_endpoint_.port() >> 8) & 0xff);
-  p[52] = (peer_endpoint_.port() & 0xff);
+  p[119] = ((peer_endpoint_.port() >> 8) & 0xff);
+  p[120] = (peer_endpoint_.port() & 0xff);
 
-  std::memcpy(p + 53, encoded_public_key.data(), encoded_public_key.size());
+  std::memcpy(p + 121, encoded_public_key.data(), encoded_public_key.size());
 
   return kMinPacketSize + encoded_public_key.size();
 }

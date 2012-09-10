@@ -51,6 +51,7 @@ class Session {
 
   // Open the session.
   void Open(uint32_t id,
+            NodeId this_node_id,
             std::shared_ptr<asymm::PublicKey> this_public_key,
             uint32_t sequence_number,
             Mode mode,
@@ -117,6 +118,9 @@ class Session {
   // This node's NAT type.  Object owned by ManagedConnections.
   NatType& nat_type_;
 
+  // This node's NodeId
+  NodeId this_node_id_;
+
   // This node's public key
   std::shared_ptr<asymm::PublicKey> this_public_key_;
 
@@ -133,7 +137,7 @@ class Session {
   uint32_t peer_connection_type_;
 
   // Whether the peer requested another port to do NAT detection.
-  bool peer_requested_nat_detetction_port_;
+  bool peer_requested_nat_detection_port_;
 
   // Endpoint offered by peer for this node to perform NAT detection
   boost::asio::ip::udp::endpoint peer_nat_detection_endpoint_;

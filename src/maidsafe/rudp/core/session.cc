@@ -49,7 +49,7 @@ Session::Session(Peer& peer,  // NOLINT (Fraser)
       sending_sequence_number_(0),
       receiving_sequence_number_(0),
       peer_connection_type_(0),
-      peer_requested_nat_detetction_port_(false),
+      peer_requested_nat_detection_port_(false),
       peer_nat_detection_endpoint_(),
       mode_(kNormal),
       state_(kClosed),
@@ -57,6 +57,7 @@ Session::Session(Peer& peer,  // NOLINT (Fraser)
       signal_connection_() {}
 
 void Session::Open(uint32_t id,
+                   NodeId this_node_id,
                    std::shared_ptr<asymm::PublicKey> this_public_key,
                    uint32_t sequence_number,
                    Mode mode,
@@ -64,6 +65,7 @@ void Session::Open(uint32_t id,
   assert(id != 0);
   assert(this_public_key);
   id_ = id;
+  this_node_id_ = this_node_id;
   this_public_key_ = this_public_key;
   sending_sequence_number_ = sequence_number;
   mode_ = mode;
@@ -98,14 +100,27 @@ void Session::Close() {
 }
 
 void Session::HandleHandshake(const HandshakePacket& packet) {
-  if (peer_.Id() == 0)
-    peer_.SetId(packet.SocketId());
+  if (peer_.SocketId() == 0)
+    peer_.SetSocketId(packet.SocketId());
+
+  if (packet.node_id() == NodeId()) {
+    LOG(kError) << "ZeroId passed in handshake packet from peer " << DebugId(peer_.node_id());
+    return;
+  }
+
+  if (peer_.node_id() == NodeId()) {
+    peer_.set_node_id(packet.node_id());
+  } else if (peer_.node_id() != packet.node_id()) {
+    LOG(kError) << "Expected handshake from " << DebugId(peer_.node_id())
+                << " but got handshake from " << DebugId(packet.node_id());
+    return;
+  }
 
   // TODO(Fraser#5#): 2012-04-04 - Handle SynCookies
   if (state_ == kProbing) {
 //    if (packet.ConnectionType() == 1 && packet.SynCookie() == 0)
     state_ = kHandshaking;
-    peer_requested_nat_detetction_port_ = packet.RequestNatDetectionPort();
+    peer_requested_nat_detection_port_ = packet.RequestNatDetectionPort();
     SendCookie();
   } else if (state_ == kHandshaking) {
     if (packet.InitialPacketSequenceNumber() == 0) {
@@ -136,6 +151,11 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
 
     if (mode_ == kBootstrapAndDrop)
       return;
+
+    if (packet.ConnectionReason() != kNormal && mode_ == kNormal)
+      mode_ = static_cast<Mode>(packet.ConnectionReason());
+    if (packet.ConnectionReason() == kBootstrapAndDrop && mode_ == kBootstrapAndKeep)
+      mode_ = kBootstrapAndDrop;
 
     SendCookie();
 //    }
@@ -201,9 +221,11 @@ void Session::SendConnectionRequest() {
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetSocketId(id_);
+  packet.set_node_id(this_node_id_);
   packet.SetPeerEndpoint(peer_.PeerEndpoint());
-  packet.SetDestinationSocketId((mode_ == kNormal) ? 0 : 0xffffffff);
+  packet.SetDestinationSocketId(0);
   packet.SetConnectionType(1);
+  packet.SetConnectionReason(mode_);
   packet.SetRequestNatDetectionPort(nat_type_ == NatType::kUnknown &&
                                     !OnPrivateNetwork(peer_.PeerEndpoint()));
 
@@ -218,7 +240,7 @@ void Session::SendConnectionRequest() {
 void Session::SendCookie() {
   HandshakePacket packet;
   packet.SetPeerEndpoint(peer_.PeerEndpoint());
-  packet.SetDestinationSocketId(peer_.Id());
+  packet.SetDestinationSocketId(peer_.SocketId());
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetInitialPacketSequenceNumber(sending_sequence_number_);
@@ -226,10 +248,11 @@ void Session::SendCookie() {
   packet.SetMaximumFlowWindowSize(Parameters::maximum_window_size);
   packet.SetConnectionType(Parameters::connection_type);
   packet.SetSocketId(id_);
+  packet.set_node_id(this_node_id_);
   packet.SetSynCookie(1);  // TODO(Team) calculate cookie
   packet.SetRequestNatDetectionPort(false);
   uint16_t port(0);
-  if (peer_requested_nat_detetction_port_)
+  if (peer_requested_nat_detection_port_)
     on_nat_detection_requested_(kThisLocalEndpoint_, peer_.PeerEndpoint(), port);
   packet.SetNatDetectionPort(port);
   packet.SetPublicKey(this_public_key_);

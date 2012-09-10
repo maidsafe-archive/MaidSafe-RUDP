@@ -26,6 +26,7 @@
 #include "boost/asio/strand.hpp"
 #include "boost/asio/ip/udp.hpp"
 
+#include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
 #include "maidsafe/rudp/core/congestion_control.h"
@@ -70,10 +71,13 @@ class Socket {
   uint32_t Id() const;
 
   // Get the remote endpoint to which the socket is connected.
-  boost::asio::ip::udp::endpoint RemoteEndpoint() const;
+  boost::asio::ip::udp::endpoint PeerEndpoint() const;
 
   // Get the remote socket identifier to which the socket is connected.
-  uint32_t RemoteId() const;
+  uint32_t PeerSocketId() const;
+
+  // Get the remote socket identifier to which the socket is connected.
+  NodeId PeerNodeId() const;
 
   // Returns whether the connection is open.
   bool IsOpen() const;
@@ -120,14 +124,17 @@ class Socket {
   // caller to set a timeout and close the socket after the timeout period
   // expires.
   template <typename ConnectHandler>
-  void AsyncConnect(std::shared_ptr<asymm::PublicKey> this_public_key,
+  void AsyncConnect(const NodeId& this_node_id,
+                    std::shared_ptr<asymm::PublicKey> this_public_key,
                     const boost::asio::ip::udp::endpoint& remote,
+                    const NodeId& peer_node_id,
                     ConnectHandler handler,
                     Session::Mode open_mode,
                     Session::OnNatDetectionRequested::slot_type on_nat_detection_requested_slot) {
     ConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
     waiting_connect_.async_wait(op);
-    StartConnect(this_public_key, remote, open_mode, on_nat_detection_requested_slot);
+    StartConnect(this_node_id, this_public_key, remote, peer_node_id, open_mode,
+                 on_nat_detection_requested_slot);
   }
 
   // Initiate an asynchronous operation to write data. The operation will
@@ -191,8 +198,10 @@ class Socket {
   Socket& operator=(const Socket&);
 
   void StartConnect(
+      const NodeId& this_node_id,
       std::shared_ptr<asymm::PublicKey> this_public_key,
       const boost::asio::ip::udp::endpoint& remote,
+      const NodeId& peer_node_id,
       Session::Mode open_mode,
       const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
   void StartWrite(const boost::asio::const_buffer& data,

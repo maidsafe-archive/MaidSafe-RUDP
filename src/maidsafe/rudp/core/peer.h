@@ -18,6 +18,7 @@
 
 #include "boost/asio/ip/udp.hpp"
 #include "maidsafe/common/log.h"
+#include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 
@@ -34,7 +35,8 @@ class Peer {
       : multiplexer_(multiplexer),
         peer_endpoint_(),
         this_endpoint_(),
-        id_(0),
+        socket_id_(0),
+        node_id_(),
         public_key_(),
         peer_guessed_port_(0) {}
 
@@ -46,8 +48,11 @@ class Peer {
   const boost::asio::ip::udp::endpoint& ThisEndpoint() const { return this_endpoint_; }
   void SetThisEndpoint(const boost::asio::ip::udp::endpoint& ep) { this_endpoint_ = ep; }
 
-  uint32_t Id() const { return id_; }
-  void SetId(uint32_t id) { id_ = id; }
+  uint32_t SocketId() const { return socket_id_; }
+  void SetSocketId(uint32_t id) { socket_id_ = id; }
+
+  NodeId node_id() const { return node_id_; }
+  void set_node_id(NodeId node_id) { node_id_ = node_id; }
 
   std::shared_ptr<asymm::PublicKey> public_key() const { return public_key_; }
   void SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key) {
@@ -74,7 +79,10 @@ class Peer {
   // The remote socket's endpoint and this node's socket endpoint as seen by peer.
   boost::asio::ip::udp::endpoint peer_endpoint_, this_endpoint_;
   // The remote socket's identifier.
-  uint32_t id_;
+  uint32_t socket_id_;
+  // The remote peer's NodeId
+  NodeId node_id_;
+  // The remote peer's PublicKey
   std::shared_ptr<asymm::PublicKey> public_key_;
   // The port originally guessed by the peer when passing its details to this node.  This will be
   // set by the ConnectionManager if it detects that the peer's actual external port is different to
