@@ -995,7 +995,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   nodes_[0]->ResetData();
   result_of_send = kSuccess;
   result_arrived = false;
-  nodes_[0]->managed_connections()->Send(nodes.node_id(), "message04",
+  nodes_[0]->managed_connections()->Send(node_.node_id(), "message04",
                                          message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kInvalidConnection, result_of_send);
