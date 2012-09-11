@@ -472,8 +472,10 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
                                                detail::TransportPtr transport,
                                                bool temporary_connection,
                                                bool& is_duplicate_normal_connection) {
-  std::string s("\n++++++++++++ OnConnectionAddedSlot to ");
-  s += DebugId(peer_id) + " ++++++++++++\n" + DebugString();
+  std::string s("\n++++++++++++ OnConnectionAddedSlot ++++++++++++\nAdding ");
+  s += (temporary_connection ? "temporary" : "non-temporary");
+  s += " connection from ";
+  s += transport->ThisDebugId() + " to " + DebugId(peer_id).substr(0, 7) + '\n' + DebugString();
   LOG(kVerbose) << s;
 
   is_duplicate_normal_connection = false;
@@ -601,15 +603,15 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
 
 
 std::string ManagedConnections::DebugString() const {
-  std::string s = "This node's own transports and their peer connections:\n";
+  std::string s = "This node's peer connections:\n";
 
   std::set<TransportPtr> transports;
   for (auto connection : connections_) {
     transports.insert(connection.second);
-    s += '\t' + DebugId(connection.first) + '\n';
+    s += '\t' + DebugId(connection.first).substr(0, 7) + '\n';
   }
 
-  s += '\n';
+  s += "\nThis node's own transports and their peer connections:\n";
 
   for (auto transport : transports)
     s += transport->DebugString();
