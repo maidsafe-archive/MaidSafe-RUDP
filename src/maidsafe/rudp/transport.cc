@@ -50,6 +50,9 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)  // NOLINT (F
       on_connection_added_(),
       on_connection_lost_(),
       on_nat_detection_requested_slot_(),
+      on_message_connection_(),
+      on_connection_added_connection_(),
+      on_connection_lost_connection_(),
       is_resilience_transport_(false) {}
 
 Transport::~Transport() {
@@ -66,10 +69,7 @@ void Transport::Bootstrap(
     const OnConnectionAdded::slot_type& on_connection_added_slot,
     const OnConnectionLost::slot_type& on_connection_lost_slot,
     const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
-    NodeId& chosen_id,
-    boost::signals2::connection& on_message_connection,
-    boost::signals2::connection& on_connection_added_connection,
-    boost::signals2::connection& on_connection_lost_connection) {
+    NodeId& chosen_id) {
   BOOST_ASSERT(on_nat_detection_requested_slot);
   BOOST_ASSERT(!multiplexer_->IsOpen());
 
@@ -77,10 +77,10 @@ void Transport::Bootstrap(
   // We want these 3 slots to be invoked before any others connected, so that if we wait elsewhere
   // for the other connected slot(s) to be executed, we can be assured that these main slots have
   // already been executed at that point in time.
-  on_message_connection = on_message_.connect(on_message_slot, boost::signals2::at_front);
-  on_connection_added_connection =
+  on_message_connection_ = on_message_.connect(on_message_slot, boost::signals2::at_front);
+  on_connection_added_connection_ =
       on_connection_added_.connect(on_connection_added_slot, boost::signals2::at_front);
-  on_connection_lost_connection =
+  on_connection_lost_connection_ =
       on_connection_lost_.connect(on_connection_lost_slot, boost::signals2::at_front);
 
   on_nat_detection_requested_slot_ = on_nat_detection_requested_slot;
@@ -150,7 +150,10 @@ NodeId Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
   bool timed_out_connecting(false);
   NodeId peer_id;
   auto slot_connection_added(on_connection_added_.connect(
-      [&](const NodeId& connected_peer_id, detail::TransportPtr /*transport*/) {
+      [&](const NodeId& connected_peer_id,
+          TransportPtr /*transport*/,
+          bool /*temporary_connection*/,
+          bool& /*is_duplicate_normal_connection*/) {
     assert(!slot_called);
     boost::mutex::scoped_lock local_lock(local_mutex);
     slot_called = true;
@@ -159,7 +162,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
   }, boost::signals2::at_back));
   auto slot_connection_lost(on_connection_lost_.connect(
       [&](const NodeId& /*connected_peer_id*/,
-          detail::TransportPtr /*transport*/,
+          TransportPtr /*transport*/,
           bool /*connections_empty*/,
           bool /*temporary_connection*/,
           bool timed_out) {
@@ -217,6 +220,9 @@ NodeId Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
 }
 
 void Transport::Close() {
+  on_message_connection_.disconnect();
+  on_connection_added_connection_.disconnect();
+  on_connection_lost_connection_.disconnect();
   if (connection_manager_)
     connection_manager_->Close();
   if (multiplexer_)
@@ -236,6 +242,8 @@ void Transport::DoConnect(const NodeId& peer_id,
   if (!multiplexer_->IsOpen())
     return;
 
+  // TODO(Fraser#5#): 2012-09-11 - This code block is largely copied from ConnectToBootstrapEndpoint
+  //                             - move to separate function.
   if (IsValid(peer_endpoint_pair.external)) {
     // Temporarily connect to the signals until the connect attempt has succeeded or failed.
     boost::mutex local_mutex;
@@ -243,7 +251,10 @@ void Transport::DoConnect(const NodeId& peer_id,
     bool slot_called(false);
     bool timed_out_connecting(false);
     auto slot_connection_added(on_connection_added_.connect(
-        [&](const NodeId& connected_peer_id, detail::TransportPtr /*transport*/) {
+        [&](const NodeId& connected_peer_id,
+            TransportPtr /*transport*/,
+            bool /*temporary_connection*/,
+            bool& /*is_duplicate_normal_connection*/) {
       boost::mutex::scoped_lock local_lock(local_mutex);
       if (peer_id == connected_peer_id) {
         slot_called = true;
@@ -252,7 +263,7 @@ void Transport::DoConnect(const NodeId& peer_id,
     }, boost::signals2::at_back));
     auto slot_connection_lost(on_connection_lost_.connect(
         [&](const NodeId& connected_peer_id,
-            detail::TransportPtr /*transport*/,
+            TransportPtr /*transport*/,
             bool /*connections_empty*/,
             bool /*temporary_connection*/,
             bool timed_out) {
@@ -298,8 +309,8 @@ void Transport::Ping(const NodeId& peer_id,
   connection_manager_->Ping(peer_id, peer_endpoint, ping_functor);
 }
 
-int Transport::AddPending(const NodeId& peer_id,
-                          const boost::asio::ip::udp::endpoint& peer_endpoint) {
+bool Transport::AddPending(const NodeId& peer_id,
+                           const boost::asio::ip::udp::endpoint& peer_endpoint) {
   return connection_manager_->AddPending(peer_id, peer_endpoint);
 }
 
@@ -376,13 +387,30 @@ void Transport::DoSignalMessageReceived(const std::string& message) {
   on_message_(message);
 }
 
-void Transport::InsertConnection(ConnectionPtr connection) {
-  strand_.dispatch(std::bind(&Transport::DoInsertConnection, shared_from_this(), connection));
+void Transport::AddConnection(ConnectionPtr connection) {
+  strand_.dispatch(std::bind(&Transport::DoAddConnection, shared_from_this(), connection));
 }
 
-void Transport::DoInsertConnection(ConnectionPtr connection) {
-  connection_manager_->InsertConnection(connection);
-  on_connection_added_(connection->Socket().PeerNodeId(), shared_from_this());
+void Transport::DoAddConnection(ConnectionPtr connection) {
+  bool is_duplicate_normal_connection(false);
+  on_connection_added_(connection->Socket().PeerNodeId(),
+                       shared_from_this(),
+                       connection->state() == Connection::State::kTemporary,
+                       is_duplicate_normal_connection);
+
+  if (is_duplicate_normal_connection) {
+    LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
+                << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
+    connection->Close();
+  }
+
+  if (!connection_manager_->AddConnection(connection)) {
+    LOG(kError) << "Failed to add " << connection->state() << " connection from "
+                << ThisDebugId() << " to " << connection->PeerDebugId();
+    connection->Close();
+  }
+  LOG(kSuccess) << "Successfully made " << connection->state() << " connection from "
+                << ThisDebugId() << " to " << connection->PeerDebugId();
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
@@ -395,12 +423,18 @@ void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
   connection_manager_->RemoveConnection(connection, connections_empty, temporary_connection);
   on_connection_lost_(connection->Socket().PeerNodeId(), shared_from_this(),
                       connections_empty, temporary_connection, timed_out);
+  LOG(kVerbose) << "Removed " << connection->state() << " connection from "
+                << ThisDebugId() << " to " << connection->PeerDebugId();
 }
 
-std::string Transport::DebugString() {
-  std::string s = std::string("\t") + DebugId(node_id()) + "   ";
-  s += boost::lexical_cast<std::string>(external_endpoint()) + " / ";
-  s += boost::lexical_cast<std::string>(local_endpoint());
+std::string Transport::ThisDebugId() const {
+  return std::string("[") + DebugId(node_id()).substr(0, 7) + " - " +
+         boost::lexical_cast<std::string>(external_endpoint()) + " / " +
+         boost::lexical_cast<std::string>(local_endpoint()) + "]";
+}
+
+std::string Transport::DebugString() const {
+  std::string s = std::string("\t") + ThisDebugId();
   switch (nat_type_) {
     case NatType::kSymmetric: s += "   Symmetric NAT\n"; break;
     case NatType::kOther:     s += "   Other NAT\n";     break;

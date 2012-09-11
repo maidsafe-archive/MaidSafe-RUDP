@@ -126,16 +126,7 @@ class ManagedConnections {
   friend class detail::Transport;
 
  private:
-  struct TransportAndSignalConnections {
-    TransportAndSignalConnections();
-    void DisconnectSignalsAndClose();
-    std::shared_ptr<detail::Transport> transport;
-    boost::signals2::connection on_message_connection;
-    boost::signals2::connection on_connection_added_connection;
-    boost::signals2::connection on_connection_lost_connection;
-  };
-
-  typedef std::multimap<NodeId, TransportAndSignalConnections> TransportMap;
+  typedef std::multimap<NodeId, std::shared_ptr<detail::Transport>> ConnectionMap;
 
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
@@ -156,7 +147,9 @@ class ManagedConnections {
 
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const NodeId& peer_id,
-                             std::shared_ptr<detail::Transport> transport);
+                             std::shared_ptr<detail::Transport> transport,
+                             bool temporary_connection,
+                             bool& is_duplicate_normal_connection);
   void OnConnectionLostSlot(const NodeId& peer_id,
                             std::shared_ptr<detail::Transport> transport,
                             bool connections_empty,
@@ -168,7 +161,7 @@ class ManagedConnections {
                                    const NodeId& peer_id,
                                    const boost::asio::ip::udp::endpoint& peer_endpoint,
                                    uint16_t& another_external_port);
-  std::string DebugString();
+  std::string DebugString() const;
 
   AsioService asio_service_;
   MessageReceivedFunctor message_received_functor_;
@@ -176,7 +169,7 @@ class ManagedConnections {
   NodeId this_node_id_;
   std::shared_ptr<asymm::PrivateKey> private_key_;
   std::shared_ptr<asymm::PublicKey> public_key_;
-  TransportMap transports_;
+  ConnectionMap connections_;
   mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
   NatType nat_type_;

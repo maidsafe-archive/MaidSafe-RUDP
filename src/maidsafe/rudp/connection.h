@@ -81,6 +81,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   // Get the remote endpoint offered for NAT detection.
   boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
 
+  std::string PeerDebugId() const;
                 // Temporary helper for debugging
                 boost::posix_time::time_duration ExpiresFromNow() const { return lifespan_timer_.expires_from_now(); }
 
@@ -150,6 +151,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   bool sending_;
 };
 
+
 template <typename Elem, typename Traits>
 std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
                                              const Connection::State &state) {
@@ -157,19 +159,19 @@ std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& o
   std::string state_str;
   switch (state) {
     case Connection::State::kPending:
-      state_str = "kPending";
+      state_str = "Pending";
       break;
     case Connection::State::kTemporary:
-      state_str = "kTemporary";
+      state_str = "Temporary";
       break;
     case Connection::State::kBootstrapping:
-      state_str = "kBootstrapping";
+      state_str = "Bootstrapping";
       break;
     case Connection::State::kUnvalidated:
-      state_str = "kUnvalidated";
+      state_str = "Unvalidated";
       break;
     case Connection::State::kPermanent:
-      state_str = "kPermanent";
+      state_str = "Permanent";
       break;
     default:
       state_str = "Invalid";

@@ -59,9 +59,8 @@ class ConnectionManager {
                const std::string& validation_data,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan);
-  void InsertConnection(std::shared_ptr<Connection> connection);
-  int AddPending(const NodeId& peer_id,
-                 const boost::asio::ip::udp::endpoint& peer_endpoint);
+  bool AddConnection(std::shared_ptr<Connection> connection);
+  bool AddPending(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint);
 
   // Returns kSuccess if the connection existed and was closed.  Returns
   // kInvalidConnection if the connection didn't exist.
@@ -116,18 +115,19 @@ class ConnectionManager {
 
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
-  typedef std::set<ConnectionPtr> ConnectionSet;
+  typedef std::set<ConnectionPtr> ConnectionGroup;
+  typedef std::map<NodeId, boost::asio::ip::udp::endpoint> PendingsGroup;
   // Map of destination socket id to corresponding socket object.
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;
 
   void HandlePingFrom(const HandshakePacket& handshake_packet,
                       const boost::asio::ip::udp::endpoint& endpoint);
-  ConnectionSet::iterator FindConnection(const NodeId& peer_id) const;
+  ConnectionGroup::iterator FindConnection(const NodeId& peer_id) const;
 
   // Because the connections can be in an idle state with no pending async operations, they are kept
   // alive with a shared_ptr in this set, as well as in the async operation handlers.
-  ConnectionSet connections_, temporaries_;
-  std::map<NodeId, boost::asio::ip::udp::endpoint> pendings_;
+  ConnectionGroup connections_, temporaries_;
+  PendingsGroup pendings_;
   mutable boost::mutex mutex_;
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
