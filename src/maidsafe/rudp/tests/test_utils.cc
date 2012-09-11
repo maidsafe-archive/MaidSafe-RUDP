@@ -19,6 +19,7 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 
 #include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/parameters.h"
@@ -33,17 +34,6 @@ namespace maidsafe {
 namespace rudp {
 
 namespace test {
-
-uint16_t GetRandomPort() {
-  static std::set<uint16_t> already_used_ports;
-  bool unique(false);
-  uint16_t port(0);
-  do {
-    port = (RandomUint32() % 48126) + 1025;
-    unique = (already_used_ports.insert(port)).second;
-  } while (!unique);
-  return port;
-}
 
 testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                       std::vector<Endpoint> &bootstrap_endpoints,
@@ -60,8 +50,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
 
   // Setting up first two nodes
   EndpointPair endpoints0, endpoints1;
-  endpoints0.local = Endpoint(GetLocalIp(), GetRandomPort());
-  endpoints1.local = Endpoint(GetLocalIp(), GetRandomPort());
+  endpoints0.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
+  endpoints1.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   NodeId chosen_node_id;
 
   boost::thread thread([&] {

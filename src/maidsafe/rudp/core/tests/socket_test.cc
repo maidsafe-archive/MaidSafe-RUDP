@@ -79,8 +79,8 @@ TEST(SocketTest, BEH_Socket) {
                                               server_multiplexer,
                                               server_node_id,
                                               std::shared_ptr<asymm::PublicKey>());
-  ip::udp::endpoint server_endpoint(GetLocalIp(), maidsafe::rudp::test::GetRandomPort());
-  ip::udp::endpoint client_endpoint(GetLocalIp(), maidsafe::rudp::test::GetRandomPort());
+  ip::udp::endpoint server_endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
+  ip::udp::endpoint client_endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   ReturnCode condition = server_multiplexer->Open(server_endpoint);
   ASSERT_EQ(kSuccess, condition);
 
@@ -191,7 +191,7 @@ TEST(SocketTest, BEH_AsyncProbe) {
   ip::udp::endpoint server_endpoint;
   uint8_t attempts(0);
   while ((kSuccess != result) && (attempts < 100)) {
-    server_endpoint = ip::udp::endpoint(GetLocalIp(), maidsafe::rudp::test::GetRandomPort());
+    server_endpoint = ip::udp::endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
     result = server_multiplexer->Open(server_endpoint);
     if (kSuccess != result)
       server_multiplexer->Close();
@@ -209,7 +209,7 @@ TEST(SocketTest, BEH_AsyncProbe) {
   result = kPendingResult;
   attempts = 0;
   while ((kSuccess != result) && (attempts < 100)) {
-    client_endpoint = ip::udp::endpoint(GetLocalIp(), maidsafe::rudp::test::GetRandomPort());
+    client_endpoint = ip::udp::endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
     result = client_multiplexer->Open(client_endpoint);
     if (kSuccess != result)
       client_multiplexer->Close();

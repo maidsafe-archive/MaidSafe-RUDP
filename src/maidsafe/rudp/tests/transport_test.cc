@@ -46,7 +46,7 @@ namespace test {
 //
 // protected:
 //  struct TestPeer {
-//    TestPeer() : local_endpoint(detail::GetLocalIp(), maidsafe::rudp::test::GetRandomPort()),
+//    TestPeer() : local_endpoint(GetLocalIp(), maidsafe::test::GetRandomPort()),
 //                 key_pair(),
 //                 mutex(),
 //                 cond_var_connection_added(),

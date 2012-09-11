@@ -242,8 +242,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
                                              EndpointPair(),
                                              node_.validation_data()));
   EndpointPair random_peer_endpoint;
-  random_peer_endpoint.local = Endpoint(GetLocalIp(), GetRandomPort());
-  random_peer_endpoint.external = Endpoint(GetLocalIp(), GetRandomPort());
+  random_peer_endpoint.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
+  random_peer_endpoint.external = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
 
   EXPECT_EQ(kInvalidTransport,
             node_.managed_connections()->Add(NodeId(NodeId::kRandomId),
@@ -307,7 +307,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
 
   // Unavailable endpoints
   peer_endpoint_pair.local = bootstrap_endpoints_[2];
-  Endpoint unavailable_endpoint(ip::address::from_string("1.1.1.1"), GetRandomPort());
+  Endpoint unavailable_endpoint(ip::address::from_string("1.1.1.1"),
+                                maidsafe::test::GetRandomPort());
   EXPECT_EQ(kInvalidTransport,
             node_.managed_connections()->Add(nodes_[2]->node_id(),
                                              peer_endpoint_pair,
