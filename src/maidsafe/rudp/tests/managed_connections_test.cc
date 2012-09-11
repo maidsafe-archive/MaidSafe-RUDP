@@ -1061,7 +1061,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Ping) {
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kWontPingAlreadyConnected, result_of_ping);
   // Ping non-existent peer
-  Endpoint unavailable_endpoint(ip::address::from_string("1.1.1.1"), GetRandomPort());
+  Endpoint unavailable_endpoint(ip::address::from_string("1.1.1.1"), maidsafe::test::GetRandomPort());
   result_of_ping = kSuccess;
   result_arrived = false;
   node_.managed_connections()->Ping(unavailable_endpoint, ping_functor);
