@@ -65,12 +65,11 @@ class ConnectionManager {
   // Returns kSuccess if the connection existed and was closed.  Returns
   // kInvalidConnection if the connection didn't exist.
   bool CloseConnection(const NodeId& peer_id);
-  void RemoveConnection(std::shared_ptr<Connection> connection,
-                        bool& connections_empty,
-                        bool& temporary_connection);
+  void RemoveConnection(std::shared_ptr<Connection> connection);
   bool RemovePending(const NodeId& peer_id);
 
   bool HasNormalConnectionTo(const NodeId& peer_id) const;
+  bool HasTemporaryConnectionTo(const NodeId& peer_id) const;
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
   void Ping(const NodeId& peer_id,
@@ -81,8 +80,8 @@ class ConnectionManager {
             const std::string& message,
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
-  //bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
-  bool MakeConnectionPermanent(const NodeId& peer_id);
+  bool MakeConnectionPermanent(const NodeId& peer_id,
+                               boost::asio::ip::udp::endpoint& peer_endpoint);
 
   // This node's endpoint as viewed by peer
   boost::asio::ip::udp::endpoint ThisEndpoint(const NodeId& peer_id);

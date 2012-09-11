@@ -89,9 +89,8 @@ void Transport::Bootstrap(
                                                   this_node_id, this_public_key));
   ReturnCode result = multiplexer_->Open(local_endpoint);
   if (result != kSuccess) {
-    if (!(local_endpoint.port() == ManagedConnections::kResiliencePort() && result == kBindError)) {
+    if (!(local_endpoint.port() == ManagedConnections::kResiliencePort() && result == kBindError))
       LOG(kError) << "Failed to open multiplexer.  Result: " << result;
-    }
     return;
   }
 
@@ -161,14 +160,14 @@ NodeId Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
     local_cond_var.notify_one();
   }, boost::signals2::at_back));
   auto slot_connection_lost(on_connection_lost_.connect(
-      [&](const NodeId& /*connected_peer_id*/,
+      [&](const NodeId& connected_peer_id,
           TransportPtr /*transport*/,
-          bool /*connections_empty*/,
           bool /*temporary_connection*/,
           bool timed_out) {
     boost::mutex::scoped_lock local_lock(local_mutex);
     if (!slot_called) {
       slot_called = true;
+      peer_id = connected_peer_id;
       timed_out_connecting = timed_out;
       local_cond_var.notify_one();
     }
@@ -264,7 +263,6 @@ void Transport::DoConnect(const NodeId& peer_id,
     auto slot_connection_lost(on_connection_lost_.connect(
         [&](const NodeId& connected_peer_id,
             TransportPtr /*transport*/,
-            bool /*connections_empty*/,
             bool /*temporary_connection*/,
             bool timed_out) {
       boost::mutex::scoped_lock local_lock(local_mutex);
@@ -346,8 +344,8 @@ void Transport::SetBestGuessExternalEndpoint(const Endpoint& external_endpoint) 
 //  return connection_manager_->IsTemporaryConnection(peer_endpoint);
 //}
 
-bool Transport::MakeConnectionPermanent(const NodeId& peer_id) {
-  return connection_manager_->MakeConnectionPermanent(peer_id);
+bool Transport::MakeConnectionPermanent(const NodeId& peer_id, Endpoint& peer_endpoint) {
+  return connection_manager_->MakeConnectionPermanent(peer_id, peer_endpoint);
 }
 
 size_t Transport::NormalConnectionsCount() const {
@@ -419,10 +417,11 @@ void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
 }
 
 void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
-  bool connections_empty(false), temporary_connection(false);
-  connection_manager_->RemoveConnection(connection, connections_empty, temporary_connection);
-  on_connection_lost_(connection->Socket().PeerNodeId(), shared_from_this(),
-                      connections_empty, temporary_connection, timed_out);
+  connection_manager_->RemoveConnection(connection);
+  on_connection_lost_(connection->Socket().PeerNodeId(),
+                      shared_from_this(),
+                      connection->state() == Connection::State::kTemporary,
+                      timed_out);
   LOG(kVerbose) << "Removed " << connection->state() << " connection from "
                 << ThisDebugId() << " to " << connection->PeerDebugId();
 }
@@ -436,9 +435,9 @@ std::string Transport::ThisDebugId() const {
 std::string Transport::DebugString() const {
   std::string s = std::string("\t") + ThisDebugId();
   switch (nat_type_) {
-    case NatType::kSymmetric: s += "   Symmetric NAT\n"; break;
-    case NatType::kOther:     s += "   Other NAT\n";     break;
-    case NatType::kUnknown:   s += "   Unknown NAT\n";   break;
+    case NatType::kSymmetric: s += "  Symmetric NAT\n"; break;
+    case NatType::kOther:     s += "  Other NAT\n";     break;
+    case NatType::kUnknown:   s += "  Unknown NAT\n";   break;
   }
   s += connection_manager_->DebugString();
   return s;

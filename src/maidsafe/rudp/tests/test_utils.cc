@@ -149,6 +149,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
 
     NatType nat_type;
     for (int j(0); j != i; ++j) {
+      LOG(kInfo) << "Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();
       // Call GetAvailableEndpoint at each peer.
       nodes[i]->ResetData();
       nodes[j]->ResetData();

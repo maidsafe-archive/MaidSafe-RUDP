@@ -36,7 +36,17 @@ namespace rudp {
 
 namespace detail {
 
-namespace { typedef boost::asio::ip::udp::endpoint Endpoint; }
+namespace {
+
+typedef boost::asio::ip::udp::endpoint Endpoint;
+
+bool IsNormal(std::shared_ptr<Connection> connection) {
+  return connection->state() == Connection::State::kPermanent ||
+         connection->state() == Connection::State::kUnvalidated ||
+         connection->state() == Connection::State::kBootstrapping;
+}
+
+}  // unnamed namespace
 
 
 ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
@@ -86,13 +96,10 @@ bool ConnectionManager::AddConnection(ConnectionPtr connection) {
   assert(connection->state() != Connection::State::kPending);
   std::pair<ConnectionGroup::iterator, bool> result;
   boost::mutex::scoped_lock lock(mutex_);
-  if (connection->state() == Connection::State::kPermanent ||
-      connection->state() == Connection::State::kUnvalidated ||
-      connection->state() == Connection::State::kBootstrapping) {
+  if (IsNormal(connection))
     result = connections_.insert(connection);
-  } else {
+  else
     result = temporaries_.insert(connection);
-  }
   assert(result.second);
   return result.second;
 }
@@ -118,14 +125,12 @@ bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
   return true;
 }
 
-void ConnectionManager::RemoveConnection(ConnectionPtr connection,
-                                         bool& connections_empty,
-                                         bool& temporary_connection) {
-  temporary_connection = false;
+void ConnectionManager::RemoveConnection(ConnectionPtr connection) {
   boost::mutex::scoped_lock lock(mutex_);
-  if (connections_.erase(connection) == 0U)
-    temporary_connection = (temporaries_.erase(connection) != 0U);
-  connections_empty = connections_.empty();
+  if (IsNormal(connection))
+    connections_.erase(connection);
+  else
+    temporaries_.erase(connection);
 }
 
 
@@ -297,7 +302,7 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
 //  return (*itr)->IsTemporary();
 //}
 
-bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id) {
+bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id, Endpoint& peer_endpoint) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
@@ -311,6 +316,9 @@ bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id) {
   //}
 
   (*itr)->MakePermanent();
+  // TODO(Fraser#5#): 2012-09-11 - Handle passing back peer_endpoint iff it's direct-connected.
+  if (!OnPrivateNetwork((*itr)->Socket().PeerEndpoint()))
+    peer_endpoint = (*itr)->Socket().PeerEndpoint();
   return true;
 }
 

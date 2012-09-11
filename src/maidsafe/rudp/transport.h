@@ -63,7 +63,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
       void(const NodeId&, std::shared_ptr<Transport>, bool, bool&)> OnConnectionAdded;
 
   typedef boost::signals2::signal<
-      void(const NodeId&, std::shared_ptr<Transport>, bool, bool, bool)> OnConnectionLost;
+      void(const NodeId&, std::shared_ptr<Transport>, bool, bool)> OnConnectionLost;
 
   Transport(AsioService& asio_service, NatType& nat_type_);  // NOLINT (Fraser)
 
@@ -104,6 +104,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   bool RemovePending(const NodeId& peer_id);
 
   bool HasNormalConnectionTo(const NodeId& peer_id) const;
+  bool HasTemporaryConnectionTo(const NodeId& peer_id) const;
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
   boost::asio::ip::udp::endpoint external_endpoint() const;
@@ -111,8 +112,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   boost::asio::ip::udp::endpoint ThisEndpointAsSeenByPeer(const NodeId& peer_id);
   void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
 
-  //bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
-  bool MakeConnectionPermanent(const NodeId& peer_id);
+  bool MakeConnectionPermanent(const NodeId& peer_id,
+                               boost::asio::ip::udp::endpoint& peer_endpoint);
 
   bool IsResilienceTransport() const { return is_resilience_transport_; }
 
