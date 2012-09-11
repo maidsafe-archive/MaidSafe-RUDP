@@ -122,13 +122,13 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
         << "'s validation data as " << messages1[0] << " [should be \""
         << nodes[0]->validation_data() << "\"].";
   }
-
-  int result(nodes[0]->managed_connections()->MarkConnectionAsValid(nodes[1]->node_id()));
+Endpoint endpoint1, endpoint2;
+  int result(nodes[0]->managed_connections()->MarkConnectionAsValid(nodes[1]->node_id(), endpoint1));
   if (result != kSuccess) {
     return testing::AssertionFailure() << nodes[0]->id() << " failed to mark connection to "
                                        << nodes[1]->id() << " as valid.";
   }
-  result = nodes[1]->managed_connections()->MarkConnectionAsValid(nodes[0]->node_id());
+  result = nodes[1]->managed_connections()->MarkConnectionAsValid(nodes[0]->node_id(), endpoint2);
   if (result != kSuccess) {
     return testing::AssertionFailure() << nodes[1]->id() << " failed to mark connection to "
                                        << nodes[0]->id() << " as valid.";
@@ -247,13 +247,15 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
             << "'s validation data as " << messages1[0] << " [should be \""
             << nodes[i]->validation_data() << "\"].";
       }
-
-      result = nodes[i]->managed_connections()->MarkConnectionAsValid(nodes[j]->node_id());
+      Endpoint endpoint1, endpoint2;
+      result = nodes[i]->managed_connections()->MarkConnectionAsValid(nodes[j]->node_id(),
+                                                                      endpoint1);
       if (result != kSuccess) {
         return testing::AssertionFailure() << nodes[i]->id() << " failed to mark connection to "
                                            << nodes[j]->id() << " as valid.";
       }
-      result = nodes[j]->managed_connections()->MarkConnectionAsValid(nodes[i]->node_id());
+      result = nodes[j]->managed_connections()->MarkConnectionAsValid(nodes[i]->node_id(), 
+                                                                      endpoint2);
       if (result != kSuccess) {
         return testing::AssertionFailure() << nodes[j]->id() << " failed to mark connection to "
                                            << nodes[i]->id() << " as valid.";
