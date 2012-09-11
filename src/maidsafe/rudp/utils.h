@@ -23,15 +23,6 @@ namespace rudp {
 
 namespace detail {
 
-// Makes a UDP socket connection to peer_endpoint.  Note, no data is sent, so no information about
-// the validity or availability of the peer is deduced.  If the retrieved local endpoint is
-// unspecified or is the loopback address, the function returns a default-constructed (invalid)
-// address.
-boost::asio::ip::address GetLocalIp(
-    boost::asio::ip::udp::endpoint peer_endpoint =
-        boost::asio::ip::udp::endpoint(
-            boost::asio::ip::address_v4::from_string("203.0.113.9"), 80));
-
 // Returns true if port > 1024 and the address is correctly specified.
 bool IsValid(const boost::asio::ip::udp::endpoint& endpoint);
 

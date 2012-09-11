@@ -242,8 +242,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
                                              EndpointPair(),
                                              node_.validation_data()));
   EndpointPair random_peer_endpoint;
-  random_peer_endpoint.local = Endpoint(detail::GetLocalIp(), GetRandomPort());
-  random_peer_endpoint.external = Endpoint(detail::GetLocalIp(), GetRandomPort());
+  random_peer_endpoint.local = Endpoint(GetLocalIp(), GetRandomPort());
+  random_peer_endpoint.external = Endpoint(GetLocalIp(), GetRandomPort());
 
   EXPECT_EQ(kInvalidTransport,
             node_.managed_connections()->Add(NodeId(NodeId::kRandomId),

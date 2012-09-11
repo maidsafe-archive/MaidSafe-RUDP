@@ -60,8 +60,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
 
   // Setting up first two nodes
   EndpointPair endpoints0, endpoints1;
-  endpoints0.local = Endpoint(detail::GetLocalIp(), GetRandomPort());
-  endpoints1.local = Endpoint(detail::GetLocalIp(), GetRandomPort());
+  endpoints0.local = Endpoint(GetLocalIp(), GetRandomPort());
+  endpoints1.local = Endpoint(GetLocalIp(), GetRandomPort());
   NodeId chosen_node_id;
 
   boost::thread thread([&] {
