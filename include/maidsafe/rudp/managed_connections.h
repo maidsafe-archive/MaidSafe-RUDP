@@ -104,12 +104,11 @@ class ManagedConnections {
   int Add(NodeId peer_id, EndpointPair peer_endpoint_pair, std::string validation_data);
 
   // Marks the connection to peer_endpoint as valid.  If it exists and is already permanent, or
-  // is successfully upgraded to permanent, then the function is successful and returns the peer's
-  // connected endpoint.  This will normally be the same as is passed in "peer_endpoint".  However,
-  // if the peer is behind symmetric NAT, the expected port and the actual connected port could be
-  // different.  If the peer_endpoint doesn't exist in the list of current connection, failure is
-  // indicated by returning a default-constructed endpoint.
-  int MarkConnectionAsValid(NodeId peer_id);
+  // is successfully upgraded to permanent, then the function is successful.  If the peer is direct-
+  // connected, its endpoint is returned.
+  // TODO(Fraser#5#): 2012-09-11 - Handle passing back peer_endpoint iff it's direct-connected.
+  //                  Currently returned whenever peer_endpoint is a non-private addresses.
+  int MarkConnectionAsValid(NodeId peer_id, boost::asio::ip::udp::endpoint& peer_endpoint);
 
   // Drops the connection with peer.
   void Remove(NodeId peer_id);
@@ -126,16 +125,7 @@ class ManagedConnections {
   friend class detail::Transport;
 
  private:
-  struct TransportAndSignalConnections {
-    TransportAndSignalConnections();
-    void DisconnectSignalsAndClose();
-    std::shared_ptr<detail::Transport> transport;
-    boost::signals2::connection on_message_connection;
-    boost::signals2::connection on_connection_added_connection;
-    boost::signals2::connection on_connection_lost_connection;
-  };
-
-  typedef std::multimap<NodeId, TransportAndSignalConnections> TransportMap;
+  typedef std::multimap<NodeId, std::shared_ptr<detail::Transport>> ConnectionMap;
 
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
@@ -156,10 +146,11 @@ class ManagedConnections {
 
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const NodeId& peer_id,
-                             std::shared_ptr<detail::Transport> transport);
+                             std::shared_ptr<detail::Transport> transport,
+                             bool temporary_connection,
+                             bool& is_duplicate_normal_connection);
   void OnConnectionLostSlot(const NodeId& peer_id,
                             std::shared_ptr<detail::Transport> transport,
-                            bool connections_empty,
                             bool temporary_connection);
   // This signal is fired by Session when a connecting peer requests to use this peer for NAT
   // detection.  The peer will attempt to connect to another one of this node's transports using
@@ -168,7 +159,7 @@ class ManagedConnections {
                                    const NodeId& peer_id,
                                    const boost::asio::ip::udp::endpoint& peer_endpoint,
                                    uint16_t& another_external_port);
-  std::string DebugString();
+  std::string DebugString() const;
 
   AsioService asio_service_;
   MessageReceivedFunctor message_received_functor_;
@@ -176,7 +167,7 @@ class ManagedConnections {
   NodeId this_node_id_;
   std::shared_ptr<asymm::PrivateKey> private_key_;
   std::shared_ptr<asymm::PublicKey> public_key_;
-  TransportMap transports_;
+  ConnectionMap connections_;
   mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
   NatType nat_type_;

@@ -123,6 +123,17 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
         << nodes[0]->validation_data() << "\"].";
   }
 
+  int result(nodes[0]->managed_connections()->MarkConnectionAsValid(nodes[1]->node_id()));
+  if (result != kSuccess) {
+    return testing::AssertionFailure() << nodes[0]->id() << " failed to mark connection to "
+                                       << nodes[1]->id() << " as valid.";
+  }
+  result = nodes[1]->managed_connections()->MarkConnectionAsValid(nodes[0]->node_id());
+  if (result != kSuccess) {
+    return testing::AssertionFailure() << nodes[1]->id() << " failed to mark connection to "
+                                       << nodes[0]->id() << " as valid.";
+  }
+
   bootstrap_endpoints.push_back(endpoints0.local);
   bootstrap_endpoints.push_back(endpoints1.local);
   nodes[0]->ResetData();
@@ -138,6 +149,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
 
     NatType nat_type;
     for (int j(0); j != i; ++j) {
+      LOG(kInfo) << "Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();
+      // Call GetAvailableEndpoint at each peer.
       nodes[i]->ResetData();
       nodes[j]->ResetData();
       EndpointPair empty_endpoint_pair;
@@ -176,6 +189,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                    << peer_endpoint_pair.local;
       }
 
+      // Call Add at each peer.
       futures0 = nodes[i]->GetFutureForMessages(1);
       futures1 = nodes[j]->GetFutureForMessages(1);
 
@@ -203,6 +217,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                            << " with result " << result;
       }
 
+      // Check validation data was received correctly at each peer, and if so call
+      // MarkConnectionAsValid.
       if (!futures0.timed_wait(Parameters::rendezvous_connect_timeout)) {
         return testing::AssertionFailure() << "Failed waiting for " << nodes[i]->id()
             << " to receive " << nodes[j]->id() << "'s validation data.";
@@ -231,6 +247,18 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
             << "'s validation data as " << messages1[0] << " [should be \""
             << nodes[i]->validation_data() << "\"].";
       }
+
+      result = nodes[i]->managed_connections()->MarkConnectionAsValid(nodes[j]->node_id());
+      if (result != kSuccess) {
+        return testing::AssertionFailure() << nodes[i]->id() << " failed to mark connection to "
+                                           << nodes[j]->id() << " as valid.";
+      }
+      result = nodes[j]->managed_connections()->MarkConnectionAsValid(nodes[i]->node_id());
+      if (result != kSuccess) {
+        return testing::AssertionFailure() << nodes[j]->id() << " failed to mark connection to "
+                                           << nodes[i]->id() << " as valid.";
+      }
+
       bootstrap_endpoints.push_back(this_endpoint_pair.local);
     }
   }

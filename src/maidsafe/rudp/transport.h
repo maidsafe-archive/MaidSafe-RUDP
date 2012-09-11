@@ -23,6 +23,7 @@
 #include "boost/asio/strand.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
+#include "boost/signals2/connection.hpp"
 #include "boost/signals2/signal.hpp"
 
 #include "maidsafe/common/asio_service.h"
@@ -59,10 +60,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef boost::signals2::signal<void(const std::string&)> OnMessage;
 
   typedef boost::signals2::signal<
-      void(const NodeId&, std::shared_ptr<Transport>)> OnConnectionAdded;
+      void(const NodeId&, std::shared_ptr<Transport>, bool, bool&)> OnConnectionAdded;
 
   typedef boost::signals2::signal<
-      void(const NodeId&, std::shared_ptr<Transport>, bool, bool, bool)> OnConnectionLost;
+      void(const NodeId&, std::shared_ptr<Transport>, bool, bool)> OnConnectionLost;
 
   Transport(AsioService& asio_service, NatType& nat_type_);  // NOLINT (Fraser)
 
@@ -78,10 +79,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
       const OnConnectionAdded::slot_type& on_connection_added_slot,
       const OnConnectionLost::slot_type& on_connection_lost_slot,
       const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
-      NodeId& chosen_id,
-      boost::signals2::connection& on_message_connection,
-      boost::signals2::connection& on_connection_added_connection,
-      boost::signals2::connection& on_connection_lost_connection);
+      NodeId& chosen_id);
 
   void Close();
 
@@ -101,11 +99,12 @@ class Transport : public std::enable_shared_from_this<Transport> {
             const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
 
-  int AddPending(const NodeId& peer_id,
+  bool AddPending(const NodeId& peer_id,
                  const boost::asio::ip::udp::endpoint& peer_endpoint);
   bool RemovePending(const NodeId& peer_id);
 
   bool HasNormalConnectionTo(const NodeId& peer_id) const;
+  bool HasTemporaryConnectionTo(const NodeId& peer_id) const;
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
   boost::asio::ip::udp::endpoint external_endpoint() const;
@@ -113,15 +112,16 @@ class Transport : public std::enable_shared_from_this<Transport> {
   boost::asio::ip::udp::endpoint ThisEndpointAsSeenByPeer(const NodeId& peer_id);
   void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
 
-  //bool IsTemporaryConnection(const boost::asio::ip::udp::endpoint& peer_endpoint);
-  bool MakeConnectionPermanent(const NodeId& peer_id);
+  bool MakeConnectionPermanent(const NodeId& peer_id,
+                               boost::asio::ip::udp::endpoint& peer_endpoint);
 
   bool IsResilienceTransport() const { return is_resilience_transport_; }
 
   size_t NormalConnectionsCount() const;
   static uint32_t kMaxConnections() { return 50; }
 
-  std::string DebugString();
+  std::string DebugString() const ;
+  std::string ThisDebugId() const;
 
   friend class Connection;
 
@@ -147,8 +147,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   void SignalMessageReceived(const std::string& message);
   void DoSignalMessageReceived(const std::string& message);
-  void InsertConnection(ConnectionPtr connection);
-  void DoInsertConnection(ConnectionPtr connection);
+  void AddConnection(ConnectionPtr connection);
+  void DoAddConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection, bool timed_out);
   void DoRemoveConnection(ConnectionPtr connection, bool timed_out);
 
@@ -161,6 +161,11 @@ class Transport : public std::enable_shared_from_this<Transport> {
   OnConnectionAdded on_connection_added_;
   OnConnectionLost on_connection_lost_;
   Session::OnNatDetectionRequested::slot_function_type on_nat_detection_requested_slot_;
+  // These signal connections are the ones made in the Bootstrap call; the slots will be in
+  // ManagedConnections.
+  boost::signals2::connection on_message_connection_;
+  boost::signals2::connection on_connection_added_connection_;
+  boost::signals2::connection on_connection_lost_connection_;
   bool is_resilience_transport_;
 };
 

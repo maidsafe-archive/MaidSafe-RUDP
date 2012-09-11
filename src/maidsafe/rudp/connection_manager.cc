@@ -36,7 +36,17 @@ namespace rudp {
 
 namespace detail {
 
-namespace { typedef boost::asio::ip::udp::endpoint Endpoint; }
+namespace {
+
+typedef boost::asio::ip::udp::endpoint Endpoint;
+
+bool IsNormal(std::shared_ptr<Connection> connection) {
+  return connection->state() == Connection::State::kPermanent ||
+         connection->state() == Connection::State::kUnvalidated ||
+         connection->state() == Connection::State::kBootstrapping;
+}
+
+}  // unnamed namespace
 
 
 ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
@@ -82,16 +92,24 @@ void ConnectionManager::Connect(const NodeId& peer_id,
   }
 }
 
-void ConnectionManager::InsertConnection(ConnectionPtr connection) {
+bool ConnectionManager::AddConnection(ConnectionPtr connection) {
+  assert(connection->state() != Connection::State::kPending);
+  std::pair<ConnectionGroup::iterator, bool> result;
   boost::mutex::scoped_lock lock(mutex_);
-  connections_.insert(connection);
+  if (IsNormal(connection))
+    result = connections_.insert(connection);
+  else
+    result = temporaries_.insert(connection);
+  assert(result.second);
+  return result.second;
 }
 
-int ConnectionManager::AddPending(const NodeId& peer_id,
-                                  const boost::asio::ip::udp::endpoint& peer_endpoint) {
+bool ConnectionManager::AddPending(const NodeId& peer_id,
+                                   const boost::asio::ip::udp::endpoint& peer_endpoint) {
   boost::mutex::scoped_lock lock(mutex_);
-                                                                                        pendings_.insert(std::make_pair(peer_id, peer_endpoint));
-                                                                                        return kSuccess;
+                                                                                       auto result(pendings_.insert(std::make_pair(peer_id, peer_endpoint)));
+                                                                                       assert(result.second);
+                                                                                       return result.second;
 }
 
 bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
@@ -107,14 +125,12 @@ bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
   return true;
 }
 
-void ConnectionManager::RemoveConnection(ConnectionPtr connection,
-                                         bool& connections_empty,
-                                         bool& temporary_connection) {
-  temporary_connection = false;
+void ConnectionManager::RemoveConnection(ConnectionPtr connection) {
   boost::mutex::scoped_lock lock(mutex_);
-  if (connections_.erase(connection) == 0U)
-    temporary_connection = (temporaries_.erase(connection) != 0U);
-  connections_empty = connections_.empty();
+  if (IsNormal(connection))
+    connections_.erase(connection);
+  else
+    temporaries_.erase(connection);
 }
 
 
@@ -286,7 +302,7 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
 //  return (*itr)->IsTemporary();
 //}
 
-bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id) {
+bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id, Endpoint& peer_endpoint) {
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
@@ -300,6 +316,9 @@ bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id) {
   //}
 
   (*itr)->MakePermanent();
+  // TODO(Fraser#5#): 2012-09-11 - Handle passing back peer_endpoint iff it's direct-connected.
+  if (!OnPrivateNetwork((*itr)->Socket().PeerEndpoint()))
+    peer_endpoint = (*itr)->Socket().PeerEndpoint();
   return true;
 }
 
@@ -344,7 +363,7 @@ size_t ConnectionManager::NormalConnectionsCount() const {
   return connections_.size();
 }
 
-ConnectionManager::ConnectionSet::iterator ConnectionManager::FindConnection(
+ConnectionManager::ConnectionGroup::iterator ConnectionManager::FindConnection(
     const NodeId& peer_id) const {
   assert(!mutex_.try_lock());
   return std::find_if(connections_.begin(),
@@ -366,21 +385,19 @@ std::string ConnectionManager::DebugString() {
   std::string s;
   boost::mutex::scoped_lock lock(mutex_);
   for (auto c : connections_) {
-    s += "\t\tPeer " + DebugId(c->Socket().PeerNodeId());
-    s += std::string("  ") + boost::lexical_cast<std::string>(c->Socket().PeerEndpoint());
+    s += "\t\tPeer " + c->PeerDebugId();
     s += std::string("  ") + boost::lexical_cast<std::string>(c->state());
     s += std::string("   Expires in ") + bptime::to_simple_string(c->ExpiresFromNow()) + "\n";
   }
   for (auto t : temporaries_) {
-    s += "\t\tPeer " + DebugId(t->Socket().PeerNodeId());
-    s += std::string("  ") + boost::lexical_cast<std::string>(t->Socket().PeerEndpoint());
+    s += "\t\tPeer " + t->PeerDebugId();
     s += std::string("  ") + boost::lexical_cast<std::string>(t->state());
     s += std::string("   Expires in ") + bptime::to_simple_string(t->ExpiresFromNow()) + "\n";
   }
   for (auto p : pendings_) {
-    s += "\t\tPeer " + DebugId(p.first);
-    s += std::string("  ") + boost::lexical_cast<std::string>(p.second);
-    s += std::string("  ") + boost::lexical_cast<std::string>(Connection::State::kPending) + "\n";
+    s += "\t\tPeer [" + DebugId(p.first);
+    s += std::string(" - ") + boost::lexical_cast<std::string>(p.second);
+    s += std::string("]  ") + boost::lexical_cast<std::string>(Connection::State::kPending) + "\n";
   }
   return s;
 }

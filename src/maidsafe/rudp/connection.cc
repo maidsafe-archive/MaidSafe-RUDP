@@ -188,7 +188,6 @@ void Connection::DoStartSending(const std::string& data,
     InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
     sending_ = false;
   } else {
-    state_ = State::kUnvalidated;
     strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
   }
 }
@@ -270,6 +269,8 @@ void Connection::StartConnect(const std::string& validation_data,
       open_mode = Session::kBootstrapAndDrop;
       state_ = State::kTemporary;
     }
+  } else {
+    state_ = State::kUnvalidated;
   }
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     socket_.AsyncConnect(transport->node_id(), transport->public_key(), peer_endpoint_,
@@ -329,7 +330,7 @@ void Connection::HandleConnect(const bs::error_code& ec,
   }
 
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    transport->InsertConnection(shared_from_this());
+    transport->AddConnection(shared_from_this());
   } else {
     LOG(kError) << "Transport already destroyed.";
     return DoClose();
@@ -540,6 +541,12 @@ void Connection::InvokeSentFunctor(const MessageSentFunctor& message_sent_functo
     if (std::shared_ptr<Transport> transport = transport_.lock())
       message_sent_functor(result);
   }
+}
+
+std::string Connection::PeerDebugId() const {
+  return std::string("[") + DebugId(socket_.PeerNodeId()).substr(0, 7) + " - " +
+         boost::lexical_cast<std::string>(socket_.PeerEndpoint()) + "]";
+
 }
 
 }  // namespace detail
