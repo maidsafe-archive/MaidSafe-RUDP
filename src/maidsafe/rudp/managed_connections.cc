@@ -187,6 +187,10 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
 //    std::lock_guard<std::mutex> lock(mutex_);
 //    connections_.insert(transport_and_signals_connections);
 //  }
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    transports_.insert(std::make_pair(chosen_bootstrap_node_id, transport_and_signals_connections));
+  }
 
   LOG(kVerbose) << "Started a new transport on "
                 << transport_and_signals_connections.transport->external_endpoint() << " / "

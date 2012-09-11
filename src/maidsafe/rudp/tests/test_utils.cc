@@ -81,9 +81,9 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                        << endpoints1.local << " was " << DebugId(chosen_node_id);
   EndpointPair endpoint_pair0, endpoint_pair1;
   NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
-
+  endpoint_pair1 = endpoints1;
   EXPECT_EQ(kSuccess, nodes[0]->managed_connections()->GetAvailableEndpoint(
-                nodes[1]->node_id(), EndpointPair(), endpoint_pair0, nat_type0));
+                nodes[1]->node_id(), endpoint_pair1, endpoint_pair0, nat_type0));
   EXPECT_EQ(kSuccess, nodes[1]->managed_connections()->GetAvailableEndpoint(
                 nodes[0]->node_id(), endpoint_pair0, endpoint_pair1, nat_type1));
 
@@ -143,7 +143,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   // Adding nodes to each other
   for (int i(2); i != node_count; ++i) {
     NodeId chosen_node_id(nodes[i]->Bootstrap(bootstrap_endpoints));
-    if (chosen_node_id != NodeId())
+    if (chosen_node_id == NodeId())
       return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->id();
 
     NatType nat_type;

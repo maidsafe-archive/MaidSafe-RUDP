@@ -159,15 +159,16 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   EXPECT_FALSE(chosen_node.Empty());
 //  EXPECT_NE(bootstrap_endpoints_.end(),
 //            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
-//  // Already bootstrapped
-//  chosen_endpoint = node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-//                                                           false,
-//                                                           do_nothing_on_message_,
-//                                                           do_nothing_on_connection_lost_,
-//                                                           node_.private_key(),
-//                                                           node_.public_key(),
-//                                                           nat_type);
-//  EXPECT_TRUE(detail::IsValid(chosen_endpoint));
+  // Already bootstrapped
+  chosen_node = node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
+                                                       false,
+                                                       do_nothing_on_message_,
+                                                       do_nothing_on_connection_lost_,
+                                                       node_.node_id(),
+                                                       node_.private_key(),
+                                                       node_.public_key(),
+                                                       nat_type);
+  EXPECT_FALSE(chosen_node.Empty());
 //  EXPECT_NE(bootstrap_endpoints_.end(),
 //            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
 }
@@ -995,7 +996,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   nodes_[0]->ResetData();
   result_of_send = kSuccess;
   result_arrived = false;
-  nodes_[0]->managed_connections()->Send(nodes.node_id(), "message04",
+  nodes_[0]->managed_connections()->Send(node_.node_id(), "message04",
                                          message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kInvalidConnection, result_of_send);

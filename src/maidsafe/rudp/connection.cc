@@ -188,6 +188,7 @@ void Connection::DoStartSending(const std::string& data,
     InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
     sending_ = false;
   } else {
+    state_ = State::kUnvalidated;
     strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
   }
 }
@@ -262,10 +263,12 @@ void Connection::StartConnect(const std::string& validation_data,
     assert(lifespan != bptime::pos_infin);
     if (lifespan > bptime::time_duration()) {
       open_mode = Session::kBootstrapAndKeep;
+      state_ = State::kBootstrapping;
       lifespan_timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckLifespanTimeout,
                                                         shared_from_this(), args::_1)));
     } else {
       open_mode = Session::kBootstrapAndDrop;
+      state_ = State::kTemporary;
     }
   }
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
