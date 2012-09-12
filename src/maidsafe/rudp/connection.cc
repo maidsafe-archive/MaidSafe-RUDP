@@ -92,7 +92,7 @@ void Connection::Close() {
 }
 
 void Connection::DoClose(bool timed_out) {
-                                                                                    LOG(kError) << "Closing " << my_conn_;
+                                                                                    LOG(kWarning) << "Closing " << my_conn_;
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
@@ -330,18 +330,23 @@ void Connection::HandleConnect(const bs::error_code& ec,
   if (Stopped()) {
     if (ping_functor) {
       ping_functor(kSuccess);
+      return DoClose();
     } else {
       if (state_ != State::kTemporary) {
         LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                       << " already stopped.";
+        return DoClose();
       }
     }
-    return DoClose();
   }
 
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     peer_node_id_ = socket_.PeerNodeId();
+    // For temporary connections, add them to the transport (in order to have the signal
+    // on_connection_added_ fired), then close the connection.
     transport->AddConnection(shared_from_this());
+    if (state_ == State::kTemporary)
+      return DoClose();
   } else {
     LOG(kError) << "Transport already destroyed.";
     return DoClose();

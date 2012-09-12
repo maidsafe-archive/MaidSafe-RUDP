@@ -401,16 +401,19 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
                        connection->state() == Connection::State::kTemporary,
                        is_duplicate_normal_connection);
 
-  if (is_duplicate_normal_connection) {
-    LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
-                << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
-    connection->Close();
-  }
+  // For temporary connections, we only need to fire the signal then finish.
+  if (connection->state() != Connection::State::kTemporary) {
+    if (is_duplicate_normal_connection) {
+      LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
+                  << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
+      connection->Close();
+    }
 
-  if (!connection_manager_->AddConnection(connection)) {
-    LOG(kError) << "Failed to add " << connection->state() << " connection from "
-                << ThisDebugId() << " to " << connection->PeerDebugId();
-    connection->Close();
+    if (!connection_manager_->AddConnection(connection)) {
+      LOG(kError) << "Failed to add " << connection->state() << " connection from "
+                  << ThisDebugId() << " to " << connection->PeerDebugId();
+      connection->Close();
+    }
   }
   LOG(kSuccess) << "Successfully made " << connection->state() << " connection from "
                 << ThisDebugId() << " to " << connection->PeerDebugId();
@@ -422,7 +425,8 @@ void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
 }
 
 void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
-  connection_manager_->RemoveConnection(connection);
+  if (connection->state() != Connection::State::kTemporary)
+    connection_manager_->RemoveConnection(connection);
   on_connection_lost_(connection->Socket().PeerNodeId(),
                       shared_from_this(),
                       connection->state() == Connection::State::kTemporary,

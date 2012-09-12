@@ -55,7 +55,6 @@ ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
                                      const NodeId& this_node_id,
                                      std::shared_ptr<asymm::PublicKey> this_public_key)
     : connections_(),
-      temporaries_(),
       pendings_(),
       mutex_(),
       transport_(transport),
@@ -75,9 +74,6 @@ void ConnectionManager::Close() {
   multiplexer_->dispatcher_.SetConnectionManager(nullptr);
   boost::mutex::scoped_lock lock(mutex_);
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
-    strand_.post(std::bind(&Connection::Close, *it));
-                                                                                    assert(temporaries_.empty());
-  for (auto it = temporaries_.begin(); it != temporaries_.end(); ++it)
     strand_.post(std::bind(&Connection::Close, *it));
 }
 
@@ -100,8 +96,7 @@ bool ConnectionManager::AddConnection(ConnectionPtr connection) {
   if (IsNormal(connection))
     result = connections_.insert(connection);
   else
-    result = temporaries_.insert(connection);
-                                                                                    assert(temporaries_.empty());
+    return false;
   assert(result.second);
   return result.second;
 }
@@ -109,9 +104,9 @@ bool ConnectionManager::AddConnection(ConnectionPtr connection) {
 bool ConnectionManager::AddPending(const NodeId& peer_id,
                                    const boost::asio::ip::udp::endpoint& peer_endpoint) {
   boost::mutex::scoped_lock lock(mutex_);
-                                                                                       auto result(pendings_.insert(std::make_pair(peer_id, peer_endpoint)));
-                                                                                       assert(result.second);
-                                                                                       return result.second;
+  auto result(pendings_.insert(std::make_pair(peer_id, peer_endpoint)));
+  assert(result.second);
+  return result.second;
 }
 
 bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
@@ -129,11 +124,8 @@ bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
 
 void ConnectionManager::RemoveConnection(ConnectionPtr connection) {
   boost::mutex::scoped_lock lock(mutex_);
-                                                                                    assert(temporaries_.empty());
-  if (IsNormal(connection))
-    connections_.erase(connection);
-  else
-    temporaries_.erase(connection);
+  assert(IsNormal(connection));
+  connections_.erase(connection);
 }
 
 
@@ -399,11 +391,6 @@ std::string ConnectionManager::DebugString() {
     s += "\t\tPeer " + c->PeerDebugId();
     s += std::string("  ") + boost::lexical_cast<std::string>(c->state());
     s += std::string("   Expires in ") + bptime::to_simple_string(c->ExpiresFromNow()) + "\n";
-  }
-  for (auto t : temporaries_) {
-    s += "\t\tPeer " + t->PeerDebugId();
-    s += std::string("  ") + boost::lexical_cast<std::string>(t->state());
-    s += std::string("   Expires in ") + bptime::to_simple_string(t->ExpiresFromNow()) + "\n";
   }
   for (auto p : pendings_) {
     s += "\t\tPeer [" + DebugId(p.first);

@@ -62,14 +62,12 @@ class ConnectionManager {
   bool AddConnection(std::shared_ptr<Connection> connection);
   bool AddPending(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint);
 
-  // Returns kSuccess if the connection existed and was closed.  Returns
-  // kInvalidConnection if the connection didn't exist.
   bool CloseConnection(const NodeId& peer_id);
+
   void RemoveConnection(std::shared_ptr<Connection> connection);
   bool RemovePending(const NodeId& peer_id);
 
   bool HasNormalConnectionTo(const NodeId& peer_id) const;
-  bool HasTemporaryConnectionTo(const NodeId& peer_id) const;
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
   void Ping(const NodeId& peer_id,
@@ -125,7 +123,7 @@ class ConnectionManager {
 
   // Because the connections can be in an idle state with no pending async operations, they are kept
   // alive with a shared_ptr in this set, as well as in the async operation handlers.
-  ConnectionGroup connections_, temporaries_;
+  ConnectionGroup connections_;
   PendingsGroup pendings_;
   mutable boost::mutex mutex_;
   std::weak_ptr<Transport> transport_;

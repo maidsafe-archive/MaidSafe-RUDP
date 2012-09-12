@@ -126,7 +126,7 @@ class ManagedConnections {
                                                                 size_t Size() const { return connections_.size(); }
 
  private:
-  typedef std::multimap<NodeId, std::shared_ptr<detail::Transport>> ConnectionMap;
+  typedef std::map<NodeId, std::shared_ptr<detail::Transport>> ConnectionMap;
 
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);

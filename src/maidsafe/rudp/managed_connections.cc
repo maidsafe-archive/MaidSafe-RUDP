@@ -503,117 +503,49 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
 }
 
 void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
-                                               detail::TransportPtr transport,
+                                               TransportPtr transport,
                                                bool temporary_connection,
                                                bool& is_duplicate_normal_connection) {
-  std::string s("\n++++++++++++ OnConnectionAddedSlot ++++++++++++\nAdding ");
-  s += (temporary_connection ? "temporary" : "non-temporary");
-  s += " connection from ";
+  if (temporary_connection)
+    return;
+
+  std::string s("\n++++++++++++ OnConnectionAddedSlot ++++++++++++\nAdding connection from ");
   s += transport->ThisDebugId() + " to " + DebugId(peer_id).substr(0, 7) + '\n' + DebugString();
   LOG(kVerbose) << s;
 
   is_duplicate_normal_connection = false;
   std::lock_guard<std::mutex> lock(mutex_);
-  if (!temporary_connection) {
-    auto range(connections_.equal_range(peer_id));
-    while (!is_duplicate_normal_connection && (range.first != range.second)) {
-      is_duplicate_normal_connection = (*range.first).second->HasNormalConnectionTo(peer_id);
+  auto result(connections_.insert(std::make_pair(peer_id, transport)));
+  is_duplicate_normal_connection = !result.second;
 #ifndef NDEBUG
-      if (is_duplicate_normal_connection) {
-        LOG(kError) << (*range.first).second->ThisDebugId() << " is already connected to "
-                    << DebugId(peer_id) << "   Won't make duplicate normal connection on "
-                    << transport->ThisDebugId();
-      }
+  if (is_duplicate_normal_connection) {
+    LOG(kError) << (*result.first).second->ThisDebugId() << " is already connected to "
+                << DebugId(peer_id) << "   Won't make duplicate normal connection on "
+                << transport->ThisDebugId();
+  }
 #endif
-      ++range.first;
-    }
-  }
-
-  if (!is_duplicate_normal_connection) {
-    connections_.insert(std::make_pair(peer_id, transport));
-  //pending_connections_.erase(peer_endpoint);
-  }
 }
 
 void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
-                                              detail::TransportPtr transport,
+                                              TransportPtr transport,
                                               bool temporary_connection) {
-  std::string s("\n************ OnConnectionLostSlot ************\nRemoving ");
-  s += (temporary_connection ? "temporary" : "non-temporary");
-  s += " connection from ";
+  if (temporary_connection)
+    return;
+
+  std::string s("\n************ OnConnectionLostSlot ************\nRemoving connection from ");
   s += transport->ThisDebugId() + " to " + DebugId(peer_id).substr(0, 7) + '\n' + DebugString();
   LOG(kVerbose) << s;
 
   {
     //bool remove_transport(connections_empty && !transport->IsResilienceTransport());
     std::lock_guard<std::mutex> lock(mutex_);
-#ifndef NDEBUG
-    if (!temporary_connection) {
-      auto range(connections_.equal_range(peer_id));
-      // Check that there's only a single transport with a normal connection to this peer.
-      auto itr(range.first);
-      std::set<TransportPtr> transports;
-      size_t normal_connection_count(0);
-      while (itr != range.second) {
-        if (transports.insert((*itr).second).second &&
-            (*itr).second->HasNormalConnectionTo(peer_id)) {
-          ++normal_connection_count;
-        }
-        ++itr;
-      }
-                                                                      //      assert(normal_connection_count == 1U);
+    auto itr(connections_.find(peer_id));
+    if (itr != connections_.end()) {
+      assert((*itr).second == transport);
+      connections_.erase(itr);
+      LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
+      asio_service_.service().post([=] { connection_lost_functor_(peer_id); });  // NOLINT (Fraser)
     }
-#endif
-    if (!temporary_connection) {
-      auto itr(std::find_if(
-          connections_.begin(),
-          connections_.end(),
-          [&](const ConnectionMap::value_type& element) {
-            return peer_id == element.first && transport == element.second;
-          }));
-      assert(itr != connections_.end());
-
-      if (itr != connections_.end())
-        connections_.erase(itr);
-    }
-
-
-//
-//      // If this is a temporary connection to allow this node to bootstrap a new transport off an
-//      // existing connection, the transport endpoint passed into the slot will not be the same one
-//      // that is listed against the peer's endpoint in the connection_map_.
-//      if (transport->local_endpoint() == (*connection_itr).second->local_endpoint()) {
-//        connection_map_.erase(connection_itr);
-//        should_execute_functor = true;
-//        LOG(kInfo) << "Removed managed connection from " << transport->local_endpoint() << " to "
-//                   << peer_endpoint
-//                   << (remove_transport ? " - also removing corresponding transport.  Now have " :
-//                                          " - not removing transport.  Now have ")
-//                   << connection_map_.size() << " connections.";
-//      } else {
-//        std::string msg("Not removing managed connection from ");
-//        msg += (*connection_itr).second->local_endpoint().address().to_string();
-//        msg += ":" + boost::lexical_cast<std::string>(
-//                         (*connection_itr).second->local_endpoint().port());
-//        msg += " to " + peer_endpoint.address().to_string();
-//        msg += ":" + boost::lexical_cast<std::string>(peer_endpoint.port());
-//        msg += "  Now have " + boost::lexical_cast<std::string>(connection_map_.size());
-//        msg += " connections.";
-//        LOG(kInfo) << msg;
-////        LOG(kInfo) << "Not removing managed connection from "
-////                   << (*connection_itr).second->local_endpoint() << " to " << peer_endpoint
-////                   << "  Now have " << connection_map_.size() << " connections.";
-//        BOOST_ASSERT_MSG(temporary_connection, msg.c_str());
-//        remove_transport = false;
-//      }
-//    }
-//    pending_connections_.erase(peer_endpoint);
-
-  }
-
-  if (!temporary_connection) {
-    LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
-    asio_service_.service().post([=] { connection_lost_functor_(peer_id); });  // NOLINT (Fraser)
   }
 }
 

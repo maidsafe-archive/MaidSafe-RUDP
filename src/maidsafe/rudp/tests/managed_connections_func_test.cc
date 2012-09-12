@@ -44,7 +44,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
  public:
   ManagedConnectionsFuncTest() : nodes_(), bootstrap_endpoints_(), network_size_(4), mutex_() {}
   ~ManagedConnectionsFuncTest() {
-                                                                                  LOG(kError) << "STARTING TEARDOWN.";
+                                                                                  LOG(kVerbose) << "STARTING TEARDOWN.";
   }
 
  protected:
