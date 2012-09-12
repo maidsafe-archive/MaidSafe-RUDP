@@ -79,6 +79,7 @@ class ConnectionManager {
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
   bool MakeConnectionPermanent(const NodeId& peer_id,
+                               bool validated,
                                boost::asio::ip::udp::endpoint& peer_endpoint);
 
   // This node's endpoint as viewed by peer

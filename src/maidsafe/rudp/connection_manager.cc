@@ -305,20 +305,25 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
 //  return (*itr)->IsTemporary();
 //}
 
-bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id, Endpoint& peer_endpoint) {
+bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id,
+                                                bool validated,
+                                                Endpoint& peer_endpoint) {
+  peer_endpoint = Endpoint();
   boost::mutex::scoped_lock lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
     LOG(kWarning) << "Not currently connected to " << DebugId(peer_id);
     return false;
   }
-  //if ((*itr)->state() != Connection::State::kUnvalidated) {
-  //  LOG(kWarning) << "Current connection to " << DebugId(peer_id) << " has state "
-  //                << (*itr)->state();
-  //  return false;
-  //}
-
-  (*itr)->MakePermanent();
+  assert(validated ? ((*itr)->state() == Connection::State::kUnvalidated) :
+                     ((*itr)->state() == Connection::State::kBootstrapping));
+  if ((*itr)->state() != Connection::State::kUnvalidated &&
+      (*itr)->state() != Connection::State::kBootstrapping) {
+    LOG(kWarning) << "Current connection to " << DebugId(peer_id) << " has state "
+                  << (*itr)->state();
+    return false;
+  }
+  (*itr)->MakePermanent(validated);
   // TODO(Fraser#5#): 2012-09-11 - Handle passing back peer_endpoint iff it's direct-connected.
   if (!OnPrivateNetwork((*itr)->Socket().PeerEndpoint()))
     peer_endpoint = (*itr)->Socket().PeerEndpoint();

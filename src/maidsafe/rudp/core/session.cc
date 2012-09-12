@@ -112,9 +112,9 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
   if (peer_.node_id() == NodeId()) {
     peer_.set_node_id(packet.node_id());
   } else if (peer_.node_id() != packet.node_id()) {
-    LOG(kError) << "Expected handshake from " << DebugId(peer_.node_id())
-                << " but got handshake from " << DebugId(packet.node_id());
-    return;
+    // This will happen if this node has assigned a proxy ID to peer.
+    LOG(kInfo) << "Expected handshake from " << DebugId(peer_.node_id())
+               << " but got handshake from " << DebugId(packet.node_id());
   }
 
   // TODO(Fraser#5#): 2012-04-04 - Handle SynCookies
@@ -266,7 +266,7 @@ void Session::SendCookie() {
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
-void Session::MakePermanent() {
+void Session::MakeNormal() {
   mode_ = kNormal;
 }
 

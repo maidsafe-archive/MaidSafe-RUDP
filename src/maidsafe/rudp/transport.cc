@@ -349,8 +349,10 @@ void Transport::SetBestGuessExternalEndpoint(const Endpoint& external_endpoint) 
 //  return connection_manager_->IsTemporaryConnection(peer_endpoint);
 //}
 
-bool Transport::MakeConnectionPermanent(const NodeId& peer_id, Endpoint& peer_endpoint) {
-  return connection_manager_->MakeConnectionPermanent(peer_id, peer_endpoint);
+bool Transport::MakeConnectionPermanent(const NodeId& peer_id,
+                                        bool validated,
+                                        Endpoint& peer_endpoint) {
+  return connection_manager_->MakeConnectionPermanent(peer_id, validated, peer_endpoint);
 }
 
 size_t Transport::NormalConnectionsCount() const {

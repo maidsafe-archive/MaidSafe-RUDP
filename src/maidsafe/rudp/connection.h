@@ -77,8 +77,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
             const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
   void StartSending(const std::string& data, const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
   State state() const;
-  // Sets the state_ to kPermanent and sets the lifespan_timer_ to expire at pos_infin.
-  void MakePermanent();
+  // Sets the state_ to kPermanent or kUnvalidated and sets the lifespan_timer_ to expire at
+  // pos_infin.
+  void MakePermanent(bool validated);
   // Get the remote endpoint offered for NAT detection.
   boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
 
@@ -130,7 +131,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void DoProbe(const boost::system::error_code& ec);
   void HandleProbe(const boost::system::error_code& ec);
 
-  void DoMakePermanent();
+  void DoMakePermanent(bool validated);
 
   void DispatchMessage();
   bool EncodeData(const std::string& data);

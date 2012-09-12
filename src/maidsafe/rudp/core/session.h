@@ -83,7 +83,7 @@ class Session {
   void HandleTick();
 
   // Changes mode_ to kNormal;
-  void MakePermanent();
+  void MakeNormal();
 
   Mode mode() const;
 

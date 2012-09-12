@@ -351,6 +351,11 @@ int ManagedConnections::Add(NodeId peer_id,
                                                    << "connection.  Result: " << result;
                                    }
                                  });
+        Endpoint peer_endpoint;
+        element.second->MakeConnectionPermanent(peer_id, false, peer_endpoint);
+        assert(detail::IsValid(peer_endpoint) ?
+                   peer_endpoint == connection->Socket().PeerEndpoint() :
+                   true);
         return kSuccess;
       } else {
         LOG(kError) << "A managed connection from " << DebugId(this_node_id_) << " to "
@@ -377,7 +382,7 @@ int ManagedConnections::MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_end
   }
   std::lock_guard<std::mutex> lock(mutex_);
   for (auto element : connections_) {
-    if (element.second->MakeConnectionPermanent(peer_id, peer_endpoint))
+    if (element.second->MakeConnectionPermanent(peer_id, true, peer_endpoint))
       return kSuccess;
   }
   LOG(kWarning) << "Can't mark connection from " << DebugId(this_node_id_) << " to "

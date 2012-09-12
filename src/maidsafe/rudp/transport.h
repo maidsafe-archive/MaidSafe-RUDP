@@ -113,6 +113,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
 
   bool MakeConnectionPermanent(const NodeId& peer_id,
+                               bool validated,
                                boost::asio::ip::udp::endpoint& peer_endpoint);
 
   bool IsResilienceTransport() const { return is_resilience_transport_; }

@@ -415,8 +415,8 @@ void Socket::HandleTick() {
   }
 }
 
-void Socket::MakePermanent() {
-  session_.MakePermanent();
+void Socket::MakeNormal() {
+  session_.MakeNormal();
 }
 
 ip::udp::endpoint Socket::ThisEndpoint() const {

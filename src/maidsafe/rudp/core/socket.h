@@ -182,7 +182,7 @@ class Socket {
   bool IsPermanent() const { return session_.mode() == Session::kNormal; }
 
   // Changes mode of session to kNormal
-  void MakePermanent();
+  void MakeNormal();
 
   // This node's endpoint as viewed by peer
   boost::asio::ip::udp::endpoint ThisEndpoint() const;
