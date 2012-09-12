@@ -60,6 +60,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   Connection(const std::shared_ptr<Transport> &transport,
              const boost::asio::io_service::strand& strand,
              const std::shared_ptr<Multiplexer> &multiplexer);
+                                                                                                ~Connection();
 
   detail::Socket& Socket();
 
@@ -84,6 +85,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   std::string PeerDebugId() const;
                 // Temporary helper for debugging
                 boost::posix_time::time_duration ExpiresFromNow() const { return lifespan_timer_.expires_from_now(); }
+                                                                                                    uint32_t my_conn_;
 
  private:
   Connection(const Connection&);

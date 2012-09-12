@@ -44,6 +44,7 @@ Session::Session(Peer& peer,  // NOLINT (Fraser)
       this_external_endpoint_mutex_(this_external_endpoint_mutex),
       kThisLocalEndpoint_(this_local_endpoint),
       nat_type_(nat_type),
+      this_node_id_(),
       this_public_key_(),
       id_(0),
       sending_sequence_number_(0),

@@ -43,7 +43,9 @@ namespace test {
 class ManagedConnectionsFuncTest : public testing::Test {
  public:
   ManagedConnectionsFuncTest() : nodes_(), bootstrap_endpoints_(), network_size_(4), mutex_() {}
-  ~ManagedConnectionsFuncTest() {}
+  ~ManagedConnectionsFuncTest() {
+                                                                                  LOG(kError) << "STARTING TEARDOWN.";
+  }
 
  protected:
   // Each node sending n messsages to all other connected nodes.
@@ -160,6 +162,7 @@ TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple1kBMessages) {
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple256kBMessages) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
   RunNetworkTest(10, 1024 * 256);
+  std::cout << "Done" << std::endl;
 }
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple512kBMessages) {

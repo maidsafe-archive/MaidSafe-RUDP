@@ -173,6 +173,8 @@ void Socket::StartConnect(
 }
 
 void Socket::StartProbe() {
+  LOG(kInfo) << "Sending probe from " << DebugId(session_.this_node_id_).substr(0, 7) << " - " << session_.kThisLocalEndpoint_ << " to "
+                                              << DebugId(peer_.node_id()).substr(0, 7) << " - " << peer_.PeerEndpoint();
   waiting_probe_ec_ = asio::error::operation_aborted;
   if (!session_.IsConnected()) {
     waiting_probe_ec_ = boost::asio::error::not_connected;
@@ -335,6 +337,8 @@ void Socket::HandleHandshake(const HandshakePacket& packet) {
 }
 
 void Socket::HandleKeepalive(const KeepalivePacket& packet) {
+  LOG(kInfo) << "Handling probe at " << DebugId(session_.this_node_id_).substr(0, 7) << " - " << session_.kThisLocalEndpoint_ << " from "
+                                              << DebugId(peer_.node_id()).substr(0, 7) << " - " << peer_.PeerEndpoint();
   if (session_.IsConnected()) {
     if (packet.IsResponse()) {
       if (waiting_keepalive_sequence_number_ &&

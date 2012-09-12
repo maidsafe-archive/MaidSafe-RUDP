@@ -53,14 +53,18 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)  // NOLINT (F
       on_message_connection_(),
       on_connection_added_connection_(),
       on_connection_lost_connection_(),
-      is_resilience_transport_(false) {}
+      is_resilience_transport_(false) {
+                                                                                            my_tprt_ = tprt++;
+                                                                                                LOG(kWarning) << "Ctor Transport " << my_tprt_;
+}
 
 Transport::~Transport() {
   Close();
+                                                                                                LOG(kWarning) << "\tDtor Transport " << my_tprt_;
 }
 
 void Transport::Bootstrap(
-    const std::vector<Endpoint> &bootstrap_endpoints,
+    const std::vector<std::pair<NodeId, Endpoint>> &bootstrap_peers,
     const NodeId& this_node_id,
     std::shared_ptr<asymm::PublicKey> this_public_key,
     Endpoint local_endpoint,
@@ -109,12 +113,12 @@ void Transport::Bootstrap(
   }
 
   if (try_connect) {
-    for (auto itr(bootstrap_endpoints.begin()); itr != bootstrap_endpoints.end(); ++itr) {
-      chosen_id = ConnectToBootstrapEndpoint(*itr, lifespan);
+    for (auto peer : bootstrap_peers) {
+      chosen_id = ConnectToBootstrapEndpoint(peer.first, peer.second, lifespan);
       if (chosen_id == NodeId())
         continue;
       LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
-                    << " connected to " << *itr;
+                    << " connected to " << DebugId(peer.first).substr(0, 7) << " - " << peer.second;
       break;
     }
   } else {
@@ -135,7 +139,8 @@ void Transport::Bootstrap(
   //}
 }
 
-NodeId Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
+NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
+                                             const Endpoint& bootstrap_endpoint,
                                              const bptime::time_duration& lifespan) {
   if (!IsValid(bootstrap_endpoint)) {
     LOG(kError) << bootstrap_endpoint << " is an invalid endpoint.";
@@ -174,7 +179,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const Endpoint& bootstrap_endpoint,
   }, boost::signals2::at_back));
 
   boost::mutex::scoped_lock lock(local_mutex);
-  connection_manager_->Connect(NodeId(), bootstrap_endpoint, "",
+  connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
                                Parameters::bootstrap_connect_timeout, lifespan);
 
   bool success(local_cond_var.timed_wait(lock,

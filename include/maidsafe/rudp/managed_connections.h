@@ -123,6 +123,7 @@ class ManagedConnections {
   //void Ping(boost::asio::ip::udp::endpoint peer_endpoint, PingFunctor ping_functor);
 
   friend class detail::Transport;
+                                                                size_t Size() const { return connections_.size(); }
 
  private:
   typedef std::multimap<NodeId, std::shared_ptr<detail::Transport>> ConnectionMap;
@@ -131,16 +132,17 @@ class ManagedConnections {
   ManagedConnections& operator=(const ManagedConnections&);
 
   bool StartNewTransport(
-      std::vector<boost::asio::ip::udp::endpoint> bootstrap_endpoints,
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers,
       boost::asio::ip::udp::endpoint local_endpoint,
       NodeId& chosen_bootstrap_node_id);
 
-  void GetBootstrapEndpoints(std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
-                             boost::asio::ip::address& this_external_address);
+  void GetBootstrapEndpoints(
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,
+      boost::asio::ip::address& this_external_address);
 
   bool GetThisEndpointPair(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
 
-  bool Connectable(const boost::asio::ip::udp::endpoint& peer_endpoint) const;
+  //bool Connectable(const boost::asio::ip::udp::endpoint& peer_endpoint) const;
 
   void StartResilienceTransport();
 

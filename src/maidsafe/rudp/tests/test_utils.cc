@@ -122,7 +122,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
         << "'s validation data as " << messages1[0] << " [should be \""
         << nodes[0]->validation_data() << "\"].";
   }
-Endpoint endpoint1, endpoint2;
+  Endpoint endpoint1, endpoint2;
   int result(nodes[0]->managed_connections()->MarkConnectionAsValid(nodes[1]->node_id(), endpoint1));
   if (result != kSuccess) {
     return testing::AssertionFailure() << nodes[0]->id() << " failed to mark connection to "
@@ -149,7 +149,7 @@ Endpoint endpoint1, endpoint2;
 
     NatType nat_type;
     for (int j(0); j != i; ++j) {
-      LOG(kInfo) << "Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();
+      LOG(kInfo) << "\n\n\n\n\n\n\n\n\n\n\n\nStarting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id() << "\n\n";
       // Call GetAvailableEndpoint at each peer.
       nodes[i]->ResetData();
       nodes[j]->ResetData();
@@ -264,6 +264,7 @@ Endpoint endpoint1, endpoint2;
       bootstrap_endpoints.push_back(this_endpoint_pair.local);
     }
   }
+
   return testing::AssertionSuccess();
 }
 

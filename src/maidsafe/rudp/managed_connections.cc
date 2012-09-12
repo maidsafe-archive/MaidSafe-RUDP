@@ -60,6 +60,7 @@ ManagedConnections::~ManagedConnections() {
     std::lock_guard<std::mutex> lock(mutex_);
     for (auto element : connections_)
       element.second->Close();
+    connections_.clear();
   }
 //  resilience_transport_.Close();
   asio_service_.Stop();
@@ -124,7 +125,10 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
   }
 
   NodeId chosen_bootstrap_node_id;
-  if (!StartNewTransport(bootstrap_endpoints, local_endpoint, chosen_bootstrap_node_id)) {
+  std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers;
+  for (auto element : bootstrap_endpoints)
+    bootstrap_peers.push_back(std::make_pair(NodeId(), element));
+  if (!StartNewTransport(bootstrap_peers, local_endpoint, chosen_bootstrap_node_id)) {
     LOG(kError) << "Failed to bootstrap managed connections.";
     return NodeId();
   }
@@ -141,19 +145,19 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
   return chosen_bootstrap_node_id;
 }
 
-bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpoints,
+bool ManagedConnections::StartNewTransport(std::vector<std::pair<NodeId, Endpoint>> bootstrap_peers,
                                            Endpoint local_endpoint,
                                            NodeId& chosen_bootstrap_node_id) {
   TransportPtr transport(new detail::Transport(asio_service_, nat_type_));
-  bool bootstrap_off_existing_connection(bootstrap_endpoints.empty());
+  bool bootstrap_off_existing_connection(bootstrap_peers.empty());
   boost::asio::ip::address external_address;
   if (bootstrap_off_existing_connection)
-    GetBootstrapEndpoints(bootstrap_endpoints, external_address);
+    GetBootstrapEndpoints(bootstrap_peers, external_address);
   //else
   //  bootstrap_endpoints.insert(bootstrap_endpoints.begin(), Endpoint(local_ip_, kResiliencePort()));
 
   transport->Bootstrap(
-      bootstrap_endpoints,
+      bootstrap_peers,
       this_node_id_,
       public_key_,
       local_endpoint,
@@ -182,21 +186,31 @@ bool ManagedConnections::StartNewTransport(std::vector<Endpoint> bootstrap_endpo
   return true;
 }
 
-void ManagedConnections::GetBootstrapEndpoints(std::vector<Endpoint>& bootstrap_endpoints,
-                                               boost::asio::ip::address& this_external_address) {
+void ManagedConnections::GetBootstrapEndpoints(
+    std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
+    boost::asio::ip::address& this_external_address) {
   bool external_address_consistent(true);
   // Favour connections which are on a different network to this to allow calculation of the new
   // transport's external endpoint.
-  std::vector<Endpoint> secondary_endpoints;
-  bootstrap_endpoints.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
-  secondary_endpoints.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
+  std::vector<std::pair<NodeId, Endpoint>> secondary_peers;
+  bootstrap_peers.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
+  secondary_peers.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
+  std::set<Endpoint> non_duplicates;
   std::lock_guard<std::mutex> lock(mutex_);
   for (auto element : connections_) {
-    Endpoint this_endpoint_as_seen_by_peer(element.second->ThisEndpointAsSeenByPeer(element.first));
-    if (detail::OnPrivateNetwork(this_endpoint_as_seen_by_peer)) {
-      secondary_endpoints.push_back(this_endpoint_as_seen_by_peer);
+    std::shared_ptr<detail::Connection> connection(element.second->GetConnection(element.first));
+    if (!connection)
+      continue;
+    if (!non_duplicates.insert(connection->Socket().PeerEndpoint()).second)
+      continue;  // Already have this endpoint added to bootstrap_endpoints or secondary_endpoints.
+    std::pair<NodeId, Endpoint> peer(connection->Socket().PeerNodeId(),
+                                     connection->Socket().PeerEndpoint());
+    if (detail::OnPrivateNetwork(connection->Socket().PeerEndpoint())) {
+      secondary_peers.push_back(peer);
     } else {
-      bootstrap_endpoints.push_back(this_endpoint_as_seen_by_peer);
+      bootstrap_peers.push_back(peer);
+      Endpoint this_endpoint_as_seen_by_peer(
+          element.second->ThisEndpointAsSeenByPeer(element.first));
       if (this_external_address.is_unspecified())
         this_external_address = this_endpoint_as_seen_by_peer.address();
       else if (this_external_address != this_endpoint_as_seen_by_peer.address())
@@ -205,11 +219,9 @@ void ManagedConnections::GetBootstrapEndpoints(std::vector<Endpoint>& bootstrap_
   }
   if (!external_address_consistent)
     this_external_address = boost::asio::ip::address();
-  std::random_shuffle(bootstrap_endpoints.begin(), bootstrap_endpoints.end());
-  std::random_shuffle(secondary_endpoints.begin(), secondary_endpoints.end());
-  bootstrap_endpoints.insert(bootstrap_endpoints.end(),
-                             secondary_endpoints.begin(),
-                             secondary_endpoints.end());
+  std::random_shuffle(bootstrap_peers.begin(), bootstrap_peers.end());
+  std::random_shuffle(secondary_peers.begin(), secondary_peers.end());
+  bootstrap_peers.insert(bootstrap_peers.end(), secondary_peers.begin(), secondary_peers.end());
 }
 
 int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
@@ -248,7 +260,7 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
 
   if (start_new_transport) {
     NodeId chosen_bootstrap_node_id;
-    if (!StartNewTransport(std::vector<Endpoint>(), Endpoint(local_ip_, 0),
+    if (!StartNewTransport(std::vector<std::pair<NodeId, Endpoint>>(), Endpoint(local_ip_, 0),
                            chosen_bootstrap_node_id)) {
       this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
       std::lock_guard<std::mutex> lock(mutex_);
@@ -549,19 +561,21 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
         }
         ++itr;
       }
-      assert(normal_connection_count == 1U);
+                                                                      //      assert(normal_connection_count == 1U);
     }
 #endif
-    auto itr(std::find_if(
-        connections_.begin(),
-        connections_.end(),
-        [&](const ConnectionMap::value_type& element) {
-          return peer_id == element.first && transport == element.second;
-        }));
-    assert(temporary_connection ? true : itr != connections_.end());
+    if (!temporary_connection) {
+      auto itr(std::find_if(
+          connections_.begin(),
+          connections_.end(),
+          [&](const ConnectionMap::value_type& element) {
+            return peer_id == element.first && transport == element.second;
+          }));
+      assert(itr != connections_.end());
 
-    if (itr != connections_.end())
-      connections_.erase(itr);
+      if (itr != connections_.end())
+        connections_.erase(itr);
+    }
 
 
 //

@@ -76,6 +76,7 @@ void ConnectionManager::Close() {
   boost::mutex::scoped_lock lock(mutex_);
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
     strand_.post(std::bind(&Connection::Close, *it));
+                                                                                    assert(temporaries_.empty());
   for (auto it = temporaries_.begin(); it != temporaries_.end(); ++it)
     strand_.post(std::bind(&Connection::Close, *it));
 }
@@ -100,6 +101,7 @@ bool ConnectionManager::AddConnection(ConnectionPtr connection) {
     result = connections_.insert(connection);
   else
     result = temporaries_.insert(connection);
+                                                                                    assert(temporaries_.empty());
   assert(result.second);
   return result.second;
 }
@@ -127,6 +129,7 @@ bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
 
 void ConnectionManager::RemoveConnection(ConnectionPtr connection) {
   boost::mutex::scoped_lock lock(mutex_);
+                                                                                    assert(temporaries_.empty());
   if (IsNormal(connection))
     connections_.erase(connection);
   else
@@ -194,9 +197,10 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
     return nullptr;
   }
 
+                                                                                HandshakePacket handshake_packet;
+
   SocketMap::const_iterator socket_iter(sockets_.end());
   if (socket_id == 0) {
-    HandshakePacket handshake_packet;
     if (!handshake_packet.Decode(data)) {
       LOG(kVerbose) << "Failed to decode handshake packet from " << endpoint;
       return nullptr;
@@ -272,23 +276,30 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
                                        const Endpoint& endpoint) {
   LOG(kVerbose) << "This is a handshake packet from " << endpoint
                 << " which is trying to ping this node or join the network";
+  if (handshake_packet.node_id() == kThisNodeId_) {
+    LOG(kWarning) << DebugId(kThisNodeId_) << " is handshaking with another local transport.";
+    return;
+  }
   if (IsValid(endpoint)) {
     // Check if this joining node is already connected
     ConnectionPtr joining_connection;
+    bool bootstrap_and_drop(handshake_packet.ConnectionReason() == Session::kBootstrapAndDrop);
     {
       boost::mutex::scoped_lock lock(mutex_);
       auto itr(FindConnection(handshake_packet.node_id()));
-      if (itr != connections_.end())
+      if (itr != connections_.end() && !bootstrap_and_drop)
         joining_connection = *itr;
     }
     if (joining_connection) {
-      LOG(kWarning) << "Received another bootstrap connection request from currently "
-                    << "connected endpoint " << endpoint << " - closing connection.";
+      LOG(kWarning) << DebugId(kThisNodeId_) << " received another bootstrap connection request "
+                    << "from currently connected peer " << DebugId(handshake_packet.node_id())
+                    << " - " << endpoint << " - closing connection.";
       joining_connection->Close();
     } else {
-      // Joining node is not already connected - start new temporary connection
+      // Joining node is not already connected - start new bootstrap or temporary connection
       Connect(handshake_packet.node_id(), endpoint, "", Parameters::bootstrap_connect_timeout,
-              Parameters::bootstrap_connection_lifespan);
+              bootstrap_and_drop ? bptime::time_duration() :
+                                   Parameters::bootstrap_connection_lifespan);
     }
     return;
   }

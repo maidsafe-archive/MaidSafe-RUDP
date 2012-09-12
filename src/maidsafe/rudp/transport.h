@@ -70,7 +70,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   virtual ~Transport();
 
   void Bootstrap(
-      const std::vector<boost::asio::ip::udp::endpoint> &bootstrap_endpoints,
+      const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> &bootstrap_peers,
       const NodeId& this_node_id,
       std::shared_ptr<asymm::PublicKey> this_public_key,
       boost::asio::ip::udp::endpoint local_endpoint,
@@ -124,6 +124,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   std::string ThisDebugId() const;
 
   friend class Connection;
+                                                                                                    uint32_t my_tprt_;
 
  private:
   Transport(const Transport&);
@@ -132,7 +133,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
 
-  NodeId ConnectToBootstrapEndpoint(const boost::asio::ip::udp::endpoint& bootstrap_endpoint,
+  NodeId ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
+                                    const boost::asio::ip::udp::endpoint& bootstrap_endpoint,
                                     const boost::posix_time::time_duration& lifespan);
 
   void DoConnect(const NodeId& peer_id,

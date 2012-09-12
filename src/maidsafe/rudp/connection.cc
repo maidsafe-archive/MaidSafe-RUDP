@@ -74,7 +74,14 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       sending_(false) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
   timer_.expires_from_now(bptime::pos_infin);
+                                                                                              my_conn_ = conn++;
+                                                                                                LOG(kWarning) << "Ctor Connection " << my_conn_;
+
 }
+
+                                                                                                        Connection::~Connection() {
+                                                                                                        LOG(kWarning) << "\tDtor Connection " << my_conn_;
+                                                                                                        }
 
 Socket& Connection::Socket() {
   return socket_;
@@ -85,6 +92,7 @@ void Connection::Close() {
 }
 
 void Connection::DoClose(bool timed_out) {
+                                                                                    LOG(kError) << "Closing " << my_conn_;
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
@@ -323,13 +331,16 @@ void Connection::HandleConnect(const bs::error_code& ec,
     if (ping_functor) {
       ping_functor(kSuccess);
     } else {
-      LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
-                    << " already stopped.";
+      if (state_ != State::kTemporary) {
+        LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
+                      << " already stopped.";
+      }
     }
     return DoClose();
   }
 
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
+    peer_node_id_ = socket_.PeerNodeId();
     transport->AddConnection(shared_from_this());
   } else {
     LOG(kError) << "Transport already destroyed.";
