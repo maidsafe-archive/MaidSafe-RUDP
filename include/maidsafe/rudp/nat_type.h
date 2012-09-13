@@ -19,6 +19,30 @@ namespace rudp {
 
 enum class NatType { kSymmetric, kOther, kUnknown };
 
+template <typename Elem, typename Traits>
+std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
+                                             const NatType &nat_type) {
+  std::string nat_str;
+  switch (nat_type) {
+    case NatType::kSymmetric:
+      nat_str = "symmetric NAT";
+      break;
+    case NatType::kOther:
+      nat_str = "other NAT";
+      break;
+    case NatType::kUnknown:
+      nat_str = "unknown NAT";
+      break;
+    default:
+      nat_str = "Invalid NAT type";
+      break;
+  }
+
+  for (std::string::iterator itr(nat_str.begin()); itr != nat_str.end(); ++itr)
+    ostream << ostream.widen(*itr);
+  return ostream;
+}
+
 }  // namespace rudp
 
 }  // namespace maidsafe

@@ -155,7 +155,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
 template <typename Elem, typename Traits>
 std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
                                              const Connection::State &state) {
-  boost::system::error_code error_code;
   std::string state_str;
   switch (state) {
     case Connection::State::kPending:
@@ -178,8 +177,8 @@ std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& o
       break;
   }
 
-  for (std::string::iterator i = state_str.begin(); i != state_str.end(); ++i)
-    ostream << ostream.widen(*i);
+  for (std::string::iterator itr(state_str.begin()); itr != state_str.end(); ++itr)
+    ostream << ostream.widen(*itr);
   return ostream;
 }
 

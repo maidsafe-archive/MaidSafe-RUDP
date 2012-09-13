@@ -192,7 +192,7 @@ bool ManagedConnections::StartNewTransport(std::vector<std::pair<NodeId, Endpoin
   }
 
   LOG(kVerbose) << "Started a new transport on " << transport->external_endpoint() << " / "
-                << transport->local_endpoint() << " - NAT: " << static_cast<int>(nat_type_);
+                << transport->local_endpoint() << " behind " << nat_type_;
   return true;
 }
 
@@ -558,11 +558,10 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
 
   std::string decrypted_message;
   int result(asymm::Decrypt(message, *private_key_, &decrypted_message));
-  if (result != kSuccess) {
+  if (result != kSuccess)
     LOG(kError) << "Failed to decrypt message.  Result: " << result;
-  } else {
+  else
     asio_service_.service().post([=] { message_received_functor_(decrypted_message); });  // NOLINT (Fraser)
-  }
 }
 
 void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,

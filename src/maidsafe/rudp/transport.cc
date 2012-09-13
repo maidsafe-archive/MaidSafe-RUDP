@@ -446,12 +446,8 @@ std::string Transport::ThisDebugId() const {
 }
 
 std::string Transport::DebugString() const {
-  std::string s = std::string("\t") + ThisDebugId();
-  switch (nat_type_) {
-    case NatType::kSymmetric: s += "  Symmetric NAT\n"; break;
-    case NatType::kOther:     s += "  Other NAT\n";     break;
-    case NatType::kUnknown:   s += "  Unknown NAT\n";   break;
-  }
+  std::string s = std::string("\t") + ThisDebugId() + "  ";
+  s += boost::lexical_cast<std::string>(nat_type_) + '\n';
   s += connection_manager_->DebugString();
   return s;
 }

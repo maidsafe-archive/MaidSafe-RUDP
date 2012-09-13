@@ -159,7 +159,6 @@ TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple1kBMessages) {
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple256kBMessages) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, network_size_));
   RunNetworkTest(10, 1024 * 256);
-  std::cout << "Done" << std::endl;
 }
 
 TEST_F(ManagedConnectionsFuncTest, FUNC_API_NetworkMultiple512kBMessages) {
