@@ -120,10 +120,9 @@ class ManagedConnections {
 
   // Try to ping remote_endpoint.  If this node is already connected, ping_functor is invoked with
   // kWontPingAlreadyConnected.  Otherwise, kPingFailed or kSuccess is passed to ping_functor.
-  //void Ping(boost::asio::ip::udp::endpoint peer_endpoint, PingFunctor ping_functor);
+//  void Ping(boost::asio::ip::udp::endpoint peer_endpoint, PingFunctor ping_functor);
 
   friend class detail::Transport;
-                                                                size_t Size() const { return connections_.size(); }
 
  private:
   typedef std::map<NodeId, std::shared_ptr<detail::Transport>> ConnectionMap;
@@ -132,17 +131,13 @@ class ManagedConnections {
   ManagedConnections& operator=(const ManagedConnections&);
 
   bool StartNewTransport(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers,
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers,  // NOLINT (Fraser)
       boost::asio::ip::udp::endpoint local_endpoint,
       NodeId& chosen_bootstrap_node_id);
 
   void GetBootstrapEndpoints(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,  // NOLINT (Fraser)
       boost::asio::ip::address& this_external_address);
-
-  bool GetThisEndpointPair(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
-
-  //bool Connectable(const boost::asio::ip::udp::endpoint& peer_endpoint) const;
 
   void StartResilienceTransport();
 
@@ -169,7 +164,8 @@ class ManagedConnections {
   NodeId this_node_id_;
   std::shared_ptr<asymm::PrivateKey> private_key_;
   std::shared_ptr<asymm::PublicKey> public_key_;
-  ConnectionMap connections_;
+  ConnectionMap connections_, pendings_;
+  std::set<std::shared_ptr<detail::Transport>> idle_transports_;
   mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
   NatType nat_type_;

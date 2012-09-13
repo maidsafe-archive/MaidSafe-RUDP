@@ -74,14 +74,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       sending_(false) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
   timer_.expires_from_now(bptime::pos_infin);
-                                                                                              my_conn_ = conn++;
-                                                                                                LOG(kWarning) << "Ctor Connection " << my_conn_;
-
 }
-
-                                                                                                        Connection::~Connection() {
-                                                                                                        LOG(kWarning) << "\tDtor Connection " << my_conn_;
-                                                                                                        }
 
 Socket& Connection::Socket() {
   return socket_;
@@ -92,7 +85,6 @@ void Connection::Close() {
 }
 
 void Connection::DoClose(bool timed_out) {
-                                                                                    LOG(kWarning) << "Closing " << my_conn_;
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
@@ -330,25 +322,20 @@ void Connection::HandleConnect(const bs::error_code& ec,
   if (Stopped()) {
     if (ping_functor) {
       ping_functor(kSuccess);
-      return DoClose();
-    } else {
-      if (state_ != State::kTemporary) {
-        LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
-                      << " already stopped.";
-        return DoClose();
-      }
+#ifndef NDEBUG
+    } else if (state_ != State::kTemporary) {
+      LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
+                    << " already stopped.";
+#endif
     }
+    return DoClose();
   }
 
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     peer_node_id_ = socket_.PeerNodeId();
-    // For temporary connections, add them to the transport (in order to have the signal
-    // on_connection_added_ fired), then close the connection.
     transport->AddConnection(shared_from_this());
-    if (state_ == State::kTemporary)
-      return DoClose();
   } else {
-    LOG(kError) << "Transport already destroyed.";
+    LOG(kError) << "Pointer to Transport already destroyed.";
     return DoClose();
   }
 
@@ -559,10 +546,13 @@ void Connection::InvokeSentFunctor(const MessageSentFunctor& message_sent_functo
   }
 }
 
+bptime::time_duration Connection::ExpiresFromNow() const {
+  return lifespan_timer_.expires_from_now();
+}
+
 std::string Connection::PeerDebugId() const {
   return std::string("[") + DebugId(socket_.PeerNodeId()).substr(0, 7) + " - " +
          boost::lexical_cast<std::string>(socket_.PeerEndpoint()) + "]";
-
 }
 
 }  // namespace detail

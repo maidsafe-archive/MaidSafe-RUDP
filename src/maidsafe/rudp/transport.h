@@ -18,6 +18,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "boost/asio/strand.hpp"
@@ -99,12 +100,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
             const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
 
-  bool AddPending(const NodeId& peer_id,
-                 const boost::asio::ip::udp::endpoint& peer_endpoint);
-  bool RemovePending(const NodeId& peer_id);
-
-  bool HasNormalConnectionTo(const NodeId& peer_id) const;
-  bool HasTemporaryConnectionTo(const NodeId& peer_id) const;
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
   boost::asio::ip::udp::endpoint external_endpoint() const;
@@ -119,13 +114,15 @@ class Transport : public std::enable_shared_from_this<Transport> {
   bool IsResilienceTransport() const { return is_resilience_transport_; }
 
   size_t NormalConnectionsCount() const;
+  bool IsIdle() const;
+
   static uint32_t kMaxConnections() { return 50; }
 
-  std::string DebugString() const ;
+  std::string DebugString() const;
   std::string ThisDebugId() const;
+  void SetManagedConnectionsDebugPrintout(std::function<std::string()> functor);
 
   friend class Connection;
-                                                                                                    uint32_t my_tprt_;
 
  private:
   Transport(const Transport&);
@@ -170,6 +167,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   boost::signals2::connection on_connection_added_connection_;
   boost::signals2::connection on_connection_lost_connection_;
   bool is_resilience_transport_;
+  std::function<std::string()> managed_connections_debug_printout_;
 };
 
 typedef std::shared_ptr<Transport> TransportPtr;

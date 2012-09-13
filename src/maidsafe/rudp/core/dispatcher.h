@@ -19,9 +19,6 @@
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
 
-extern uint32_t tprt;
-extern uint32_t conn;
-extern uint32_t disp;
 
 namespace maidsafe {
 
@@ -35,7 +32,6 @@ class Socket;
 class Dispatcher {
  public:
   Dispatcher();
-                                                                                                  ~Dispatcher();
 
   void SetConnectionManager(ConnectionManager* connection_manager);
 
@@ -48,7 +44,6 @@ class Dispatcher {
   // Handle a new packet by dispatching to the appropriate socket.
   void HandleReceiveFrom(const boost::asio::const_buffer& data,
                          const boost::asio::ip::udp::endpoint& endpoint);
-                                                                                                    uint32_t my_disp_;
 
  private:
   // Disallow copying and assignment.

@@ -88,9 +88,6 @@ class Session {
   Mode mode() const;
 
   boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
-                                                                                    NodeId this_node_id_;
-                                                    const boost::asio::ip::udp::endpoint kThisLocalEndpoint_;
-
 
  private:
   // Disallow copying and assignment.
@@ -117,11 +114,13 @@ class Session {
   std::mutex &this_external_endpoint_mutex_;
 
   // This node's local endpoint.
+  const boost::asio::ip::udp::endpoint kThisLocalEndpoint_;
 
   // This node's NAT type.  Object owned by ManagedConnections.
   NatType& nat_type_;
 
   // This node's NodeId
+  NodeId this_node_id_;
 
   // This node's public key
   std::shared_ptr<asymm::PublicKey> this_public_key_;

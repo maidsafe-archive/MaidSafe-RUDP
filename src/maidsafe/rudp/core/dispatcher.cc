@@ -22,12 +22,9 @@
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/core/socket.h"
 
+
 namespace asio = boost::asio;
 namespace ip = asio::ip;
-                                                                                            uint32_t tprt(1);
-                                                                                            uint32_t conn(1);
-                                                                                            uint32_t disp(1);
-
 
 namespace maidsafe {
 
@@ -35,14 +32,7 @@ namespace rudp {
 
 namespace detail {
 
-Dispatcher::Dispatcher() : connection_manager_(nullptr) {
-                                                                                                my_disp_ = disp++;
-                                                                                                LOG(kWarning) << "Ctor Dispatcher " << my_disp_;
-}
-
-                                                                                  Dispatcher::~Dispatcher() {
-                                                                                                LOG(kWarning) << "\tDtor Dispatcher " << my_disp_;
-                                                                                                            }
+Dispatcher::Dispatcher() : connection_manager_(nullptr) {}
 
 void Dispatcher::SetConnectionManager(ConnectionManager* connection_manager) {
   connection_manager_ = connection_manager;
@@ -60,7 +50,6 @@ void Dispatcher::RemoveSocket(uint32_t id) {
 
 void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
                                    const ip::udp::endpoint& endpoint) {
-                                                                        //LOG(kWarning) << "HandleReceiveFrom Dispatcher " << my_disp_;
   if (connection_manager_) {
     Socket* socket(connection_manager_->GetSocket(data, endpoint));
     if (socket)

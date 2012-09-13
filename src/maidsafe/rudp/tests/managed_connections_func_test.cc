@@ -43,9 +43,6 @@ namespace test {
 class ManagedConnectionsFuncTest : public testing::Test {
  public:
   ManagedConnectionsFuncTest() : nodes_(), bootstrap_endpoints_(), network_size_(4), mutex_() {}
-  ~ManagedConnectionsFuncTest() {
-                                                                                  LOG(kVerbose) << "STARTING TEARDOWN.";
-  }
 
  protected:
   // Each node sending n messsages to all other connected nodes.

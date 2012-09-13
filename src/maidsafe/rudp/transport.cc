@@ -53,14 +53,11 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)  // NOLINT (F
       on_message_connection_(),
       on_connection_added_connection_(),
       on_connection_lost_connection_(),
-      is_resilience_transport_(false) {
-                                                                                            my_tprt_ = tprt++;
-                                                                                                LOG(kWarning) << "Ctor Transport " << my_tprt_;
-}
+      is_resilience_transport_(false),
+      managed_connections_debug_printout_() {}
 
 Transport::~Transport() {
   Close();
-                                                                                                LOG(kWarning) << "\tDtor Transport " << my_tprt_;
 }
 
 void Transport::Bootstrap(
@@ -282,9 +279,10 @@ void Transport::DoConnect(const NodeId& peer_id,
     connection_manager_->Connect(peer_id, peer_endpoint_pair.external, validation_data,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin);
 
-    bool success(local_cond_var.timed_wait(lock,
-                                           Parameters::bootstrap_connect_timeout + bptime::seconds(1),
-                                           [&] { return slot_called; }));  // NOLINT (Fraser)
+    bool success(local_cond_var.timed_wait(
+        lock,
+        Parameters::bootstrap_connect_timeout + bptime::seconds(1),
+        [&] { return slot_called; }));  // NOLINT (Fraser)
     slot_connection_added.disconnect();
     slot_connection_lost.disconnect();
 
@@ -312,19 +310,6 @@ void Transport::Ping(const NodeId& peer_id,
   connection_manager_->Ping(peer_id, peer_endpoint, ping_functor);
 }
 
-bool Transport::AddPending(const NodeId& peer_id,
-                           const boost::asio::ip::udp::endpoint& peer_endpoint) {
-  return connection_manager_->AddPending(peer_id, peer_endpoint);
-}
-
-bool Transport::RemovePending(const NodeId& peer_id) {
-  return connection_manager_->RemovePending(peer_id);
-}
-
-bool Transport::HasNormalConnectionTo(const NodeId& peer_id) const {
-  return connection_manager_->HasNormalConnectionTo(peer_id);
-}
-
 std::shared_ptr<Connection> Transport::GetConnection(const NodeId& peer_id) {
   return connection_manager_->GetConnection(peer_id);
 }
@@ -345,10 +330,6 @@ void Transport::SetBestGuessExternalEndpoint(const Endpoint& external_endpoint) 
   connection_manager_->SetBestGuessExternalEndpoint(external_endpoint);
 }
 
-//bool Transport::IsTemporaryConnection(const Endpoint& peer_endpoint) {
-//  return connection_manager_->IsTemporaryConnection(peer_endpoint);
-//}
-
 bool Transport::MakeConnectionPermanent(const NodeId& peer_id,
                                         bool validated,
                                         Endpoint& peer_endpoint) {
@@ -357,6 +338,10 @@ bool Transport::MakeConnectionPermanent(const NodeId& peer_id,
 
 size_t Transport::NormalConnectionsCount() const {
   return connection_manager_->NormalConnectionsCount();
+}
+
+bool Transport::IsIdle() const {
+  return connection_manager_->NormalConnectionsCount() == 0U;
 }
 
 void Transport::StartDispatch() {
@@ -419,6 +404,14 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
   }
   LOG(kSuccess) << "Successfully made " << connection->state() << " connection from "
                 << ThisDebugId() << " to " << connection->PeerDebugId();
+#ifndef NDEBUG
+  std::string s("\n++++++++++++++++++++++++\nAdded ");
+  s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
+  s += ThisDebugId() + " to " + connection->PeerDebugId() + '\n';
+  if (managed_connections_debug_printout_)
+    s += managed_connections_debug_printout_();
+  LOG(kVerbose) << s;
+#endif
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
@@ -427,14 +420,23 @@ void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
 }
 
 void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
+  // The call to connection_manager_->RemoveConnection must come before the invocation of the
+  // on_connection_lost_ slot so that the transport can be assessed for IsIdle properly during the
+  // execution of the slot.
   if (connection->state() != Connection::State::kTemporary)
     connection_manager_->RemoveConnection(connection);
   on_connection_lost_(connection->Socket().PeerNodeId(),
                       shared_from_this(),
                       connection->state() == Connection::State::kTemporary,
                       timed_out);
-  LOG(kVerbose) << "Removed " << connection->state() << " connection from "
-                << ThisDebugId() << " to " << connection->PeerDebugId();
+#ifndef NDEBUG
+  std::string s("\n************************\nRemoved ");
+  s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
+  s += ThisDebugId() + " to " + connection->PeerDebugId() + '\n';
+  if (managed_connections_debug_printout_)
+    s += managed_connections_debug_printout_();
+  LOG(kVerbose) << s;
+#endif
 }
 
 std::string Transport::ThisDebugId() const {
@@ -453,6 +455,11 @@ std::string Transport::DebugString() const {
   s += connection_manager_->DebugString();
   return s;
 }
+
+void Transport::SetManagedConnectionsDebugPrintout(std::function<std::string()> functor) {
+  managed_connections_debug_printout_ = functor;
+}
+
 
 }  // namespace detail
 

@@ -51,6 +51,8 @@ ManagedConnections::ManagedConnections()
       private_key_(),
       public_key_(),
       connections_(),
+      pendings_(),
+      idle_transports_(),
       mutex_(),
       local_ip_(),
       nat_type_(NatType::kUnknown) {}
@@ -58,9 +60,15 @@ ManagedConnections::ManagedConnections()
 ManagedConnections::~ManagedConnections() {
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    for (auto element : connections_)
-      element.second->Close();
+    for (auto connection_details : connections_)
+      connection_details.second->Close();
     connections_.clear();
+    for (auto pending : pendings_)
+      pending.second->Close();
+    pendings_.clear();
+    for (auto idle_transport : idle_transports_)
+      idle_transport->Close();
+    idle_transports_.clear();
   }
 //  resilience_transport_.Close();
   asio_service_.Stop();
@@ -153,9 +161,11 @@ bool ManagedConnections::StartNewTransport(std::vector<std::pair<NodeId, Endpoin
   boost::asio::ip::address external_address;
   if (bootstrap_off_existing_connection)
     GetBootstrapEndpoints(bootstrap_peers, external_address);
-  //else
-  //  bootstrap_endpoints.insert(bootstrap_endpoints.begin(), Endpoint(local_ip_, kResiliencePort()));
+  // else
+  //  bootstrap_endpoints.insert(bootstrap_endpoints.begin(),
+  //                             Endpoint(local_ip_, kResiliencePort()));
 
+  transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });  // NOLINT (Fraser)
   transport->Bootstrap(
       bootstrap_peers,
       this_node_id_,
@@ -187,7 +197,7 @@ bool ManagedConnections::StartNewTransport(std::vector<std::pair<NodeId, Endpoin
 }
 
 void ManagedConnections::GetBootstrapEndpoints(
-    std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
+    std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,  // NOLINT (Fraser)
     boost::asio::ip::address& this_external_address) {
   bool external_address_consistent(true);
   // Favour connections which are on a different network to this to allow calculation of the new
@@ -233,19 +243,76 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
     return kOwnId;
   }
 
+  // Functor to be used to retrieve a non-resilience, idle transport.
+  const auto kGetFromIdles([&]()->bool {  // NOLINT (Fraser)
+    if (!idle_transports_.empty()) {
+      auto idles_itr(std::find_if_not(idle_transports_.begin(),
+                                      idle_transports_.end(),
+                                      [](const std::shared_ptr<detail::Transport>& transport) {
+                                        return transport->IsResilienceTransport();
+                                      }));
+      if (idles_itr != idle_transports_.end()) {
+        this_endpoint_pair.local = (*idles_itr)->local_endpoint();
+        this_endpoint_pair.external = (*idles_itr)->external_endpoint();
+        BOOST_VERIFY(pendings_.insert(std::make_pair(peer_id, *idles_itr)).second);
+        return true;
+      } else {
+        LOG(kVerbose) << "Only idle transport is Resilience one - won't provide this in "
+                      << "GetAvailableEndpoint";
+      }
+    }
+    return false;
+  });
+
+  // Functor to handle resetting parameters in case of failure.
+  const auto kFail([&](const std::string& message) {  // NOLINT (Fraser)
+    this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
+    this_nat_type = NatType::kUnknown;
+    if (!message.empty())
+      LOG(kError) << message;
+  });
+
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (connections_.empty()) {
-      LOG(kError) << "No running Transports.";
-      this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
-      this_nat_type = NatType::kUnknown;
+    this_nat_type = nat_type_;
+    if (connections_.empty() && idle_transports_.empty()) {
+      kFail("No running Transports.");
       return kNotBootstrapped;
     }
 
-    if (GetThisEndpointPair(peer_id, this_endpoint_pair)) {
-      this_nat_type = nat_type_;
-      return kSuccess;
+    // Check for an existing connection attempt
+    auto existing_attempt(pendings_.find(peer_id));
+    assert(existing_attempt == pendings_.end());
+    if (existing_attempt != pendings_.end()) {
+      kFail(std::string("GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
+      return kConnectAttemptAlreadyRunning;
     }
+
+    // Check for existing connection to peer and use that transport if it's a bootstrap connection
+    // otherwise fail.
+    auto itr(connections_.find(peer_id));
+    if (itr != connections_.end()) {
+      std::shared_ptr<detail::Connection> connection((*itr).second->GetConnection(peer_id));
+      if (!connection) {
+        LOG(kError) << "Internal ManagedConnections error: mismatch between connections_ and "
+                    << "actual connections.";
+        connections_.erase(peer_id);
+      }
+      if (connection->state() == detail::Connection::State::kBootstrapping) {
+        this_endpoint_pair.local = (*itr).second->local_endpoint();
+        this_endpoint_pair.external = (*itr).second->external_endpoint();
+        BOOST_VERIFY(pendings_.insert(std::make_pair(peer_id, (*itr).second)).second);
+        return kSuccess;
+      } else {
+        kFail(std::string("A non-bootstrap managed connection from ") + DebugId(this_node_id_) +
+              std::string(" to ") + DebugId(peer_id) + " already exists");
+        return kConnectionAlreadyExists;
+      }
+    }
+
+    // Try to get from an existing idle transport
+    if (kGetFromIdles())
+      return kSuccess;
   }
 
   bool start_new_transport(false);
@@ -260,19 +327,27 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
 
   if (start_new_transport) {
     NodeId chosen_bootstrap_node_id;
-    if (!StartNewTransport(std::vector<std::pair<NodeId, Endpoint>>(), Endpoint(local_ip_, 0),
+    if (!StartNewTransport(std::vector<std::pair<NodeId, Endpoint>>(), Endpoint(local_ip_, 0),  // NOLINT (Fraser)
                            chosen_bootstrap_node_id)) {
-      this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
-      std::lock_guard<std::mutex> lock(mutex_);
-      this_nat_type = NatType::kUnknown;
+      kFail("Failed to start transport.");
       return kTransportStartFailure;
     }
   }
 
-  // Check again in case a previous attempt has completed.
   std::lock_guard<std::mutex> lock(mutex_);
+  // Check again for an existing connection attempt in case it was added while mutex unlocked
+  // during starting new transport.
+  auto existing_attempt(pendings_.find(peer_id));
+  assert(existing_attempt == pendings_.end());
+  if (existing_attempt != pendings_.end()) {
+    kFail(std::string("GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
+    return kConnectAttemptAlreadyRunning;
+  }
+
+  // NAT type may have just been deduced by newly-started transport
   this_nat_type = nat_type_;
-  if (GetThisEndpointPair(peer_id, this_endpoint_pair))
+  // Try again to get from an existing idle transport (likely to be just-started one)
+  if (kGetFromIdles())
     return kSuccess;
 
   // Get transport with least connections.
@@ -285,42 +360,15 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
     }
   }
 
-  if (selected_transport) {
-    this_endpoint_pair.local = selected_transport->local_endpoint();
-    this_endpoint_pair.external = selected_transport->external_endpoint();
-    selected_transport->AddPending(peer_id, peer_endpoint_pair.external);
-  } else {
-    LOG(kError) << "All connectable Transports are full.";
-    this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
+  if (!selected_transport) {
+    kFail("All connectable Transports are full.");
     return kFull;
   }
+
+  this_endpoint_pair.local = selected_transport->local_endpoint();
+  this_endpoint_pair.external = selected_transport->external_endpoint();
+  BOOST_VERIFY(pendings_.insert(std::make_pair(peer_id, selected_transport)).second);
   return kSuccess;
-}
-
-bool ManagedConnections::GetThisEndpointPair(const NodeId& peer_id,
-                                             EndpointPair& this_endpoint_pair) {
-  for (auto element : connections_) {
-    if (element.second->HasNormalConnectionTo(peer_id)) {
-      this_endpoint_pair.external = element.second->external_endpoint();
-      this_endpoint_pair.local = element.second->local_endpoint();
-      return true;
-    }
-  }
-
-  this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
-#ifndef NDEBUG
-//      } else {
-//        std::string msg("Expected to find a connection to ");
-//        msg += peer_endpoint.address().to_string() + ":";
-//        msg += boost::lexical_cast<std::string>(peer_endpoint.port());
-//        msg += " in map, but map only contains\n";
-//        for (auto conn : connection_map_) {
-//          msg += conn.first.address().to_string() + ":";
-//          msg += boost::lexical_cast<std::string>(conn.first.port()) + "\n";
-//        }
-//        LOG(kInfo) << msg;
-#endif
-  return false;
 }
 
 int ManagedConnections::Add(NodeId peer_id,
@@ -334,45 +382,55 @@ int ManagedConnections::Add(NodeId peer_id,
     LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
     return kOwnId;
   }
+
+  std::lock_guard<std::mutex> lock(mutex_);
+
+#ifndef NDEBUG
+  for (auto idle_transport : idle_transports_)
+    assert(idle_transport->IsIdle());
+#endif
+
+  auto itr(pendings_.find(peer_id));
+  assert(itr != pendings_.end());
+  if (itr == pendings_.end()) {
+    LOG(kError) << "No connection attempt from " << DebugId(this_node_id_) << " to "
+                << DebugId(peer_id) << " - ensure GetAvailableEndpoint has been called first.";
+    return kNoPendingConnectAttempt;
+  }
+  TransportPtr selected_transport((*itr).second);
+  pendings_.erase(itr);
+
   if (validation_data.empty()) {
     LOG(kError) << "Invalid validation_data passed.";
     return kEmptyValidationData;
   }
 
-  std::lock_guard<std::mutex> lock(mutex_);
-  for (auto element : connections_) {
-    std::shared_ptr<detail::Connection> connection(element.second->GetConnection(peer_id));
-    if (connection) {
-      if (connection->state() == detail::Connection::State::kBootstrapping) {
-        connection->StartSending(validation_data,
-                                 [](int result) {
-                                   if (result != kSuccess) {
-                                     LOG(kWarning) << "Failed to send validation data on bootstrap "
-                                                   << "connection.  Result: " << result;
-                                   }
-                                 });
-        Endpoint peer_endpoint;
-        element.second->MakeConnectionPermanent(peer_id, false, peer_endpoint);
-        assert(detail::IsValid(peer_endpoint) ?
-                   peer_endpoint == connection->Socket().PeerEndpoint() :
-                   true);
-        return kSuccess;
-      } else {
-        LOG(kError) << "A managed connection from " << DebugId(this_node_id_) << " to "
-                    << DebugId(peer_id) << " already exists";
-        return kConnectionAlreadyExists;
-      }
+  std::shared_ptr<detail::Connection> connection(selected_transport->GetConnection(peer_id));
+  if (connection) {
+    assert(connection->state() == detail::Connection::State::kBootstrapping);
+    if (connection->state() == detail::Connection::State::kBootstrapping) {
+      connection->StartSending(validation_data,
+                                [](int result) {
+                                  if (result != kSuccess) {
+                                    LOG(kWarning) << "Failed to send validation data on bootstrap "
+                                                  << "connection.  Result: " << result;
+                                  }
+                                });
+      Endpoint peer_endpoint;
+      selected_transport->MakeConnectionPermanent(peer_id, false, peer_endpoint);
+      assert(detail::IsValid(peer_endpoint) ?
+                  peer_endpoint == connection->Socket().PeerEndpoint() :
+                  true);
+      return kSuccess;
     } else {
-      if (element.second->RemovePending(peer_id)) {
-        element.second->Connect(peer_id, peer_endpoint_pair, validation_data);
-        return kSuccess;
-      }
+      LOG(kError) << "A managed connection from " << DebugId(this_node_id_) << " to "
+                  << DebugId(peer_id) << " already exists";
+      return kConnectionAlreadyExists;
     }
   }
 
-  LOG(kError) << "No connection attempt from " << DebugId(this_node_id_) << " to "
-              << DebugId(peer_id) << " - ensure GetAvailableEndpoint has been called first.";
-  return kNoPendingConnectAttempt;
+  selected_transport->Connect(peer_id, peer_endpoint_pair, validation_data);
+  return kSuccess;
 }
 
 int ManagedConnections::MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_endpoint) {
@@ -381,8 +439,9 @@ int ManagedConnections::MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_end
     return kOwnId;
   }
   std::lock_guard<std::mutex> lock(mutex_);
-  for (auto element : connections_) {
-    if (element.second->MakeConnectionPermanent(peer_id, true, peer_endpoint))
+  auto itr(connections_.find(peer_id));
+  if (itr != connections_.end()) {
+    if ((*itr).second->MakeConnectionPermanent(peer_id, true, peer_endpoint))
       return kSuccess;
   }
   LOG(kWarning) << "Can't mark connection from " << DebugId(this_node_id_) << " to "
@@ -397,12 +456,13 @@ void ManagedConnections::Remove(NodeId peer_id) {
     return;
   }
   std::lock_guard<std::mutex> lock(mutex_);
-  for (auto element : connections_) {
-    if (element.second->CloseConnection(peer_id))
-      return;
+  auto itr(connections_.find(peer_id));
+  if (itr == connections_.end()) {
+    LOG(kWarning) << "Can't remove connection from " << DebugId(this_node_id_) << " to "
+                  << DebugId(peer_id) << " - not in map.";
+  } else {
+    (*itr).second->CloseConnection(peer_id);
   }
-  LOG(kWarning) << "Can't remove connection from " << DebugId(this_node_id_) << " to "
-                << DebugId(peer_id) << " - not in map.";
 }
 
 void ManagedConnections::Send(NodeId peer_id,
@@ -413,14 +473,15 @@ void ManagedConnections::Send(NodeId peer_id,
     return;
   }
   std::lock_guard<std::mutex> lock(mutex_);
-  for (auto element : connections_) {
-    if (element.second->Send(peer_id, message, message_sent_functor))
+  auto itr(connections_.find(peer_id));
+  if (itr != connections_.end()) {
+    if ((*itr).second->Send(peer_id, message, message_sent_functor))
       return;
   }
   LOG(kError) << "Can't send from " << DebugId(this_node_id_) << " to " << DebugId(peer_id)
               << " - not in map.";
   if (message_sent_functor) {
-    if (!connections_.empty()) {
+    if (!connections_.empty() || !idle_transports_.empty()) {
       asio_service_.service().post([message_sent_functor] {
         message_sent_functor(kInvalidConnection);
       });
@@ -437,7 +498,7 @@ void ManagedConnections::Send(NodeId peer_id,
 //    return;
 //  }
 //
-//  if (connections_.empty()) {
+//  if (connections_.empty() && idle_transports_.empty()) {
 //    LOG(kError) << "No running Transports.";
 //    // Probably haven't bootstrapped, so asio_service_ won't be running.
 //    boost::thread(ping_functor, kNotBootstrapped);
@@ -493,10 +554,7 @@ void ManagedConnections::Send(NodeId peer_id,
 //}
 
 void ManagedConnections::OnMessageSlot(const std::string& message) {
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();
-  }
+  LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();
 
   std::string decrypted_message;
   int result(asymm::Decrypt(message, *private_key_, &decrypted_message));
@@ -511,46 +569,49 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
                                                TransportPtr transport,
                                                bool temporary_connection,
                                                bool& is_duplicate_normal_connection) {
-  if (temporary_connection)
-    return;
-
-  std::string s("\n++++++++++++ OnConnectionAddedSlot ++++++++++++\nAdding connection from ");
-  s += transport->ThisDebugId() + " to " + DebugId(peer_id).substr(0, 7) + '\n' + DebugString();
-  LOG(kVerbose) << s;
-
   is_duplicate_normal_connection = false;
   std::lock_guard<std::mutex> lock(mutex_);
-  auto result(connections_.insert(std::make_pair(peer_id, transport)));
-  is_duplicate_normal_connection = !result.second;
-#ifndef NDEBUG
-  if (is_duplicate_normal_connection) {
-    LOG(kError) << (*result.first).second->ThisDebugId() << " is already connected to "
-                << DebugId(peer_id) << "   Won't make duplicate normal connection on "
-                << transport->ThisDebugId();
+
+  if (temporary_connection) {
+    if (transport->IsIdle())
+      idle_transports_.insert(transport);
+    else
+      idle_transports_.erase(transport);
+  } else {
+    auto result(connections_.insert(std::make_pair(peer_id, transport)));
+    is_duplicate_normal_connection = !result.second;
+    if (is_duplicate_normal_connection) {
+      if (transport->IsIdle())
+        idle_transports_.insert(transport);
+      else
+        idle_transports_.erase(transport);
+      LOG(kError) << (*result.first).second->ThisDebugId() << " is already connected to "
+                  << DebugId(peer_id) << "   Won't make duplicate normal connection on "
+                  << transport->ThisDebugId();
+    } else {
+      idle_transports_.erase(transport);
+    }
   }
-#endif
 }
 
 void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
                                               TransportPtr transport,
                                               bool temporary_connection) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (transport->IsIdle())
+    idle_transports_.insert(transport);
+  else
+    idle_transports_.erase(transport);
+
   if (temporary_connection)
     return;
 
-  std::string s("\n************ OnConnectionLostSlot ************\nRemoving connection from ");
-  s += transport->ThisDebugId() + " to " + DebugId(peer_id).substr(0, 7) + '\n' + DebugString();
-  LOG(kVerbose) << s;
-
-  {
-    //bool remove_transport(connections_empty && !transport->IsResilienceTransport());
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto itr(connections_.find(peer_id));
-    if (itr != connections_.end()) {
-      assert((*itr).second == transport);
-      connections_.erase(itr);
-      LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
-      asio_service_.service().post([=] { connection_lost_functor_(peer_id); });  // NOLINT (Fraser)
-    }
+  auto itr(connections_.find(peer_id));
+  if (itr != connections_.end()) {
+    assert((*itr).second == transport);
+    connections_.erase(itr);
+    LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
+    asio_service_.service().post([=] { connection_lost_functor_(peer_id); });  // NOLINT (Fraser)
   }
 }
 
@@ -585,6 +646,7 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
 std::string ManagedConnections::DebugString() const {
   std::string s = "This node's peer connections:\n";
 
+  std::lock_guard<std::mutex> lock(mutex_);
   std::set<TransportPtr> transports;
   for (auto connection : connections_) {
     transports.insert(connection.second);
@@ -592,10 +654,20 @@ std::string ManagedConnections::DebugString() const {
   }
 
   s += "\nThis node's own transports and their peer connections:\n";
-
   for (auto transport : transports)
     s += transport->DebugString();
 
+  s += "\nThis node's idle transports:\n";
+  for (auto idle_transport : idle_transports_)
+    s += idle_transport->DebugString();
+
+  s += "\nThis node's pending connections:\n";
+  for (auto pending : pendings_) {
+    s += "\tPending to peer " + DebugId(pending.first).substr(0, 7);
+    s += " on this node's transport ";
+    s += boost::lexical_cast<std::string>(pending.second->external_endpoint()) + " / ";
+    s += boost::lexical_cast<std::string>(pending.second->local_endpoint()) + '\n';
+  }
   //s += "\nThis node's resilience transport:\n";
   //s += (resilience_transport_.transport ? resilience_transport_.transport->DebugString() :
   //                                        "\tNot running");

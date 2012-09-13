@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -59,15 +60,10 @@ class ConnectionManager {
                const std::string& validation_data,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan);
+
   bool AddConnection(std::shared_ptr<Connection> connection);
-  bool AddPending(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint);
-
   bool CloseConnection(const NodeId& peer_id);
-
   void RemoveConnection(std::shared_ptr<Connection> connection);
-  bool RemovePending(const NodeId& peer_id);
-
-  bool HasNormalConnectionTo(const NodeId& peer_id) const;
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
   void Ping(const NodeId& peer_id,
@@ -114,7 +110,6 @@ class ConnectionManager {
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionGroup;
-  typedef std::map<NodeId, boost::asio::ip::udp::endpoint> PendingsGroup;
   // Map of destination socket id to corresponding socket object.
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;
 
@@ -125,7 +120,6 @@ class ConnectionManager {
   // Because the connections can be in an idle state with no pending async operations, they are kept
   // alive with a shared_ptr in this set, as well as in the async operation handlers.
   ConnectionGroup connections_;
-  PendingsGroup pendings_;
   mutable boost::mutex mutex_;
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;

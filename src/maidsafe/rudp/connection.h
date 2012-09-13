@@ -60,7 +60,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
   Connection(const std::shared_ptr<Transport> &transport,
              const boost::asio::io_service::strand& strand,
              const std::shared_ptr<Multiplexer> &multiplexer);
-                                                                                                ~Connection();
 
   detail::Socket& Socket();
 
@@ -82,11 +81,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void MakePermanent(bool validated);
   // Get the remote endpoint offered for NAT detection.
   boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
-
+  // Helpers for debugging
+  boost::posix_time::time_duration ExpiresFromNow() const;
   std::string PeerDebugId() const;
-                // Temporary helper for debugging
-                boost::posix_time::time_duration ExpiresFromNow() const { return lifespan_timer_.expires_from_now(); }
-                                                                                                    uint32_t my_conn_;
 
  private:
   Connection(const Connection&);
@@ -180,7 +177,7 @@ std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& o
       state_str = "Invalid";
       break;
   }
-  
+
   for (std::string::iterator i = state_str.begin(); i != state_str.end(); ++i)
     ostream << ostream.widen(*i);
   return ostream;
