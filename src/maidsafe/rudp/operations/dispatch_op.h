@@ -54,12 +54,9 @@ class DispatchOp {
   void operator()(const boost::system::error_code& ec, size_t bytes_transferred) {
     boost::system::error_code local_ec = ec;
     while (!local_ec) {
-      {
-        std::lock_guard<std::mutex> lock(*mutex_);
-        dispatcher_->HandleReceiveFrom(boost::asio::buffer(buffer_, bytes_transferred),
-                                       *sender_endpoint_);
-      }
-
+      std::lock_guard<std::mutex> lock(*mutex_);
+      dispatcher_->HandleReceiveFrom(boost::asio::buffer(buffer_, bytes_transferred),
+                                      *sender_endpoint_);
       bytes_transferred = socket_->receive_from(boost::asio::buffer(buffer_),
                                                 *sender_endpoint_, 0, local_ec);
     }
