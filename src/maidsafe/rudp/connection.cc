@@ -307,7 +307,7 @@ void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
 
 void Connection::HandleConnect(const bs::error_code& ec,
                                const std::string& validation_data,
-                               const PingFunctor& ping_functor) {
+                               PingFunctor ping_functor) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
@@ -473,6 +473,7 @@ void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
     LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                 << " - connection stopped.";
     InvokeSentFunctor(message_sent_functor, kSendFailure);
+    sending_ = false;
     return DoClose();
   }
   socket_.AsyncWrite(asio::buffer(send_buffer_),
@@ -481,8 +482,10 @@ void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
                                   args::_1, message_sent_functor)));
 }
 
-void Connection::HandleWrite(const bs::error_code& ec,
-                             const MessageSentFunctor& message_sent_functor) {
+void Connection::HandleWrite(const bs::error_code& ec, MessageSentFunctor message_sent_functor) {
+  // Message has now been fully sent, so safe to start sending next.  message_sent_functor will be
+  // invoked by Socket::HandleAck once peer has acknowledged receipt.
+  sending_ = false;
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped()) {

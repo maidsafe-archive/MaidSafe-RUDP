@@ -112,7 +112,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
                     const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
   void HandleConnect(const boost::system::error_code& ec,
                      const std::string& validation_data,
-                     const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
+                     std::function<void(int)> ping_functor);  // NOLINT (Fraser)
 
   void StartReadSize();
   void HandleReadSize(const boost::system::error_code& ec);
@@ -122,7 +122,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void StartWrite(const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
   void HandleWrite(const boost::system::error_code& ec,
-                   const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
+                   std::function<void(int)> message_sent_functor);  // NOLINT (Fraser)
 
   void StartProbing();
   void DoProbe(const boost::system::error_code& ec);
