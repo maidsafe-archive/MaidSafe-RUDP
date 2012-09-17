@@ -282,14 +282,6 @@ bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id,
     LOG(kWarning) << "Not currently connected to " << DebugId(peer_id);
     return false;
   }
-  assert(validated ? ((*itr)->state() == Connection::State::kUnvalidated) :
-                     ((*itr)->state() == Connection::State::kBootstrapping));
-  if ((*itr)->state() != Connection::State::kUnvalidated &&
-      (*itr)->state() != Connection::State::kBootstrapping) {
-    LOG(kWarning) << "Current connection to " << DebugId(peer_id) << " has state "
-                  << (*itr)->state();
-    return false;
-  }
   (*itr)->MakePermanent(validated);
   // TODO(Fraser#5#): 2012-09-11 - Handle passing back peer_endpoint iff it's direct-connected.
   if (!OnPrivateNetwork((*itr)->Socket().PeerEndpoint()))

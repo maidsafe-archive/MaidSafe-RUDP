@@ -132,8 +132,7 @@ class ManagedConnections {
 
   bool StartNewTransport(
       std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers,  // NOLINT (Fraser)
-      boost::asio::ip::udp::endpoint local_endpoint,
-      NodeId& chosen_bootstrap_node_id);
+      boost::asio::ip::udp::endpoint local_endpoint);
 
   void GetBootstrapEndpoints(
       std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,  // NOLINT (Fraser)
@@ -161,7 +160,7 @@ class ManagedConnections {
   AsioService asio_service_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
-  NodeId this_node_id_;
+  NodeId this_node_id_, chosen_bootstrap_node_id_;
   std::shared_ptr<asymm::PrivateKey> private_key_;
   std::shared_ptr<asymm::PublicKey> public_key_;
   ConnectionMap connections_, pendings_;

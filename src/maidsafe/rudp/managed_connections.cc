@@ -48,6 +48,7 @@ ManagedConnections::ManagedConnections()
       message_received_functor_(),
       connection_lost_functor_(),
       this_node_id_(),
+      chosen_bootstrap_node_id_(),
       private_key_(),
       public_key_(),
       connections_(),
@@ -132,11 +133,10 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
     local_endpoint = Endpoint(local_ip_, 0);
   }
 
-  NodeId chosen_bootstrap_node_id;
   std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers;
   for (auto element : bootstrap_endpoints)
     bootstrap_peers.push_back(std::make_pair(NodeId(), element));
-  if (!StartNewTransport(bootstrap_peers, local_endpoint, chosen_bootstrap_node_id)) {
+  if (!StartNewTransport(bootstrap_peers, local_endpoint)) {
     LOG(kError) << "Failed to bootstrap managed connections.";
     return NodeId();
   }
@@ -150,12 +150,11 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
 //    asio_service_.service().post([=] { StartResilienceTransport(); });  // NOLINT (Fraser)
 
 //  return (zero_state ? NodeId() : chosen_bootstrap_node_id);
-  return chosen_bootstrap_node_id;
+  return chosen_bootstrap_node_id_;
 }
 
 bool ManagedConnections::StartNewTransport(std::vector<std::pair<NodeId, Endpoint>> bootstrap_peers,
-                                           Endpoint local_endpoint,
-                                           NodeId& chosen_bootstrap_node_id) {
+                                           Endpoint local_endpoint) {
   TransportPtr transport(new detail::Transport(asio_service_, nat_type_));
   bool bootstrap_off_existing_connection(bootstrap_peers.empty());
   boost::asio::ip::address external_address;
@@ -176,8 +175,8 @@ bool ManagedConnections::StartNewTransport(std::vector<std::pair<NodeId, Endpoin
       boost::bind(&ManagedConnections::OnConnectionAddedSlot, this, _1, _2, _3, _4),
       boost::bind(&ManagedConnections::OnConnectionLostSlot, this, _1, _2, _3),
       boost::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, _1, _2, _3, _4),
-      chosen_bootstrap_node_id);
-  if (chosen_bootstrap_node_id == NodeId() && nat_type_ != NatType::kSymmetric) {
+      chosen_bootstrap_node_id_);
+  if (chosen_bootstrap_node_id_ == NodeId() && nat_type_ != NatType::kSymmetric) {
     std::lock_guard<std::mutex> lock(mutex_);
     LOG(kWarning) << "Failed to start a new Transport.";
     transport->Close();
@@ -407,8 +406,17 @@ int ManagedConnections::Add(NodeId peer_id,
 
   std::shared_ptr<detail::Connection> connection(selected_transport->GetConnection(peer_id));
   if (connection) {
-    assert(connection->state() == detail::Connection::State::kBootstrapping);
-    if (connection->state() == detail::Connection::State::kBootstrapping) {
+    // If the connection exists, it should be a bootstrapping one.  If the peer used this node,
+    // the connection state should be kBootstrapping.  However, if this node bootstrapped off the
+    // peer, the peer's validation data will probably already have been received and may have
+    // caused the MarkConnectionAsValid to have already been called.  In this case only, the
+    // connection will be kPermanent.
+    assert(connection->state() == detail::Connection::State::kBootstrapping ||
+           (chosen_bootstrap_node_id_ == peer_id &&
+               connection->state() == detail::Connection::State::kPermanent));
+    if (connection->state() == detail::Connection::State::kBootstrapping ||
+        (chosen_bootstrap_node_id_ == peer_id &&
+               connection->state() == detail::Connection::State::kPermanent)) {
       connection->StartSending(validation_data,
                                 [](int result) {
                                   if (result != kSuccess) {
@@ -416,11 +424,13 @@ int ManagedConnections::Add(NodeId peer_id,
                                                   << "connection.  Result: " << result;
                                   }
                                 });
-      Endpoint peer_endpoint;
-      selected_transport->MakeConnectionPermanent(peer_id, false, peer_endpoint);
-      assert(detail::IsValid(peer_endpoint) ?
-                  peer_endpoint == connection->Socket().PeerEndpoint() :
-                  true);
+      if (connection->state() == detail::Connection::State::kBootstrapping) {
+        Endpoint peer_endpoint;
+        selected_transport->MakeConnectionPermanent(peer_id, false, peer_endpoint);
+        assert(detail::IsValid(peer_endpoint) ?
+                    peer_endpoint == connection->Socket().PeerEndpoint() :
+                    true);
+      }
       return kSuccess;
     } else {
       LOG(kError) << "A managed connection from " << DebugId(this_node_id_) << " to "

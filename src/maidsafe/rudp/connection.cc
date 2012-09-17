@@ -205,8 +205,9 @@ void Connection::CheckTimeout(const bs::error_code& ec) {
 
   if (timer_.expires_from_now().is_negative()) {
     // Time has run out.
-    LOG(kWarning) << "Failed to connect from " << *multiplexer_ << " to "
-                  << socket_.PeerEndpoint() << " - timed out.";
+    LOG(kWarning) << "Failed to " << (timeout_state_ == TimeoutState::kClosing ? "dis" : "")
+                  << "connect from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
+                  << " - timed out.";
     return DoClose(true);
   }
 
@@ -536,7 +537,7 @@ void Connection::HandleProbe(const bs::error_code& ec) {
     DoProbe(ignored_ec);
   } else {
     LOG(kWarning) << "Failed to probe from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
-                  << " error - " << ec.message();
+                  << "   error - " << ec.message();
     return DoClose();
   }
 }

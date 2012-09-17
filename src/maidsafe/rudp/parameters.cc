@@ -46,7 +46,7 @@ Timeout Parameters::keepalive_interval(bptime::milliseconds(500));
 Timeout Parameters::keepalive_timeout(bptime::milliseconds(400));
 uint32_t Parameters::maximum_keepalive_failures(20);
 Timeout Parameters::bootstrap_connection_lifespan(bptime::minutes(10));
-Timeout Parameters::disconnection_timeout(bptime::milliseconds(100));
+Timeout Parameters::disconnection_timeout(bptime::milliseconds(500));
 Parameters::ConnectionType Parameters::connection_type(Parameters::kWireless);
 
 }  // namespace rudp

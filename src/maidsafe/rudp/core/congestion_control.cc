@@ -122,14 +122,13 @@ void CongestionControl::OnGenerateAck(uint32_t /*seqnum*/) {
     // Calculate the estimated link capacity by determining the median of the
     // packet pair intervals, and from that determining the number of packets
     // per second.
-    std::vector<uint64_t> intervals;
-    for (auto iter = packet_pair_intervals_.begin();
-        iter != packet_pair_intervals_.end(); ++iter)
-      intervals.push_back(iter->total_microseconds());
-    std::sort(intervals.begin(), intervals.end());
-    uint64_t median = intervals[intervals.size() / 2];
+    std::vector<uint64_t> packet_pair_intervals;
+    for (auto iter = packet_pair_intervals_.begin(); iter != packet_pair_intervals_.end(); ++iter)
+      packet_pair_intervals.push_back(iter->total_microseconds());
+    std::sort(packet_pair_intervals.begin(), packet_pair_intervals.end());
+    uint64_t packet_pair_median = packet_pair_intervals[packet_pair_intervals.size() / 2];
     estimated_link_capacity_ =
-        (median > 0) ? static_cast<uint32_t>(1000000 / median) : 0;
+        (packet_pair_median > 0) ? static_cast<uint32_t>(1000000 / packet_pair_median) : 0;
   }
 
   // TODO(qi.ma@maidsafe.net) : The receive_window_size shall be based on the
