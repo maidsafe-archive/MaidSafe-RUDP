@@ -281,7 +281,7 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
 
     // Check for an existing connection attempt
     auto existing_attempt(pendings_.find(peer_id));
-    assert(existing_attempt == pendings_.end());
+    // assert(existing_attempt == pendings_.end());
     if (existing_attempt != pendings_.end()) {
       kFail(std::string("GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
       return kConnectAttemptAlreadyRunning;
@@ -568,7 +568,9 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
   if (result != kSuccess)
     LOG(kError) << "Failed to decrypt message.  Result: " << result;
   else
-    asio_service_.service().post([=] { message_received_functor_(decrypted_message); });  // NOLINT (Fraser)
+    asio_service_.service().post([&, decrypted_message] { 
+                                 if (message_received_functor_)
+                                 message_received_functor_(decrypted_message); });  // NOLINT (Fraser)
 }
 
 void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
