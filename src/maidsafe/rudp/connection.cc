@@ -162,13 +162,13 @@ void Connection::StartSending(const std::string& data,
     strand_.post(std::bind(&Connection::StartSending, shared_from_this(), data,
                            message_sent_functor));
   } else {
-    std::string encrypted_data;
-    int result(asymm::Encrypt(data, *socket_.PeerPublicKey(), &encrypted_data));
-    if (result != kSuccess) {
-      LOG(kError) << "Failed to encrypt message.  Result: " << result;
-      return InvokeSentFunctor(message_sent_functor, result);
-    }
-    strand_.dispatch(std::bind(&Connection::DoStartSending, shared_from_this(), encrypted_data,
+//     std::string encrypted_data;
+//     int result(asymm::Encrypt(data, *socket_.PeerPublicKey(), &encrypted_data));
+//     if (result != kSuccess) {
+//       LOG(kError) << "Failed to encrypt message.  Result: " << result;
+//       return InvokeSentFunctor(message_sent_functor, result);
+//     }
+    strand_.dispatch(std::bind(&Connection::DoStartSending, shared_from_this(), data,
                                message_sent_functor));
   }
 }
@@ -387,6 +387,16 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
 
   DataSize size = (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) |
                            receive_buffer_.at(2)) << 8) | receive_buffer_.at(3);
+  std::shared_ptr<Transport> transport;
+  if ((transport = transport_.lock()) && (size > 300000)) {
+    LOG(kError) << std::string(IntToString(size) + std::string(" ")
+                              + std::string(1, receive_buffer_[0])
+                              + std::string(1, receive_buffer_[1])
+                              + std::string(1, receive_buffer_[2])
+                              + std::string(1, receive_buffer_[3])
+                              + " - Peer: " + PeerDebugId()
+                              + ", us: " + transport->ThisDebugId());
+  }
 
   data_size_ = size;
   data_received_ = 0;
@@ -428,9 +438,15 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
   }
 
   data_received_ += length;
+  if (std::shared_ptr<Transport> transport = transport_.lock()) {
+    LOG(kError) << "##### " << PeerDebugId() << " to " << transport->ThisDebugId() << " - received "
+                << data_received_ << " of " << data_size_;
+  }
   if (data_received_ == data_size_) {
     // Dispatch the message outside the strand.
-    strand_.get_io_service().post(std::bind(&Connection::DispatchMessage, shared_from_this()));
+    std::string message(receive_buffer_.begin(), receive_buffer_.end());
+    strand_.get_io_service().post(std::bind(
+        &Connection::DispatchMessage, shared_from_this(), message));
   } else {
     // Need more data to complete the message.
 //    if (length > 0)
@@ -445,9 +461,9 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
   }
 }
 
-void Connection::DispatchMessage() {
+void Connection::DispatchMessage(const std::string &message) {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    transport->SignalMessageReceived(std::string(receive_buffer_.begin(), receive_buffer_.end()));
+    transport->SignalMessageReceived(message);
     StartReadSize();
   }
 }
@@ -462,6 +478,7 @@ bool Connection::EncodeData(const std::string& data) {
     return false;
   }
 
+  LOG(kInfo) << "+++++ About to put message into send_buffer_: " << HexSubstr(data);
   send_buffer_.clear();
   for (int i = 0; i != 4; ++i)
     send_buffer_.push_back(static_cast<char>(msg_size >> (8 * (3 - i))));
