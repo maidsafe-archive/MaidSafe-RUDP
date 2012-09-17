@@ -324,13 +324,10 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
     start_new_transport = (static_cast<int>(connections_.size()) < Parameters::max_transports);
   }
 
-  if (start_new_transport) {
-    NodeId chosen_bootstrap_node_id;
-    if (!StartNewTransport(std::vector<std::pair<NodeId, Endpoint>>(), Endpoint(local_ip_, 0),  // NOLINT (Fraser)
-                           chosen_bootstrap_node_id)) {
-      kFail("Failed to start transport.");
-      return kTransportStartFailure;
-    }
+  if (start_new_transport &&
+      !StartNewTransport(std::vector<std::pair<NodeId, Endpoint>>(), Endpoint(local_ip_, 0))) {  // NOLINT (Fraser)
+    kFail("Failed to start transport.");
+    return kTransportStartFailure;
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
@@ -617,7 +614,11 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
 
   auto itr(connections_.find(peer_id));
   if (itr != connections_.end()) {
-    assert((*itr).second == transport);
+    BOOST_ASSERT_MSG((*itr).second == transport, (std::string("peer_id: ") + DebugId(peer_id) +
+                     std::string(" is connected via ") +
+                     boost::lexical_cast<std::string>((*itr).second->local_endpoint()) +
+                     std::string(" not ") +
+                     boost::lexical_cast<std::string>(transport->local_endpoint())).c_str());
     connections_.erase(itr);
     LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
     asio_service_.service().post([=] { connection_lost_functor_(peer_id); });  // NOLINT (Fraser)
