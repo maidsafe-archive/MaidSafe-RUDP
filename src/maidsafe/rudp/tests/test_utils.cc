@@ -307,7 +307,7 @@ NodeId Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
             break;
           }
         }
-        LOG(kInfo) << id() << " - " << debug_node_id() << " -- Received: " << (is_printable ? message.substr(0, 30) :
+        LOG(kInfo) << id() << " -- Received: " << (is_printable ? message.substr(0, 30) :
                                                    EncodeToHex(message.substr(0, 15)));
         std::lock_guard<std::mutex> guard(mutex_);
         messages_.emplace_back(message);

@@ -89,8 +89,6 @@ class Session {
 
   boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
 
-  NodeId this_node_id() const { return this_node_id_; }
-
  private:
   // Disallow copying and assignment.
   Session(const Session&);

@@ -42,7 +42,7 @@ namespace test {
 
 class ManagedConnectionsFuncTest : public testing::Test {
  public:
-  ManagedConnectionsFuncTest() : nodes_(), bootstrap_endpoints_(), network_size_(2), mutex_() {}
+  ManagedConnectionsFuncTest() : nodes_(), bootstrap_endpoints_(), network_size_(4), mutex_() {}
 
  protected:
   // Each node sending n messsages to all other connected nodes.
@@ -73,7 +73,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
         std::vector<std::vector<int>>(                                            // NOLINT (Fraser)
             nodes_.size() - 1,
             std::vector<int>(num_messages, kReturnCodeLimit)));
-    for (uint16_t i = 1; i != nodes_.size(); ++i) {
+    for (uint16_t i = 0; i != nodes_.size(); ++i) {
       std::vector<NodeId> peers(nodes_.at(i)->GetConnectedNodeIds());
       ASSERT_EQ(nodes_.size() - 1, peers.size());
       for (uint16_t j = 0; j != peers.size(); ++j) {
@@ -88,7 +88,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
     }
 
     // Waiting for all results (promises)
-    for (uint16_t i = 0; i != nodes_.size() - 1; ++i) {
+    for (uint16_t i = 0; i != nodes_.size(); ++i) {
       bptime::milliseconds timeout((num_messages * messages_size / 20) + 5000);
       if (futures.at(i).timed_wait(timeout)) {
         auto messages(futures.at(i).get());
@@ -102,8 +102,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
     Sleep(boost::posix_time::seconds(1));
 
     // Check send results
-    for (uint16_t i = 1; i != nodes_.size(); ++i) {
-      for (uint16_t j = 1; j != nodes_.size(); ++j) {
+    for (uint16_t i = 0; i != nodes_.size(); ++i) {
+      for (uint16_t j = 0; j != nodes_.size(); ++j) {
         for (uint16_t k = 0; k != num_messages; ++k) {
           if (j != nodes_.size() - 1) {
             EXPECT_EQ(kSuccess, send_results[i][j][k])

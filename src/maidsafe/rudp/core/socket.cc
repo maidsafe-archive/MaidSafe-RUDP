@@ -219,9 +219,6 @@ void Socket::ProcessWrite() {
 
   // Copy whatever data we can into the write buffer.
   size_t length = sender_.AddData(waiting_write_buffer_, waiting_write_message_number_);
-  LOG(kInfo) << "WRITE " << length << " > "
-             << HexSubstr(std::string(asio::buffer_cast<const char*>(waiting_write_buffer_),
-                                      length));
   waiting_write_buffer_ = waiting_write_buffer_ + length;
   waiting_write_bytes_transferred_ += length;
   // If we have finished writing all of the data then it's time to trigger the write's completion
@@ -258,8 +255,6 @@ void Socket::ProcessRead() {
 
   // Copy whatever data we can into the read buffer.
   size_t length = receiver_.ReadData(waiting_read_buffer_);
-  LOG(kInfo) << "READ " << length << " > "
-             << HexSubstr(std::string(asio::buffer_cast<char*>(waiting_read_buffer_), length));
   waiting_read_buffer_ = waiting_read_buffer_ + length;
   waiting_read_bytes_transferred_ += length;
 
