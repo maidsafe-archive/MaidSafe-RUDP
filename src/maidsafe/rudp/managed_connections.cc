@@ -165,6 +165,7 @@ bool ManagedConnections::StartNewTransport(std::vector<std::pair<NodeId, Endpoin
   //                             Endpoint(local_ip_, kResiliencePort()));
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });  // NOLINT (Fraser)
+  NodeId chosen_id;
   transport->Bootstrap(
       bootstrap_peers,
       this_node_id_,
@@ -175,13 +176,16 @@ bool ManagedConnections::StartNewTransport(std::vector<std::pair<NodeId, Endpoin
       boost::bind(&ManagedConnections::OnConnectionAddedSlot, this, _1, _2, _3, _4),
       boost::bind(&ManagedConnections::OnConnectionLostSlot, this, _1, _2, _3),
       boost::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, _1, _2, _3, _4),
-      chosen_bootstrap_node_id_);
-  if (chosen_bootstrap_node_id_ == NodeId() && nat_type_ != NatType::kSymmetric) {
+      chosen_id);
+  if (chosen_id == NodeId() && nat_type_ != NatType::kSymmetric) {
     std::lock_guard<std::mutex> lock(mutex_);
     LOG(kWarning) << "Failed to start a new Transport.";
     transport->Close();
     return false;
   }
+
+  if (chosen_bootstrap_node_id_ == NodeId())
+    chosen_bootstrap_node_id_ = chosen_id;
 
   if (!detail::IsValid(transport->external_endpoint()) && !external_address.is_unspecified()) {
     // Means this node's NAT is symmetric or unknown, so guess that it will be mapped to existing
@@ -408,9 +412,6 @@ int ManagedConnections::Add(NodeId peer_id,
     // peer, the peer's validation data will probably already have been received and may have
     // caused the MarkConnectionAsValid to have already been called.  In this case only, the
     // connection will be kPermanent.
-    assert(connection->state() == detail::Connection::State::kBootstrapping ||
-           (chosen_bootstrap_node_id_ == peer_id &&
-               connection->state() == detail::Connection::State::kPermanent));
     if (connection->state() == detail::Connection::State::kBootstrapping ||
         (chosen_bootstrap_node_id_ == peer_id &&
                connection->state() == detail::Connection::State::kPermanent)) {
@@ -431,7 +432,9 @@ int ManagedConnections::Add(NodeId peer_id,
       return kSuccess;
     } else {
       LOG(kError) << "A managed connection from " << DebugId(this_node_id_) << " to "
-                  << DebugId(peer_id) << " already exists";
+                  << DebugId(peer_id) << " already exists, and this node's chosen bootstrap ID is "
+                  << DebugId(chosen_bootstrap_node_id_);
+      assert(false);
       return kConnectionAlreadyExists;
     }
   }
@@ -616,11 +619,11 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
 
   auto itr(connections_.find(peer_id));
   if (itr != connections_.end()) {
-    BOOST_ASSERT_MSG((*itr).second == transport, (std::string("peer_id: ") + DebugId(peer_id) +
-                     std::string(" is connected via ") +
-                     boost::lexical_cast<std::string>((*itr).second->local_endpoint()) +
-                     std::string(" not ") +
-                     boost::lexical_cast<std::string>(transport->local_endpoint())).c_str());
+    if ((*itr).second != transport) {
+      LOG(kError) << "peer_id: " << DebugId(peer_id) << " is connected via "
+                  << (*itr).second->local_endpoint() << " not " << transport->local_endpoint();
+      assert(false);
+    }
     connections_.erase(itr);
     LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
     asio_service_.service().post([=] { connection_lost_functor_(peer_id); });  // NOLINT (Fraser)
