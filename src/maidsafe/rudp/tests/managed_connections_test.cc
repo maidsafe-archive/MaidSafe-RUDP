@@ -845,7 +845,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
                                                     this_endpoint_pair,
                                                     nodes_[i]->validation_data()));
     EXPECT_EQ(kSuccess,
-              node_.managed_connections()->Add(node_.node_id(),
+              node_.managed_connections()->Add(nodes_[i]->node_id(),
                                                peer_endpoint_pair,
                                                node_.validation_data()));
     ASSERT_TRUE(peer_futures.timed_wait(Parameters::rendezvous_connect_timeout));
