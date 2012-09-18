@@ -148,13 +148,13 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
     if (chosen_node_id == NodeId())
       return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->id();
 
+    EndpointPair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
     NatType nat_type;
     for (int j(0); j != i; ++j) {
       LOG(kInfo) << "Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();
       // Call GetAvailableEndpoint at each peer.
       nodes[i]->ResetData();
       nodes[j]->ResetData();
-      EndpointPair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
       int result(nodes[i]->managed_connections()->GetAvailableEndpoint(nodes[j]->node_id(),
                                                                        empty_endpoint_pair,
                                                                        this_endpoint_pair,
@@ -258,11 +258,9 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
         return testing::AssertionFailure() << nodes[j]->id() << " failed to mark connection to "
                                            << nodes[i]->id() << " as valid.";
       }
-
-      bootstrap_endpoints.push_back(this_endpoint_pair.local);
     }
+    bootstrap_endpoints.push_back(this_endpoint_pair.local);
   }
-
   return testing::AssertionSuccess();
 }
 
