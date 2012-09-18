@@ -55,6 +55,7 @@ Socket::Socket(Multiplexer& multiplexer, NatType& nat_type)  // NOLINT (Fraser)
       message_sent_functors_(),
       waiting_read_(multiplexer.socket_.get_io_service()),
       waiting_read_buffer_(),
+      waiting_read_buffer_mutex_(),
       waiting_read_transfer_at_least_(0),
       waiting_read_ec_(),
       waiting_read_bytes_transferred_(0),
@@ -254,6 +255,7 @@ void Socket::ProcessRead() {
     return;
 
   // Copy whatever data we can into the read buffer.
+  std::lock_guard<std::mutex> lock(waiting_read_buffer_mutex_);
   size_t length = receiver_.ReadData(waiting_read_buffer_);
   waiting_read_buffer_ = waiting_read_buffer_ + length;
   waiting_read_bytes_transferred_ += length;
