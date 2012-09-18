@@ -52,6 +52,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   enum class State {
     kPending,        // GetAvailableEndpoint has been called, but connection has not yet been made
     kTemporary,      // Not used for sending messages; ping, peer external IP or NAT detection, etc.
+    kDuplicate,      // Will be closed without triggering callback as soon as state set to this
     kBootstrapping,  // Incoming or outgoing short-lived (unvalidated) connection
     kUnvalidated,    // Permanent connection which has not been validated
     kPermanent       // Validated permanent connection
@@ -79,6 +80,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   // Sets the state_ to kPermanent or kUnvalidated and sets the lifespan_timer_ to expire at
   // pos_infin.
   void MakePermanent(bool validated);
+  void MarkAsDuplicateAndClose();
   // Get the remote endpoint offered for NAT detection.
   boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
   // Helpers for debugging

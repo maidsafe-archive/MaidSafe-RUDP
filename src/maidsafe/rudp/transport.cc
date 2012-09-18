@@ -393,7 +393,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
     if (is_duplicate_normal_connection) {
       LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
                   << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
-      connection->Close();
+      connection->MarkAsDuplicateAndClose();
     }
 
     if (!connection_manager_->AddConnection(connection)) {
@@ -425,18 +425,20 @@ void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
   // execution of the slot.
   if (connection->state() != Connection::State::kTemporary)
     connection_manager_->RemoveConnection(connection);
-  on_connection_lost_(connection->Socket().PeerNodeId(),
-                      shared_from_this(),
-                      connection->state() == Connection::State::kTemporary,
-                      timed_out);
+  if (connection->state() != Connection::State::kDuplicate) {
+    on_connection_lost_(connection->Socket().PeerNodeId(),
+                        shared_from_this(),
+                        connection->state() == Connection::State::kTemporary,
+                        timed_out);
 #ifndef NDEBUG
-  std::string s("\n************************\nRemoved ");
-  s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
-  s += ThisDebugId() + " to " + connection->PeerDebugId() + '\n';
-  if (managed_connections_debug_printout_)
-    s += managed_connections_debug_printout_();
-  LOG(kVerbose) << s;
+    std::string s("\n************************\nRemoved ");
+    s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
+    s += ThisDebugId() + " to " + connection->PeerDebugId() + '\n';
+    if (managed_connections_debug_printout_)
+      s += managed_connections_debug_printout_();
+    LOG(kVerbose) << s;
 #endif
+  }
 }
 
 std::string Transport::ThisDebugId() const {

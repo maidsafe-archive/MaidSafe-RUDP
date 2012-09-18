@@ -152,6 +152,12 @@ void Connection::DoMakePermanent(bool validated) {
   state_ = (validated ? State::kPermanent : State::kUnvalidated);
 }
 
+void Connection::MarkAsDuplicateAndClose() {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  state_ = State::kDuplicate;
+  strand_.dispatch(std::bind(&Connection::DoClose, shared_from_this(), false));
+}
+
 ip::udp::endpoint Connection::RemoteNatDetectionEndpoint() const {
   return socket_.RemoteNatDetectionEndpoint();
 }
