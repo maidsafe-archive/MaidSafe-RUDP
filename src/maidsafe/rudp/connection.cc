@@ -430,7 +430,9 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
   data_received_ += length;
   if (data_received_ == data_size_) {
     // Dispatch the message outside the strand.
-    strand_.get_io_service().post(std::bind(&Connection::DispatchMessage, shared_from_this()));
+    strand_.get_io_service().post(
+        std::bind(&Connection::DispatchMessage, shared_from_this(),
+                  std::string(receive_buffer_.begin(), receive_buffer_.end())));
   } else {
     // Need more data to complete the message.
 //    if (length > 0)
@@ -445,9 +447,9 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
   }
 }
 
-void Connection::DispatchMessage() {
+void Connection::DispatchMessage(const std::string& message) {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    transport->SignalMessageReceived(std::string(receive_buffer_.begin(), receive_buffer_.end()));
+    transport->SignalMessageReceived(message);
     StartReadSize();
   }
 }
