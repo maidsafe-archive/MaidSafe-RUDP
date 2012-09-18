@@ -389,6 +389,12 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
                            receive_buffer_.at(2)) << 8) | receive_buffer_.at(3);
 
   data_size_ = size;
+  if (data_size_ > ManagedConnections::kMaxMessageSize()) {
+    LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > max of "
+                << ManagedConnections::kMaxMessageSize();
+    return DoClose();
+  }
+
   data_received_ = 0;
 
   StartReadData();
