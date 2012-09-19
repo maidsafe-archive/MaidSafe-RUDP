@@ -19,7 +19,6 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <mutex>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/deadline_timer.hpp"
@@ -102,9 +101,6 @@ class Socket {
 
   // Close the socket and cancel pending asynchronous operations.
   void Close();
-
-  // Return the length of data that successfully sent out during each operation
-  uint32_t SentLength();
 
   // Return the best read-buffer size calculated by congestion_control
   uint32_t BestReadBufferSize();
@@ -285,7 +281,6 @@ class Socket {
   // buffer, and the result that is intended for its completion handler.
   boost::asio::deadline_timer waiting_read_;
   boost::asio::mutable_buffer waiting_read_buffer_;
-  std::mutex waiting_read_buffer_mutex_;
   size_t waiting_read_transfer_at_least_;
   boost::system::error_code waiting_read_ec_;
   size_t waiting_read_bytes_transferred_;
@@ -299,8 +294,6 @@ class Socket {
   // intended for its completion handler.
   boost::asio::deadline_timer waiting_flush_;
   boost::system::error_code waiting_flush_ec_;
-
-  size_t sent_length_;
 };
 
 }  // namespace detail

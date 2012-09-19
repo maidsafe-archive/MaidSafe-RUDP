@@ -37,7 +37,8 @@ Sender::Sender(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_
       tick_timer_(tick_timer),
       congestion_control_(congestion_control),
       unacked_packets_(),
-      send_timeout_() {}
+      send_timeout_(),
+      current_message_number_(0) {}
 
 uint32_t Sender::GetNextPacketSequenceNumber() const {
   return unacked_packets_.End();
@@ -48,25 +49,23 @@ bool Sender::Flushed() const {
 }
 
 size_t Sender::AddData(const asio::const_buffer& data, const uint32_t& message_number) {
-//  LOG(kSuccess) << "            ADD DATA " << message_number << "    " << asio::buffer_size(data);
-  if ((congestion_control_.SendWindowSize() == 0) &&
-      (unacked_packets_.Size() == 0)) {
+  if ((congestion_control_.SendWindowSize() == 0) && (unacked_packets_.Size() == 0))
     unacked_packets_.SetMaximumSize(Parameters::default_window_size);
-  } else {
+  else
     unacked_packets_.SetMaximumSize(congestion_control_.SendWindowSize());
-  }
+
   const unsigned char* begin = asio::buffer_cast<const unsigned char*>(data);
   const unsigned char* ptr = begin;
   const unsigned char* end = begin + asio::buffer_size(data);
 
   while (!unacked_packets_.IsFull() && (ptr < end)) {
-    size_t length = std::min<size_t>(congestion_control_.SendDataSize(),
-                                     end - ptr);
+    size_t length = std::min<size_t>(congestion_control_.SendDataSize(), end - ptr);
     uint32_t n = unacked_packets_.Append();
 
     UnackedPacket& p = unacked_packets_[n];
     p.packet.SetPacketSequenceNumber(n);
-    p.packet.SetFirstPacketInMessage(true);
+    p.packet.SetFirstPacketInMessage(current_message_number_ == message_number);
+    current_message_number_ = message_number;
     p.packet.SetLastPacketInMessage(ptr + length == end);
     p.packet.SetInOrder(true);
     p.packet.SetMessageNumber(message_number);
@@ -182,8 +181,7 @@ void Sender::DoSend() {
   }
   // Set the send timeout so that unacknowledged packets can be marked as lost.
   if (!unacked_packets_.IsEmpty()) {
-    send_timeout_ = unacked_packets_.Front().last_send_time +
-                    congestion_control_.SendTimeout();
+    send_timeout_ = unacked_packets_.Front().last_send_time + congestion_control_.SendTimeout();
   }
 }
 

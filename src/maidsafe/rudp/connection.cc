@@ -164,37 +164,37 @@ ip::udp::endpoint Connection::RemoteNatDetectionEndpoint() const {
 
 void Connection::StartSending(const std::string& data,
                               const MessageSentFunctor& message_sent_functor) {
-  if (sending_) {
-    strand_.post(std::bind(&Connection::StartSending, shared_from_this(), data,
-                           message_sent_functor));
-  } else {
-    std::string encrypted_data;
-    int result(asymm::Encrypt(data, *socket_.PeerPublicKey(), &encrypted_data));
-    if (result != kSuccess) {
-      LOG(kError) << "Failed to encrypt message.  Result: " << result;
-      return InvokeSentFunctor(message_sent_functor, result);
-    }
-    strand_.dispatch(std::bind(&Connection::DoStartSending, shared_from_this(), encrypted_data,
-                               message_sent_functor));
+  std::string encrypted_data;
+  int result(asymm::Encrypt(data, *socket_.PeerPublicKey(), &encrypted_data));
+  if (result != kSuccess) {
+    LOG(kError) << "Failed to encrypt message.  Result: " << result;
+    return InvokeSentFunctor(message_sent_functor, result);
   }
+  strand_.post(std::bind(&Connection::DoStartSending, shared_from_this(), encrypted_data,
+                         message_sent_functor));
 }
 
-void Connection::DoStartSending(const std::string& data,
+void Connection::DoStartSending(const std::string& encrypted_data,
                                 const MessageSentFunctor& message_sent_functor) {
-  sending_ = true;
-  MessageSentFunctor wrapped_functor([&, message_sent_functor](int result) {
-    InvokeSentFunctor(message_sent_functor, result);
-    sending_ = false;
-  });
-
-  if (Stopped()) {
-    InvokeSentFunctor(message_sent_functor, kSendFailure);
-    sending_ = false;
-  } else if (!EncodeData(data)) {
-    InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
-    sending_ = false;
+  if (sending_) {
+    Sleep(boost::posix_time::milliseconds(10));
+    strand_.post(std::bind(&Connection::DoStartSending, shared_from_this(), encrypted_data,
+                           message_sent_functor));
   } else {
-    strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
+    sending_ = true;
+    MessageSentFunctor wrapped_functor([&, message_sent_functor](int result) {
+      InvokeSentFunctor(message_sent_functor, result);
+    });
+
+    if (Stopped()) {
+      InvokeSentFunctor(message_sent_functor, kSendFailure);
+      sending_ = false;
+    } else if (!EncodeData(encrypted_data)) {
+      InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
+      sending_ = false;
+    } else {
+      strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
+    }
   }
 }
 
@@ -237,7 +237,7 @@ void Connection::HandleTick() {
 //  if (sending_) {
 //    uint32_t sent_length = socket_.SentLength();
 //    if (sent_length > 0)
-//      timer_.expires_from_now(Parameters::speed_calculate_inverval);
+//      timer_.expires_from_now(Parameters::speed_calculate_interval);
 
     // If transmission speed is too slow, the socket shall be forced closed
 //    if (socket_.IsSlowTransmission(sent_length)) {
@@ -441,10 +441,10 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
 
   data_received_ += length;
   if (data_received_ == data_size_) {
-    // Dispatch the message outside the strand.
-    strand_.get_io_service().post(
-        std::bind(&Connection::DispatchMessage, shared_from_this(),
-                  std::string(receive_buffer_.begin(), receive_buffer_.end())));
+    if (std::shared_ptr<Transport> transport = transport_.lock()) {
+      transport->SignalMessageReceived(std::string(receive_buffer_.begin(), receive_buffer_.end()));
+      StartReadSize();
+    }
   } else {
     // Need more data to complete the message.
 //    if (length > 0)
@@ -456,13 +456,6 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
 //      return DoClose();
 //    }
     StartReadData();
-  }
-}
-
-void Connection::DispatchMessage(const std::string& message) {
-  if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    transport->SignalMessageReceived(message);
-    StartReadSize();
   }
 }
 
@@ -494,24 +487,13 @@ void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
   socket_.AsyncWrite(asio::buffer(send_buffer_),
                      message_sent_functor,
                      strand_.wrap(std::bind(&Connection::HandleWrite, shared_from_this(),
-                                  args::_1, message_sent_functor)));
+                                  message_sent_functor)));
 }
 
-void Connection::HandleWrite(const bs::error_code& ec, MessageSentFunctor message_sent_functor) {
+void Connection::HandleWrite(MessageSentFunctor message_sent_functor) {
   // Message has now been fully sent, so safe to start sending next.  message_sent_functor will be
   // invoked by Socket::HandleAck once peer has acknowledged receipt.
   sending_ = false;
-  if (ec) {
-#ifndef NDEBUG
-    if (!Stopped()) {
-      LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
-                  << " error - " << ec.message();
-    }
-#endif
-    InvokeSentFunctor(message_sent_functor, kSendFailure);
-    return DoClose();
-  }
-
   if (Stopped()) {
     LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                 << " - connection stopped.";

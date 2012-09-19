@@ -98,7 +98,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
                          const boost::posix_time::time_duration& connect_attempt_timeout,
                          const boost::posix_time::time_duration& lifespan,
                          const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
-  void DoStartSending(const std::string& data,
+  void DoStartSending(const std::string& encrypted_data,
                       const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
 
   void CheckTimeout(const boost::system::error_code& ec);
@@ -123,8 +123,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void HandleReadData(const boost::system::error_code& ec, size_t length);
 
   void StartWrite(const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
-  void HandleWrite(const boost::system::error_code& ec,
-                   std::function<void(int)> message_sent_functor);  // NOLINT (Fraser)
+  void HandleWrite(std::function<void(int)> message_sent_functor);  // NOLINT (Fraser)
 
   void StartProbing();
   void DoProbe(const boost::system::error_code& ec);
@@ -132,7 +131,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void DoMakePermanent(bool validated);
 
-  void DispatchMessage(const std::string& message);
   bool EncodeData(const std::string& data);
 
   void InvokeSentFunctor(const std::function<void(int)> &message_sent_functor, int result) const;  // NOLINT (Fraser)

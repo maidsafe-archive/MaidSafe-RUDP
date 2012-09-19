@@ -13,6 +13,9 @@
 #ifndef MAIDSAFE_RUDP_NAT_TYPE_H_
 #define MAIDSAFE_RUDP_NAT_TYPE_H_
 
+#include <string>
+
+
 namespace maidsafe {
 
 namespace rudp {

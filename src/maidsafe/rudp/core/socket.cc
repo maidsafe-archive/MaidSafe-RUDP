@@ -55,7 +55,6 @@ Socket::Socket(Multiplexer& multiplexer, NatType& nat_type)  // NOLINT (Fraser)
       message_sent_functors_(),
       waiting_read_(multiplexer.socket_.get_io_service()),
       waiting_read_buffer_(),
-      waiting_read_buffer_mutex_(),
       waiting_read_transfer_at_least_(0),
       waiting_read_ec_(),
       waiting_read_bytes_transferred_(0),
@@ -64,8 +63,7 @@ Socket::Socket(Multiplexer& multiplexer, NatType& nat_type)  // NOLINT (Fraser)
       waiting_probe_(multiplexer.socket_.get_io_service()),
       waiting_probe_ec_(),
       waiting_flush_(multiplexer.socket_.get_io_service()),
-      waiting_flush_ec_(),
-      sent_length_(0) {
+      waiting_flush_ec_() {
   waiting_connect_.expires_at(bptime::pos_infin);
   waiting_write_.expires_at(bptime::pos_infin);
   waiting_read_.expires_at(bptime::pos_infin);
@@ -79,15 +77,6 @@ Socket::~Socket() {
 
 uint32_t Socket::Id() const {
   return session_.Id();
-}
-
-uint32_t Socket::SentLength() {
-  BOOST_ASSERT(waiting_write_bytes_transferred_ - sent_length_ <=
-               std::numeric_limits<uint32_t>::max());
-  uint32_t sent_length = static_cast<uint32_t>(
-      waiting_write_bytes_transferred_ - sent_length_);
-  sent_length_ = waiting_write_bytes_transferred_;
-  return sent_length;
 }
 
 uint32_t Socket::BestReadBufferSize() {
@@ -139,7 +128,6 @@ void Socket::Close() {
     dispatcher_.RemoveSocket(session_.Id());
   }
   session_.Close();
-//  peer_.SetEndpoint(ip::udp::endpoint());
   peer_.SetSocketId(0);
   tick_timer_.Cancel();
   waiting_connect_.cancel();
@@ -193,7 +181,6 @@ void Socket::StartProbe() {
 
 void Socket::StartWrite(const asio::const_buffer& data,
                         const std::function<void(int)>& message_sent_functor) {  // NOLINT (Fraser)
-  static uint32_t message_number(0);
   // Check for a no-op write.
   if (asio::buffer_size(data) == 0) {
     waiting_write_ec_.clear();
@@ -206,9 +193,7 @@ void Socket::StartWrite(const asio::const_buffer& data,
   // buffer.
   waiting_write_buffer_ = data;
   waiting_write_bytes_transferred_ = 0;
-  waiting_write_message_number_ = message_number++;
-  if (waiting_write_message_number_ == 0)
-    waiting_write_message_number_ = message_number++;
+  ++waiting_write_message_number_;
   message_sent_functors_[waiting_write_message_number_] = message_sent_functor;
   ProcessWrite();
 }
@@ -219,17 +204,15 @@ void Socket::ProcessWrite() {
     return;
 
   // Copy whatever data we can into the write buffer.
-  size_t length = sender_.AddData(waiting_write_buffer_, waiting_write_message_number_);
+  size_t length(sender_.AddData(waiting_write_buffer_, waiting_write_message_number_));
   waiting_write_buffer_ = waiting_write_buffer_ + length;
   waiting_write_bytes_transferred_ += length;
   // If we have finished writing all of the data then it's time to trigger the write's completion
   // handler.
   if (asio::buffer_size(waiting_write_buffer_) == 0) {
-    sent_length_ = 0;
     // The write is done. Trigger the write's completion handler.
     waiting_write_ec_.clear();
     waiting_write_.cancel();
-    waiting_write_message_number_ = 0;
   }
 }
 
@@ -255,7 +238,6 @@ void Socket::ProcessRead() {
     return;
 
   // Copy whatever data we can into the read buffer.
-  std::lock_guard<std::mutex> lock(waiting_read_buffer_mutex_);
   size_t length = receiver_.ReadData(waiting_read_buffer_);
   waiting_read_buffer_ = waiting_read_buffer_ + length;
   waiting_read_bytes_transferred_ += length;

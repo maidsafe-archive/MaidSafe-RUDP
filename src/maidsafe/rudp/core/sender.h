@@ -101,6 +101,8 @@ class Sender {
 
   // The next time at which all unacked packets will be considered lost.
   boost::posix_time::ptime send_timeout_;
+
+  uint32_t current_message_number_;
 };
 
 }  // namespace detail
