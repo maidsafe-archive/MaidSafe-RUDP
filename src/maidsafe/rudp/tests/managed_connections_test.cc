@@ -1003,7 +1003,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   EXPECT_EQ(kInvalidConnection, result_of_send);
 }
 /*
-TEST_F(ManagedConnectionsTest, BEH_API_Ping) {
+TEST_F(ManagedConnectionsTest, DISABLED_BEH_API_Ping) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
   // Without valid functor

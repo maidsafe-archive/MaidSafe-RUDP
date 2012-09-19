@@ -365,12 +365,10 @@ std::shared_ptr<asymm::PublicKey> Transport::public_key() const {
 }
 
 void Transport::SignalMessageReceived(const std::string& message) {
-  strand_.dispatch(std::bind(&Transport::DoSignalMessageReceived,
-                             shared_from_this(), message));
-// TODO(Prakash) Test the performance with below option.
-// Dispatch the message outside the strand.
-// strand_.get_io_service().post(std::bind(&Transport::DoSignalMessageReceived,
-//                                         shared_from_this(), message));
+  // Dispatch the message outside the strand.
+  strand_.get_io_service().post(std::bind(&Transport::DoSignalMessageReceived,
+                                          shared_from_this(),
+                                          message));
 }
 
 void Transport::DoSignalMessageReceived(const std::string& message) {
