@@ -285,7 +285,6 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
 
     // Check for an existing connection attempt
     auto existing_attempt(pendings_.find(peer_id));
-    // assert(existing_attempt == pendings_.end());
     if (existing_attempt != pendings_.end()) {
       kFail(std::string("GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
       return kConnectAttemptAlreadyRunning;
@@ -605,6 +604,13 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
       idle_transports_.erase(transport);
     }
   }
+
+#ifndef NDEBUG
+  auto pendings_itr(pendings_.find(peer_id));
+  assert(pendings_itr == pendings_.end());
+//  if (pendings_itr != pendings_.end())
+//    pendings_.erase(pendings_itr);
+#endif
 }
 
 void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
@@ -618,6 +624,13 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
 
   if (temporary_connection)
     return;
+
+  // If this is a bootstrap connection, it may have already had GetAvailableEndpoint called on it,
+  // but not yet had Add called, in which case peer_id will be in pendings_.  In all other cases,
+  // peer_id should not be in pendings_.
+  auto pendings_itr(pendings_.find(peer_id));
+  if (pendings_itr != pendings_.end())
+    pendings_.erase(pendings_itr);
 
   auto itr(connections_.find(peer_id));
   if (itr != connections_.end()) {
