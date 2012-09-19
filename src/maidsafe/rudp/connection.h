@@ -143,7 +143,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   NodeId peer_node_id_;
   boost::asio::ip::udp::endpoint peer_endpoint_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
-  size_t data_size_, data_received_;
+  DataSize data_size_, data_received_;
   uint8_t failed_probe_count_;
   State state_;
   mutable std::mutex state_mutex_;

@@ -71,7 +71,7 @@ class CongestionControl {
 //  boost::posix_time::time_duration AckInterval() const;
 
   // Return the best read-buffer size
-  uint32_t BestReadBufferSize();
+  int32_t BestReadBufferSize() const;
 
   // Connection type related
   void SetPeerConnectionType(uint32_t connection_type);

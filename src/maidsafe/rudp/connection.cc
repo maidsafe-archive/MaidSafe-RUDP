@@ -391,10 +391,8 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
     return DoClose();
   }
 
-  DataSize size = (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) |
-                           receive_buffer_.at(2)) << 8) | receive_buffer_.at(3);
-
-  data_size_ = size;
+  data_size_ = (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) |
+                receive_buffer_.at(2)) << 8) | receive_buffer_.at(3);
   if (data_size_ > ManagedConnections::kMaxMessageSize()) {
     LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > max of "
                 << ManagedConnections::kMaxMessageSize();
@@ -412,9 +410,8 @@ void Connection::StartReadData() {
                   << " already stopped.";
     return DoClose();
   }
-  size_t buffer_size = data_received_;
-  buffer_size += std::min(static_cast<size_t> (socket_.BestReadBufferSize()),
-                          data_size_ - data_received_);
+  DataSize buffer_size = data_received_;
+  buffer_size += std::min(socket_.BestReadBufferSize(), data_size_ - data_received_);
   receive_buffer_.resize(buffer_size);
   asio::mutable_buffer data_buffer = asio::buffer(receive_buffer_) + data_received_;
   socket_.AsyncRead(asio::buffer(data_buffer), 1,
@@ -439,7 +436,8 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
     return DoClose();
   }
 
-  data_received_ += length;
+  assert(length <= std::numeric_limits<DataSize>::max());
+  data_received_ += static_cast<DataSize>(length);
   if (data_received_ == data_size_) {
     if (std::shared_ptr<Transport> transport = transport_.lock()) {
       transport->SignalMessageReceived(std::string(receive_buffer_.begin(), receive_buffer_.end()));
@@ -462,8 +460,7 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
 bool Connection::EncodeData(const std::string& data) {
   // Serialize message to internal buffer
   DataSize msg_size = static_cast<DataSize>(data.size());
-  if (static_cast<size_t>(msg_size) >
-          static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
+  if (static_cast<size_t>(msg_size) > static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
     LOG(kError) << "Data size " << msg_size << " bytes (exceeds limit of "
                 << ManagedConnections::kMaxMessageSize() << ")";
     return false;

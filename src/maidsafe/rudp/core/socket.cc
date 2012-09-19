@@ -79,7 +79,7 @@ uint32_t Socket::Id() const {
   return session_.Id();
 }
 
-uint32_t Socket::BestReadBufferSize() {
+int32_t Socket::BestReadBufferSize() const {
   return congestion_control_.BestReadBufferSize();
 }
 

@@ -103,7 +103,7 @@ class Socket {
   void Close();
 
   // Return the best read-buffer size calculated by congestion_control
-  uint32_t BestReadBufferSize();
+  int32_t BestReadBufferSize() const;
 
   // Calculate if the transmission speed is too slow
   bool IsSlowTransmission(size_t length) { return congestion_control_.IsSlowTransmission(length); }
