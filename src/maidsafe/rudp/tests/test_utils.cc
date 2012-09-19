@@ -72,6 +72,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   EndpointPair endpoint_pair0, endpoint_pair1;
   NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
   endpoint_pair1 = endpoints1;
+  Sleep(boost::posix_time::milliseconds(250));
   EXPECT_EQ(kSuccess, nodes[0]->managed_connections()->GetAvailableEndpoint(
                 nodes[1]->node_id(), endpoint_pair1, endpoint_pair0, nat_type0));
   EXPECT_EQ(kSuccess, nodes[1]->managed_connections()->GetAvailableEndpoint(
@@ -150,6 +151,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
 
     EndpointPair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
     NatType nat_type;
+    Sleep(boost::posix_time::milliseconds(250));
     for (int j(0); j != i; ++j) {
       LOG(kInfo) << "Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();
       // Call GetAvailableEndpoint at each peer.

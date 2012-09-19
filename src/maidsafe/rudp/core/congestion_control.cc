@@ -303,8 +303,7 @@ size_t CongestionControl::SendDataSize() const {
 }
 
 int32_t CongestionControl::BestReadBufferSize() const {
-  BOOST_ASSERT(receive_window_size_ * Parameters::max_data_size <
-               std::numeric_limits<int32_t>::max());
+  BOOST_ASSERT(static_cast<int32_t>(receive_window_size_ * Parameters::max_data_size) > 0);
   return static_cast<int32_t>(receive_window_size_ * Parameters::max_data_size);
 }
 

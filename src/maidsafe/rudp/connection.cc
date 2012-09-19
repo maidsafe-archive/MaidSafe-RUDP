@@ -436,7 +436,7 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
     return DoClose();
   }
 
-  assert(length <= std::numeric_limits<DataSize>::max());
+  assert(static_cast<DataSize>(length) >= 0);
   data_received_ += static_cast<DataSize>(length);
   if (data_received_ == data_size_) {
     if (std::shared_ptr<Transport> transport = transport_.lock()) {

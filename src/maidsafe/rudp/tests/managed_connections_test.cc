@@ -236,111 +236,89 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
-  // Before bootstrapping
-  EXPECT_EQ(kInvalidTransport,
-            node_.managed_connections()->Add(NodeId(NodeId::kRandomId),
-                                             EndpointPair(),
-                                             node_.validation_data()));
-  EndpointPair random_peer_endpoint;
-  random_peer_endpoint.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
-  random_peer_endpoint.external = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
-
-  EXPECT_EQ(kInvalidTransport,
-            node_.managed_connections()->Add(NodeId(NodeId::kRandomId),
-                                             random_peer_endpoint,
-                                             node_.validation_data()));
-  // Valid
+  // Case: Invalid NodeId
+  EXPECT_EQ(kInvalidId, node_.managed_connections()->Add(NodeId(RandomString(65)),
+                                                         EndpointPair(),
+                                                         node_.validation_data()));
+  // Valid bootstrap
   NodeId chosen_node(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0])));
   EXPECT_FALSE(chosen_node.Empty());
 
   nodes_[0]->ResetData();
-  EndpointPair peer_endpoint_pair, this_endpoint_pair;
+  EndpointPair peer_endpoint_pair0, peer_endpoint_pair2,
+               this_endpoint_pair0, this_endpoint_pair1, this_endpoint_pair2;
   NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(),
                                                               EndpointPair(),
-                                                              this_endpoint_pair,
+                                                              this_endpoint_pair0,
                                                               nat_type1));
   EXPECT_EQ(kSuccess,
             nodes_[0]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
-                                                                   this_endpoint_pair,
-                                                                   peer_endpoint_pair,
+                                                                   this_endpoint_pair0,
+                                                                   peer_endpoint_pair0,
                                                                    nat_type0));
-  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
-  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair0.local));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair0.local));
 
-  auto peer_futures(nodes_[0]->GetFutureForMessages(1));
+  // Case: Own NodeId
+  EXPECT_EQ(kOwnId, node_.managed_connections()->Add(node_.node_id(),
+                                                     EndpointPair(),
+                                                     node_.validation_data()));
+  // Case: Empty endpoint
+  EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[0]->node_id(),
+                                                       EndpointPair(),
+                                                       node_.validation_data()));
   auto this_node_futures(node_.GetFutureForMessages(1));
-  EXPECT_EQ(kSuccess,
-            nodes_[0]->managed_connections()->Add(node_.node_id(),
-                                                  this_endpoint_pair,
-                                                  nodes_[0]->validation_data()));
-  EXPECT_EQ(kSuccess,
-            node_.managed_connections()->Add(nodes_[0]->node_id(),
-                                             peer_endpoint_pair,
-                                             node_.validation_data()));
-  ASSERT_TRUE(peer_futures.timed_wait(Parameters::rendezvous_connect_timeout));
-  auto peer_messages(peer_futures.get());
-  ASSERT_TRUE(this_node_futures.timed_wait(Parameters::rendezvous_connect_timeout));
-  auto this_node_messages(this_node_futures.get());
-  ASSERT_EQ(1, peer_messages.size());
-  ASSERT_EQ(1, this_node_messages.size());
-  EXPECT_EQ(node_.validation_data(), peer_messages[0]);
-  EXPECT_EQ(nodes_[0]->validation_data(), this_node_messages[0]);
-  nodes_[0]->ResetData();
-
-  // Invalid endpoints
-  EXPECT_EQ(kInvalidEndpoint,
-            node_.managed_connections()->Add(nodes_[1]->node_id(),
-                                             EndpointPair(),
-                                             node_.validation_data()));
-  // Invalid peer_id
-  EXPECT_EQ(kInvalidId,
-            node_.managed_connections()->Add(NodeId(),
-                                             peer_endpoint_pair,
-                                             node_.validation_data()));
-  // Empty validation_data
-  EXPECT_EQ(kEmptyValidationData,
-            node_.managed_connections()->Add(nodes_[0]->node_id(),
-                                             peer_endpoint_pair,
-                                             ""));
-
-  // Unavailable endpoints
-  peer_endpoint_pair.local = bootstrap_endpoints_[2];
-  Endpoint unavailable_endpoint(ip::address::from_string("1.1.1.1"),
-                                maidsafe::test::GetRandomPort());
-  EXPECT_EQ(kInvalidTransport,
-            node_.managed_connections()->Add(nodes_[2]->node_id(),
-                                             peer_endpoint_pair,
-                                             node_.validation_data()));
-
-  node_.ResetData();
-  this_node_futures = node_.GetFutureForMessages(1);
-  peer_endpoint_pair.local = bootstrap_endpoints_[2];
-  EXPECT_EQ(kSuccess,
-            node_.managed_connections()->Add(nodes_[0]->node_id(),
-                                             peer_endpoint_pair,
-                                             node_.validation_data()));
   ASSERT_FALSE(this_node_futures.timed_wait(Parameters::rendezvous_connect_timeout));
 
-  // Re-add existing connection, on same transport and new transport
-  EXPECT_EQ(kConnectionAlreadyExists,
-            node_.managed_connections()->Add(nodes_[0]->node_id(),
-                                             peer_endpoint_pair,
-                                             node_.validation_data()));
-  EndpointPair another_endpoint_pair;
-  NatType nat_type(NatType::kUnknown);
+  // Case: Inexistent endpoint
+  EndpointPair random_peer_endpoint;
+  random_peer_endpoint.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
+  random_peer_endpoint.external = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
+
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(NodeId(NodeId::kRandomId),
+            node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
                                                               EndpointPair(),
-                                                              another_endpoint_pair,
-                                                              nat_type));
-  EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
-  EXPECT_NE(another_endpoint_pair.local, this_endpoint_pair.local);
-  EXPECT_EQ(kConnectionAlreadyExists,
-            node_.managed_connections()->Add(nodes_[0]->node_id(),
-                                             another_endpoint_pair,
-                                             node_.validation_data()));
+                                                              this_endpoint_pair1,
+                                                              nat_type1));
+  EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(),
+                                                       random_peer_endpoint,
+                                                       node_.validation_data()));
+  this_node_futures = node_.GetFutureForMessages(1);
+  ASSERT_FALSE(this_node_futures.timed_wait(Parameters::rendezvous_connect_timeout));
+
+  // Case: Success
+  node_.ResetData();
+  nodes_[2]->ResetData();
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->GetAvailableEndpoint(nodes_[2]->node_id(),
+                                                              EndpointPair(),
+                                                              this_endpoint_pair2,
+                                                              nat_type1));
+  EXPECT_EQ(kSuccess,
+            nodes_[2]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
+                                                                   this_endpoint_pair2,
+                                                                   peer_endpoint_pair2,
+                                                                   nat_type0));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair2.local));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair2.local));
+  auto peer_futures(nodes_[2]->GetFutureForMessages(1));
+  this_node_futures = node_.GetFutureForMessages(1);
+  EXPECT_EQ(kSuccess, nodes_[2]->managed_connections()->Add(node_.node_id(),
+                                                            this_endpoint_pair2,
+                                                            nodes_[2]->validation_data()));
+  EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[2]->node_id(),
+                                                       peer_endpoint_pair2,
+                                                       node_.validation_data()));
+  EXPECT_TRUE(peer_futures.timed_wait(Parameters::rendezvous_connect_timeout));
+  auto peer_messages(peer_futures.get());
+  EXPECT_TRUE(this_node_futures.timed_wait(Parameters::rendezvous_connect_timeout));
+  auto this_node_messages(this_node_futures.get());
+  EXPECT_EQ(1, peer_messages.size());
+  EXPECT_EQ(1, this_node_messages.size());
+  EXPECT_EQ(node_.validation_data(), peer_messages[0]);
+  EXPECT_EQ(nodes_[2]->validation_data(), this_node_messages[0]);
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
