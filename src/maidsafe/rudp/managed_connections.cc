@@ -252,47 +252,38 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
     return kOwnId;
   }
 
-  // Functor to be used to retrieve a non-resilience, idle transport.
-  const auto kGetFromIdles([&]()->bool {  // NOLINT (Fraser)
-    if (!idle_transports_.empty()) {
-      auto idles_itr(std::find_if_not(idle_transports_.begin(),
-                                      idle_transports_.end(),
-                                      [](const std::shared_ptr<detail::Transport>& transport) {
-                                        return transport->IsResilienceTransport();
-                                      }));
-      if (idles_itr != idle_transports_.end()) {
-        this_endpoint_pair.local = (*idles_itr)->local_endpoint();
-        this_endpoint_pair.external = (*idles_itr)->external_endpoint();
-        BOOST_VERIFY(pendings_.insert(std::make_pair(peer_id, *idles_itr)).second);
-        return true;
-      } else {
-        LOG(kVerbose) << "Only idle transport is Resilience one - won't provide this in "
-                      << "GetAvailableEndpoint";
-      }
-    }
-    return false;
-  });
-
   // Functor to handle resetting parameters in case of failure.
-  const auto kFail([&](const std::string& message) {  // NOLINT (Fraser)
+  const auto kDoFail([&](const std::string& message) {  // NOLINT (Fraser)
     this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
     this_nat_type = NatType::kUnknown;
     if (!message.empty())
       LOG(kError) << message;
   });
 
+  // Functor to handle setting parameters and inserting into pendings_ in case of success
+  const auto kDoSucceed([&](TransportPtr transport)->bool {
+    this_endpoint_pair.local = transport->local_endpoint();
+    this_endpoint_pair.external = transport->external_endpoint();
+    auto result(pendings_.insert(std::make_pair(peer_id, transport)));
+    if (!result.second) {
+      kDoFail(std::string("Unexpected insertion failure for ") + DebugId(peer_id));
+      assert(result.second);
+    }
+    return result.second;
+  });
+
   {
     std::lock_guard<std::mutex> lock(mutex_);
     this_nat_type = nat_type_;
     if (connections_.empty() && idle_transports_.empty()) {
-      kFail("No running Transports.");
+      kDoFail("No running Transports.");
       return kNotBootstrapped;
     }
 
     // Check for an existing connection attempt
     auto existing_attempt(pendings_.find(peer_id));
     if (existing_attempt != pendings_.end()) {
-      kFail(std::string("GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
+      kDoFail(std::string("GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
       return kConnectAttemptAlreadyRunning;
     }
 
@@ -307,25 +298,17 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
         connections_.erase(peer_id);
       }
       if (connection->state() == detail::Connection::State::kBootstrapping) {
-        this_endpoint_pair.local = (*itr).second->local_endpoint();
-        this_endpoint_pair.external = (*itr).second->external_endpoint();
-        auto result(pendings_.insert(std::make_pair(peer_id, (*itr).second)));
-        assert(result.second);
-        if (!result.second) {
-          kFail(std::string("Unexpected insertion failure for ") + DebugId(peer_id));
-          return kConnectAttemptAlreadyRunning;
-        }
-        return kSuccess;
+        return kDoSucceed((*itr).second) ? kSuccess : kConnectAttemptAlreadyRunning;
       } else {
-        kFail(std::string("A non-bootstrap managed connection from ") + DebugId(this_node_id_) +
-              std::string(" to ") + DebugId(peer_id) + " already exists");
+        kDoFail(std::string("A non-bootstrap managed connection from ") + DebugId(this_node_id_) +
+                std::string(" to ") + DebugId(peer_id) + " already exists");
         return kConnectionAlreadyExists;
       }
     }
 
     // Try to get from an existing idle transport
-    if (kGetFromIdles())
-      return kSuccess;
+    if (!idle_transports_.empty())
+      return kDoSucceed(*idle_transports_.begin()) ? kSuccess : kConnectAttemptAlreadyRunning;
   }
 
   bool start_new_transport(false);
@@ -342,7 +325,7 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
 
   if (start_new_transport &&
       !StartNewTransport(std::vector<std::pair<NodeId, Endpoint>>(), Endpoint(local_ip_, 0))) {  // NOLINT (Fraser)
-    kFail("Failed to start transport.");
+    kDoFail("Failed to start transport.");
     return kTransportStartFailure;
   }
 
@@ -350,17 +333,16 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
   // Check again for an existing connection attempt in case it was added while mutex unlocked
   // during starting new transport.
   auto existing_attempt(pendings_.find(peer_id));
-  assert(existing_attempt == pendings_.end());
   if (existing_attempt != pendings_.end()) {
-    kFail(std::string("GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
+    kDoFail(std::string("GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
     return kConnectAttemptAlreadyRunning;
   }
 
   // NAT type may have just been deduced by newly-started transport
   this_nat_type = nat_type_;
   // Try again to get from an existing idle transport (likely to be just-started one)
-  if (kGetFromIdles())
-    return kSuccess;
+  if (!idle_transports_.empty())
+    return kDoSucceed(*idle_transports_.begin()) ? kSuccess : kConnectAttemptAlreadyRunning;
 
   // Get transport with least connections.
   size_t least_connections(detail::Transport::kMaxConnections());
@@ -373,19 +355,11 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
   }
 
   if (!selected_transport) {
-    kFail("All connectable Transports are full.");
+    kDoFail("All connectable Transports are full.");
     return kFull;
   }
 
-  this_endpoint_pair.local = selected_transport->local_endpoint();
-  this_endpoint_pair.external = selected_transport->external_endpoint();
-  auto result(pendings_.insert(std::make_pair(peer_id, selected_transport)));
-  assert(result.second);
-  if (!result.second) {
-    kFail(std::string("Unexpected insertion failure for ") + DebugId(peer_id));
-    return kConnectAttemptAlreadyRunning;
-  }
-  return kSuccess;
+  return kDoSucceed(selected_transport) ? kSuccess : kConnectAttemptAlreadyRunning;
 }
 
 int ManagedConnections::Add(NodeId peer_id,
