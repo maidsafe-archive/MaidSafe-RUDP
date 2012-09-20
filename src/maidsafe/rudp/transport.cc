@@ -90,8 +90,7 @@ void Transport::Bootstrap(
                                                   this_node_id, this_public_key));
   ReturnCode result = multiplexer_->Open(local_endpoint);
   if (result != kSuccess) {
-    if (!(local_endpoint.port() == ManagedConnections::kResiliencePort() && result == kBindError))
-      LOG(kError) << "Failed to open multiplexer.  Result: " << result;
+    LOG(kError) << "Failed to open multiplexer.  Result: " << result;
     return;
   }
 
@@ -104,10 +103,8 @@ void Transport::Bootstrap(
   else
     lifespan = Parameters::bootstrap_connection_lifespan;
 
-  if (local_endpoint.port() == ManagedConnections::kResiliencePort()) {
-    is_resilience_transport_ = true;
-    try_connect = false;
-  }
+  is_resilience_transport_ =
+      (multiplexer_->local_endpoint().port() == ManagedConnections::kResiliencePort());
 
   if (try_connect) {
     for (auto peer : bootstrap_peers) {

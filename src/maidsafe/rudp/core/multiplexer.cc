@@ -12,11 +12,14 @@
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
 
+#include "maidsafe/rudp/core/multiplexer.h"
+
 #include <cassert>
 
-#include "maidsafe/rudp/core/multiplexer.h"
+#include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/utils.h"
+
 
 namespace asio = boost::asio;
 namespace ip = boost::asio::ip;
@@ -63,12 +66,17 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
     return kSetOptionFailure;
   }
 
+  if (endpoint.port() == 0U) {
+    // Try to bind to Resilience port first. If this fails, just fall back to port 0 (i.e. any port)
+    socket_.bind(ip::udp::endpoint(endpoint.address(), ManagedConnections::kResiliencePort()), ec);
+    if (!ec)
+      return kSuccess;
+  }
+
   socket_.bind(endpoint, ec);
   if (ec) {
-    if (!(endpoint.port() == 5483 && ec == boost::system::errc::address_in_use)) {
-      LOG(kError) << "Multiplexer socket binding error while attempting on " << endpoint
-                  << "  Error: " << ec.value();
-    }
+    LOG(kError) << "Multiplexer socket binding error while attempting on " << endpoint
+                << "  Error: " << ec.value();
     return kBindError;
   }
 
