@@ -86,7 +86,14 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
                                      Endpoint local_endpoint) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    assert(connections_.empty());
+    if (!connections_.empty()) {
+      for (auto connection_details : connections_) {
+        assert(connection_details.second->GetConnection(connection_details.first)->state() ==
+               detail::Connection::State::kBootstrapping);
+        connection_details.second->Close();
+      }
+      connections_.clear();
+    }
     pendings_.clear();
     for (auto idle_transport : idle_transports_)
       idle_transport->Close();
@@ -168,7 +175,7 @@ bool ManagedConnections::StartNewTransport(std::vector<std::pair<NodeId, Endpoin
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });  // NOLINT (Fraser)
   NodeId chosen_id;
-  transport->Bootstrap(
+  if (!transport->Bootstrap(
       bootstrap_peers,
       this_node_id_,
       public_key_,
@@ -178,8 +185,7 @@ bool ManagedConnections::StartNewTransport(std::vector<std::pair<NodeId, Endpoin
       boost::bind(&ManagedConnections::OnConnectionAddedSlot, this, _1, _2, _3, _4),
       boost::bind(&ManagedConnections::OnConnectionLostSlot, this, _1, _2, _3),
       boost::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, _1, _2, _3, _4),
-      chosen_id);
-  if (chosen_id == NodeId() && nat_type_ != NatType::kSymmetric) {
+      chosen_id)) {
     std::lock_guard<std::mutex> lock(mutex_);
     LOG(kWarning) << "Failed to start a new Transport.";
     transport->Close();
@@ -264,6 +270,7 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
   const auto kDoSucceed([&](TransportPtr transport)->bool {
     this_endpoint_pair.local = transport->local_endpoint();
     this_endpoint_pair.external = transport->external_endpoint();
+    assert(transport->IsAvailable());
     auto result(pendings_.insert(std::make_pair(peer_id, transport)));
     if (!result.second) {
       kDoFail(std::string("Unexpected insertion failure for ") + DebugId(peer_id));
@@ -307,8 +314,12 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
     }
 
     // Try to get from an existing idle transport
-    if (!idle_transports_.empty())
-      return kDoSucceed(*idle_transports_.begin()) ? kSuccess : kConnectAttemptAlreadyRunning;
+    while (!idle_transports_.empty()) {
+      if ((*idle_transports_.begin())->IsAvailable())
+        return kDoSucceed(*idle_transports_.begin()) ? kSuccess : kConnectAttemptAlreadyRunning;
+      else
+        idle_transports_.erase(idle_transports_.begin());
+    }
   }
 
   bool start_new_transport(false);
@@ -341,8 +352,17 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
   // NAT type may have just been deduced by newly-started transport
   this_nat_type = nat_type_;
   // Try again to get from an existing idle transport (likely to be just-started one)
-  if (!idle_transports_.empty())
-    return kDoSucceed(*idle_transports_.begin()) ? kSuccess : kConnectAttemptAlreadyRunning;
+  if (connections_.empty() && idle_transports_.empty()) {
+    kDoFail("No running Transports.");
+    return kNotBootstrapped;
+  }
+
+  while (!idle_transports_.empty()) {
+    if ((*idle_transports_.begin())->IsAvailable())
+      return kDoSucceed(*idle_transports_.begin()) ? kSuccess : kConnectAttemptAlreadyRunning;
+    else
+      idle_transports_.erase(idle_transports_.begin());
+  }
 
   // Get transport with least connections.
   size_t least_connections(detail::Transport::kMaxConnections());
@@ -375,11 +395,6 @@ int ManagedConnections::Add(NodeId peer_id,
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
-
-#ifndef NDEBUG
-  for (auto idle_transport : idle_transports_)
-    assert(idle_transport->IsIdle());
-#endif
 
   auto itr(pendings_.find(peer_id));
   assert(itr != pendings_.end());
@@ -592,18 +607,22 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
   std::lock_guard<std::mutex> lock(mutex_);
 
   if (temporary_connection) {
-    if (transport->IsIdle())
+    if (transport->IsIdle()) {
+      assert(transport->IsAvailable());
       idle_transports_.insert(transport);
-    else
+    } else {
       idle_transports_.erase(transport);
+    }
   } else {
     auto result(connections_.insert(std::make_pair(peer_id, transport)));
     is_duplicate_normal_connection = !result.second;
     if (is_duplicate_normal_connection) {
-      if (transport->IsIdle())
+      if (transport->IsIdle()) {
+        assert(transport->IsAvailable());
         idle_transports_.insert(transport);
-      else
+      } else {
         idle_transports_.erase(transport);
+      }
       LOG(kError) << (*result.first).second->ThisDebugId() << " is already connected to "
                   << DebugId(peer_id) << "   Won't make duplicate normal connection on "
                   << transport->ThisDebugId();
@@ -613,6 +632,14 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
   }
 
 #ifndef NDEBUG
+  auto itr(idle_transports_.begin());
+  while (itr != idle_transports_.end()) {
+    assert((*itr)->IsIdle());
+    if (!(*itr)->IsAvailable())
+      itr = idle_transports_.erase(itr);
+    else
+      ++itr;
+  }
   auto pendings_itr(pendings_.find(peer_id));
   assert(pendings_itr == pendings_.end());
 //  if (pendings_itr != pendings_.end())
@@ -624,7 +651,7 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
                                               TransportPtr transport,
                                               bool temporary_connection) {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (transport->IsIdle())
+  if (transport->IsIdle() || transport->IsAvailable())
     idle_transports_.insert(transport);
   else
     idle_transports_.erase(transport);

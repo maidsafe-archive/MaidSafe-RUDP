@@ -60,7 +60,7 @@ Transport::~Transport() {
   Close();
 }
 
-void Transport::Bootstrap(
+bool Transport::Bootstrap(
     const std::vector<std::pair<NodeId, Endpoint>> &bootstrap_peers,
     const NodeId& this_node_id,
     std::shared_ptr<asymm::PublicKey> this_public_key,
@@ -75,6 +75,15 @@ void Transport::Bootstrap(
   BOOST_ASSERT(!multiplexer_->IsOpen());
 
   chosen_id = NodeId();
+  ReturnCode result = multiplexer_->Open(local_endpoint);
+  if (result != kSuccess) {
+    LOG(kError) << "Failed to open multiplexer.  Result: " << result;
+    return false;
+  }
+
+  is_resilience_transport_ =
+      (multiplexer_->local_endpoint().port() == ManagedConnections::kResiliencePort());
+
   // We want these 3 slots to be invoked before any others connected, so that if we wait elsewhere
   // for the other connected slot(s) to be executed, we can be assured that these main slots have
   // already been executed at that point in time.
@@ -88,11 +97,6 @@ void Transport::Bootstrap(
 
   connection_manager_.reset(new ConnectionManager(shared_from_this(), strand_, multiplexer_,
                                                   this_node_id, this_public_key));
-  ReturnCode result = multiplexer_->Open(local_endpoint);
-  if (result != kSuccess) {
-    LOG(kError) << "Failed to open multiplexer.  Result: " << result;
-    return;
-  }
 
   StartDispatch();
 
@@ -103,20 +107,18 @@ void Transport::Bootstrap(
   else
     lifespan = Parameters::bootstrap_connection_lifespan;
 
-  is_resilience_transport_ =
-      (multiplexer_->local_endpoint().port() == ManagedConnections::kResiliencePort());
+  if (!try_connect) {
+    LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint();
+    return true;
+  }
 
-  if (try_connect) {
-    for (auto peer : bootstrap_peers) {
-      chosen_id = ConnectToBootstrapEndpoint(peer.first, peer.second, lifespan);
-      if (chosen_id == NodeId())
-        continue;
+  for (auto peer : bootstrap_peers) {
+    chosen_id = ConnectToBootstrapEndpoint(peer.first, peer.second, lifespan);
+    if (chosen_id != NodeId()) {
       LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
                     << " connected to " << DebugId(peer.first).substr(0, 7) << " - " << peer.second;
-      break;
+      return true;
     }
-  } else {
-    chosen_id = NodeId();
   }
 
   //if (is_resilience_transport_) {
@@ -131,6 +133,7 @@ void Transport::Bootstrap(
   //               << multiplexer_->local_endpoint();
   //  }
   //}
+  return false;
 }
 
 NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
@@ -339,6 +342,11 @@ size_t Transport::NormalConnectionsCount() const {
 
 bool Transport::IsIdle() const {
   return connection_manager_->NormalConnectionsCount() == 0U;
+}
+
+bool Transport::IsAvailable() const {
+  return detail::IsValid(multiplexer_->external_endpoint()) ||
+         detail::IsValid(multiplexer_->local_endpoint());
 }
 
 void Transport::StartDispatch() {
