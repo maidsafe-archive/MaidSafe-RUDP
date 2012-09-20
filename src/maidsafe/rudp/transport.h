@@ -70,7 +70,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   virtual ~Transport();
 
-  void Bootstrap(
+  bool Bootstrap(
       const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> &bootstrap_peers,
       const NodeId& this_node_id,
       std::shared_ptr<asymm::PublicKey> this_public_key,
@@ -115,6 +115,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   size_t NormalConnectionsCount() const;
   bool IsIdle() const;
+  bool IsAvailable() const;
 
   static int kMaxConnections() { return 50; }
 
