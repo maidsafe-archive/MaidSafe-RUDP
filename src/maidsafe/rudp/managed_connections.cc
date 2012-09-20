@@ -102,7 +102,7 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
     LOG(kError) << "You must provide a valid ConnectionLostFunctor.";
     return NodeId();
   }
-  if (!this_node_id.IsValid()) {
+  if (!this_node_id.IsValid() || this_node_id == NodeId()) {
     LOG(kError) << "You must provide a valid NodeId.";
     return NodeId();
   }
@@ -243,6 +243,10 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
                                              EndpointPair peer_endpoint_pair,
                                              EndpointPair& this_endpoint_pair,
                                              NatType& this_nat_type) {
+  if (!peer_id.IsValid() || peer_id == NodeId()) {
+    LOG(kError) << "Invalid peer_id passed.";
+    return kInvalidId;
+  }
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
     return kOwnId;
@@ -387,7 +391,7 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
 int ManagedConnections::Add(NodeId peer_id,
                             EndpointPair peer_endpoint_pair,
                             std::string validation_data) {
-  if (!peer_id.IsValid()) {
+  if (!peer_id.IsValid() || peer_id == NodeId()) {
     LOG(kError) << "Invalid peer_id passed.";
     return kInvalidId;
   }
@@ -457,10 +461,15 @@ int ManagedConnections::Add(NodeId peer_id,
 }
 
 int ManagedConnections::MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_endpoint) {
+  if (!peer_id.IsValid() || peer_id == NodeId()) {
+    LOG(kError) << "Invalid peer_id passed.";
+    return kInvalidId;
+  }
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
     return kOwnId;
   }
+
   std::lock_guard<std::mutex> lock(mutex_);
   auto itr(connections_.find(peer_id));
   if (itr != connections_.end()) {
@@ -474,10 +483,15 @@ int ManagedConnections::MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_end
 }
 
 void ManagedConnections::Remove(NodeId peer_id) {
+  if (!peer_id.IsValid() || peer_id == NodeId()) {
+    LOG(kError) << "Invalid peer_id passed.";
+    return;
+  }
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
     return;
   }
+
   std::lock_guard<std::mutex> lock(mutex_);
   auto itr(connections_.find(peer_id));
   if (itr == connections_.end()) {
@@ -491,10 +505,15 @@ void ManagedConnections::Remove(NodeId peer_id) {
 void ManagedConnections::Send(NodeId peer_id,
                               std::string message,
                               MessageSentFunctor message_sent_functor) {
+  if (!peer_id.IsValid() || peer_id == NodeId()) {
+    LOG(kError) << "Invalid peer_id passed.";
+    return;
+  }
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
     return;
   }
+
   std::lock_guard<std::mutex> lock(mutex_);
   auto itr(connections_.find(peer_id));
   if (itr != connections_.end()) {
