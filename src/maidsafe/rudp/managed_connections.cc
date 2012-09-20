@@ -499,8 +499,8 @@ void ManagedConnections::Send(NodeId peer_id,
   if (message_sent_functor) {
     if (!connections_.empty() || !idle_transports_.empty()) {
       asio_service_.service().post([message_sent_functor] {
-        message_sent_functor(kInvalidConnection);
-      });
+                                     message_sent_functor(kInvalidConnection);
+                                   });
     } else {
       // Probably haven't bootstrapped, so asio_service_ won't be running.
       boost::thread(message_sent_functor, kInvalidConnection);
@@ -605,7 +605,7 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
       else
         idle_transports_.erase(transport);
       LOG(kError) << (*result.first).second->ThisDebugId() << " is already connected to "
-                  << DebugId(peer_id) << "   Won't make duplicate normal connection on "
+                  << DebugId(peer_id) << ".  Won't make duplicate normal connection on "
                   << transport->ThisDebugId();
     } else {
       idle_transports_.erase(transport);
@@ -664,12 +664,11 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
-  auto itr(std::find_if(
-      connections_.begin(),
-      connections_.end(),
-      [&this_local_endpoint](const ConnectionMap::value_type& element) {
-        return this_local_endpoint != element.second->local_endpoint();
-      }));
+  auto itr(std::find_if(connections_.begin(),
+                        connections_.end(),
+                        [&this_local_endpoint](const ConnectionMap::value_type& element) {
+                          return this_local_endpoint != element.second->local_endpoint();
+                        }));
 
   if (itr == connections_.end()) {
     another_external_port = 0;

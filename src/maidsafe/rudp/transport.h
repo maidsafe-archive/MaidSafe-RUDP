@@ -116,7 +116,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   size_t NormalConnectionsCount() const;
   bool IsIdle() const;
 
-  static uint32_t kMaxConnections() { return 50; }
+  static int kMaxConnections() { return 50; }
 
   std::string DebugString() const;
   std::string ThisDebugId() const;
