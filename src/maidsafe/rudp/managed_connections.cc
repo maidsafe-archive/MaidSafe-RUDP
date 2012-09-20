@@ -86,10 +86,12 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
                                      Endpoint local_endpoint) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    for (auto element : connections_)
-      element.second->Close();
+    assert(connections_.empty());
+    pendings_.clear();
+    for (auto idle_transport : idle_transports_)
+      idle_transport->Close();
+    idle_transports_.clear();
 //    resilience_transport_.DisconnectSignalsAndClose();
-    connections_.clear();
   }
 
   if (!message_received_functor) {
@@ -303,7 +305,12 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
       if (connection->state() == detail::Connection::State::kBootstrapping) {
         this_endpoint_pair.local = (*itr).second->local_endpoint();
         this_endpoint_pair.external = (*itr).second->external_endpoint();
-        BOOST_VERIFY(pendings_.insert(std::make_pair(peer_id, (*itr).second)).second);
+        auto result(pendings_.insert(std::make_pair(peer_id, (*itr).second)));
+        assert(result.second);
+        if (!result.second) {
+          kFail(std::string("Unexpected insertion failure for ") + DebugId(peer_id));
+          return kConnectAttemptAlreadyRunning;
+        }
         return kSuccess;
       } else {
         kFail(std::string("A non-bootstrap managed connection from ") + DebugId(this_node_id_) +
@@ -318,7 +325,9 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
   }
 
   bool start_new_transport(false);
-  if (nat_type_ == NatType::kSymmetric) {
+  if (nat_type_ == NatType::kSymmetric &&
+      static_cast<int>(connections_.size()) <
+          (Parameters::max_transports * detail::Transport::kMaxConnections())) {
     if (detail::IsValid(peer_endpoint_pair.external))
       start_new_transport = true;
     else
@@ -366,7 +375,12 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
 
   this_endpoint_pair.local = selected_transport->local_endpoint();
   this_endpoint_pair.external = selected_transport->external_endpoint();
-  BOOST_VERIFY(pendings_.insert(std::make_pair(peer_id, selected_transport)).second);
+  auto result(pendings_.insert(std::make_pair(peer_id, selected_transport)));
+  assert(result.second);
+  if (!result.second) {
+    kFail(std::string("Unexpected insertion failure for ") + DebugId(peer_id));
+    return kConnectAttemptAlreadyRunning;
+  }
   return kSuccess;
 }
 
@@ -640,6 +654,8 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
       assert(false);
     }
     connections_.erase(itr);
+    if (peer_id == chosen_bootstrap_node_id_)
+      chosen_bootstrap_node_id_ = NodeId();
     LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
     asio_service_.service().post([=] { connection_lost_functor_(peer_id); });  // NOLINT (Fraser)
   }
