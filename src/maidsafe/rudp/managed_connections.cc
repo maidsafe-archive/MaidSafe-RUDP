@@ -299,6 +299,7 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
     auto itr(connections_.find(peer_id));
     if (itr != connections_.end()) {
       std::shared_ptr<detail::Connection> connection((*itr).second->GetConnection(peer_id));
+      assert(connection);
       if (!connection) {
         LOG(kError) << "Internal ManagedConnections error: mismatch between connections_ and "
                     << "actual connections.";
