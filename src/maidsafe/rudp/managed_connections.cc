@@ -651,10 +651,12 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
                                               TransportPtr transport,
                                               bool temporary_connection) {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (transport->IsIdle() || transport->IsAvailable())
+  if (transport->IsIdle()) {
+    assert(transport->IsAvailable());
     idle_transports_.insert(transport);
-  else
+  } else {
     idle_transports_.erase(transport);
+  }
 
   if (temporary_connection)
     return;
