@@ -405,10 +405,10 @@ int ManagedConnections::Add(NodeId peer_id,
     return kNoPendingConnectAttempt;
   }
   TransportPtr selected_transport((*itr).second);
-  pendings_.erase(itr);
 
   if (validation_data.empty()) {
     LOG(kError) << "Invalid validation_data passed.";
+    pendings_.erase(itr);
     return kEmptyValidationData;
   }
 
@@ -441,6 +441,7 @@ int ManagedConnections::Add(NodeId peer_id,
       LOG(kError) << "A managed connection from " << DebugId(this_node_id_) << " to "
                   << DebugId(peer_id) << " already exists, and this node's chosen bootstrap ID is "
                   << DebugId(chosen_bootstrap_node_id_);
+      pendings_.erase(itr);
       assert(false);
       return kConnectionAlreadyExists;
     }
@@ -615,6 +616,8 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
       idle_transports_.erase(transport);
     }
   } else {
+    pendings_.erase(peer_id);
+
     auto result(connections_.insert(std::make_pair(peer_id, transport)));
     is_duplicate_normal_connection = !result.second;
     if (is_duplicate_normal_connection) {
@@ -641,10 +644,6 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
     else
       ++itr;
   }
-  auto pendings_itr(pendings_.find(peer_id));
-  assert(pendings_itr == pendings_.end());
-//  if (pendings_itr != pendings_.end())
-//    pendings_.erase(pendings_itr);
 #endif
 }
 
@@ -662,12 +661,7 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
   if (temporary_connection)
     return;
 
-  // If this is a bootstrap connection, it may have already had GetAvailableEndpoint called on it,
-  // but not yet had Add called, in which case peer_id will be in pendings_.  In all other cases,
-  // peer_id should not be in pendings_.
-  auto pendings_itr(pendings_.find(peer_id));
-  if (pendings_itr != pendings_.end())
-    pendings_.erase(pendings_itr);
+  pendings_.erase(peer_id);
 
   auto itr(connections_.find(peer_id));
   if (itr != connections_.end()) {
