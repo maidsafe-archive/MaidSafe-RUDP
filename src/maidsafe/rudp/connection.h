@@ -138,7 +138,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
   std::shared_ptr<Multiplexer> multiplexer_;
-  maidsafe::rudp::detail::Socket socket_;
+  detail::Socket socket_;
   boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
   NodeId peer_node_id_;
   boost::asio::ip::udp::endpoint peer_endpoint_;
