@@ -274,21 +274,21 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
   });
 
   // Functor to handle setting parameters and inserting into pendings_ in case of success
-  const auto kDoSucceed([&] (TransportPtr transport)->bool {
-                          this_endpoint_pair.local = transport->local_endpoint();
-                          this_endpoint_pair.external = transport->external_endpoint();
-                          assert(transport->IsAvailable());
-                          auto itr(FindPendingTransportWithNodeId(peer_id));
-                          if (itr != pendings_.end()) {
-                            kDoFail(std::string("Unexpected insertion failure for ") +
-                                    DebugId(peer_id));
-                            assert(false);
-                            return false;
-                          }
-                          PendingConnection connection(peer_id, transport);
-                          pendings_.push_back(connection);
-                          return true;
-                        });
+  const auto kDoSucceed(  // NOLINT (Dan)
+      [&] (TransportPtr transport)->bool {
+        this_endpoint_pair.local = transport->local_endpoint();
+        this_endpoint_pair.external = transport->external_endpoint();
+        assert(transport->IsAvailable());
+        auto itr(FindPendingTransportWithNodeId(peer_id));
+        if (itr != pendings_.end()) {
+          kDoFail(std::string("Unexpected insertion failure for ") + DebugId(peer_id));
+          assert(false);
+          return false;
+        }
+        PendingConnection connection(peer_id, transport);
+        pendings_.push_back(connection);
+        return true;
+      });
 
   {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -301,7 +301,7 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
     // Check for an existing connection attempt
     auto existing_attempt(FindPendingTransportWithNodeId(peer_id));
     if (existing_attempt != pendings_.end()) {
-      kDoFail(std::string("304. GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
+      kDoFail(std::string("GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
       return kConnectAttemptAlreadyRunning;
     }
 
@@ -361,7 +361,7 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
                                        return element.node_id == peer_id;
                                      }));
   if (existing_attempt != pendings_.end()) {
-    kDoFail(std::string("364. GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
+    kDoFail(std::string("GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
     return kConnectAttemptAlreadyRunning;
   }
 
@@ -610,7 +610,9 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
       idle_transports_.erase(transport);
     }
   } else {
-    pendings_.erase(peer_id);
+    auto itr(FindPendingTransportWithNodeId(peer_id));
+    if (itr != pendings_.end())
+      pendings_.erase(itr);
 
     auto result(connections_.insert(std::make_pair(peer_id, transport)));
     is_duplicate_normal_connection = !result.second;

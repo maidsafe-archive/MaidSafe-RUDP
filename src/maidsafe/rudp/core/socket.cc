@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <utility>
 #include <limits>
+#include <vector>
 
 #include "boost/assert.hpp"
 

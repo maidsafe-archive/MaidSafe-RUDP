@@ -53,7 +53,6 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)  // NOLINT (F
       on_message_connection_(),
       on_connection_added_connection_(),
       on_connection_lost_connection_(),
-      is_resilience_transport_(false),
       managed_connections_debug_printout_() {}
 
 Transport::~Transport() {
@@ -80,9 +79,6 @@ bool Transport::Bootstrap(
     LOG(kError) << "Failed to open multiplexer.  Result: " << result;
     return false;
   }
-
-  is_resilience_transport_ =
-      (multiplexer_->local_endpoint().port() == ManagedConnections::kResiliencePort());
 
   // We want these 3 slots to be invoked before any others connected, so that if we wait elsewhere
   // for the other connected slot(s) to be executed, we can be assured that these main slots have
@@ -121,18 +117,6 @@ bool Transport::Bootstrap(
     }
   }
 
-  //if (is_resilience_transport_) {
-  //  if (multiplexer_->external_endpoint().port() != ManagedConnections::kResiliencePort() &&
-  //      multiplexer_->local_endpoint().port() != ManagedConnections::kResiliencePort()) {
-  //    LOG(kWarning) << "Failed to start resilience transport - got port "
-  //                  << multiplexer_->external_endpoint().port() << " instead of "
-  //                  << ManagedConnections::kResiliencePort();
-  //    *chosen_endpoint = Endpoint();
-  //  } else {
-  //    LOG(kInfo) << "Started resilience transport on " << multiplexer_->external_endpoint() << " / "
-  //               << multiplexer_->local_endpoint();
-  //  }
-  //}
   return false;
 }
 

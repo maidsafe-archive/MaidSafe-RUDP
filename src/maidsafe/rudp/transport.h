@@ -111,8 +111,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
                                bool validated,
                                boost::asio::ip::udp::endpoint& peer_endpoint);
 
-  bool IsResilienceTransport() const { return is_resilience_transport_; }
-
   size_t NormalConnectionsCount() const;
   bool IsIdle() const;
   bool IsAvailable() const;
@@ -167,7 +165,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
   boost::signals2::connection on_message_connection_;
   boost::signals2::connection on_connection_added_connection_;
   boost::signals2::connection on_connection_lost_connection_;
-  bool is_resilience_transport_;
   std::function<std::string()> managed_connections_debug_printout_;
 };
 
