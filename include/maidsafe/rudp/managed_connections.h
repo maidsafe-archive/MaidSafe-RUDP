@@ -145,8 +145,6 @@ class ManagedConnections {
       std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint> >& bootstrap_peers,  // NOLINT (Fraser)
       boost::asio::ip::address& this_external_address);
 
-  void StartResilienceTransport();
-
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const NodeId& peer_id,
                              std::shared_ptr<detail::Transport> transport,

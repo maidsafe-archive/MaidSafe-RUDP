@@ -1197,63 +1197,6 @@ TEST_F(ManagedConnectionsTest, DISABLED_BEH_API_Ping) {
 }
 */
 
-/*
-TEST_F(ManagedConnectionsTest, DISABLED_BEH_API_Resilience) {
-  Parameters::max_transports = 2;
-  const int kNetworkSize(3);
-  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNetworkSize));
-
-  Endpoint emergency_endpoint(bootstrap_endpoints_[0].address(),
-                              ManagedConnections::kResiliencePort());
-  Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, emergency_endpoint)));
-  ASSERT_EQ(emergency_endpoint, chosen_endpoint);
-
-  int result_of_send(kConnectError);
-  bool result_arrived(false);
-  std::condition_variable cond_var;
-  std::mutex mutex;
-  std::unique_lock<std::mutex> lock(mutex);
-  MessageSentFunctor message_sent_functor([&](int result_in) {
-    std::lock_guard<std::mutex> lock(mutex);
-    result_of_send = result_in;
-    result_arrived = true;
-    cond_var.notify_one();
-  });
-  auto wait_for_result([&] {
-    return cond_var.wait_for(lock,
-                             std::chrono::milliseconds(100),
-                             [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
-  });
-
-  // Don't know which node managed to start the resilience transport - check messages on each.
-  std::vector<boost::unique_future<std::vector<std::string>>> future_messages_at_peers;  // NOLINT (Fraser)
-  std::for_each(nodes_.begin(),
-                nodes_.end(),
-                [&future_messages_at_peers](const NodePtr& node) {
-                  node->ResetData();
-                  future_messages_at_peers.push_back(std::move(node->GetFutureForMessages(1)));
-                });
-  node_.managed_connections()->Send(emergency_endpoint, "message", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kSuccess, result_of_send);
-  bool found_one(false);
-  std::for_each(future_messages_at_peers.begin(),
-                future_messages_at_peers.end(),
-                [&found_one](boost::unique_future<std::vector<std::string>> &future) {
-                  if (future.timed_wait(bptime::milliseconds(200))) {
-                    found_one = true;
-                    auto messages(future.get());
-                    ASSERT_EQ(1U, messages.size());
-                    EXPECT_EQ("message", messages.front());
-                  }
-                });
-  EXPECT_TRUE(found_one);
-
-  // TODO(Fraser#5#): 2012-07-20 - Can new node make permanent connection on emergency transport?
-  //                  Either way, test.
-}
-*/
-
 }  // namespace test
 
 }  // namespace rudp
