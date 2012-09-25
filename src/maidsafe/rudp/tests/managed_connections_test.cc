@@ -22,7 +22,7 @@
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
-
+#include "maidsafe/common/error.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/transport.h"
@@ -330,7 +330,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
   // Case: Invalid NodeId
-  EXPECT_EQ(kInvalidId, node_.managed_connections()->Add(NodeId(RandomString(65)),
+  maidsafe::error_code error;
+  EXPECT_EQ(kInvalidId, node_.managed_connections()->Add(NodeId(RandomString(65), error),
                                                          EndpointPair(),
                                                          node_.validation_data()));
   // Valid bootstrap
