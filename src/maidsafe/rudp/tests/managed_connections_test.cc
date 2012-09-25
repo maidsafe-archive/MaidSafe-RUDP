@@ -289,7 +289,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingTransportPruning) {
                                               ++messages_sent;
                                             cond_var.notify_one();
                                           });
-  auto wait_for_result([&] {
+  auto wait_for_result([&] ()->bool {
     std::unique_lock<std::mutex> lock(mutex);
     return cond_var.wait_for(lock,
                              std::chrono::milliseconds(1000),
