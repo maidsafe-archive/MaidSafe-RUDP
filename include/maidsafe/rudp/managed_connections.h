@@ -132,6 +132,7 @@ class ManagedConnections {
     NodeId node_id;
     std::shared_ptr<detail::Transport> pending_transport;
     boost::posix_time::time_duration timestamp;
+    bool connecting;
   };
 
   ManagedConnections(const ManagedConnections&);

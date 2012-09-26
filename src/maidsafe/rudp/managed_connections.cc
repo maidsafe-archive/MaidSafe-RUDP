@@ -47,13 +47,16 @@ typedef std::vector<std::pair<NodeId, Endpoint> > NodeIdEndpointPairs;
 ManagedConnections::PendingConnection::PendingConnection()
     : node_id(),
       pending_transport(),
-      timestamp() {}
+      timestamp(),
+      connecting(false) {}
 
 ManagedConnections::PendingConnection::PendingConnection(const NodeId& node_id_in,
                                                          const TransportPtr& transport)
     : node_id(node_id_in),
       pending_transport(transport),
-      timestamp(GetDurationSinceEpoch()) {}
+      timestamp(GetDurationSinceEpoch()),
+      connecting(false) {}
+
 
 ManagedConnections::ManagedConnections()
     : asio_service_(Parameters::thread_count),
@@ -74,6 +77,8 @@ ManagedConnections::ManagedConnections()
 ManagedConnections::~ManagedConnections() {
   {
     std::lock_guard<std::mutex> lock(mutex_);
+    message_received_functor_ = MessageReceivedFunctor();
+    connection_lost_functor_ = ConnectionLostFunctor();
     for (auto connection_details : connections_)
       connection_details.second->Close();
     connections_.clear();
@@ -299,8 +304,10 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
     // Check for an existing connection attempt
     auto existing_attempt(FindPendingTransportWithNodeId(peer_id));
     if (existing_attempt != pendings_.end()) {
-      kDoFail(std::string("GetAvailableEndpoint has already been called for ") + DebugId(peer_id));
-      return kConnectAttemptAlreadyRunning;
+      this_endpoint_pair.local = (*existing_attempt).pending_transport->local_endpoint();
+      this_endpoint_pair.external = (*existing_attempt).pending_transport->external_endpoint();
+      assert((*existing_attempt).pending_transport->IsAvailable());
+      return kSuccess;
     }
 
     // Check for existing connection to peer and use that transport if it's a bootstrap connection
@@ -407,14 +414,26 @@ int ManagedConnections::Add(NodeId peer_id,
   std::lock_guard<std::mutex> lock(mutex_);
 
   auto itr(FindPendingTransportWithNodeId(peer_id));
-  assert(itr != pendings_.end());
   if (itr == pendings_.end()) {
+    if (connections_.find(peer_id) != connections_.end()) {
+      LOG(kError) << "A managed connection from " << DebugId(this_node_id_) << " to "
+                  << DebugId(peer_id) << " already exists, and this node's chosen bootstrap ID is "
+                  << DebugId(chosen_bootstrap_node_id_);
+      return kConnectionAlreadyExists;
+    }
     LOG(kError) << "No connection attempt from " << DebugId(this_node_id_) << " to "
                 << DebugId(peer_id) << " - ensure GetAvailableEndpoint has been called first.";
     return kNoPendingConnectAttempt;
   }
+
+  if ((*itr).connecting) {
+    LOG(kError) << "A connection attempt from " << DebugId(this_node_id_) << " to "
+                << DebugId(peer_id) << " is already happening";
+    return kConnectAttemptAlreadyRunning;
+  }
+
   TransportPtr selected_transport((*itr).pending_transport);
-  pendings_.erase(itr);
+  (*itr).connecting = true;
 
   if (validation_data.empty()) {
     LOG(kError) << "Invalid validation_data passed.";
@@ -452,7 +471,6 @@ int ManagedConnections::Add(NodeId peer_id,
                   << DebugId(peer_id) << " already exists, and this node's chosen bootstrap ID is "
                   << DebugId(chosen_bootstrap_node_id_);
       pendings_.erase(itr);
-      assert(false);
       return kConnectionAlreadyExists;
     }
   }
@@ -570,10 +588,11 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
   if (result != kSuccess) {
     LOG(kError) << "Failed to decrypt message.  Result: " << result;
   } else {
-    asio_service_.service().post([this, decrypted_message] {
-                                   assert(message_received_functor_);
-                                   message_received_functor_(decrypted_message);
-                                 });
+    if (message_received_functor_) {
+      asio_service_.service().post([this, decrypted_message] {
+                                     message_received_functor_(decrypted_message);
+                                   });
+    }
   }
 }
 
@@ -656,8 +675,10 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
     connections_.erase(itr);
     if (peer_id == chosen_bootstrap_node_id_)
       chosen_bootstrap_node_id_ = NodeId();
-    LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
-    asio_service_.service().post([=] { connection_lost_functor_(peer_id); });  // NOLINT (Fraser)
+    if (connection_lost_functor_) {
+      LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
+      asio_service_.service().post([=] { connection_lost_functor_(peer_id); });  // NOLINT (Fraser)
+    }
   }
 }
 
