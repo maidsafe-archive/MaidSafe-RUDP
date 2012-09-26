@@ -72,16 +72,15 @@ class ManagedConnections {
   // passed up via MessageReceivedFunctor.  Before bootstrapping begins, if there are any existing
   // transports they are destroyed and all connections closed.  For zero-state network, pass the
   // required local_endpoint.
-  NodeId Bootstrap(
-      const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
-      bool start_resilience_transport,
-      MessageReceivedFunctor message_received_functor,
-      ConnectionLostFunctor connection_lost_functor,
-      NodeId this_node_id,
-      std::shared_ptr<asymm::PrivateKey> private_key,
-      std::shared_ptr<asymm::PublicKey> public_key,
-      NatType& nat_type,
-      boost::asio::ip::udp::endpoint local_endpoint = boost::asio::ip::udp::endpoint());
+  NodeId Bootstrap(const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
+                   MessageReceivedFunctor message_received_functor,
+                   ConnectionLostFunctor connection_lost_functor,
+                   NodeId this_node_id,
+                   std::shared_ptr<asymm::PrivateKey> private_key,
+                   std::shared_ptr<asymm::PublicKey> public_key,
+                   NatType& nat_type,
+                   boost::asio::ip::udp::endpoint local_endpoint =
+                       boost::asio::ip::udp::endpoint());
 
   // Returns a transport's EndpointPair and NatType.  Returns kNotBootstrapped if there are no
   // running Managed Connections.  In this case, Bootstrap must be called to start new Managed
@@ -125,20 +124,26 @@ class ManagedConnections {
   friend class detail::Transport;
 
  private:
-  typedef std::map<NodeId, std::shared_ptr<detail::Transport>> ConnectionMap;
+  typedef std::map<NodeId, std::shared_ptr<detail::Transport> > ConnectionMap;
+  struct PendingConnection {
+    PendingConnection();
+    PendingConnection(const NodeId& node_id_in,
+                      const std::shared_ptr<detail::Transport>& transport);
+    NodeId node_id;
+    std::shared_ptr<detail::Transport> pending_transport;
+    boost::posix_time::time_duration timestamp;
+  };
 
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
 
   bool StartNewTransport(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers,  // NOLINT (Fraser)
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint> > bootstrap_peers,  // NOLINT (Fraser)
       boost::asio::ip::udp::endpoint local_endpoint);
 
   void GetBootstrapEndpoints(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,  // NOLINT (Fraser)
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint> >& bootstrap_peers,  // NOLINT (Fraser)
       boost::asio::ip::address& this_external_address);
-
-  void StartResilienceTransport();
 
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const NodeId& peer_id,
@@ -156,6 +161,9 @@ class ManagedConnections {
                                    const boost::asio::ip::udp::endpoint& peer_endpoint,
                                    uint16_t& another_external_port);
   std::string DebugString() const;
+  std::vector<ManagedConnections::PendingConnection>::iterator
+      FindPendingTransportWithNodeId(const NodeId& peer_id);
+  void PrunePendingTransports();
 
   AsioService asio_service_;
   MessageReceivedFunctor message_received_functor_;
@@ -163,12 +171,13 @@ class ManagedConnections {
   NodeId this_node_id_, chosen_bootstrap_node_id_;
   std::shared_ptr<asymm::PrivateKey> private_key_;
   std::shared_ptr<asymm::PublicKey> public_key_;
-  ConnectionMap connections_, pendings_;
-  std::set<std::shared_ptr<detail::Transport>> idle_transports_;
+  ConnectionMap connections_;
+  std::vector<PendingConnection> pendings_;
+  int prune_pendings_count_;
+  std::set<std::shared_ptr<detail::Transport> > idle_transports_;
   mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
   NatType nat_type_;
-//  TransportAndSignalConnections resilience_transport_;
 };
 
 }  // namespace rudp

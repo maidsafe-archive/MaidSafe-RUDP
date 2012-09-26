@@ -22,7 +22,7 @@
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
-
+#include "maidsafe/common/error.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/transport.h"
@@ -56,13 +56,59 @@ class ManagedConnectionsTest : public testing::Test {
   std::vector<Endpoint> bootstrap_endpoints_;
   MessageReceivedFunctor do_nothing_on_message_;
   ConnectionLostFunctor do_nothing_on_connection_lost_;
+
+  void BootstrapAndAdd(size_t index,
+                       NodeId& chosen_node,
+                       EndpointPair& this_endpoint_pair,
+                       NatType& nat_type) {
+    chosen_node = node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[index]));
+    ASSERT_EQ(nodes_[index]->node_id(), chosen_node);
+    Sleep(boost::posix_time::milliseconds(250));
+    nodes_[index]->ResetData();
+
+    EXPECT_EQ(kSuccess,
+              node_.managed_connections()->GetAvailableEndpoint(nodes_[index]->node_id(),
+                                                                EndpointPair(),
+                                                                this_endpoint_pair,
+                                                                nat_type));
+    EndpointPair peer_endpoint_pair;
+    EXPECT_EQ(kSuccess,
+              nodes_[index]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
+                                                                         this_endpoint_pair,
+                                                                         peer_endpoint_pair,
+                                                                         nat_type));
+    EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+    EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+
+    auto peer_futures(nodes_[index]->GetFutureForMessages(1));
+    auto this_node_futures(node_.GetFutureForMessages(1));
+    EXPECT_EQ(kSuccess,
+              nodes_[index]->managed_connections()->Add(node_.node_id(),
+                                                        this_endpoint_pair,
+                                                        nodes_[index]->validation_data()));
+    EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[index]->node_id(),
+                                                         peer_endpoint_pair,
+                                                         node_.validation_data()));
+    ASSERT_TRUE(peer_futures.timed_wait(Parameters::rendezvous_connect_timeout));
+    auto peer_messages(peer_futures.get());
+    ASSERT_TRUE(this_node_futures.timed_wait(Parameters::rendezvous_connect_timeout));
+    auto this_node_messages(this_node_futures.get());
+    ASSERT_EQ(1U, peer_messages.size());
+    ASSERT_EQ(1U, this_node_messages.size());
+    EXPECT_EQ(node_.validation_data(), peer_messages[0]);
+    EXPECT_EQ(nodes_[index]->validation_data(), this_node_messages[0]);
+  }
 };
+
+TEST_F(ManagedConnectionsTest, BEH_API_RandomSizeSetup) {
+  int nodes(8 + RandomUint32() % 16);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, nodes));
+}
 
 TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // All invalid
   NatType nat_type(NatType::kUnknown);
   EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(std::vector<Endpoint>(),
-                                                             false,
                                                              MessageReceivedFunctor(),
                                                              ConnectionLostFunctor(),
                                                              NodeId(),
@@ -71,7 +117,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                              nat_type));
   // Empty bootstrap_endpoints
   EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(std::vector<Endpoint>(),
-                                                             false,
                                                              do_nothing_on_message_,
                                                              do_nothing_on_connection_lost_,
                                                              node_.node_id(),
@@ -84,7 +129,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
             node_.managed_connections()->Bootstrap(std::vector<Endpoint>(1,
                                                                          Endpoint(GetLocalIp(),
                                                                                   10000)),
-                                                   false,
                                                    do_nothing_on_message_,
                                                    do_nothing_on_connection_lost_,
                                                    node_.node_id(),
@@ -93,7 +137,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                    nat_type));
   // Invalid MessageReceivedFunctor
   EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                             false,
                                                              MessageReceivedFunctor(),
                                                              do_nothing_on_connection_lost_,
                                                              node_.node_id(),
@@ -102,7 +145,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                              nat_type));
   // Invalid ConnectionLostFunctor
   EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                             false,
                                                              do_nothing_on_message_,
                                                              ConnectionLostFunctor(),
                                                              node_.node_id(),
@@ -112,7 +154,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // Invalid private key
   EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(
                        bootstrap_endpoints_,
-                       false,
                        do_nothing_on_message_,
                        do_nothing_on_connection_lost_,
                        node_.node_id(),
@@ -122,7 +163,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // Invalid public key
   EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(
                        bootstrap_endpoints_,
-                       false,
                        do_nothing_on_message_,
                        do_nothing_on_connection_lost_,
                        node_.node_id(),
@@ -131,7 +171,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                        nat_type));
   // NULL private key
   EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                             false,
                                                              do_nothing_on_message_,
                                                              do_nothing_on_connection_lost_,
                                                              node_.node_id(),
@@ -140,7 +179,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                              nat_type));
   // NULL public key
   EXPECT_EQ(NodeId(), node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                             false,
                                                              do_nothing_on_message_,
                                                              do_nothing_on_connection_lost_,
                                                              node_.node_id(),
@@ -150,7 +188,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // Valid
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
   NodeId chosen_node(node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                            false,
                                                             do_nothing_on_message_,
                                                             do_nothing_on_connection_lost_,
                                                             node_.node_id(),
@@ -192,7 +229,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   //  After Bootstrapping
   nat_type = NatType::kUnknown;
   NodeId chosen_node(node_.managed_connections()->Bootstrap(bootstrap_endpoints_,
-                                                            false,
                                                             do_nothing_on_message_,
                                                             do_nothing_on_connection_lost_,
                                                             node_.node_id(),
@@ -220,16 +256,83 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
 }
 
+TEST_F(ManagedConnectionsTest, BEH_API_PendingTransportPruning) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 8));
+
+  std::string message("message1");
+  NodeId chosen_node;
+  EndpointPair this_endpoint_pair;
+  NatType nat_type;
+  BootstrapAndAdd(0, chosen_node, this_endpoint_pair, nat_type);
+  LOG(kInfo) << "Setup finished...\n\n\n";
+
+  // Run GetAvailableEndpoint to Node 1 to add a transport to pendings_
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
+                                                              EndpointPair(),
+                                                              this_endpoint_pair,
+                                                              nat_type));
+
+  // Wait for rendezvous_connect_timeout, then send 3 messages to node 0 to clear the pending,
+  // which should allow for another GetAvailableEndpoint to be run. Intermediate calls
+  // should return with kConnectAttemptAlreadyRunning
+  boost::posix_time::time_duration wait(Parameters::rendezvous_connect_timeout);
+  wait = wait + boost::posix_time::milliseconds(100);
+  Sleep(Parameters::rendezvous_connect_timeout);
+  node_.ResetData();
+  int messages_sent(0);
+  std::condition_variable cond_var;
+  std::mutex mutex;
+  MessageSentFunctor message_sent_functor([&] (int result_in) {
+                                            std::lock_guard<std::mutex> lock(mutex);
+                                            if (result_in == kSuccess)
+                                              ++messages_sent;
+                                            cond_var.notify_one();
+                                          });
+  auto wait_for_result([&] ()->bool {
+    std::unique_lock<std::mutex> lock(mutex);
+    return cond_var.wait_for(lock,
+                             std::chrono::milliseconds(1000),
+                             [&messages_sent]() { return messages_sent == 3; });  // NOLINT (Fraser)
+  });
+  for (int n(0); n != 3; ++n) {
+    EXPECT_EQ(kConnectAttemptAlreadyRunning,
+              node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
+                                                                EndpointPair(),
+                                                                this_endpoint_pair,
+                                                                nat_type));
+    nodes_[0]->managed_connections()->Send(node_.node_id(), message, message_sent_functor);
+  }
+  // Messages sent
+  ASSERT_TRUE(wait_for_result());
+
+  // Messages received
+  std::condition_variable received_cond_var;
+  std::mutex received_mutex;
+  {
+    std::unique_lock<std::mutex> loch(received_mutex);
+    ASSERT_TRUE(received_cond_var.wait_for(loch,
+                                           std::chrono::milliseconds(1000),
+                                           [&] () {
+                                             return node_.GetReceivedMessageCount(message) == 3;
+                                           }));
+  }
+
+  // Running GetAvailableEndpoint to Node 1 to add a transport to pendings_ should succeed again
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
+                                                              EndpointPair(),
+                                                              this_endpoint_pair,
+                                                              nat_type));
+}
+
 TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
-  // Case: Invalid NodeId
-  EXPECT_EQ(kInvalidId, node_.managed_connections()->Add(NodeId(RandomString(65)),
-                                                         EndpointPair(),
-                                                         node_.validation_data()));
   // Valid bootstrap
   NodeId chosen_node(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0])));
   EXPECT_FALSE(chosen_node.Empty());
+  Sleep(boost::posix_time::milliseconds(250));
 
   nodes_[0]->ResetData();
   EndpointPair peer_endpoint_pair0, peer_endpoint_pair2,
@@ -1087,63 +1190,6 @@ TEST_F(ManagedConnectionsTest, DISABLED_BEH_API_Ping) {
   node_.managed_connections()->Ping(unavailable_endpoint, ping_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kPingFailed, result_of_ping);
-}
-*/
-
-/*
-TEST_F(ManagedConnectionsTest, DISABLED_BEH_API_Resilience) {
-  Parameters::max_transports = 2;
-  const int kNetworkSize(3);
-  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNetworkSize));
-
-  Endpoint emergency_endpoint(bootstrap_endpoints_[0].address(),
-                              ManagedConnections::kResiliencePort());
-  Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, emergency_endpoint)));
-  ASSERT_EQ(emergency_endpoint, chosen_endpoint);
-
-  int result_of_send(kConnectError);
-  bool result_arrived(false);
-  std::condition_variable cond_var;
-  std::mutex mutex;
-  std::unique_lock<std::mutex> lock(mutex);
-  MessageSentFunctor message_sent_functor([&](int result_in) {
-    std::lock_guard<std::mutex> lock(mutex);
-    result_of_send = result_in;
-    result_arrived = true;
-    cond_var.notify_one();
-  });
-  auto wait_for_result([&] {
-    return cond_var.wait_for(lock,
-                             std::chrono::milliseconds(100),
-                             [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
-  });
-
-  // Don't know which node managed to start the resilience transport - check messages on each.
-  std::vector<boost::unique_future<std::vector<std::string>>> future_messages_at_peers;  // NOLINT (Fraser)
-  std::for_each(nodes_.begin(),
-                nodes_.end(),
-                [&future_messages_at_peers](const NodePtr& node) {
-                  node->ResetData();
-                  future_messages_at_peers.push_back(std::move(node->GetFutureForMessages(1)));
-                });
-  node_.managed_connections()->Send(emergency_endpoint, "message", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kSuccess, result_of_send);
-  bool found_one(false);
-  std::for_each(future_messages_at_peers.begin(),
-                future_messages_at_peers.end(),
-                [&found_one](boost::unique_future<std::vector<std::string>> &future) {
-                  if (future.timed_wait(bptime::milliseconds(200))) {
-                    found_one = true;
-                    auto messages(future.get());
-                    ASSERT_EQ(1U, messages.size());
-                    EXPECT_EQ("message", messages.front());
-                  }
-                });
-  EXPECT_TRUE(found_one);
-
-  // TODO(Fraser#5#): 2012-07-20 - Can new node make permanent connection on emergency transport?
-  //                  Either way, test.
 }
 */
 

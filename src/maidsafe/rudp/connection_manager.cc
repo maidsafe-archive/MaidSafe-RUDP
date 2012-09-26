@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <utility>
 
 #include "maidsafe/common/log.h"
 
