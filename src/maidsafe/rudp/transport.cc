@@ -226,8 +226,11 @@ void Transport::Close() {
   on_connection_lost_connection_.disconnect();
   if (connection_manager_)
     connection_manager_->Close();
-  if (multiplexer_)
-    multiplexer_->Close();
+  if (multiplexer_) {
+    strand_.post(std::bind(&Multiplexer::Close, multiplexer_));
+    while (IsValid(multiplexer_->external_endpoint()))
+      boost::this_thread::yield();
+  }
 }
 
 void Transport::Connect(const NodeId& peer_id,
@@ -437,7 +440,7 @@ void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
     std::string s("\n************************\nRemoved ");
     s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
     s += ThisDebugId() + " to " + connection->PeerDebugId() + '\n';
-    if (managed_connections_debug_printout_)
+    if (managed_connections_debug_printout_ && on_connection_lost_connection_.connected())
       s += managed_connections_debug_printout_();
     LOG(kVerbose) << s;
 #endif

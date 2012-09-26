@@ -95,6 +95,7 @@ void Multiplexer::Close() {
   assert(!IsOpen());
   std::lock_guard<std::mutex> lock(mutex_);
   external_endpoint_ = ip::udp::endpoint();
+  best_guess_external_endpoint_ = ip::udp::endpoint();
 }
 
 ip::udp::endpoint Multiplexer::local_endpoint() const {
