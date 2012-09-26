@@ -52,23 +52,23 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   EndpointPair endpoints0, endpoints1;
   endpoints0.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   endpoints1.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
-  NodeId chosen_node_id;
+  NodeId chosen_node_id, node1_chosen_bootstrap_peer;
+  int result0(0);
 
   boost::thread thread([&] {
-    chosen_node_id =
-        nodes[0]->Bootstrap(std::vector<Endpoint>(1, endpoints1.local), endpoints0.local);
+    result0 = nodes[0]->Bootstrap(std::vector<Endpoint>(1, endpoints1.local),
+                                  chosen_node_id, endpoints0.local);
   });
-  NodeId node1_bootstrap_res(
-      nodes[1]->Bootstrap(std::vector<Endpoint>(1, endpoints0.local), endpoints1.local));
+  int result1(nodes[1]->Bootstrap(std::vector<Endpoint>(1, endpoints0.local),
+                                  node1_chosen_bootstrap_peer, endpoints1.local));
   thread.join();
 
-  if (node1_bootstrap_res != nodes[0]->node_id())
+  if (result1 != kSuccess || node1_chosen_bootstrap_peer != nodes[0]->node_id())
     return testing::AssertionFailure() << "Bootstrapping failed for Node 1.  Result using "
-                                       << endpoints0.local << " was "
-                                       << DebugId(node1_bootstrap_res);
-  if (chosen_node_id != nodes[1]->node_id())
+                                       << endpoints0.local << " was " << result1;
+  if (result0 != kSuccess || chosen_node_id != nodes[1]->node_id())
     return testing::AssertionFailure() << "Bootstrapping failed for Node 0.  Result using "
-                                       << endpoints1.local << " was " << DebugId(chosen_node_id);
+                                       << endpoints1.local << " was " << result0;
   EndpointPair endpoint_pair0, endpoint_pair1;
   NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
   endpoint_pair1 = endpoints1;
@@ -145,9 +145,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
 
   // Adding nodes to each other
   for (int i(2); i != node_count; ++i) {
-    NodeId chosen_node_id(nodes[i]->Bootstrap(bootstrap_endpoints));
-    if (chosen_node_id == NodeId())
+    NodeId chosen_node_id;
+    if (nodes[i]->Bootstrap(bootstrap_endpoints, chosen_node_id) != kSuccess ||
+        chosen_node_id == NodeId()) {
       return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->id();
+    }
 
     EndpointPair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
     NatType nat_type;
@@ -293,8 +295,9 @@ std::vector<std::string> Node::messages() const {
   return messages_;
 }
 
-NodeId Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
-                       Endpoint local_endpoint) {
+int Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
+                    NodeId& chosen_bootstrap_peer,
+                    Endpoint local_endpoint) {
   NatType nat_type(NatType::kUnknown);
   return managed_connections_->Bootstrap(
       bootstrap_endpoints,
@@ -324,6 +327,7 @@ NodeId Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
       node_id_,
       private_key(),
       public_key(),
+      chosen_bootstrap_peer,
       nat_type,
       local_endpoint);
 }

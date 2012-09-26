@@ -87,14 +87,15 @@ ManagedConnections::~ManagedConnections() {
   asio_service_.Stop();
 }
 
-NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints,
-                                     MessageReceivedFunctor message_received_functor,
-                                     ConnectionLostFunctor connection_lost_functor,
-                                     NodeId this_node_id,
-                                     std::shared_ptr<asymm::PrivateKey> private_key,
-                                     std::shared_ptr<asymm::PublicKey> public_key,
-                                     NatType& nat_type,
-                                     Endpoint local_endpoint) {
+int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints,
+                                  MessageReceivedFunctor message_received_functor,
+                                  ConnectionLostFunctor connection_lost_functor,
+                                  NodeId this_node_id,
+                                  std::shared_ptr<asymm::PrivateKey> private_key,
+                                  std::shared_ptr<asymm::PublicKey> public_key,
+                                  NodeId& chosen_bootstrap_peer,
+                                  NatType& nat_type,
+                                  Endpoint local_endpoint) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!connections_.empty()) {
@@ -113,28 +114,28 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
 
   if (!message_received_functor) {
     LOG(kError) << "You must provide a valid MessageReceivedFunctor.";
-    return NodeId();
+    return kInvalidParameter;
   }
   if (!connection_lost_functor) {
     LOG(kError) << "You must provide a valid ConnectionLostFunctor.";
-    return NodeId();
+    return kInvalidParameter;
   }
-  if (!this_node_id.IsValid() || this_node_id == NodeId()) {
+  if (this_node_id == NodeId()) {
     LOG(kError) << "You must provide a valid NodeId.";
-    return NodeId();
+    return kInvalidParameter;
   }
   this_node_id_ = this_node_id;
   if (!private_key || !asymm::ValidateKey(*private_key) ||
       !public_key || !asymm::ValidateKey(*public_key)) {
     LOG(kError) << "You must provide a valid private and public key.";
-    return NodeId();
+    return kInvalidParameter;
   }
   private_key_ = private_key;
   public_key_ = public_key;
 
   if (bootstrap_endpoints.empty()) {
     LOG(kError) << "You must provide at least one Bootstrap endpoint.";
-    return NodeId();
+    return kNoBootstrapEndpoints;
   }
 
   asio_service_.Start();
@@ -147,7 +148,7 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
     local_ip_ = GetLocalIp();
     if (local_ip_.is_unspecified()) {
       LOG(kError) << "Failed to retrieve local IP.";
-      return NodeId();
+      return kFailedToGetLocalAddress;
     }
     local_endpoint = Endpoint(local_ip_, 0);
   }
@@ -157,15 +158,16 @@ NodeId ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endp
     bootstrap_peers.push_back(std::make_pair(NodeId(), element));
   if (!StartNewTransport(bootstrap_peers, local_endpoint)) {
     LOG(kError) << "Failed to bootstrap managed connections.";
-    return NodeId();
+    return kTransportStartFailure;
   }
+  chosen_bootstrap_peer = chosen_bootstrap_node_id_;
   nat_type = nat_type_;
 
   // Add callbacks now.
   message_received_functor_ = message_received_functor;
   connection_lost_functor_ = connection_lost_functor;
 
-  return chosen_bootstrap_node_id_;
+  return kSuccess;
 }
 
 bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
@@ -256,10 +258,6 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
                                              EndpointPair peer_endpoint_pair,
                                              EndpointPair& this_endpoint_pair,
                                              NatType& this_nat_type) {
-  if (!peer_id.IsValid() || peer_id == NodeId()) {
-    LOG(kError) << "Invalid peer_id passed.";
-    return kInvalidId;
-  }
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
     return kOwnId;
@@ -464,10 +462,6 @@ int ManagedConnections::Add(NodeId peer_id,
 }
 
 int ManagedConnections::MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_endpoint) {
-  if (!peer_id.IsValid() || peer_id == NodeId()) {
-    LOG(kError) << "Invalid peer_id passed.";
-    return kInvalidId;
-  }
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
     return kOwnId;
@@ -486,10 +480,6 @@ int ManagedConnections::MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_end
 }
 
 void ManagedConnections::Remove(NodeId peer_id) {
-  if (!peer_id.IsValid() || peer_id == NodeId()) {
-    LOG(kError) << "Invalid peer_id passed.";
-    return;
-  }
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
     return;
@@ -508,10 +498,6 @@ void ManagedConnections::Remove(NodeId peer_id) {
 void ManagedConnections::Send(NodeId peer_id,
                               std::string message,
                               MessageSentFunctor message_sent_functor) {
-  if (!peer_id.IsValid() || peer_id == NodeId()) {
-    LOG(kError) << "Invalid peer_id passed.";
-    return;
-  }
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
     return;

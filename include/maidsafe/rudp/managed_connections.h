@@ -72,15 +72,15 @@ class ManagedConnections {
   // passed up via MessageReceivedFunctor.  Before bootstrapping begins, if there are any existing
   // transports they are destroyed and all connections closed.  For zero-state network, pass the
   // required local_endpoint.
-  NodeId Bootstrap(const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
-                   MessageReceivedFunctor message_received_functor,
-                   ConnectionLostFunctor connection_lost_functor,
-                   NodeId this_node_id,
-                   std::shared_ptr<asymm::PrivateKey> private_key,
-                   std::shared_ptr<asymm::PublicKey> public_key,
-                   NatType& nat_type,
-                   boost::asio::ip::udp::endpoint local_endpoint =
-                       boost::asio::ip::udp::endpoint());
+  int Bootstrap(const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
+                MessageReceivedFunctor message_received_functor,
+                ConnectionLostFunctor connection_lost_functor,
+                NodeId this_node_id,
+                std::shared_ptr<asymm::PrivateKey> private_key,
+                std::shared_ptr<asymm::PublicKey> public_key,
+                NodeId& chosen_bootstrap_peer,
+                NatType& nat_type,
+                boost::asio::ip::udp::endpoint local_endpoint = boost::asio::ip::udp::endpoint());
 
   // Returns a transport's EndpointPair and NatType.  Returns kNotBootstrapped if there are no
   // running Managed Connections.  In this case, Bootstrap must be called to start new Managed
