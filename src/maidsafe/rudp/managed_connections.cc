@@ -401,10 +401,6 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id,
 int ManagedConnections::Add(NodeId peer_id,
                             EndpointPair peer_endpoint_pair,
                             std::string validation_data) {
-  if (!peer_id.IsValid() || peer_id == NodeId()) {
-    LOG(kError) << "Invalid peer_id passed.";
-    return kInvalidId;
-  }
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
     return kOwnId;

@@ -329,11 +329,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingTransportPruning) {
 TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
-  // Case: Invalid NodeId
-  maidsafe::error_code error;
-  EXPECT_EQ(kInvalidId, node_.managed_connections()->Add(NodeId(RandomString(65), error),
-                                                         EndpointPair(),
-                                                         node_.validation_data()));
   // Valid bootstrap
   NodeId chosen_node(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0])));
   EXPECT_FALSE(chosen_node.Empty());
