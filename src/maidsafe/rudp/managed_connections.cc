@@ -542,7 +542,7 @@ void ManagedConnections::Send(NodeId peer_id,
 }
 
 /*
- *void ManagedConnections::Ping(Endpoint peer_endpoint, PingFunctor ping_functor) {
+void ManagedConnections::Ping(Endpoint peer_endpoint, PingFunctor ping_functor) {
   if (!ping_functor) {
     LOG(kWarning) << "No functor passed - not pinging.";
     return;
@@ -750,8 +750,8 @@ std::vector<ManagedConnections::PendingConnection>::iterator
 
 void ManagedConnections::PrunePendingTransports() {
   std::lock_guard<std::mutex> loch(mutex_);
-  // TODO(Team): Decide whether 3 iterations are (enough/too much) to prune a pending transport
-  //             based on the amount of traffic received
+  // TODO(Team): Based on the amount of traffic received, decide whether 3 iterations are
+  //             (enough/too much) to prune a pending transport.
   if (prune_pendings_count_ >= 3) {
     prune_pendings_count_ = 0;
     auto itr(pendings_.begin());

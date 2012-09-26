@@ -314,12 +314,16 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingTransportPruning) {
                              std::chrono::milliseconds(1000),
                              [&messages_sent]() { return messages_sent == 3; });  // NOLINT (Fraser)
   });
+
+  EndpointPair test_endpoint_pair;
   for (int n(0); n != 3; ++n) {
-    EXPECT_EQ(kConnectAttemptAlreadyRunning,
+    EXPECT_EQ(kSuccess,
               node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
                                                                 EndpointPair(),
-                                                                this_endpoint_pair,
+                                                                test_endpoint_pair,
                                                                 nat_type));
+    EXPECT_EQ(this_endpoint_pair.external, test_endpoint_pair.external);
+    EXPECT_EQ(this_endpoint_pair.local, test_endpoint_pair.local);
     nodes_[0]->managed_connections()->Send(node_.node_id(), message, message_sent_functor);
   }
   // Messages sent
