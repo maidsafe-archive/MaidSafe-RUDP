@@ -75,14 +75,15 @@ class Peer {
 
   // The multiplexer used to send and receive UDP packets.
   Multiplexer& multiplexer_;
-
-  // The remote socket's endpoint and this node's socket endpoint as seen by peer.
-  boost::asio::ip::udp::endpoint peer_endpoint_, this_endpoint_;
+  // The remote socket's endpoint.
+  boost::asio::ip::udp::endpoint peer_endpoint_;
+  // This node's socket endpoint as seen by peer.
+  boost::asio::ip::udp::endpoint this_endpoint_;
   // The remote socket's identifier.
   uint32_t socket_id_;
-  // The remote peer's NodeId
+  // The remote peer's NodeId.
   NodeId node_id_;
-  // The remote peer's PublicKey
+  // The remote peer's PublicKey.
   std::shared_ptr<asymm::PublicKey> public_key_;
   // The port originally guessed by the peer when passing its details to this node.  This will be
   // set by the ConnectionManager if it detects that the peer's actual external port is different to

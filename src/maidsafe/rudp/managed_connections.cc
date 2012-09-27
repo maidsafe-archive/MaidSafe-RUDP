@@ -416,9 +416,9 @@ int ManagedConnections::Add(NodeId peer_id,
   auto itr(FindPendingTransportWithNodeId(peer_id));
   if (itr == pendings_.end()) {
     if (connections_.find(peer_id) != connections_.end()) {
-      LOG(kError) << "A managed connection from " << DebugId(this_node_id_) << " to "
-                  << DebugId(peer_id) << " already exists, and this node's chosen bootstrap ID is "
-                  << DebugId(chosen_bootstrap_node_id_);
+      LOG(kWarning) << "A managed connection from " << DebugId(this_node_id_) << " to "
+                    << DebugId(peer_id) << " already exists, and this node's chosen BootstrapID is "
+                    << DebugId(chosen_bootstrap_node_id_);
       return kConnectionAlreadyExists;
     }
     LOG(kError) << "No connection attempt from " << DebugId(this_node_id_) << " to "
@@ -427,8 +427,8 @@ int ManagedConnections::Add(NodeId peer_id,
   }
 
   if ((*itr).connecting) {
-    LOG(kError) << "A connection attempt from " << DebugId(this_node_id_) << " to "
-                << DebugId(peer_id) << " is already happening";
+    LOG(kWarning) << "A connection attempt from " << DebugId(this_node_id_) << " to "
+                  << DebugId(peer_id) << " is already happening";
     return kConnectAttemptAlreadyRunning;
   }
 
