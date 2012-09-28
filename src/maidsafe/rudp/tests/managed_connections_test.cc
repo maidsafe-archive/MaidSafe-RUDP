@@ -211,7 +211,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                              node_.public_key(),
                                                              chosen_bootstrap,
                                                              nat_type));
-  EXPECT_FALSE(chosen_bootstrap.Empty());
+  EXPECT_FALSE(chosen_bootstrap.IsZeroId());
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
@@ -254,7 +254,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
                                                              node_.public_key(),
                                                              chosen_node,
                                                              nat_type));
-  EXPECT_FALSE(chosen_node.Empty());
+  EXPECT_FALSE(chosen_node.IsZero());
 //  EXPECT_NE(bootstrap_endpoints_.end(),
 //            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
 
@@ -356,7 +356,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   NodeId chosen_node;
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-  EXPECT_FALSE(chosen_node.Empty());
+  EXPECT_FALSE(chosen_node.IsZero());
   Sleep(boost::posix_time::milliseconds(250));
 
   nodes_[0]->ResetData();
@@ -1017,7 +1017,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   NodeId chosen_node;
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-  EXPECT_FALSE(chosen_node.Empty());
+  EXPECT_FALSE(chosen_node.IsZero());
 
   // Send within bootstrap_disconnection_timeout period from node_ to nodes_[0]
   int result_of_send(kConnectError);
