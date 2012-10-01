@@ -277,8 +277,10 @@ void Transport::DoConnect(const NodeId& peer_id,
       return;
   }
 
-  connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
-                               Parameters::rendezvous_connect_timeout, bptime::pos_infin);
+  if (peer_endpoint_pair.local != peer_endpoint_pair.external) {
+    connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
+                                 Parameters::rendezvous_connect_timeout, bptime::pos_infin);
+  }
 }
 
 bool Transport::CloseConnection(const NodeId& peer_id) {
