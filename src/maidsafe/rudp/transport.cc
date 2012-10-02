@@ -230,54 +230,20 @@ void Transport::DoConnect(const NodeId& peer_id,
   if (!multiplexer_->IsOpen())
     return;
 
-  // TODO(Fraser#5#): 2012-09-11 - This code block is largely copied from ConnectToBootstrapEndpoint
-  //                             - move to separate function.
   if (IsValid(peer_endpoint_pair.external)) {
-    // Temporarily connect to the signals until the connect attempt has succeeded or failed.
-    boost::mutex local_mutex;
-    boost::condition_variable local_cond_var;
-    bool slot_called(false);
-    bool timed_out_connecting(false);
-    auto slot_connection_added(on_connection_added_.connect(
-        [&](const NodeId& connected_peer_id,
-            TransportPtr /*transport*/,
-            bool /*temporary_connection*/,
-            bool& /*is_duplicate_normal_connection*/) {
-      boost::mutex::scoped_lock local_lock(local_mutex);
-      if (peer_id == connected_peer_id) {
-        slot_called = true;
-        local_cond_var.notify_one();
-      }
-    }, boost::signals2::at_back));
-    auto slot_connection_lost(on_connection_lost_.connect(
-        [&](const NodeId& connected_peer_id,
-            TransportPtr /*transport*/,
-            bool /*temporary_connection*/,
-            bool timed_out) {
-      boost::mutex::scoped_lock local_lock(local_mutex);
-      if (peer_id == connected_peer_id) {
-        slot_called = true;
-        timed_out_connecting = timed_out;
-        local_cond_var.notify_one();
-      }
-    }, boost::signals2::at_back));
-
-    boost::mutex::scoped_lock lock(local_mutex);
+    std::function<void()> failure_functor;
+    if (peer_endpoint_pair.local != peer_endpoint_pair.external) {
+      failure_functor = [=] {
+        if (!multiplexer_->IsOpen())
+          return;
+        connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
+                                     Parameters::rendezvous_connect_timeout, bptime::pos_infin);
+      };
+    }
     connection_manager_->Connect(peer_id, peer_endpoint_pair.external, validation_data,
-                                 Parameters::rendezvous_connect_timeout, bptime::pos_infin);
-
-    bool success(local_cond_var.timed_wait(
-        lock,
-        Parameters::bootstrap_connect_timeout + bptime::seconds(1),
-        [&] { return slot_called; }));  // NOLINT (Fraser)
-    slot_connection_added.disconnect();
-    slot_connection_lost.disconnect();
-
-    if (success && !timed_out_connecting)
-      return;
-  }
-
-  if (peer_endpoint_pair.local != peer_endpoint_pair.external) {
+                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
+                                  failure_functor);
+  } else {
     connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin);
   }
@@ -374,6 +340,9 @@ void Transport::AddConnection(ConnectionPtr connection) {
 }
 
 void Transport::DoAddConnection(ConnectionPtr connection) {
+  // Discard failure_functor
+  connection->GetAndClearFailureFunctor();
+
   bool is_duplicate_normal_connection(false);
   on_connection_added_(connection->Socket().PeerNodeId(),
                        shared_from_this(),
@@ -417,6 +386,12 @@ void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
   // execution of the slot.
   if (connection->state() != Connection::State::kTemporary)
     connection_manager_->RemoveConnection(connection);
+
+  // If the connection has a failure_functor, invoke that, otherwise invoke on_connection_lost_.
+  auto failure_functor(connection->GetAndClearFailureFunctor());
+  if (failure_functor)
+    return failure_functor();
+
   if (connection->state() != Connection::State::kDuplicate) {
     on_connection_lost_(connection->Socket().PeerNodeId(),
                         shared_from_this(),

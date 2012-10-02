@@ -59,7 +59,8 @@ class ConnectionManager {
                const boost::asio::ip::udp::endpoint& peer_endpoint,
                const std::string& validation_data,
                const boost::posix_time::time_duration& connect_attempt_timeout,
-               const boost::posix_time::time_duration& lifespan);
+               const boost::posix_time::time_duration& lifespan,
+               const std::function<void()>& failure_functor = nullptr);
 
   bool AddConnection(std::shared_ptr<Connection> connection);
   bool CloseConnection(const NodeId& peer_id);

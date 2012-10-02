@@ -57,8 +57,7 @@ class Multiplexer {
     DispatchOp<DispatchHandler> op(handler, &socket_,
                                    boost::asio::buffer(receive_buffer_),
                                    &sender_endpoint_, &dispatcher_);
-    socket_.async_receive_from(boost::asio::buffer(receive_buffer_),
-                               sender_endpoint_, 0, op);
+    socket_.async_receive_from(boost::asio::buffer(receive_buffer_), sender_endpoint_, 0, op);
   }
 
   // Called by the socket objects to send a packet. Returns kSuccess if the data was sent
