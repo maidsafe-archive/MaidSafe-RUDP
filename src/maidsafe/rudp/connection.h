@@ -71,7 +71,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
                        const boost::asio::ip::udp::endpoint& peer_endpoint,
                        const std::string& validation_data,
                        const boost::posix_time::time_duration& connect_attempt_timeout,
-                       const boost::posix_time::time_duration& lifespan);
+                       const boost::posix_time::time_duration& lifespan,
+                       const std::function<void()>& failure_functor);
   void Ping(const NodeId& peer_node_id,
             const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
@@ -81,6 +82,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   // pos_infin.
   void MakePermanent(bool validated);
   void MarkAsDuplicateAndClose();
+  std::function<void()> GetAndClearFailureFunctor();
+
   // Get the remote endpoint offered for NAT detection.
   boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
   // Helpers for debugging
@@ -97,7 +100,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
                          const std::string& validation_data,
                          const boost::posix_time::time_duration& connect_attempt_timeout,
                          const boost::posix_time::time_duration& lifespan,
-                         const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
+                         const std::function<void(int)>& ping_functor,  // NOLINT (Fraser)
+                         const std::function<void()>& failure_functor);
   void DoStartSending(const std::string& encrypted_data,
                       const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
 
@@ -149,6 +153,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   mutable std::mutex state_mutex_;
   enum class TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
   bool sending_;
+  std::function<void()> failure_functor_;
 };
 
 

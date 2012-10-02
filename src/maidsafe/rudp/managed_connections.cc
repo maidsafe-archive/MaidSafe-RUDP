@@ -77,8 +77,6 @@ ManagedConnections::ManagedConnections()
 ManagedConnections::~ManagedConnections() {
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    message_received_functor_ = MessageReceivedFunctor();
-    connection_lost_functor_ = ConnectionLostFunctor();
     for (auto connection_details : connections_)
       connection_details.second->Close();
     connections_.clear();

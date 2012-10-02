@@ -81,11 +81,12 @@ void ConnectionManager::Connect(const NodeId& peer_id,
                                 const Endpoint& peer_endpoint,
                                 const std::string& validation_data,
                                 const bptime::time_duration& connect_attempt_timeout,
-                                const bptime::time_duration& lifespan) {
+                                const bptime::time_duration& lifespan,
+                                const std::function<void()>& failure_functor) {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
     connection->StartConnecting(peer_id, peer_endpoint, validation_data, connect_attempt_timeout,
-                                lifespan);
+                                lifespan, failure_functor);
   }
 }
 

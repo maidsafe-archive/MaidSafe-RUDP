@@ -71,7 +71,8 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       state_(State::kPending),
       state_mutex_(),
       timeout_state_(TimeoutState::kConnecting),
-      sending_(false) {
+      sending_(false),
+      failure_functor_() {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
   timer_.expires_from_now(bptime::pos_infin);
 }
@@ -108,10 +109,11 @@ void Connection::StartConnecting(const NodeId& peer_node_id,
                                  const ip::udp::endpoint& peer_endpoint,
                                  const std::string& validation_data,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
-                                 const boost::posix_time::time_duration& lifespan) {
+                                 const boost::posix_time::time_duration& lifespan,
+                                 const std::function<void()>& failure_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, validation_data, connect_attempt_timeout, lifespan,
-                             PingFunctor()));
+                             PingFunctor(), failure_functor));
 }
 
 void Connection::Ping(const NodeId& peer_node_id,
@@ -119,7 +121,7 @@ void Connection::Ping(const NodeId& peer_node_id,
                       const PingFunctor& ping_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, "", Parameters::ping_timeout, bptime::time_duration(),
-                             ping_functor));
+                             ping_functor, std::function<void()>()));
 }
 
 void Connection::DoStartConnecting(const NodeId& peer_node_id,
@@ -127,9 +129,11 @@ void Connection::DoStartConnecting(const NodeId& peer_node_id,
                                    const std::string& validation_data,
                                    const boost::posix_time::time_duration& connect_attempt_timeout,
                                    const boost::posix_time::time_duration& lifespan,
-                                   const PingFunctor& ping_functor) {
+                                   const PingFunctor& ping_functor,
+                                   const std::function<void()>& failure_functor) {
   peer_node_id_ = peer_node_id;
   peer_endpoint_ = peer_endpoint;
+  failure_functor_ = failure_functor;
   StartTick();
   StartConnect(validation_data, connect_attempt_timeout, lifespan, ping_functor);
   bs::error_code ignored_ec;
@@ -157,6 +161,17 @@ void Connection::MarkAsDuplicateAndClose() {
   state_ = State::kDuplicate;
   strand_.dispatch(std::bind(&Connection::DoClose, shared_from_this(), false));
 }
+
+std::function<void()> Connection::GetAndClearFailureFunctor() {
+  if (std::shared_ptr<Transport> transport = transport_.lock()) {
+    std::function<void()> failure_functor;
+    failure_functor.swap(failure_functor_);
+    return failure_functor;
+  } else {
+    return std::function<void()>();
+  }
+}
+
 
 ip::udp::endpoint Connection::RemoteNatDetectionEndpoint() const {
   return socket_.RemoteNatDetectionEndpoint();
