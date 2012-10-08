@@ -49,6 +49,7 @@ enum ReturnCode {
   kInvalidParameter = -350026,
   kNoBootstrapEndpoints = -350027,
   kFailedToGetLocalAddress = -350028,
+  kFailedToEncryptMessage = -350030,
 
   // Upper limit of values for this enum.
   kReturnCodeLimit = -359999

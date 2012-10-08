@@ -271,7 +271,9 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
 
 Node::Node(int id)
     : node_id_(NodeId::kRandomId),
-      key_pair_(),
+      id_("Node " + boost::lexical_cast<std::string>(id)),
+      key_pair_(asymm::GenerateKeyPair()),
+      validation_data_(id_ + "'s validation data"),
       mutex_(),
       connection_lost_node_ids_(),
       connected_node_ids_(),
@@ -279,11 +281,7 @@ Node::Node(int id)
       managed_connections_(new ManagedConnections),
       promised_(false),
       total_message_count_expectation_(0),
-      message_promise_() {
-  key_pair_.identity = "Node " + boost::lexical_cast<std::string>(id);
-  asymm::GenerateKeyPair(&key_pair_);
-  key_pair_.validation_token = key_pair_.identity + "'s validation data";
-}
+      message_promise_() {}
 
 std::vector<NodeId> Node::connection_lost_node_ids() const {
   std::lock_guard<std::mutex> guard(mutex_);

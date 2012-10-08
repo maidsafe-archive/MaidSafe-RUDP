@@ -581,16 +581,17 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
   LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();
   PrunePendingTransports();
 
-  std::string decrypted_message;
-  int result(asymm::Decrypt(message, *private_key_, &decrypted_message));
-  if (result != kSuccess) {
-    LOG(kError) << "Failed to decrypt message.  Result: " << result;
-  } else {
+  try {
+    std::string decrypted_message =
+        asymm::Decrypt(asymm::CipherText(message), *private_key_).string();
     if (message_received_functor_) {
       asio_service_.service().post([this, decrypted_message] {
                                      message_received_functor_(decrypted_message);
                                    });
     }
+  }
+  catch(const std::exception& e) {
+    LOG(kError) << "Failed to decrypt message: " << e.what();
   }
 }
 

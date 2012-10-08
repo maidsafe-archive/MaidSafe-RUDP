@@ -529,10 +529,8 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_FALSE(handshake_packet_.PublicKey());
 
     // Encode and decode with a valid public key
-    asymm::Keys keys;
-    asymm::GenerateKeyPair(&keys);
-    std::string encoded_key;
-    asymm::EncodePublicKey(keys.public_key, &encoded_key);
+    asymm::Keys keys(asymm::GenerateKeyPair());
+    std::string encoded_key(asymm::EncodeKey(keys.public_key).string());
     handshake_packet_.SetPublicKey(
         std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey(keys.public_key)));
     char char_array2[10000];
@@ -573,46 +571,14 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(endpoint, handshake_packet_.PeerEndpoint());
     bool public_key_not_null(handshake_packet_.PublicKey());
     ASSERT_TRUE(public_key_not_null);
-    EXPECT_TRUE(asymm::MatchingPublicKeys(keys.public_key, *handshake_packet_.PublicKey()));
+    EXPECT_TRUE(asymm::MatchingKeys(keys.public_key, *handshake_packet_.PublicKey()));
 
+#ifndef NDEBUG
     // Encode and decode with an invalid public key
     handshake_packet_.SetPublicKey(
         std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey()));
-    ASSERT_EQ(HandshakePacket::kMinPacketSize,
-              handshake_packet_.Encode(boost::asio::buffer(dbuffer)));
-
-    handshake_packet_.SetRudpVersion(0);
-    handshake_packet_.SetSocketType(0);
-    handshake_packet_.SetInitialPacketSequenceNumber(0);
-    handshake_packet_.SetMaximumPacketSize(0);
-    handshake_packet_.SetMaximumFlowWindowSize(0);
-    handshake_packet_.SetConnectionType(0);
-    handshake_packet_.SetConnectionReason(0);
-    handshake_packet_.SetSocketId(0);
-    handshake_packet_.set_node_id(NodeId());
-    handshake_packet_.SetSynCookie(0);
-    handshake_packet_.SetRequestNatDetectionPort(false);
-    handshake_packet_.SetNatDetectionPort(0);
-    handshake_packet_.SetPeerEndpoint(boost::asio::ip::udp::endpoint());
-    handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>());
-
-    dbuffer = boost::asio::buffer(char_array1);
-    handshake_packet_.Decode(dbuffer);
-
-    EXPECT_EQ(0x11111111, handshake_packet_.RudpVersion());
-    EXPECT_EQ(0x22222222, handshake_packet_.SocketType());
-    EXPECT_EQ(0x44444444, handshake_packet_.InitialPacketSequenceNumber());
-    EXPECT_EQ(0x88888888, handshake_packet_.MaximumPacketSize());
-    EXPECT_EQ(0xffffffff, handshake_packet_.MaximumFlowWindowSize());
-    EXPECT_EQ(0xdddddddd, handshake_packet_.ConnectionType());
-    EXPECT_EQ(0x33333333, handshake_packet_.ConnectionReason());
-    EXPECT_EQ(0xbbbbbbbb, handshake_packet_.SocketId());
-    EXPECT_EQ(node_id, handshake_packet_.node_id());
-    EXPECT_EQ(0xaaaaaaaa, handshake_packet_.SynCookie());
-    EXPECT_TRUE(handshake_packet_.RequestNatDetectionPort());
-    EXPECT_EQ(9999, handshake_packet_.NatDetectionPort());
-    EXPECT_EQ(endpoint, handshake_packet_.PeerEndpoint());
-    EXPECT_FALSE(handshake_packet_.PublicKey());
+    ASSERT_DEATH({ handshake_packet_.Encode(boost::asio::buffer(dbuffer)); }, "");  // NOLINT (Fraser)
+#endif
   }
 }
 

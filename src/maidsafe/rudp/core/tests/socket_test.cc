@@ -65,9 +65,7 @@ TEST(SocketTest, BEH_Socket) {
   bs::error_code server_ec;
   bs::error_code client_ec;
   NodeId server_node_id(NodeId::kRandomId), client_node_id(NodeId::kRandomId);
-  asymm::Keys server_key_pair, client_key_pair;
-  asymm::GenerateKeyPair(&server_key_pair);
-  asymm::GenerateKeyPair(&client_key_pair);
+  asymm::Keys server_key_pair(asymm::GenerateKeyPair()), client_key_pair(asymm::GenerateKeyPair());
   std::shared_ptr<asymm::PublicKey> server_public_key(
       new asymm::PublicKey(server_key_pair.public_key));
   std::shared_ptr<asymm::PublicKey> client_public_key(
@@ -172,10 +170,8 @@ TEST(SocketTest, BEH_AsyncProbe) {
   asio::io_service io_service;
   bs::error_code server_ec;
   bs::error_code client_ec;
-  asymm::Keys server_key_pair, client_key_pair;
+  asymm::Keys server_key_pair(asymm::GenerateKeyPair()), client_key_pair(asymm::GenerateKeyPair());
   NodeId server_node_id(NodeId::kRandomId), client_node_id(NodeId::kRandomId);
-  asymm::GenerateKeyPair(&server_key_pair);
-  asymm::GenerateKeyPair(&client_key_pair);
   std::shared_ptr<asymm::PublicKey> server_public_key(
       new asymm::PublicKey(server_key_pair.public_key));
   std::shared_ptr<asymm::PublicKey> client_public_key(

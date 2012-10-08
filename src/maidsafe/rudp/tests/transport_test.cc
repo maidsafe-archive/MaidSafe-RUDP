@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "maidsafe/common/log.h"
-#include "maidsafe/common/return_codes.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 

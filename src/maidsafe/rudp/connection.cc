@@ -179,14 +179,17 @@ ip::udp::endpoint Connection::RemoteNatDetectionEndpoint() const {
 
 void Connection::StartSending(const std::string& data,
                               const MessageSentFunctor& message_sent_functor) {
-  std::string encrypted_data;
-  int result(asymm::Encrypt(data, *socket_.PeerPublicKey(), &encrypted_data));
-  if (result != kSuccess) {
-    LOG(kError) << "Failed to encrypt message.  Result: " << result;
-    return InvokeSentFunctor(message_sent_functor, result);
+  try {
+    strand_.post(std::bind(
+        &Connection::DoStartSending,
+        shared_from_this(),
+        asymm::Encrypt(asymm::PlainText(data), *socket_.PeerPublicKey()).string(),
+        message_sent_functor));
   }
-  strand_.post(std::bind(&Connection::DoStartSending, shared_from_this(), encrypted_data,
-                         message_sent_functor));
+  catch(const std::exception& e) {
+    LOG(kError) << "Failed to encrypt message: " << e.what();
+    return InvokeSentFunctor(message_sent_functor, kFailedToEncryptMessage);
+  }
 }
 
 void Connection::DoStartSending(const std::string& encrypted_data,

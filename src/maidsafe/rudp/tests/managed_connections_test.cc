@@ -211,7 +211,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                              node_.public_key(),
                                                              chosen_bootstrap,
                                                              nat_type));
-  EXPECT_FALSE(chosen_bootstrap.IsZeroId());
+  EXPECT_FALSE(chosen_bootstrap.IsZero());
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {

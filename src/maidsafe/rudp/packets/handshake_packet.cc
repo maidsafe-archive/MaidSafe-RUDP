@@ -220,11 +220,16 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   peer_endpoint_ = asio::ip::udp::endpoint(ip_address, port);
 
   if (asio::buffer_size(buffer) != kMinPacketSize) {
-    std::string encoded_public_key(p + 121, p + length);
-    public_key_.reset(new asymm::PublicKey);
-    asymm::DecodePublicKey(encoded_public_key, public_key_.get());
-    if (!asymm::ValidateKey(*public_key_)) {
-      LOG(kError) << "Failed to validate peer's public key.";
+    asymm::EncodedPublicKey encoded_public_key(std::string(p + 121, p + length));
+    try {
+      public_key_.reset(new asymm::PublicKey(asymm::DecodeKey(encoded_public_key)));
+      if (!asymm::ValidateKey(*public_key_)) {
+        LOG(kError) << "Failed to validate peer's public key.";
+        return false;
+      }
+    }
+    catch(const std::exception& e) {
+      LOG(kError) << "Failed to parse peer's public key: " << e.what();
       return false;
     }
   }
@@ -240,7 +245,8 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer& buffer) const {
       LOG(kError) << "Not enough space in buffer to encode public key.";
       return 0;
     }
-    asymm::EncodePublicKey(*public_key_, &encoded_public_key);
+    assert(asymm::ValidateKey(*public_key_));
+    encoded_public_key = asymm::EncodeKey(*public_key_).string();
   } else {
     // Refuse to encode if the output buffer is not big enough.
     if (asio::buffer_size(buffer) < kMinPacketSize)
@@ -262,7 +268,7 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer& buffer) const {
   EncodeUint32(connection_type_, p + 20);
   EncodeUint32(connection_reason_, p + 24);
   EncodeUint32(socket_id_, p + 28);
-  std::memcpy(p + 32, node_id_.String().data(), 64);
+  std::memcpy(p + 32, node_id_.string().data(), 64);
   EncodeUint32(syn_cookie_, p + 96);
 
   p[100] = (request_nat_detection_port_ ? 0x80 : 0);

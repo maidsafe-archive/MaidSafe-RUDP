@@ -56,10 +56,10 @@ class Node {
                 Endpoint local_endpoint = Endpoint());
   boost::unique_future<std::vector<std::string>> GetFutureForMessages(
       const uint32_t& message_count);
-  std::string id() const { return key_pair_.identity; }
+  std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
   std::string debug_node_id() const { return DebugId(node_id_); }
-  std::string validation_data() const { return key_pair_.validation_token; }
+  std::string validation_data() const { return validation_data_.string(); }
   std::shared_ptr<asymm::PrivateKey> private_key() const {
       return std::shared_ptr<asymm::PrivateKey>(new asymm::PrivateKey(key_pair_.private_key)); }
   std::shared_ptr<asymm::PublicKey> public_key() const {
@@ -77,7 +77,9 @@ class Node {
   void SetPromiseIfDone();
 
   NodeId node_id_;
+  std::string id_;
   asymm::Keys key_pair_;
+  NonEmptyString validation_data_;
   mutable std::mutex mutex_;
   std::vector<NodeId> connection_lost_node_ids_;
   std::vector<NodeId> connected_node_ids_;
