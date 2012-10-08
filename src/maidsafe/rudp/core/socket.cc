@@ -74,6 +74,8 @@ Socket::Socket(Multiplexer& multiplexer, NatType& nat_type)  // NOLINT (Fraser)
 Socket::~Socket() {
   if (IsOpen())
     dispatcher_.RemoveSocket(session_.Id());
+  for (auto message_sent_functor : message_sent_functors_)
+    message_sent_functor.second(kConnectionClosed);
 }
 
 uint32_t Socket::Id() const {
