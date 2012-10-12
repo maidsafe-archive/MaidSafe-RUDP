@@ -135,7 +135,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void DoMakePermanent(bool validated);
 
-  bool EncodeData(const std::string& data);
+  void EncodeData(const std::string& data);
 
   void InvokeSentFunctor(const std::function<void(int)> &message_sent_functor, int result) const;  // NOLINT (Fraser)
 

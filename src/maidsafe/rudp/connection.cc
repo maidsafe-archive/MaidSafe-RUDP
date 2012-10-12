@@ -179,6 +179,12 @@ ip::udp::endpoint Connection::RemoteNatDetectionEndpoint() const {
 
 void Connection::StartSending(const std::string& data,
                               const MessageSentFunctor& message_sent_functor) {
+  if (data.size() > static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
+    LOG(kError) << "Data size " << data.size() << " bytes (exceeds limit of "
+                << ManagedConnections::kMaxMessageSize() << ")";
+    InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
+  }
+
   try {
     strand_.post(std::bind(
         &Connection::DoStartSending,
@@ -207,10 +213,8 @@ void Connection::DoStartSending(const std::string& encrypted_data,
     if (Stopped()) {
       InvokeSentFunctor(message_sent_functor, kSendFailure);
       sending_ = false;
-    } else if (!EncodeData(encrypted_data)) {
-      InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
-      sending_ = false;
     } else {
+      EncodeData(encrypted_data);
       strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
     }
   }
@@ -411,9 +415,10 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
 
   data_size_ = (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) |
                 receive_buffer_.at(2)) << 8) | receive_buffer_.at(3);
-  if (data_size_ > ManagedConnections::kMaxMessageSize()) {
-    LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > max of "
-                << ManagedConnections::kMaxMessageSize();
+  // Allow some leeway for encryption overhead
+  if (data_size_ > ManagedConnections::kMaxMessageSize() + 1024) {
+    LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > "
+                << ManagedConnections::kMaxMessageSize() + 1024;
     return DoClose();
   }
 
@@ -475,20 +480,13 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
   }
 }
 
-bool Connection::EncodeData(const std::string& data) {
+void Connection::EncodeData(const std::string& data) {
   // Serialize message to internal buffer
   DataSize msg_size = static_cast<DataSize>(data.size());
-  if (static_cast<size_t>(msg_size) > static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
-    LOG(kError) << "Data size " << msg_size << " bytes (exceeds limit of "
-                << ManagedConnections::kMaxMessageSize() << ")";
-    return false;
-  }
-
   send_buffer_.clear();
   for (int i = 0; i != 4; ++i)
     send_buffer_.push_back(static_cast<char>(msg_size >> (8 * (3 - i))));
   send_buffer_.insert(send_buffer_.end(), data.begin(), data.end());
-  return true;
 }
 
 void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {

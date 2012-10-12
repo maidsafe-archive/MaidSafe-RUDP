@@ -780,7 +780,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   // Valid large message
   node_.ResetData();
   nodes_[1]->ResetData();
-  std::string sent_message(std::move(RandomString(8 * 1024 * 1024)));
+  std::string sent_message(RandomString(ManagedConnections::kMaxMessageSize()));
   future_messages_at_peer = node_.GetFutureForMessages(1);
   result_of_send = kConnectError;
   result_arrived = false;
@@ -799,7 +799,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   // Excessively large message
   node_.ResetData();
   nodes_[1]->ResetData();
-  sent_message = std::move(RandomString(ManagedConnections::kMaxMessageSize() + 1));
+  sent_message += "1";
   result_of_send = kSuccess;
   result_arrived = false;
   nodes_[1]->managed_connections()->Send(node_.node_id(),
