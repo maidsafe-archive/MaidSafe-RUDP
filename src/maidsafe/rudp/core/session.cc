@@ -100,6 +100,53 @@ void Session::Close() {
   state_ = kClosed;
 }
 
+void Session::HandleHandshakeWhenProbing(const HandshakePacket& packet) {
+//    if (packet.ConnectionType() == 1 && packet.SynCookie() == 0)
+  state_ = kHandshaking;
+  peer_requested_nat_detection_port_ = packet.RequestNatDetectionPort();
+  SendCookie();
+}
+
+void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
+  if (packet.InitialPacketSequenceNumber() == 0) {
+    LOG(kVerbose) << "Received duplicate ConnectionRequest from " << peer_.PeerEndpoint()
+                  << "  Waiting for Cookie.";
+    return;
+  }
+  
+//    if (packet.SynCookie() == 1) {
+  peer_.SetThisEndpoint(packet.PeerEndpoint());
+  if (!CalculateEndpoint())
+    return;
+
+  if (!packet.PublicKey()) {
+    LOG(kError) << "Handshake packet is missing peer's public key";
+    state_ = kClosed;
+    return;
+  }
+
+  state_ = kConnected;
+  peer_connection_type_ = packet.ConnectionType();
+  receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
+  peer_.SetPublicKey(packet.PublicKey());
+  if (packet.NatDetectionPort() != 0) {
+    peer_nat_detection_endpoint_ = boost::asio::ip::udp::endpoint(
+      peer_.PeerEndpoint().address(),packet.NatDetectionPort());
+  }
+
+  if (mode_ == kBootstrapAndDrop)
+    return;
+
+  if (packet.ConnectionReason() != kNormal && mode_ == kNormal)
+    mode_ = static_cast<Mode>(packet.ConnectionReason());
+  if (packet.ConnectionReason() == kBootstrapAndDrop && mode_ == kBootstrapAndKeep)
+    mode_ = kBootstrapAndDrop;
+
+  SendCookie();
+//    }
+}
+
+
 void Session::HandleHandshake(const HandshakePacket& packet) {
   if (peer_.SocketId() == 0)
     peer_.SetSocketId(packet.SocketId());
@@ -121,47 +168,9 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
 
   // TODO(Fraser#5#): 2012-04-04 - Handle SynCookies
   if (state_ == kProbing) {
-//    if (packet.ConnectionType() == 1 && packet.SynCookie() == 0)
-    state_ = kHandshaking;
-    peer_requested_nat_detection_port_ = packet.RequestNatDetectionPort();
-    SendCookie();
+      HandleHandshakeWhenProbing(packet);
   } else if (state_ == kHandshaking) {
-    if (packet.InitialPacketSequenceNumber() == 0) {
-      LOG(kVerbose) << "Received duplicate ConnectionRequest from " << peer_.PeerEndpoint()
-                    << "  Waiting for Cookie.";
-      return;
-    }
-
-//    if (packet.SynCookie() == 1) {
-    peer_.SetThisEndpoint(packet.PeerEndpoint());
-    if (!CalculateEndpoint())
-      return;
-
-    if (!packet.PublicKey()) {
-      LOG(kError) << "Handshake packet is missing peer's public key";
-      state_ = kClosed;
-      return;
-    }
-
-    state_ = kConnected;
-    peer_connection_type_ = packet.ConnectionType();
-    receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
-    peer_.SetPublicKey(packet.PublicKey());
-    if (packet.NatDetectionPort() != 0) {
-      peer_nat_detection_endpoint_ = boost::asio::ip::udp::endpoint(peer_.PeerEndpoint().address(),
-                                                                    packet.NatDetectionPort());
-    }
-
-    if (mode_ == kBootstrapAndDrop)
-      return;
-
-    if (packet.ConnectionReason() != kNormal && mode_ == kNormal)
-      mode_ = static_cast<Mode>(packet.ConnectionReason());
-    if (packet.ConnectionReason() == kBootstrapAndDrop && mode_ == kBootstrapAndKeep)
-      mode_ = kBootstrapAndDrop;
-
-    SendCookie();
-//    }
+      HandleHandshakeWhenHandshaking(packet);
   }
 }
 

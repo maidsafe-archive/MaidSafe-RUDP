@@ -101,6 +101,9 @@ class Session {
   void SendConnectionRequest();
   void SendCookie();
 
+  void HandleHandshakeWhenProbing(const HandshakePacket& packet);
+  void HandleHandshakeWhenHandshaking(const HandshakePacket& packet);
+
   // The peer with which we are communicating.
   Peer& peer_;
 
