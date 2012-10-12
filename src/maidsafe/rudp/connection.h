@@ -94,6 +94,18 @@ class Connection : public std::enable_shared_from_this<Connection> {
   Connection(const Connection&);
   Connection& operator=(const Connection&);
 
+  struct SendRequest {
+    std::string encrypted_data_;
+    std::function<void(int)> message_sent_functor_;
+    
+    SendRequest(
+      std::string const&encrypted_data,
+      std::function<void(int)> const& message_sent_functor):
+      encrypted_data_(encrypted_data),
+      message_sent_functor_(message_sent_functor)
+    {}
+  };
+  
   void DoClose(bool timed_out = false);
   void DoStartConnecting(const NodeId& peer_node_id,
                          const boost::asio::ip::udp::endpoint& peer_endpoint,
@@ -102,8 +114,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
                          const boost::posix_time::time_duration& lifespan,
                          const std::function<void(int)>& ping_functor,  // NOLINT (Fraser)
                          const std::function<void()>& failure_functor);
-  void DoStartSending(const std::string& encrypted_data,
-                      const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
+  void DoStartSending(SendRequest const& request);  // NOLINT (Fraser)
+  void DoQueueSendRequest(SendRequest const& request);
+  void FinishSendAndQueueNext();
 
   void CheckTimeout(const boost::system::error_code& ec);
   void CheckLifespanTimeout(const boost::system::error_code& ec);
@@ -154,6 +167,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   enum class TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
   bool sending_;
   std::function<void()> failure_functor_;
+  std::queue<SendRequest> send_queue_;
 };
 
 

@@ -72,7 +72,8 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
       state_mutex_(),
       timeout_state_(TimeoutState::kConnecting),
       sending_(false),
-      failure_functor_() {
+      failure_functor_(),
+      send_queue_() {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
   timer_.expires_from_now(bptime::pos_infin);
 }
@@ -96,6 +97,7 @@ void Connection::DoClose(bool timed_out) {
     transport->RemoveConnection(shared_from_this(), timed_out);
     transport_.reset();
     sending_ = false;
+    std::queue<SendRequest>().swap(send_queue_);
     timer_.expires_from_now(Parameters::disconnection_timeout);
     timeout_state_ = TimeoutState::kClosing;
   } else {
@@ -186,11 +188,13 @@ void Connection::StartSending(const std::string& data,
   }
 
   try {
-    strand_.post(std::bind(
-        &Connection::DoStartSending,
+    strand_.post(
+      std::bind(
+        &Connection::DoQueueSendRequest,
         shared_from_this(),
-        asymm::Encrypt(asymm::PlainText(data), *socket_.PeerPublicKey()).string(),
-        message_sent_functor));
+        SendRequest(
+          asymm::Encrypt(asymm::PlainText(data), *socket_.PeerPublicKey()).string(),
+          message_sent_functor)));
   }
   catch(const std::exception& e) {
     LOG(kError) << "Failed to encrypt message: " << e.what();
@@ -198,25 +202,38 @@ void Connection::StartSending(const std::string& data,
   }
 }
 
-void Connection::DoStartSending(const std::string& encrypted_data,
-                                const MessageSentFunctor& message_sent_functor) {
-  if (sending_) {
-    Sleep(boost::posix_time::milliseconds(10));
-    strand_.post(std::bind(&Connection::DoStartSending, shared_from_this(), encrypted_data,
-                           message_sent_functor));
+void Connection::DoQueueSendRequest(SendRequest const& request){
+  if(sending_){
+    send_queue_.push(request);
   } else {
-    sending_ = true;
-    MessageSentFunctor wrapped_functor([&, message_sent_functor](int result) {
+    DoStartSending(request);
+  }
+}
+
+void Connection::FinishSendAndQueueNext(){
+  if(send_queue_.empty()){
+    sending_=false;
+  } else {
+    strand_.post(std::bind(&Connection::DoStartSending, shared_from_this(), send_queue_.front()));
+    send_queue_.pop();
+  }
+}
+
+
+
+void Connection::DoStartSending(SendRequest const& request) {
+  sending_ = true;
+  const std::function<void(int)> &message_sent_functor=request.message_sent_functor_;
+  MessageSentFunctor wrapped_functor([this, message_sent_functor](int result) {
       InvokeSentFunctor(message_sent_functor, result);
     });
-
-    if (Stopped()) {
-      InvokeSentFunctor(message_sent_functor, kSendFailure);
-      sending_ = false;
-    } else {
-      EncodeData(encrypted_data);
-      strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
-    }
+  
+  if (Stopped()) {
+    InvokeSentFunctor(message_sent_functor, kSendFailure);
+    FinishSendAndQueueNext();
+  } else {
+    EncodeData(request.encrypted_data_);
+    strand_.dispatch(std::bind(&Connection::StartWrite, shared_from_this(), wrapped_functor));
   }
 }
 
@@ -494,7 +511,7 @@ void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
     LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                 << " - connection stopped.";
     InvokeSentFunctor(message_sent_functor, kSendFailure);
-    sending_ = false;
+    FinishSendAndQueueNext();
     return DoClose();
   }
   socket_.AsyncWrite(asio::buffer(send_buffer_),
@@ -506,7 +523,7 @@ void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
 void Connection::HandleWrite(MessageSentFunctor message_sent_functor) {
   // Message has now been fully sent, so safe to start sending next.  message_sent_functor will be
   // invoked by Socket::HandleAck once peer has acknowledged receipt.
-  sending_ = false;
+  FinishSendAndQueueNext();
   if (Stopped()) {
     LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                 << " - connection stopped.";
