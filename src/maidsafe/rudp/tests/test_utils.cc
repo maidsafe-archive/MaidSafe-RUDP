@@ -73,9 +73,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
   endpoint_pair1 = endpoints1;
   Sleep(boost::posix_time::milliseconds(250));
-  EXPECT_EQ(kSuccess, nodes[0]->managed_connections()->GetAvailableEndpoint(
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+            nodes[0]->managed_connections()->GetAvailableEndpoint(
                 nodes[1]->node_id(), endpoint_pair1, endpoint_pair0, nat_type0));
-  EXPECT_EQ(kSuccess, nodes[1]->managed_connections()->GetAvailableEndpoint(
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+            nodes[1]->managed_connections()->GetAvailableEndpoint(
                 nodes[0]->node_id(), endpoint_pair0, endpoint_pair1, nat_type1));
 
   auto futures0(nodes[0]->GetFutureForMessages(1));
@@ -163,7 +165,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                                                        empty_endpoint_pair,
                                                                        this_endpoint_pair,
                                                                        nat_type));
-      if (result != kSuccess) {
+      if (result != kSuccess && result != kBootstrapConnectionAlreadyExists) {
         return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
                                            << nodes[i]->id() << " with result " << result
                                            << ".  Local: " << this_endpoint_pair.local
@@ -178,7 +180,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                                                      this_endpoint_pair,
                                                                      peer_endpoint_pair,
                                                                      nat_type);
-      if (result != kSuccess) {
+      if (result != kSuccess && result != kBootstrapConnectionAlreadyExists) {
         return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
                                            << nodes[j]->id() << " with result " << result
                                            << ".  Local: " << peer_endpoint_pair.local
