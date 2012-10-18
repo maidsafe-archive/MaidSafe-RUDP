@@ -356,10 +356,13 @@ bool ManagedConnections::ExistingConnection(const NodeId& peer_id,
     this_endpoint_pair.external = (*itr).second->external_endpoint();
     assert((*itr).second->IsAvailable());
     assert(FindPendingTransportWithNodeId(peer_id) == pendings_.end());
-    PendingConnection connection(peer_id, (*itr).second);
-    pendings_.push_back(connection);
-    return_code = (bootstrap_connection ? kBootstrapConnectionAlreadyExists :
-                                          kUnvalidatedConnectionAlreadyExists);
+    if (bootstrap_connection) {
+      PendingConnection connection(peer_id, (*itr).second);
+      pendings_.push_back(connection);
+      return_code = kBootstrapConnectionAlreadyExists;
+    } else {
+      return_code =  kUnvalidatedConnectionAlreadyExists;
+    }
   } else {
     return_code = kConnectionAlreadyExists;
   }
