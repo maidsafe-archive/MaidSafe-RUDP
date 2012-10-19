@@ -20,12 +20,11 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <mutex>
 
 #include "boost/asio/strand.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
-#include "boost/signals2/connection.hpp"
-#include "boost/signals2/signal.hpp"
 
 #include "maidsafe/common/asio_service.h"
 #include "maidsafe/common/node_id.h"
@@ -58,12 +57,12 @@ class Transport : public std::enable_shared_from_this<Transport> {
 #endif
 
  public:
-  typedef boost::signals2::signal<void(const std::string&)> OnMessage;
+  typedef std::function<void(const std::string&)> OnMessage;
 
-  typedef boost::signals2::signal<
+  typedef std::function<
       void(const NodeId&, std::shared_ptr<Transport>, bool, bool&)> OnConnectionAdded;
 
-  typedef boost::signals2::signal<
+  typedef std::function<
       void(const NodeId&, std::shared_ptr<Transport>, bool, bool)> OnConnectionLost;
 
   Transport(AsioService& asio_service, NatType& nat_type_);  // NOLINT (Fraser)
@@ -76,9 +75,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
       std::shared_ptr<asymm::PublicKey> this_public_key,
       boost::asio::ip::udp::endpoint local_endpoint,
       bool bootstrap_off_existing_connection,
-      const OnMessage::slot_type& on_message_slot,
-      const OnConnectionAdded::slot_type& on_connection_added_slot,
-      const OnConnectionLost::slot_type& on_connection_lost_slot,
+      OnMessage on_message_slot,
+      OnConnectionAdded on_connection_added_slot,
+      OnConnectionLost on_connection_lost_slot,
       const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
       NodeId& chosen_id);
 
@@ -156,15 +155,12 @@ class Transport : public std::enable_shared_from_this<Transport> {
   boost::asio::io_service::strand strand_;
   MultiplexerPtr multiplexer_;
   std::unique_ptr<ConnectionManager> connection_manager_;
+  std::mutex callback_mutex_;
+  
   OnMessage on_message_;
   OnConnectionAdded on_connection_added_;
   OnConnectionLost on_connection_lost_;
   Session::OnNatDetectionRequested::slot_function_type on_nat_detection_requested_slot_;
-  // These signal connections are the ones made in the Bootstrap call; the slots will be in
-  // ManagedConnections.
-  boost::signals2::connection on_message_connection_;
-  boost::signals2::connection on_connection_added_connection_;
-  boost::signals2::connection on_connection_lost_connection_;
   std::function<std::string()> managed_connections_debug_printout_;
 };
 

@@ -299,7 +299,7 @@ int Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
   NatType nat_type(NatType::kUnknown);
   return managed_connections_->Bootstrap(
       bootstrap_endpoints,
-      [&](const std::string& message) {
+      [this](const std::string& message) {
         bool is_printable(true);
         for (auto itr(message.begin()); itr != message.end(); ++itr) {
           if (*itr < 32) {
@@ -313,7 +313,7 @@ int Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
         messages_.emplace_back(message);
         SetPromiseIfDone();
       },
-      [&](const NodeId& peer_id) {
+      [this](const NodeId& peer_id) {
         LOG(kInfo) << id() << " -- Lost connection to " << DebugId(node_id_);
         std::lock_guard<std::mutex> guard(mutex_);
         connection_lost_node_ids_.emplace_back(peer_id);

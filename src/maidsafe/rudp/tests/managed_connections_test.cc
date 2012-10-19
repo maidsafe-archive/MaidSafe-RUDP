@@ -459,11 +459,16 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[1]), chosen_node));
   EXPECT_EQ(nodes_[1]->node_id(), chosen_node);
+  for(unsigned count=0;(nodes_[1]->managed_connections()->GetActiveConnectionCount()<4) &&(count<10);++count)
+      Sleep(bptime::milliseconds(100));
+  EXPECT_EQ(nodes_[1]->managed_connections()->GetActiveConnectionCount(), 4);
+    
   node_.managed_connections()->Remove(chosen_node);
   ASSERT_TRUE(wait_for_signals(1));
   ASSERT_EQ(node_.connection_lost_node_ids().size(), 1U);
   ASSERT_EQ(nodes_[1]->connection_lost_node_ids().size(), 1U);
   EXPECT_EQ(chosen_node, node_.connection_lost_node_ids()[0]);
+  EXPECT_EQ(nodes_[1]->managed_connections()->GetActiveConnectionCount(), 3);
 
   // After Add
   EXPECT_EQ(kSuccess,
@@ -561,6 +566,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
   ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
+  for(unsigned count=0;(nodes_[1]->managed_connections()->GetActiveConnectionCount()<2) &&(count<10);++count)
+      Sleep(bptime::milliseconds(100));
+  EXPECT_EQ(nodes_[1]->managed_connections()->GetActiveConnectionCount(), 2);
 
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   NatType nat_type;

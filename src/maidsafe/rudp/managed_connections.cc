@@ -192,8 +192,15 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
                             local_endpoint,
                             bootstrap_off_existing_connection,
                             boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
-                            boost::bind(&ManagedConnections::OnConnectionAddedSlot, this,
-                                        _1, _2, _3, _4),
+                            [this](
+                              const NodeId& peer_id,
+                              TransportPtr transport,
+                              bool temporary_connection,
+                              bool& is_duplicate_normal_connection)
+                            {
+                              OnConnectionAddedSlot(
+                                peer_id,transport,temporary_connection,is_duplicate_normal_connection);
+                            },
                             boost::bind(&ManagedConnections::OnConnectionLostSlot, this,
                                         _1, _2, _3),
                             boost::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this,
@@ -641,6 +648,11 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
       ++itr;
   }
 #endif
+}
+
+unsigned ManagedConnections::GetActiveConnectionCount() const{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return connections_.size();
 }
 
 void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
