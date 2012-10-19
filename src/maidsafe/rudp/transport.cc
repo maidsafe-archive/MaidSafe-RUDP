@@ -343,26 +343,27 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
   // Discard failure_functor
   connection->GetAndClearFailureFunctor();
 
+  // For temporary connections, we only need to fire the signal then finish.
+  if (connection->state() != Connection::State::kTemporary) {
+    if (!connection_manager_->AddConnection(connection)) {
+      LOG(kError) << "Failed to add " << connection->state() << " connection from "
+                  << ThisDebugId() << " to " << connection->PeerDebugId();
+      return connection->Close();
+    }
+  }
+
   bool is_duplicate_normal_connection(false);
   on_connection_added_(connection->Socket().PeerNodeId(),
                        shared_from_this(),
                        connection->state() == Connection::State::kTemporary,
                        is_duplicate_normal_connection);
 
-  // For temporary connections, we only need to fire the signal then finish.
-  if (connection->state() != Connection::State::kTemporary) {
-    if (is_duplicate_normal_connection) {
-      LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
-                  << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
-      connection->MarkAsDuplicateAndClose();
-    }
-
-    if (!connection_manager_->AddConnection(connection)) {
-      LOG(kError) << "Failed to add " << connection->state() << " connection from "
-                  << ThisDebugId() << " to " << connection->PeerDebugId();
-      connection->Close();
-    }
+  if (is_duplicate_normal_connection) {
+    LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
+                << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
+    connection->MarkAsDuplicateAndClose();
   }
+
   LOG(kSuccess) << "Successfully made " << connection->state() << " connection from "
                 << ThisDebugId() << " to " << connection->PeerDebugId();
 #ifndef NDEBUG
