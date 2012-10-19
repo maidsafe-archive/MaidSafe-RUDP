@@ -1118,7 +1118,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
 TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
-  for (int node_count(2); node_count < 10; ++node_count) {
+  for (int node_count(2); node_count <= 10; ++node_count) {
     std::vector<NodePtr> nodes;
     for (int i(0); i != node_count; ++i) {
       nodes.push_back(std::make_shared<Node>(i));
@@ -1160,7 +1160,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
 
     for (auto& get_avail_ep_future : get_avail_ep_futures) {
       std::pair<int, std::string> result(get_avail_ep_future.get());
-      if (result.first != kSuccess && result.first != kConnectionAlreadyExists)
+      if (result.first != kSuccess &&
+          result.first != kUnvalidatedConnectionAlreadyExists &&
+          result.first != kConnectAttemptAlreadyRunning)
         FAIL() << result.second << " returned " << result.first;
     }
   }
