@@ -566,9 +566,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
   ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
-  for(unsigned count=0;(nodes_[1]->managed_connections()->GetActiveConnectionCount()<2) &&(count<10);++count)
+  for(unsigned count=0;(nodes_[0]->managed_connections()->GetActiveConnectionCount()<2) &&(count<10);++count)
       Sleep(bptime::milliseconds(100));
-  EXPECT_EQ(nodes_[1]->managed_connections()->GetActiveConnectionCount(), 2);
+  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
 
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   NatType nat_type;
