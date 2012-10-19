@@ -294,78 +294,78 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
 }
 
-TEST_F(ManagedConnectionsTest, BEH_API_PendingTransportPruning) {
-  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 8));
+TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
+  const int kNodeCount(8);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNodeCount));
 
   std::string message("message1");
   NodeId chosen_node;
   EndpointPair this_endpoint_pair;
   NatType nat_type;
   BootstrapAndAdd(0, chosen_node, this_endpoint_pair, nat_type);
-  LOG(kInfo) << "Setup finished...\n\n\n";
 
-  // Run GetAvailableEndpoint to Node 1 to add a transport to pendings_
-  EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
-                                                              EndpointPair(),
-                                                              this_endpoint_pair,
-                                                              nat_type));
+  // Run GetAvailableEndpoint to add elements to pendings_.
+  for (int i(1); i != kNodeCount; ++i) {
+    EXPECT_EQ(kSuccess,
+              node_.managed_connections()->GetAvailableEndpoint(nodes_[i]->node_id(),
+                                                                EndpointPair(),
+                                                                this_endpoint_pair,
+                                                                nat_type));
+  }
 
-  // Wait for rendezvous_connect_timeout, then send 3 messages to node 0 to clear the pending,
-  // which should allow for another GetAvailableEndpoint to be run. Intermediate calls
-  // should return with kConnectAttemptAlreadyRunning
-  boost::posix_time::time_duration wait(Parameters::rendezvous_connect_timeout);
-  wait = wait + boost::posix_time::milliseconds(100);
-  Sleep(Parameters::rendezvous_connect_timeout);
-  node_.ResetData();
-  int messages_sent(0);
-  std::condition_variable cond_var;
-  std::mutex mutex;
-  MessageSentFunctor message_sent_functor([&] (int result_in) {
-                                            std::lock_guard<std::mutex> lock(mutex);
-                                            if (result_in == kSuccess)
-                                              ++messages_sent;
-                                            cond_var.notify_one();
-                                          });
-  auto wait_for_result([&] ()->bool {
-    std::unique_lock<std::mutex> lock(mutex);
-    return cond_var.wait_for(lock,
-                             std::chrono::milliseconds(1000),
-                             [&messages_sent]() { return messages_sent == 3; });  // NOLINT (Fraser)
-  });
-
+  // Wait for rendezvous_connect_timeout + 500ms to clear the pendings, which should allow for
+  // further GetAvailableEndpoint calls to be made. Intermediate calls should return with
+  // kConnectAttemptAlreadyRunning.
   EndpointPair test_endpoint_pair;
-  for (int n(0); n != 3; ++n) {
+  for (int i(1); i != kNodeCount; ++i) {
     EXPECT_EQ(kConnectAttemptAlreadyRunning,
-              node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
+              node_.managed_connections()->GetAvailableEndpoint(nodes_[i]->node_id(),
                                                                 EndpointPair(),
                                                                 test_endpoint_pair,
                                                                 nat_type));
     EXPECT_EQ(this_endpoint_pair.external, test_endpoint_pair.external);
     EXPECT_EQ(this_endpoint_pair.local, test_endpoint_pair.local);
-    nodes_[0]->managed_connections()->Send(node_.node_id(), message, message_sent_functor);
-  }
-  // Messages sent
-  ASSERT_TRUE(wait_for_result());
-
-  // Messages received
-  std::condition_variable received_cond_var;
-  std::mutex received_mutex;
-  {
-    std::unique_lock<std::mutex> lock(received_mutex);
-    ASSERT_TRUE(received_cond_var.wait_for(lock,
-                                           std::chrono::milliseconds(1000),
-                                           [&] () {
-                                             return node_.GetReceivedMessageCount(message) == 3;
-                                           }));
   }
 
-  // Running GetAvailableEndpoint to Node 1 to add a transport to pendings_ should succeed again
+  Sleep(Parameters::rendezvous_connect_timeout / 2);
+
+  // Remove one from the pendings_ by calling Add to complete making the connection.
+  const int kSelected((RandomUint32() % (kNodeCount - 1)) + 1);
+  EndpointPair peer_endpoint_pair;
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
-                                                              EndpointPair(),
-                                                              this_endpoint_pair,
-                                                              nat_type));
+            nodes_[kSelected]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
+                                                                           this_endpoint_pair,
+                                                                           peer_endpoint_pair,
+                                                                           nat_type));
+  EXPECT_EQ(kSuccess,
+            nodes_[kSelected]->managed_connections()->Add(node_.node_id(),
+                                                          this_endpoint_pair,
+                                                          nodes_[kSelected]->validation_data()));
+  EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[kSelected]->node_id(),
+                                                       peer_endpoint_pair,
+                                                       node_.validation_data()));
+
+  for (int i(1); i != kNodeCount; ++i) {
+    if (i != kSelected) {
+      EXPECT_EQ(kConnectAttemptAlreadyRunning,
+                node_.managed_connections()->GetAvailableEndpoint(nodes_[i]->node_id(),
+                                                                  EndpointPair(),
+                                                                  test_endpoint_pair,
+                                                                  nat_type));
+      EXPECT_EQ(this_endpoint_pair.external, test_endpoint_pair.external);
+      EXPECT_EQ(this_endpoint_pair.local, test_endpoint_pair.local);
+    }
+  }
+
+  Sleep(Parameters::rendezvous_connect_timeout / 2 + boost::posix_time::milliseconds(500));
+
+  for (int i(1); i != kNodeCount; ++i) {
+    EXPECT_EQ((i == kSelected ? kUnvalidatedConnectionAlreadyExists : kSuccess),
+              node_.managed_connections()->GetAvailableEndpoint(nodes_[i]->node_id(),
+                                                                EndpointPair(),
+                                                                test_endpoint_pair,
+                                                                nat_type));
+  }
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Add) {

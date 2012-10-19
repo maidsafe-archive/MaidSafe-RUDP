@@ -44,17 +44,14 @@ typedef std::vector<std::pair<NodeId, Endpoint>> NodeIdEndpointPairs;
 
 }  // unnamed namespace
 
-ManagedConnections::PendingConnection::PendingConnection()
-    : node_id(),
-      pending_transport(),
-      timestamp(),
-      connecting(false) {}
-
 ManagedConnections::PendingConnection::PendingConnection(const NodeId& node_id_in,
-                                                         const TransportPtr& transport)
+                                                         TransportPtr transport,
+                                                         boost::asio::io_service &io_service)
     : node_id(node_id_in),
       pending_transport(transport),
-      timestamp(GetDurationSinceEpoch()),
+      timer(io_service, bptime::microsec_clock::universal_time() +
+                        Parameters::rendezvous_connect_timeout +
+                        bptime::milliseconds(RandomUint32() % 500)),
       connecting(false) {}
 
 
@@ -68,7 +65,6 @@ ManagedConnections::ManagedConnections()
       public_key_(),
       connections_(),
       pendings_(),
-      prune_pendings_count_(0),
       idle_transports_(),
       mutex_(),
       local_ip_(),
@@ -80,8 +76,8 @@ ManagedConnections::~ManagedConnections() {
     for (auto connection_details : connections_)
       connection_details.second->Close();
     connections_.clear();
-    for (auto pending : pendings_)
-      pending.pending_transport->Close();
+    for (auto& pending : pendings_)
+      pending->pending_transport->Close();
     pendings_.clear();
     for (auto idle_transport : idle_transports_)
       idle_transport->Close();
@@ -326,9 +322,9 @@ bool ManagedConnections::ExistingConnectionAttempt(const NodeId& peer_id,
   if (existing_attempt == pendings_.end())
     return false;
 
-  this_endpoint_pair.local = (*existing_attempt).pending_transport->local_endpoint();
-  this_endpoint_pair.external = (*existing_attempt).pending_transport->external_endpoint();
-  assert((*existing_attempt).pending_transport->IsAvailable());
+  this_endpoint_pair.local = (*existing_attempt)->pending_transport->local_endpoint();
+  this_endpoint_pair.external = (*existing_attempt)->pending_transport->external_endpoint();
+  assert((*existing_attempt)->pending_transport->IsAvailable());
   return true;
 }
 
@@ -357,8 +353,9 @@ bool ManagedConnections::ExistingConnection(const NodeId& peer_id,
     assert((*itr).second->IsAvailable());
     assert(FindPendingTransportWithNodeId(peer_id) == pendings_.end());
     if (bootstrap_connection) {
-      PendingConnection connection(peer_id, (*itr).second);
-      pendings_.push_back(connection);
+      std::unique_ptr<PendingConnection> connection(
+          new PendingConnection(peer_id, (*itr).second, asio_service_.service()));
+      AddPending(std::move(connection));
       return_code = kBootstrapConnectionAlreadyExists;
     } else {
       return_code =  kUnvalidatedConnectionAlreadyExists;
@@ -376,8 +373,9 @@ bool ManagedConnections::SelectIdleTransport(const NodeId& peer_id,
       this_endpoint_pair.local = (*idle_transports_.begin())->local_endpoint();
       this_endpoint_pair.external = (*idle_transports_.begin())->external_endpoint();
       assert(FindPendingTransportWithNodeId(peer_id) == pendings_.end());
-      PendingConnection connection(peer_id, *idle_transports_.begin());
-      pendings_.push_back(connection);
+      std::unique_ptr<PendingConnection> connection(
+          new PendingConnection(peer_id, *idle_transports_.begin(), asio_service_.service()));
+      AddPending(std::move(connection));
       return true;
     } else {
       idle_transports_.erase(idle_transports_.begin());
@@ -401,8 +399,9 @@ bool ManagedConnections::SelectAnyTransport(const NodeId& peer_id,
   this_endpoint_pair.external = selected_transport->external_endpoint();
   assert(selected_transport->IsAvailable());
   assert(FindPendingTransportWithNodeId(peer_id) == pendings_.end());
-  PendingConnection connection(peer_id, selected_transport);
-  pendings_.push_back(connection);
+  std::unique_ptr<PendingConnection> connection(
+      new PendingConnection(peer_id, selected_transport, asio_service_.service()));
+  AddPending(std::move(connection));
   return true;
 }
 
@@ -434,7 +433,41 @@ bool ManagedConnections::ShouldStartNewTransport(const EndpointPair& peer_endpoi
   return start_new_transport;
 }
 
+void ManagedConnections::AddPending(std::unique_ptr<PendingConnection> connection) {
+  NodeId peer_id(connection->node_id);
+  pendings_.push_back(std::move(connection));
+  pendings_.back()->timer.async_wait(
+      [peer_id, this](const boost::system::error_code& ec) {
+        if (ec != boost::asio::error::operation_aborted) {
+          std::lock_guard<std::mutex> lock(mutex_);
+          RemovePending(peer_id);
+        }
+      });
+}
 
+void ManagedConnections::RemovePending(const NodeId& peer_id) {
+  auto itr(FindPendingTransportWithNodeId(peer_id));
+  if (itr != pendings_.end())
+    pendings_.erase(itr);
+}
+
+std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::const_iterator  // NOLINT (Fraser)
+    ManagedConnections::FindPendingTransportWithNodeId(const NodeId& peer_id) const {
+  return std::find_if(pendings_.cbegin(),
+                      pendings_.cend(),
+                      [&peer_id] (const std::unique_ptr<PendingConnection>& element) {
+                        return element->node_id == peer_id;
+                      });
+}
+
+std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator  // NOLINT (Fraser)
+    ManagedConnections::FindPendingTransportWithNodeId(const NodeId& peer_id) {
+  return std::find_if(pendings_.begin(),
+                      pendings_.end(),
+                      [&peer_id] (const std::unique_ptr<PendingConnection>& element) {
+                        return element->node_id == peer_id;
+                      });
+}
 
 int ManagedConnections::Add(NodeId peer_id,
                             EndpointPair peer_endpoint_pair,
@@ -459,14 +492,14 @@ int ManagedConnections::Add(NodeId peer_id,
     return kNoPendingConnectAttempt;
   }
 
-  if ((*itr).connecting) {
+  if ((*itr)->connecting) {
     LOG(kWarning) << "A connection attempt from " << DebugId(this_node_id_) << " to "
                   << DebugId(peer_id) << " is already happening";
     return kConnectAttemptAlreadyRunning;
   }
 
-  TransportPtr selected_transport((*itr).pending_transport);
-  (*itr).connecting = true;
+  TransportPtr selected_transport((*itr)->pending_transport);
+  (*itr)->connecting = true;
 
   if (validation_data.empty()) {
     LOG(kError) << "Invalid validation_data passed.";
@@ -574,47 +607,8 @@ void ManagedConnections::Send(NodeId peer_id,
   }
 }
 
-/*
-void ManagedConnections::Ping(Endpoint peer_endpoint, PingFunctor ping_functor) {
-  if (!ping_functor) {
-    LOG(kWarning) << "No functor passed - not pinging.";
-    return;
-  }
-
-  if (connections_.empty() && idle_transports_.empty()) {
-    LOG(kError) << "No running Transports.";
-    // Probably haven't bootstrapped, so asio_service_ won't be running.
-    boost::thread(ping_functor, kNotBootstrapped);
-    return;
-  }
-
-  std::lock_guard<std::mutex> lock(mutex_);
-  // Check this node isn't already connected to peer
-  if (connection_map_.find(peer_endpoint) != connection_map_.end()) {
-    asio_service_.service().post([ping_functor] { ping_functor(kWontPingAlreadyConnected); });  // NOLINT (Fraser)
-    return;
-  }
-
-  // Check we're not trying to ping ourself
-  if (std::find_if(connections_.begin(),
-                   connections_.end(),
-                   [&peer_endpoint](const TransportAndSignalConnections& tprt_and_sigs_conns) {
-                     return tprt_and_sigs_conns.transport->local_endpoint() == peer_endpoint ||
-                            tprt_and_sigs_conns.transport->external_endpoint() == peer_endpoint;
-                   }) != connections_.end()) {
-    LOG(kError) << "Trying to ping ourself.";
-    asio_service_.service().post([ping_functor] { ping_functor(kWontPingOurself); });  // NOLINT (Fraser)
-    return;
-  }
-
-  size_t index(RandomUint32() % connections_.size());
-  connections_[index].transport->Ping(peer_endpoint, ping_functor);
-}
-*/
-
 void ManagedConnections::OnMessageSlot(const std::string& message) {
   LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();
-  PrunePendingTransports();
 
   try {
     std::string decrypted_message =
@@ -645,10 +639,7 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
       idle_transports_.erase(transport);
     }
   } else {
-    auto itr(FindPendingTransportWithNodeId(peer_id));
-    if (itr != pendings_.end())
-      pendings_.erase(itr);
-
+    RemovePending(peer_id);
     auto result(connections_.insert(std::make_pair(peer_id, transport)));
     is_duplicate_normal_connection = !result.second;
     if (is_duplicate_normal_connection) {
@@ -695,9 +686,7 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
   // If this is a bootstrap connection, it may have already had GetAvailableEndpoint called on it,
   // but not yet had Add called, in which case peer_id will be in pendings_.  In all other cases,
   // peer_id should not be in pendings_.
-  auto pendings_itr(FindPendingTransportWithNodeId(peer_id));
-  if (pendings_itr != pendings_.end())
-    pendings_.erase(pendings_itr);
+  RemovePending(peer_id);
 
   auto itr(connections_.find(peer_id));
   if (itr != connections_.end()) {
@@ -742,45 +731,6 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
   (*itr).second->Ping(peer_id, peer_endpoint, [](int) {});  // NOLINT (Fraser)
 }
 
-std::vector<ManagedConnections::PendingConnection>::const_iterator
-    ManagedConnections::FindPendingTransportWithNodeId(const NodeId& peer_id) const {
-  return std::find_if(pendings_.cbegin(),
-                      pendings_.cend(),
-                      [&peer_id] (const PendingConnection& element) {
-                        return element.node_id == peer_id;
-                      });
-}
-
-std::vector<ManagedConnections::PendingConnection>::iterator
-    ManagedConnections::FindPendingTransportWithNodeId(const NodeId& peer_id) {
-  return std::find_if(pendings_.begin(),
-                      pendings_.end(),
-                      [&peer_id] (const PendingConnection& element) {
-                        return element.node_id == peer_id;
-                      });
-}
-
-void ManagedConnections::PrunePendingTransports() {
-  std::lock_guard<std::mutex> lock(mutex_);
-  // TODO(Team): Based on the amount of traffic received, decide whether 3 iterations are
-  //             (enough/too much) to prune a pending transport.
-  if (prune_pendings_count_ >= 3) {
-    prune_pendings_count_ = 0;
-    auto itr(pendings_.begin());
-    while (itr != pendings_.end()) {
-      boost::posix_time::time_duration now(GetDurationSinceEpoch());
-      if ((now.total_milliseconds() - (*itr).timestamp.total_milliseconds()) >
-          Parameters::rendezvous_connect_timeout.total_milliseconds()) {
-        itr = pendings_.erase(itr);
-      } else {
-        ++itr;
-      }
-    }
-  } else {
-    ++prune_pendings_count_;
-  }
-}
-
 std::string ManagedConnections::DebugString() const {
   std::string s = "This node's peer connections:\n";
 
@@ -800,11 +750,11 @@ std::string ManagedConnections::DebugString() const {
     s += idle_transport->DebugString();
 
   s += "\nThis node's pending connections:\n";
-  for (auto pending : pendings_) {
-    s += "\tPending to peer " + DebugId(pending.node_id).substr(0, 7);
+  for (auto& pending : pendings_) {
+    s += "\tPending to peer " + DebugId(pending->node_id).substr(0, 7);
     s += " on this node's transport ";
-    s += boost::lexical_cast<std::string>(pending.pending_transport->external_endpoint()) + " / ";
-    s += boost::lexical_cast<std::string>(pending.pending_transport->local_endpoint()) + '\n';
+    s += boost::lexical_cast<std::string>(pending->pending_transport->external_endpoint()) + " / ";
+    s += boost::lexical_cast<std::string>(pending->pending_transport->local_endpoint()) + '\n';
   }
   s += "\n\n";
 
