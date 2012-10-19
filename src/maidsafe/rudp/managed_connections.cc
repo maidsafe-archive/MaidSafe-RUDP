@@ -60,6 +60,7 @@ ManagedConnections::PendingConnection::PendingConnection(const NodeId& node_id_i
 
 ManagedConnections::ManagedConnections()
     : asio_service_(Parameters::thread_count),
+      callback_mutex_(),
       message_received_functor_(),
       connection_lost_functor_(),
       this_node_id_(),
@@ -167,8 +168,11 @@ int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoin
   nat_type = nat_type_;
 
   // Add callbacks now.
-  message_received_functor_ = message_received_functor;
-  connection_lost_functor_ = connection_lost_functor;
+  {
+    std::lock_guard<std::mutex> guard(callback_mutex_);
+    message_received_functor_ = message_received_functor;
+    connection_lost_functor_ = connection_lost_functor;
+  }
 
   return kSuccess;
 }
@@ -591,10 +595,14 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
   try {
     std::string decrypted_message =
         asymm::Decrypt(asymm::CipherText(message), *private_key_).string();
-    if (message_received_functor_) {
-      asio_service_.service().post([this, decrypted_message] {
-                                     message_received_functor_(decrypted_message);
-                                   });
+    MessageReceivedFunctor local_callback;
+    {
+      std::lock_guard<std::mutex> guard(callback_mutex_);
+      local_callback=message_received_functor_;
+    }
+    
+    if (local_callback) {
+      asio_service_.service().post([=] {local_callback(decrypted_message); });
     }
   }
   catch(const std::exception& e) {
@@ -686,9 +694,15 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
     connections_.erase(itr);
     if (peer_id == chosen_bootstrap_node_id_)
       chosen_bootstrap_node_id_ = NodeId();
-    if (connection_lost_functor_) {
+    ConnectionLostFunctor local_callback;
+    {
+      std::lock_guard<std::mutex> guard(callback_mutex_);
+      local_callback=connection_lost_functor_;
+    }
+    
+    if (local_callback) {
       LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
-      asio_service_.service().post([=] { connection_lost_functor_(peer_id); });  // NOLINT (Fraser)
+      asio_service_.service().post([=] { local_callback(peer_id); });  // NOLINT (Fraser)
     }
   }
 }
