@@ -141,7 +141,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   nodes[0]->ResetData();
   nodes[1]->ResetData();
 
-  LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
+  if (node_count > 2)
+    LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
 
   // Adding nodes to each other
   for (int i(2); i != node_count; ++i) {
