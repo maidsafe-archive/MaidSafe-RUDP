@@ -119,6 +119,37 @@ bool Transport::Bootstrap(
   return false;
 }
 
+namespace{
+  template<typename FunctorType>
+  class LocalFunctorReplacement{
+  public:
+    LocalFunctorReplacement(
+      std::mutex& mutex,FunctorType& functor_to_replace,FunctorType& save_slot,
+      FunctorType replacement):
+      mutex_(mutex),functor_to_replace_(functor_to_replace),save_slot_(save_slot)
+    {
+      std::lock_guard<std::mutex> guard(mutex_);
+      save_slot_=std::move(functor_to_replace_);
+      functor_to_replace_=std::move(replacement);
+    }
+    ~LocalFunctorReplacement()
+    {
+      std::lock_guard<std::mutex> guard(mutex_);
+      functor_to_replace_=std::move(save_slot_);
+    }
+
+  private:
+    std::mutex& mutex_;
+    FunctorType& functor_to_replace_;
+    FunctorType& save_slot_;
+    
+    LocalFunctorReplacement(LocalFunctorReplacement const&);
+    LocalFunctorReplacement& operator=(LocalFunctorReplacement const&);
+  };
+  
+}
+
+
 NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                              const Endpoint& bootstrap_endpoint,
                                              const bptime::time_duration& lifespan) {
@@ -133,66 +164,58 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
   bool slot_called(false);
   bool timed_out_connecting(false);
   NodeId peer_id;
-  OnConnectionAdded saved_on_connection_added;
-  OnConnectionLost saved_on_connection_lost;
+  boost::unique_lock<boost::mutex> lock(local_mutex,boost::defer_lock);
+
   {
-    std::lock_guard<std::mutex> guard(callback_mutex_);
-    OnConnectionAdded new_added_callback=[&](
-      const NodeId& connected_peer_id,
-      TransportPtr transport,
-      bool temporary_connection,
-      bool& is_duplicate_normal_connection) {
-      saved_on_connection_added(
-        connected_peer_id,transport,temporary_connection,is_duplicate_normal_connection);
-      
-      assert(!slot_called);
-      boost::mutex::scoped_lock local_lock(local_mutex);
-      slot_called = true;
-      peer_id = connected_peer_id;
-      local_cond_var.notify_one();
-    };
+    OnConnectionAdded saved_on_connection_added;
+    OnConnectionLost saved_on_connection_lost;
     
-    saved_on_connection_added=std::move(on_connection_added_);
-    on_connection_added_=std::move(new_added_callback);
-    
-    OnConnectionLost new_lost_callback=[&](
-      const NodeId& connected_peer_id,
-      TransportPtr transport,
-      bool temporary_connection,
-      bool timed_out) {
-      saved_on_connection_lost(connected_peer_id,transport,temporary_connection,timed_out);
-      
-      boost::mutex::scoped_lock local_lock(local_mutex);
-      if (!slot_called) {
+    LocalFunctorReplacement<OnConnectionAdded> on_conn_added_guard(
+      callback_mutex_,on_connection_added_,saved_on_connection_added,
+      [&](
+        const NodeId& connected_peer_id,
+        TransportPtr transport,
+        bool temporary_connection,
+        bool& is_duplicate_normal_connection) {
+        saved_on_connection_added(
+          connected_peer_id,transport,temporary_connection,is_duplicate_normal_connection);
+        
+        assert(!slot_called);
+        boost::mutex::scoped_lock local_lock(local_mutex);
         slot_called = true;
         peer_id = connected_peer_id;
-        timed_out_connecting = timed_out;
         local_cond_var.notify_one();
-      }
-    };
-
-    saved_on_connection_lost=std::move(on_connection_lost_);
-    on_connection_lost_=std::move(new_lost_callback);
-  }
-  
-  boost::mutex::scoped_lock lock(local_mutex);
-  connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
-                               Parameters::bootstrap_connect_timeout, lifespan);
-
-  bool success(local_cond_var.timed_wait(lock,
-                                         Parameters::bootstrap_connect_timeout + bptime::seconds(1),
-                                         [&] { return slot_called; }));  // NOLINT (Fraser)
-
-  {
-    std::lock_guard<std::mutex> guard(callback_mutex_);
-    on_connection_added_=std::move(saved_on_connection_added);
-    on_connection_lost_=std::move(saved_on_connection_lost);
-  }
-  if (!success) {
-    LOG(kError) << "Timed out waiting for connection. External endpoint: "
-                << multiplexer_->external_endpoint() << "  Local endpoint: "
-                << multiplexer_->local_endpoint();
-    return NodeId();
+      });
+    LocalFunctorReplacement<OnConnectionLost> on_conn_lost_guard(
+      callback_mutex_,on_connection_lost_,saved_on_connection_lost,
+      [&](
+        const NodeId& connected_peer_id,
+        TransportPtr transport,
+        bool temporary_connection,
+        bool timed_out) {
+        saved_on_connection_lost(connected_peer_id,transport,temporary_connection,timed_out);
+        
+        boost::mutex::scoped_lock local_lock(local_mutex);
+        if (!slot_called) {
+          slot_called = true;
+          peer_id = connected_peer_id;
+          timed_out_connecting = timed_out;
+          local_cond_var.notify_one();
+        }
+      });
+    
+    lock.lock();
+    connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
+                                 Parameters::bootstrap_connect_timeout, lifespan);
+    
+    if(!local_cond_var.timed_wait(
+         lock,Parameters::bootstrap_connect_timeout + bptime::seconds(1),
+         [&] { return slot_called; })) {  // NOLINT (Fraser)
+      LOG(kError) << "Timed out waiting for connection. External endpoint: "
+                  << multiplexer_->external_endpoint() << "  Local endpoint: "
+                  << multiplexer_->local_endpoint();
+      return NodeId();
+    }
   }
 
   if (timed_out_connecting) {
@@ -212,7 +235,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                 local_cond_var.notify_one();
                               });
 
-    success = local_cond_var.timed_wait(lock,
+    bool const success = local_cond_var.timed_wait(lock,
                                         Parameters::ping_timeout + bptime::seconds(1),
                                         [&] { return result != kPendingResult; });  // NOLINT (Fraser)
     if (!success || result != kSuccess) {
