@@ -558,7 +558,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   });
   auto wait_for_result([&](int count) {
     return cond_var.wait_for(lock,
-                             std::chrono::seconds(10),
+                             std::chrono::seconds(60),
                              [&]() { return result_arrived_count == count; });  // NOLINT (Fraser)
   });
 
@@ -639,7 +639,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   });
   auto wait_for_result([&] {
     return cond_var.wait_for(lock,
-                             std::chrono::milliseconds(100),
+                             std::chrono::milliseconds(1000),
                              [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
   });
 
@@ -883,7 +883,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   });
   auto wait_for_result([&] {
     return cond_var.wait_for(lock,
-                             std::chrono::seconds(20),
+                             std::chrono::seconds(60),
                              [kMessageCount, &result_arrived_count] {
                                return result_arrived_count == kMessageCount;
                              });
