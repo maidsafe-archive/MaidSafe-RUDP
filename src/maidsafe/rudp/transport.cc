@@ -223,14 +223,23 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
     return NodeId();
   }
 
+  DetectNatType(peer_id,lock);
+  return peer_id;
+}
+
+void Transport::DetectNatType(NodeId const& peer_id,boost::unique_lock<boost::mutex>& lock){
+  assert(lock.owns_lock());
+  
   Endpoint nat_detection_endpoint(
       connection_manager_->RemoteNatDetectionEndpoint(peer_id));
   if (IsValid(nat_detection_endpoint)) {
+    boost::condition_variable local_cond_var;
+    boost::mutex& local_mutex=*lock.mutex();
     int result(kPendingResult);
     connection_manager_->Ping(peer_id,
                               nat_detection_endpoint,
                               [&](int result_in) {
-                                boost::mutex::scoped_lock local_lock(local_mutex);
+                                boost::lock_guard<boost::mutex> local_lock(local_mutex);
                                 result = result_in;
                                 local_cond_var.notify_one();
                               });
@@ -243,8 +252,6 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
       nat_type_ = NatType::kSymmetric;
     }
   }
-
-  return peer_id;
 }
 
 void Transport::Close() {
