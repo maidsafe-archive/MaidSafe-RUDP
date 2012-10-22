@@ -478,11 +478,16 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[1]), chosen_node));
   EXPECT_EQ(nodes_[1]->node_id(), chosen_node);
+  for(unsigned count=0;(nodes_[1]->managed_connections()->GetActiveConnectionCount()<4) &&(count<10);++count)
+      Sleep(bptime::milliseconds(100));
+  EXPECT_EQ(nodes_[1]->managed_connections()->GetActiveConnectionCount(), 4);
+    
   node_.managed_connections()->Remove(chosen_node);
   ASSERT_TRUE(wait_for_signals(1));
   ASSERT_EQ(node_.connection_lost_node_ids().size(), 1U);
   ASSERT_EQ(nodes_[1]->connection_lost_node_ids().size(), 1U);
   EXPECT_EQ(chosen_node, node_.connection_lost_node_ids()[0]);
+  EXPECT_EQ(nodes_[1]->managed_connections()->GetActiveConnectionCount(), 3);
 
   // After Add
   EXPECT_EQ(kSuccess,
@@ -574,7 +579,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   });
   auto wait_for_result([&](int count) {
     return cond_var.wait_for(lock,
-                             std::chrono::seconds(10),
+                             std::chrono::seconds(60),
                              [&]() { return result_arrived_count == count; });  // NOLINT (Fraser)
   });
 
@@ -582,6 +587,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
   ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
+  for(unsigned count=0;(nodes_[0]->managed_connections()->GetActiveConnectionCount()<2) &&(count<10);++count)
+      Sleep(bptime::milliseconds(100));
+  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
 
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   NatType nat_type;
@@ -652,7 +660,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   });
   auto wait_for_result([&] {
     return cond_var.wait_for(lock,
-                             std::chrono::milliseconds(100),
+                             std::chrono::milliseconds(1000),
                              [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
   });
 
@@ -896,7 +904,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   });
   auto wait_for_result([&] {
     return cond_var.wait_for(lock,
-                             std::chrono::seconds(20),
+                             std::chrono::seconds(60),
                              [kMessageCount, &result_arrived_count] {
                                return result_arrived_count == kMessageCount;
                              });

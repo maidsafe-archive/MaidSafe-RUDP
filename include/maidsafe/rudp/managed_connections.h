@@ -124,6 +124,8 @@ class ManagedConnections {
 
   friend class detail::Transport;
 
+  unsigned GetActiveConnectionCount() const;
+
  private:
   typedef std::map<NodeId, std::shared_ptr<detail::Transport>> ConnectionMap;
   struct PendingConnection {
@@ -182,6 +184,7 @@ class ManagedConnections {
   std::string DebugString() const;
 
   AsioService asio_service_;
+  std::mutex callback_mutex_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
   NodeId this_node_id_, chosen_bootstrap_node_id_;

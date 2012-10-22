@@ -57,6 +57,7 @@ ManagedConnections::PendingConnection::PendingConnection(const NodeId& node_id_i
 
 ManagedConnections::ManagedConnections()
     : asio_service_(Parameters::thread_count),
+      callback_mutex_(),
       message_received_functor_(),
       connection_lost_functor_(),
       this_node_id_(),
@@ -163,8 +164,11 @@ int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoin
   nat_type = nat_type_;
 
   // Add callbacks now.
-  message_received_functor_ = message_received_functor;
-  connection_lost_functor_ = connection_lost_functor;
+  {
+    std::lock_guard<std::mutex> guard(callback_mutex_);
+    message_received_functor_ = message_received_functor;
+    connection_lost_functor_ = connection_lost_functor;
+  }
 
   return kSuccess;
 }
@@ -188,8 +192,15 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
                             local_endpoint,
                             bootstrap_off_existing_connection,
                             boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
-                            boost::bind(&ManagedConnections::OnConnectionAddedSlot, this,
-                                        _1, _2, _3, _4),
+                            [this](
+                              const NodeId& peer_id,
+                              TransportPtr transport,
+                              bool temporary_connection,
+                              bool& is_duplicate_normal_connection)
+                            {
+                              OnConnectionAddedSlot(
+                                peer_id,transport,temporary_connection,is_duplicate_normal_connection);
+                            },
                             boost::bind(&ManagedConnections::OnConnectionLostSlot, this,
                                         _1, _2, _3),
                             boost::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this,
@@ -613,10 +624,14 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
   try {
     std::string decrypted_message =
         asymm::Decrypt(asymm::CipherText(message), *private_key_).string();
-    if (message_received_functor_) {
-      asio_service_.service().post([this, decrypted_message] {
-                                     message_received_functor_(decrypted_message);
-                                   });
+    MessageReceivedFunctor local_callback;
+    {
+      std::lock_guard<std::mutex> guard(callback_mutex_);
+      local_callback=message_received_functor_;
+    }
+
+    if (local_callback) {
+      asio_service_.service().post([=] {local_callback(decrypted_message); });
     }
   }
   catch(const std::exception& e) {
@@ -669,6 +684,11 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
 #endif
 }
 
+unsigned ManagedConnections::GetActiveConnectionCount() const{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return static_cast<unsigned>(connections_.size());
+}
+
 void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
                                               TransportPtr transport,
                                               bool temporary_connection) {
@@ -698,9 +718,15 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
     connections_.erase(itr);
     if (peer_id == chosen_bootstrap_node_id_)
       chosen_bootstrap_node_id_ = NodeId();
-    if (connection_lost_functor_) {
+    ConnectionLostFunctor local_callback;
+    {
+      std::lock_guard<std::mutex> guard(callback_mutex_);
+      local_callback=connection_lost_functor_;
+    }
+
+    if (local_callback) {
       LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
-      asio_service_.service().post([=] { connection_lost_functor_(peer_id); });  // NOLINT (Fraser)
+      asio_service_.service().post([=] { local_callback(peer_id); });  // NOLINT (Fraser)
     }
   }
 }

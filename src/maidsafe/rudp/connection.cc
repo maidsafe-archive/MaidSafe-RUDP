@@ -273,6 +273,7 @@ void Connection::StartTick() {
 void Connection::HandleTick() {
   if (!socket_.IsOpen())
     return DoClose();
+  
 //  if (sending_) {
 //    uint32_t sent_length = socket_.SentLength();
 //    if (sent_length > 0)
