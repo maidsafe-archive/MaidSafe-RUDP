@@ -111,6 +111,7 @@ bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
   }
 
   ConnectionPtr connection(*itr);
+  lock.unlock();
   strand_.dispatch([=] { connection->Close(); });  // NOLINT (Fraser)
   return true;
 }
@@ -153,6 +154,7 @@ bool ConnectionManager::Send(const NodeId& peer_id,
   }
 
   ConnectionPtr connection(*itr);
+  lock.unlock();
   strand_.dispatch([=] { connection->StartSending(message, message_sent_functor); });  // NOLINT (Fraser)
   return true;
 }
