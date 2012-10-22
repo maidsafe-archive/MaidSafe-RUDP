@@ -159,8 +159,10 @@ void Connection::DoMakePermanent(bool validated) {
 }
 
 void Connection::MarkAsDuplicateAndClose() {
-  std::lock_guard<std::mutex> lock(state_mutex_);
-  state_ = State::kDuplicate;
+  {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    state_ = State::kDuplicate;
+  }
   strand_.dispatch(std::bind(&Connection::DoClose, shared_from_this(), false));
 }
 
