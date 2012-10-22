@@ -24,7 +24,8 @@
 
 #include "boost/asio/ip/address.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include "boost/date_time/posix_time/posix_time_duration.hpp"
+#include "boost/asio/deadline_timer.hpp"
+#include "boost/date_time/posix_time/ptime.hpp"
 #include "boost/signals2/connection.hpp"
 
 #include "maidsafe/common/asio_service.h"
@@ -126,14 +127,14 @@ class ManagedConnections {
   unsigned GetActiveConnectionCount() const;
 
  private:
-  typedef std::map<NodeId, std::shared_ptr<detail::Transport> > ConnectionMap;
+  typedef std::map<NodeId, std::shared_ptr<detail::Transport>> ConnectionMap;
   struct PendingConnection {
-    PendingConnection();
     PendingConnection(const NodeId& node_id_in,
-                      const std::shared_ptr<detail::Transport>& transport);
+                      std::shared_ptr<detail::Transport> transport,
+                      boost::asio::io_service &io_service);
     NodeId node_id;
     std::shared_ptr<detail::Transport> pending_transport;
-    boost::posix_time::time_duration timestamp;
+    boost::asio::deadline_timer timer;
     bool connecting;
   };
 
@@ -141,12 +142,28 @@ class ManagedConnections {
   ManagedConnections& operator=(const ManagedConnections&);
 
   bool StartNewTransport(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint> > bootstrap_peers,  // NOLINT (Fraser)
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers,  // NOLINT (Fraser)
       boost::asio::ip::udp::endpoint local_endpoint);
 
   void GetBootstrapEndpoints(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint> >& bootstrap_peers,  // NOLINT (Fraser)
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,  // NOLINT (Fraser)
       boost::asio::ip::address& this_external_address);
+
+  bool ExistingConnectionAttempt(const NodeId& peer_id, EndpointPair& this_endpoint_pair) const;
+  bool ExistingConnection(const NodeId& peer_id,
+                          EndpointPair& this_endpoint_pair,
+                          int& return_code);
+  bool SelectIdleTransport(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
+  bool SelectAnyTransport(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
+  std::shared_ptr<detail::Transport> GetAvailableTransport() const;
+  bool ShouldStartNewTransport(const EndpointPair& peer_endpoint_pair) const;
+
+  void AddPending(std::unique_ptr<PendingConnection> connection);
+  void RemovePending(const NodeId& peer_id);
+  std::vector<std::unique_ptr<PendingConnection>>::const_iterator FindPendingTransportWithNodeId(  // NOLINT (Fraser)
+      const NodeId& peer_id) const;
+  std::vector<std::unique_ptr<PendingConnection>>::iterator FindPendingTransportWithNodeId(  // NOLINT (Fraser)
+      const NodeId& peer_id);
 
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const NodeId& peer_id,
@@ -163,10 +180,8 @@ class ManagedConnections {
                                    const NodeId& peer_id,
                                    const boost::asio::ip::udp::endpoint& peer_endpoint,
                                    uint16_t& another_external_port);
+
   std::string DebugString() const;
-  std::vector<ManagedConnections::PendingConnection>::iterator
-      FindPendingTransportWithNodeId(const NodeId& peer_id);
-  void PrunePendingTransports();
 
   AsioService asio_service_;
   std::mutex callback_mutex_;
@@ -176,9 +191,8 @@ class ManagedConnections {
   std::shared_ptr<asymm::PrivateKey> private_key_;
   std::shared_ptr<asymm::PublicKey> public_key_;
   ConnectionMap connections_;
-  std::vector<PendingConnection> pendings_;
-  int prune_pendings_count_;
-  std::set<std::shared_ptr<detail::Transport> > idle_transports_;
+  std::vector<std::unique_ptr<PendingConnection>> pendings_;
+  std::set<std::shared_ptr<detail::Transport>> idle_transports_;
   mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
   NatType nat_type_;

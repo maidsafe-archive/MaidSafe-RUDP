@@ -39,6 +39,25 @@ namespace rudp {
 
 namespace test {
 
+namespace {
+
+std::future<std::pair<int, std::string>> GetFuture(std::vector<NodePtr>& nodes, int x, int y) {
+  return std::async(
+      [&nodes, x, y]()->std::pair<int, std::string> {
+        NodeId chosen_node_id;
+        EndpointPair endpoint_pair;
+        NatType nat_type;
+        boost::this_thread::disable_interruption disable_interruption;
+        Sleep(boost::posix_time::milliseconds(RandomUint32() % 100));
+        return std::make_pair(
+            nodes[x]->managed_connections()->GetAvailableEndpoint(
+              nodes[y]->node_id(), EndpointPair(), endpoint_pair, nat_type),
+            std::string("GetAvailableEndpoint on ") + nodes[x]->id() + " for " + nodes[y]->id());
+      });
+}
+
+}  // unnamed namespace
+
 
 class ManagedConnectionsTest : public testing::Test {
  public:
@@ -67,13 +86,13 @@ class ManagedConnectionsTest : public testing::Test {
     Sleep(boost::posix_time::milliseconds(250));
     nodes_[index]->ResetData();
 
-    EXPECT_EQ(kSuccess,
+    EXPECT_EQ(kBootstrapConnectionAlreadyExists,
               node_.managed_connections()->GetAvailableEndpoint(nodes_[index]->node_id(),
                                                                 EndpointPair(),
                                                                 this_endpoint_pair,
                                                                 nat_type));
     EndpointPair peer_endpoint_pair;
-    EXPECT_EQ(kSuccess,
+    EXPECT_EQ(kBootstrapConnectionAlreadyExists,
               nodes_[index]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
                                                                          this_endpoint_pair,
                                                                          peer_endpoint_pair,
@@ -258,7 +277,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 //  EXPECT_NE(bootstrap_endpoints_.end(),
 //            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(), chosen_endpoint));
 
-  EXPECT_EQ(kSuccess,
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             node_.managed_connections()->GetAvailableEndpoint(chosen_node,
                                                               EndpointPair(),
                                                               this_endpoint_pair,
@@ -275,78 +294,78 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
 }
 
-TEST_F(ManagedConnectionsTest, BEH_API_PendingTransportPruning) {
-  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 8));
+TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
+  const int kNodeCount(8);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNodeCount));
 
   std::string message("message1");
   NodeId chosen_node;
   EndpointPair this_endpoint_pair;
   NatType nat_type;
   BootstrapAndAdd(0, chosen_node, this_endpoint_pair, nat_type);
-  LOG(kInfo) << "Setup finished...\n\n\n";
 
-  // Run GetAvailableEndpoint to Node 1 to add a transport to pendings_
-  EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
-                                                              EndpointPair(),
-                                                              this_endpoint_pair,
-                                                              nat_type));
-
-  // Wait for rendezvous_connect_timeout, then send 3 messages to node 0 to clear the pending,
-  // which should allow for another GetAvailableEndpoint to be run. Intermediate calls
-  // should return with kConnectAttemptAlreadyRunning
-  boost::posix_time::time_duration wait(Parameters::rendezvous_connect_timeout);
-  wait = wait + boost::posix_time::milliseconds(100);
-  Sleep(Parameters::rendezvous_connect_timeout);
-  node_.ResetData();
-  int messages_sent(0);
-  std::condition_variable cond_var;
-  std::mutex mutex;
-  MessageSentFunctor message_sent_functor([&] (int result_in) {
-                                            std::lock_guard<std::mutex> lock(mutex);
-                                            if (result_in == kSuccess)
-                                              ++messages_sent;
-                                            cond_var.notify_one();
-                                          });
-  auto wait_for_result([&] ()->bool {
-    std::unique_lock<std::mutex> lock(mutex);
-    return cond_var.wait_for(lock,
-                             std::chrono::milliseconds(1000),
-                             [&messages_sent]() { return messages_sent == 3; });  // NOLINT (Fraser)
-  });
-
-  EndpointPair test_endpoint_pair;
-  for (int n(0); n != 3; ++n) {
+  // Run GetAvailableEndpoint to add elements to pendings_.
+  for (int i(1); i != kNodeCount; ++i) {
     EXPECT_EQ(kSuccess,
-              node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
+              node_.managed_connections()->GetAvailableEndpoint(nodes_[i]->node_id(),
+                                                                EndpointPair(),
+                                                                this_endpoint_pair,
+                                                                nat_type));
+  }
+
+  // Wait for rendezvous_connect_timeout + 500ms to clear the pendings, which should allow for
+  // further GetAvailableEndpoint calls to be made. Intermediate calls should return with
+  // kConnectAttemptAlreadyRunning.
+  EndpointPair test_endpoint_pair;
+  for (int i(1); i != kNodeCount; ++i) {
+    EXPECT_EQ(kConnectAttemptAlreadyRunning,
+              node_.managed_connections()->GetAvailableEndpoint(nodes_[i]->node_id(),
                                                                 EndpointPair(),
                                                                 test_endpoint_pair,
                                                                 nat_type));
     EXPECT_EQ(this_endpoint_pair.external, test_endpoint_pair.external);
     EXPECT_EQ(this_endpoint_pair.local, test_endpoint_pair.local);
-    nodes_[0]->managed_connections()->Send(node_.node_id(), message, message_sent_functor);
-  }
-  // Messages sent
-  ASSERT_TRUE(wait_for_result());
-
-  // Messages received
-  std::condition_variable received_cond_var;
-  std::mutex received_mutex;
-  {
-    std::unique_lock<std::mutex> loch(received_mutex);
-    ASSERT_TRUE(received_cond_var.wait_for(loch,
-                                           std::chrono::milliseconds(1000),
-                                           [&] () {
-                                             return node_.GetReceivedMessageCount(message) == 3;
-                                           }));
   }
 
-  // Running GetAvailableEndpoint to Node 1 to add a transport to pendings_ should succeed again
+  Sleep(Parameters::rendezvous_connect_timeout / 2);
+
+  // Remove one from the pendings_ by calling Add to complete making the connection.
+  const int kSelected((RandomUint32() % (kNodeCount - 1)) + 1);
+  EndpointPair peer_endpoint_pair;
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
-                                                              EndpointPair(),
-                                                              this_endpoint_pair,
-                                                              nat_type));
+            nodes_[kSelected]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
+                                                                           this_endpoint_pair,
+                                                                           peer_endpoint_pair,
+                                                                           nat_type));
+  EXPECT_EQ(kSuccess,
+            nodes_[kSelected]->managed_connections()->Add(node_.node_id(),
+                                                          this_endpoint_pair,
+                                                          nodes_[kSelected]->validation_data()));
+  EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[kSelected]->node_id(),
+                                                       peer_endpoint_pair,
+                                                       node_.validation_data()));
+
+  for (int i(1); i != kNodeCount; ++i) {
+    if (i != kSelected) {
+      EXPECT_EQ(kConnectAttemptAlreadyRunning,
+                node_.managed_connections()->GetAvailableEndpoint(nodes_[i]->node_id(),
+                                                                  EndpointPair(),
+                                                                  test_endpoint_pair,
+                                                                  nat_type));
+      EXPECT_EQ(this_endpoint_pair.external, test_endpoint_pair.external);
+      EXPECT_EQ(this_endpoint_pair.local, test_endpoint_pair.local);
+    }
+  }
+
+  Sleep(Parameters::rendezvous_connect_timeout / 2 + boost::posix_time::milliseconds(500));
+
+  for (int i(1); i != kNodeCount; ++i) {
+    EXPECT_EQ((i == kSelected ? kUnvalidatedConnectionAlreadyExists : kSuccess),
+              node_.managed_connections()->GetAvailableEndpoint(nodes_[i]->node_id(),
+                                                                EndpointPair(),
+                                                                test_endpoint_pair,
+                                                                nat_type));
+  }
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Add) {
@@ -363,12 +382,12 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   EndpointPair peer_endpoint_pair0, peer_endpoint_pair2,
                this_endpoint_pair0, this_endpoint_pair1, this_endpoint_pair2;
   NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
-  EXPECT_EQ(kSuccess,
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(),
                                                               EndpointPair(),
                                                               this_endpoint_pair0,
                                                               nat_type1));
-  EXPECT_EQ(kSuccess,
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             nodes_[0]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
                                                                    this_endpoint_pair0,
                                                                    peer_endpoint_pair0,
@@ -387,7 +406,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   auto this_node_futures(node_.GetFutureForMessages(1));
   ASSERT_FALSE(this_node_futures.timed_wait(Parameters::rendezvous_connect_timeout));
 
-  // Case: Inexistent endpoint
+  // Case: Non-existent endpoint
   EndpointPair random_peer_endpoint;
   random_peer_endpoint.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   random_peer_endpoint.external = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
@@ -478,14 +497,16 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   NatType nat_type;
   Sleep(boost::posix_time::milliseconds(250));
-  EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(chosen_node,
-                                                                        EndpointPair(),
-                                                                        this_endpoint_pair,
-                                                                        nat_type));
-  EXPECT_EQ(kSuccess, nodes_[0]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
-                                                                             this_endpoint_pair,
-                                                                             peer_endpoint_pair,
-                                                                             nat_type));
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+            node_.managed_connections()->GetAvailableEndpoint(chosen_node,
+                                                              EndpointPair(),
+                                                              this_endpoint_pair,
+                                                              nat_type));
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+            nodes_[0]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
+                                                                   this_endpoint_pair,
+                                                                   peer_endpoint_pair,
+                                                                   nat_type));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
 
@@ -1054,10 +1075,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   result_arrived = false;
   EndpointPair this_endpoint_pair;
   NatType nat_type;
-  EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(),
-                                                                        EndpointPair(),
-                                                                        this_endpoint_pair,
-                                                                        nat_type));
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+            node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(),
+                                                              EndpointPair(),
+                                                              this_endpoint_pair,
+                                                              nat_type));
   nodes_[0]->managed_connections()->Send(node_.node_id(), "message02",
                                          message_sent_functor);
   ASSERT_TRUE(wait_for_result());
@@ -1101,131 +1123,58 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   EXPECT_EQ(kInvalidConnection, result_of_send);
 }
 
-/*
-TEST_F(ManagedConnectionsTest, DISABLED_BEH_API_Ping) {
-  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
+TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
-  // Without valid functor
-  node_.managed_connections()->Ping(bootstrap_endpoints_[0], PingFunctor());
+  for (int node_count(2); node_count <= 10; ++node_count) {
+    std::vector<NodePtr> nodes;
+    for (int i(0); i != node_count; ++i) {
+      nodes.push_back(std::make_shared<Node>(i));
+      LOG(kInfo) << nodes[i]->id() << " has NodeId " << nodes[i]->debug_node_id();
+    }
 
-  // Before Bootstrap
-  int result_of_ping(kSuccess);
-  bool result_arrived(false);
-  std::condition_variable cond_var;
-  std::mutex mutex;
-  std::unique_lock<std::mutex> lock(mutex);
-  PingFunctor ping_functor([&](int result_in) {
-    std::lock_guard<std::mutex> lock(mutex);
-    result_of_ping = result_in;
-    result_arrived = true;
-    cond_var.notify_one();
-  });
-  auto wait_for_result([&] {
-    return cond_var.wait_for(
-        lock,
-        std::chrono::milliseconds(Parameters::ping_timeout.total_milliseconds() + 1000),
-        [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
-  });
-  node_.managed_connections()->Ping(bootstrap_endpoints_[0], ping_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kNotBootstrapped, result_of_ping);
+    // Set up by bootstrapping new nodes off existing 2 and calling GetAvailableEndpoint from each
+    // new node to every other non-bootstrap one.
+    // Test by calling Add from each new node to every other non-bootstrap then immediately calling
+    // GetAvailableEndpoint again on each.
+    std::vector<std::future<std::pair<int, std::string>>> get_avail_ep_futures;  // NOLINT (Fraser)
+    for (int i(0); i != node_count; ++i) {
+      NodeId chosen_node_id;
+      ASSERT_EQ(kSuccess, nodes[i]->Bootstrap(bootstrap_endpoints_, chosen_node_id));
 
-  // Before Add
-  // Pinging bootstrap peer should fail since we're already connected, pinging ourself should fail
-  // since that's madness, pinging any other existing peer should succeed.
-  Endpoint chosen_endpoint(node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0])));
-  ASSERT_EQ(bootstrap_endpoints_[0], chosen_endpoint);
-  // Ping non-bootstrap peer
-  result_of_ping = kPingFailed;
-  result_arrived = false;
-  node_.managed_connections()->Ping(bootstrap_endpoints_[2], ping_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kSuccess, result_of_ping);
-  // Ping ourself (get our existing transport's endpoint)
-  EndpointPair this_endpoint_pair;
-  NatType nat_type;
-  EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(bootstrap_endpoints_[0],
-                                                              this_endpoint_pair,
-                                                              nat_type));
-  result_of_ping = kSuccess;
-  result_arrived = false;
-  node_.managed_connections()->Ping(this_endpoint_pair.local, ping_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kWontPingOurself, result_of_ping);
-  // Ping bootstrap peer
-  result_of_ping = kSuccess;
-  result_arrived = false;
-  node_.managed_connections()->Ping(bootstrap_endpoints_[0], ping_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kWontPingAlreadyConnected, result_of_ping);
-  // Ping non-existent peer
-  Endpoint unavailable_endpoint(ip::address::from_string("1.1.1.1"), maidsafe::test::GetRandomPort());
-  result_of_ping = kSuccess;
-  result_arrived = false;
-  node_.managed_connections()->Ping(unavailable_endpoint, ping_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kPingFailed, result_of_ping);
+      EndpointPair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
+      NatType nat_type;
+      for (int j(0); j != i; ++j) {
+        EXPECT_EQ(kSuccess,
+                  nodes[i]->managed_connections()->GetAvailableEndpoint(nodes[j]->node_id(),
+                                                                        empty_endpoint_pair,
+                                                                        this_endpoint_pair,
+                                                                        nat_type));
+        EXPECT_EQ(kSuccess,
+                  nodes[j]->managed_connections()->GetAvailableEndpoint(nodes[i]->node_id(),
+                                                                        this_endpoint_pair,
+                                                                        peer_endpoint_pair,
+                                                                        nat_type));
+        EXPECT_EQ(kSuccess, nodes[j]->managed_connections()->Add(nodes[i]->node_id(),
+                                                                 this_endpoint_pair,
+                                                                 nodes[j]->validation_data()));
+        EXPECT_EQ(kSuccess, nodes[i]->managed_connections()->Add(nodes[j]->node_id(),
+                                                                 peer_endpoint_pair,
+                                                                 nodes[i]->validation_data()));
+        get_avail_ep_futures.push_back(GetFuture(nodes, i, j));
+        get_avail_ep_futures.push_back(GetFuture(nodes, j, i));
+      }
+    }
 
-  // After Add
-  nodes_[1]->ResetData();
-  EndpointPair peer_endpoint_pair;
-  EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(Endpoint(),
-                                                              this_endpoint_pair,
-                                                              nat_type));
-  EXPECT_EQ(kSuccess,
-            nodes_[1]->managed_connections()->GetAvailableEndpoint(this_endpoint_pair.local,
-                                                                   peer_endpoint_pair,
-                                                                   nat_type));
-  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
-  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
-
-  auto peer_futures(nodes_[1]->GetFutureForMessages(1));
-  auto this_node_futures(node_.GetFutureForMessages(1));
-  EXPECT_EQ(kSuccess,
-            nodes_[1]->managed_connections()->Add(peer_endpoint_pair.local,
-                                                  this_endpoint_pair.local,
-                                                  nodes_[1]->validation_data()));
-  EXPECT_EQ(kSuccess,
-            node_.managed_connections()->Add(this_endpoint_pair.local,
-                                             peer_endpoint_pair.local,
-                                             node_.validation_data()));
-  ASSERT_TRUE(peer_futures.timed_wait(Parameters::rendezvous_connect_timeout));
-  auto peer_messages(peer_futures.get());
-  ASSERT_TRUE(this_node_futures.timed_wait(Parameters::rendezvous_connect_timeout));
-  auto this_node_messages(this_node_futures.get());
-  ASSERT_EQ(1U, peer_messages.size());
-  ASSERT_EQ(1U, this_node_messages.size());
-  EXPECT_EQ(node_.validation_data(), peer_messages[0]);
-  EXPECT_EQ(nodes_[1]->validation_data(), this_node_messages[0]);
-
-  // Ping non-connected peer
-  result_of_ping = kPingFailed;
-  result_arrived = false;
-  node_.managed_connections()->Ping(bootstrap_endpoints_[2], ping_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kSuccess, result_of_ping);
-  // Ping ourself
-  result_of_ping = kSuccess;
-  result_arrived = false;
-  node_.managed_connections()->Ping(this_endpoint_pair.local, ping_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kWontPingOurself, result_of_ping);
-  // Ping bootstrap peer
-  result_of_ping = kSuccess;
-  result_arrived = false;
-  node_.managed_connections()->Ping(bootstrap_endpoints_[0], ping_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kWontPingAlreadyConnected, result_of_ping);
-  // Ping non-existent peer
-  result_of_ping = kSuccess;
-  result_arrived = false;
-  node_.managed_connections()->Ping(unavailable_endpoint, ping_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kPingFailed, result_of_ping);
+    for (auto& get_avail_ep_future : get_avail_ep_futures) {
+      std::pair<int, std::string> result(get_avail_ep_future.get());
+      if (result.first != kSuccess &&
+          result.first != kUnvalidatedConnectionAlreadyExists &&
+          result.first != kConnectAttemptAlreadyRunning)
+        FAIL() << result.second << " returned " << result.first;
+    }
+  }
 }
-*/
 
 }  // namespace test
 
