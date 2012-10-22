@@ -407,7 +407,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
     if (!connection_manager_->AddConnection(connection)) {
       LOG(kError) << "Failed to add " << connection->state() << " connection from "
                   << ThisDebugId() << " to " << connection->PeerDebugId();
-      return connection->Close();
+      connection->Close();
     }
   }
 

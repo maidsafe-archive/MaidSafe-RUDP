@@ -629,7 +629,7 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
       std::lock_guard<std::mutex> guard(callback_mutex_);
       local_callback=message_received_functor_;
     }
-    
+
     if (local_callback) {
       asio_service_.service().post([=] {local_callback(decrypted_message); });
     }
@@ -686,7 +686,7 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
 
 unsigned ManagedConnections::GetActiveConnectionCount() const{
   std::lock_guard<std::mutex> lock(mutex_);
-  return connections_.size();
+  return static_cast<unsigned>(connections_.size());
 }
 
 void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
@@ -723,7 +723,7 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id,
       std::lock_guard<std::mutex> guard(callback_mutex_);
       local_callback=connection_lost_functor_;
     }
-    
+
     if (local_callback) {
       LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
       asio_service_.service().post([=] { local_callback(peer_id); });  // NOLINT (Fraser)
