@@ -95,7 +95,7 @@ TEST(SocketTest, BEH_Socket) {
 
   client_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, client_multiplexer));
 
-  NatType server_nat_type, client_nat_type;
+  NatType server_nat_type=NatType::kUnknown, client_nat_type=NatType::kUnknown;
   Socket server_socket(*server_multiplexer, server_nat_type);
   server_ec = asio::error::would_block;
 
