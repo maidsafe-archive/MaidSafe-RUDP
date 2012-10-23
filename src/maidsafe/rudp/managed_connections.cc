@@ -39,7 +39,6 @@ const boost::asio::ip::udp::endpoint kNonRoutable(boost::asio::ip::address_v4(34
 namespace {
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
-typedef std::shared_ptr<detail::Transport> TransportPtr;
 typedef std::vector<std::pair<NodeId, Endpoint>> NodeIdEndpointPairs;
 
 }  // unnamed namespace
@@ -416,7 +415,7 @@ bool ManagedConnections::SelectAnyTransport(const NodeId& peer_id,
   return true;
 }
 
-TransportPtr ManagedConnections::GetAvailableTransport() const {
+ManagedConnections::TransportPtr ManagedConnections::GetAvailableTransport() const {
   // Get transport with least connections and below kMaxConnections.
   size_t least_connections(detail::Transport::kMaxConnections());
   TransportPtr selected_transport;
@@ -580,14 +579,20 @@ void ManagedConnections::Remove(NodeId peer_id) {
     return;
   }
 
-  std::lock_guard<std::mutex> lock(mutex_);
-  auto itr(connections_.find(peer_id));
-  if (itr == connections_.end()) {
-    LOG(kWarning) << "Can't remove connection from " << DebugId(this_node_id_) << " to "
-                  << DebugId(peer_id) << " - not in map.";
-  } else {
-    (*itr).second->CloseConnection(peer_id);
+  TransportPtr transport_to_close;
+
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto itr(connections_.find(peer_id));
+    if (itr == connections_.end()) {
+      LOG(kWarning) << "Can't remove connection from " << DebugId(this_node_id_) << " to "
+                    << DebugId(peer_id) << " - not in map.";
+      return;
+    } else {
+      transport_to_close=(*itr).second;
+    }
   }
+  transport_to_close->CloseConnection(peer_id);
 }
 
 void ManagedConnections::Send(NodeId peer_id,

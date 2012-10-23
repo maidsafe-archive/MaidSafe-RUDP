@@ -127,13 +127,14 @@ class ManagedConnections {
   unsigned GetActiveConnectionCount() const;
 
  private:
-  typedef std::map<NodeId, std::shared_ptr<detail::Transport>> ConnectionMap;
+  typedef std::shared_ptr<detail::Transport> TransportPtr;
+  typedef std::map<NodeId, TransportPtr> ConnectionMap;
   struct PendingConnection {
     PendingConnection(const NodeId& node_id_in,
-                      std::shared_ptr<detail::Transport> transport,
+                      TransportPtr transport,
                       boost::asio::io_service &io_service);
     NodeId node_id;
-    std::shared_ptr<detail::Transport> pending_transport;
+    TransportPtr pending_transport;
     boost::asio::deadline_timer timer;
     bool connecting;
   };
@@ -155,7 +156,7 @@ class ManagedConnections {
                           int& return_code);
   bool SelectIdleTransport(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
   bool SelectAnyTransport(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
-  std::shared_ptr<detail::Transport> GetAvailableTransport() const;
+  TransportPtr GetAvailableTransport() const;
   bool ShouldStartNewTransport(const EndpointPair& peer_endpoint_pair) const;
 
   void AddPending(std::unique_ptr<PendingConnection> connection);
@@ -167,11 +168,11 @@ class ManagedConnections {
 
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const NodeId& peer_id,
-                             std::shared_ptr<detail::Transport> transport,
+                             TransportPtr transport,
                              bool temporary_connection,
                              bool& is_duplicate_normal_connection);
   void OnConnectionLostSlot(const NodeId& peer_id,
-                            std::shared_ptr<detail::Transport> transport,
+                            TransportPtr transport,
                             bool temporary_connection);
   // This signal is fired by Session when a connecting peer requests to use this peer for NAT
   // detection.  The peer will attempt to connect to another one of this node's transports using
@@ -192,7 +193,7 @@ class ManagedConnections {
   std::shared_ptr<asymm::PublicKey> public_key_;
   ConnectionMap connections_;
   std::vector<std::unique_ptr<PendingConnection>> pendings_;
-  std::set<std::shared_ptr<detail::Transport>> idle_transports_;
+  std::set<TransportPtr> idle_transports_;
   mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
   NatType nat_type_;
