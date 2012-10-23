@@ -204,10 +204,10 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
         }
       });
     
-    lock.lock();
     connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
                                  Parameters::bootstrap_connect_timeout, lifespan);
     
+    lock.lock();
     if(!local_cond_var.timed_wait(
          lock,Parameters::bootstrap_connect_timeout + bptime::seconds(1),
          [&] { return slot_called; })) {  // NOLINT (Fraser)
