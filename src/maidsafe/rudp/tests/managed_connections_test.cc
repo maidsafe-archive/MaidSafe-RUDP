@@ -23,10 +23,16 @@
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 #include "maidsafe/common/error.h"
+
+#include "maidsafe/rudp/core/multiplexer.h"
+#include "maidsafe/rudp/core/session.h"
+#include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 #include "maidsafe/rudp/return_codes.h"
+#include "maidsafe/rudp/connection_manager.h"
 #include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/utils.h"
+
 
 namespace args = std::placeholders;
 namespace asio = boost::asio;
@@ -453,6 +459,100 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   EXPECT_EQ(1, this_node_messages.size());
   EXPECT_EQ(node_.validation_data(), peer_messages[0]);
   EXPECT_EQ(nodes_[2]->validation_data(), this_node_messages[0]);
+}
+
+void DispatchHandler(const boost::system::error_code& ec,
+                     std::shared_ptr<detail::Multiplexer> muxer) {
+  if (!ec)
+    muxer->AsyncDispatch(std::bind(&DispatchHandler, args::_1, muxer));
+}
+
+void TickHandler(const boost::system::error_code& ec, detail::Socket* sock) {
+  if (!ec)
+    sock->AsyncTick(std::bind(&TickHandler, args::_1, sock));
+}
+
+TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
+
+  // Bootstrap node_ off nodes_[0]
+  NodeId chosen_node;
+  EXPECT_EQ(kSuccess,
+            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
+  EXPECT_FALSE(chosen_node.IsZero());
+  Sleep(boost::posix_time::milliseconds(250));
+
+  nodes_[0]->ResetData();
+  EndpointPair peer_endpoint_pair, this_endpoint_pair;
+  NatType this_nat_type(NatType::kUnknown), peer_nat_type(NatType::kUnknown);
+
+  // Connect node_ to nodes_[1]
+  node_.ResetData();
+  nodes_[1]->ResetData();
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
+                                                              EndpointPair(),
+                                                              this_endpoint_pair,
+                                                              this_nat_type));
+  EXPECT_EQ(kSuccess,
+            nodes_[1]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
+                                                                   this_endpoint_pair,
+                                                                   peer_endpoint_pair,
+                                                                   peer_nat_type));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+  auto peer_futures(nodes_[1]->GetFutureForMessages(1));
+  auto this_node_futures(node_.GetFutureForMessages(1));
+  EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->Add(node_.node_id(),
+                                                            this_endpoint_pair,
+                                                            nodes_[1]->validation_data()));
+  EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(),
+                                                       peer_endpoint_pair,
+                                                       node_.validation_data()));
+  EXPECT_TRUE(peer_futures.timed_wait(Parameters::rendezvous_connect_timeout));
+  auto peer_messages(peer_futures.get());
+  EXPECT_TRUE(this_node_futures.timed_wait(Parameters::rendezvous_connect_timeout));
+  auto this_node_messages(this_node_futures.get());
+  EXPECT_EQ(1, peer_messages.size());
+  EXPECT_EQ(1, this_node_messages.size());
+  EXPECT_EQ(node_.validation_data(), peer_messages[0]);
+  EXPECT_EQ(nodes_[1]->validation_data(), this_node_messages[0]);
+
+  // Start new Socket with nodes_[1]'s details
+  asio::io_service io_service;
+  boost::system::error_code error_code(asio::error::would_block);
+  ip::udp::endpoint endpoint(peer_endpoint_pair.local.address(), maidsafe::test::GetRandomPort());
+  std::shared_ptr<detail::Multiplexer> multiplexer(new detail::Multiplexer(io_service));
+  detail::ConnectionManager connection_manager(std::shared_ptr<detail::Transport>(),
+                                               asio::io_service::strand(io_service),
+                                               multiplexer,
+                                               nodes_[1]->node_id(),
+                                               nodes_[1]->public_key());
+  ASSERT_EQ(kSuccess, multiplexer->Open(endpoint));
+  
+  multiplexer->AsyncDispatch(std::bind(&DispatchHandler, args::_1, multiplexer));
+
+  detail::Socket socket(*multiplexer, peer_nat_type);
+  auto on_nat_detection_requested_slot(
+      [](const boost::asio::ip::udp::endpoint& /*this_local_endpoint*/,
+         const NodeId& /*peer_id*/,
+         const boost::asio::ip::udp::endpoint& /*peer_endpoint*/,
+         uint16_t& /*another_external_port*/) {});
+
+  // Try to connect in kBootstrapAndKeep mode to node_'s existing connected Transport.
+  socket.AsyncConnect(nodes_[1]->node_id(),
+                      nodes_[1]->public_key(),
+                      this_endpoint_pair.local,
+                      node_.node_id(),
+                      [&error_code](const boost::system::error_code& ec) { error_code = ec; },
+                      detail::Session::kBootstrapAndKeep,
+                      on_nat_detection_requested_slot);
+
+  auto future(std::async(std::launch::async, [&io_service]() { io_service.run_one(); }));
+  Sleep(boost::posix_time::milliseconds(500));
+  EXPECT_FALSE(socket.IsConnected());
+  socket.Close();
+  future.get();
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Remove) {

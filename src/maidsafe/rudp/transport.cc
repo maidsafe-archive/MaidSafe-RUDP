@@ -294,8 +294,8 @@ void Transport::DoConnect(const NodeId& peer_id,
       };
     }
     connection_manager_->Connect(peer_id, peer_endpoint_pair.external, validation_data,
-                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                  failure_functor);
+                                 Parameters::rendezvous_connect_timeout, bptime::pos_infin,
+                                 failure_functor);
   } else {
     connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin);
@@ -402,12 +402,18 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
   // Discard failure_functor
   connection->GetAndClearFailureFunctor();
 
-  // For temporary connections, we only need to fire the signal then finish.
+  // For temporary connections, we only need to invoke on_connection_lost_ then finish.
   if (connection->state() != Connection::State::kTemporary) {
-    if (!connection_manager_->AddConnection(connection)) {
+    auto result(connection_manager_->AddConnection(connection));
+    if (result == kInvalidConnection) {
       LOG(kError) << "Failed to add " << connection->state() << " connection from "
                   << ThisDebugId() << " to " << connection->PeerDebugId();
-      connection->Close();
+      return connection->Close();
+    } else if (result == kConnectionAlreadyExists) {
+      LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
+                  << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
+      //assert(false);
+      return connection->MarkAsDuplicateAndClose(Connection::State::kExactDuplicate);
     }
   }
 
@@ -430,7 +436,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
     if (is_duplicate_normal_connection) {
       LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
                   << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
-      connection->MarkAsDuplicateAndClose();
+      connection->MarkAsDuplicateAndClose(Connection::State::kDuplicate);
     }
   }
   
@@ -450,9 +456,12 @@ void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
 }
 
 void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
-  // The call to connection_manager_->RemoveConnection must come before the invocation of the
-  // on_connection_lost_ slot so that the transport can be assessed for IsIdle properly during the
-  // execution of the slot.
+  if (connection->state() == Connection::State::kExactDuplicate)
+    return;
+
+  // The call to connection_manager_->RemoveConnection must come before the invocation of
+  // on_connection_lost_ so that the transport can be assessed for IsIdle properly during the
+  // execution of the functor.
   if (connection->state() != Connection::State::kTemporary)
     connection_manager_->RemoveConnection(connection);
 

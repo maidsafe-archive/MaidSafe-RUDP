@@ -18,6 +18,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
 
@@ -25,7 +26,6 @@
 #include "boost/asio/strand.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
-#include "boost/thread/mutex.hpp"
 
 #include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
@@ -62,7 +62,7 @@ class ConnectionManager {
                const boost::posix_time::time_duration& lifespan,
                const std::function<void()>& failure_functor = nullptr);
 
-  bool AddConnection(std::shared_ptr<Connection> connection);
+  int AddConnection(std::shared_ptr<Connection> connection);
   bool CloseConnection(const NodeId& peer_id);
   void RemoveConnection(std::shared_ptr<Connection> connection);
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
@@ -121,7 +121,7 @@ class ConnectionManager {
   // Because the connections can be in an idle state with no pending async operations, they are kept
   // alive with a shared_ptr in this set, as well as in the async operation handlers.
   ConnectionGroup connections_;
-  mutable boost::mutex mutex_;
+  mutable std::mutex mutex_;
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
   std::shared_ptr<Multiplexer> multiplexer_;
