@@ -72,7 +72,7 @@ ConnectionManager::~ConnectionManager() {
 
 void ConnectionManager::Close() {
   multiplexer_->dispatcher_.SetConnectionManager(nullptr);
-  boost::mutex::scoped_lock lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   for (auto it = connections_.begin(); it != connections_.end(); ++it)
     strand_.post(std::bind(&Connection::Close, *it));
 }
@@ -90,23 +90,20 @@ void ConnectionManager::Connect(const NodeId& peer_id,
   }
 }
 
-bool ConnectionManager::AddConnection(ConnectionPtr connection) {
+int ConnectionManager::AddConnection(ConnectionPtr connection) {
   assert(connection->state() != Connection::State::kPending);
-  std::pair<ConnectionGroup::iterator, bool> result;
-  boost::mutex::scoped_lock lock(mutex_);
-  if (IsNormal(connection))
-    result = connections_.insert(connection);
-  else
-    return false;
-  assert(result.second);
-  return result.second;
+  if (!IsNormal(connection))
+    return kInvalidConnection;
+  std::lock_guard<std::mutex> lock(mutex_);
+  auto result(connections_.insert(connection));
+  return result.second ? kSuccess : kConnectionAlreadyExists;
 }
 
 bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
-  boost::mutex::scoped_lock lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
-    LOG(kWarning) << "Not currently connected to " << DebugId(peer_id);
+    LOG(kWarning) << DebugId(kThisNodeId_) << " Not currently connected to " << DebugId(peer_id);
     return false;
   }
 
@@ -117,17 +114,16 @@ bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
 }
 
 void ConnectionManager::RemoveConnection(ConnectionPtr connection) {
-  boost::mutex::scoped_lock lock(mutex_);
-  assert(IsNormal(connection));
+  std::lock_guard<std::mutex> lock(mutex_);
+  assert(IsNormal(connection) || connection->state() == Connection::State::kDuplicate);
   connections_.erase(connection);
 }
 
-
 ConnectionManager::ConnectionPtr ConnectionManager::GetConnection(const NodeId& peer_id) {
-  boost::mutex::scoped_lock lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
-    LOG(kInfo) << "Not currently connected to " << DebugId(peer_id);
+    LOG(kInfo) << DebugId(kThisNodeId_) << " Not currently connected to " << DebugId(peer_id);
     return ConnectionPtr();
   }
   return *itr;
@@ -146,10 +142,10 @@ void ConnectionManager::Ping(const NodeId& peer_id,
 bool ConnectionManager::Send(const NodeId& peer_id,
                              const std::string& message,
                              const std::function<void(int)>& message_sent_functor) {  // NOLINT (Fraser)
-  boost::mutex::scoped_lock lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
-    LOG(kWarning) << "Not currently connected to " << DebugId(peer_id);
+    LOG(kWarning) << DebugId(kThisNodeId_) << " Not currently connected to " << DebugId(peer_id);
     return false;
   }
 
@@ -165,7 +161,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
 
   uint32_t socket_id(0);
   if (!Packet::DecodeDestinationSocketId(&socket_id, data)) {
-    LOG(kError) << "Received a non-RUDP packet from " << endpoint;
+    LOG(kError) << DebugId(kThisNodeId_) << " Received a non-RUDP packet from " << endpoint;
     return nullptr;
   }
 
@@ -173,17 +169,20 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
   if (socket_id == 0) {
     HandshakePacket handshake_packet;
     if (!handshake_packet.Decode(data)) {
-      LOG(kVerbose) << "Failed to decode handshake packet from " << endpoint;
+      LOG(kVerbose) << DebugId(kThisNodeId_) << " Failed to decode handshake packet from "
+                    << endpoint;
       return nullptr;
     }
     if (handshake_packet.ConnectionReason() == Session::kNormal) {
       // This is a handshake packet on a newly-added socket
-      LOG(kVerbose) << "This is a handshake packet on a newly-added socket from " << endpoint;
+      LOG(kVerbose) << DebugId(kThisNodeId_)
+                    << " This is a handshake packet on a newly-added socket from " << endpoint;
       socket_iter = std::find_if(
           sockets_.begin(),
           sockets_.end(),
           [endpoint](const SocketMap::value_type& socket_pair) {
-            return socket_pair.second->PeerEndpoint() == endpoint;
+            return socket_pair.second->PeerEndpoint() == endpoint &&
+                   !socket_pair.second->IsConnected();
           });
       // If the socket wasn't found, this could be a connect attempt from a peer using symmetric
       // NAT, so the peer's port may be different to what this node was told to expect.
@@ -197,10 +196,10 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
                      !socket_pair.second->IsConnected();
             });
         if (socket_iter != sockets_.end()) {
-          LOG(kVerbose) << "\t\t\tUpdating peer's endpoint from "
+          LOG(kVerbose) << DebugId(kThisNodeId_) << " Updating peer's endpoint from "
                         << socket_iter->second->PeerEndpoint() << " to " << endpoint;
           socket_iter->second->UpdatePeerEndpoint(endpoint);
-          LOG(kVerbose) << "\t\t\tPeer's endpoint now: "
+          LOG(kVerbose) << DebugId(kThisNodeId_) << " Peer's endpoint now: "
                         << socket_iter->second->PeerEndpoint() << "  and guessed port = "
                         << socket_iter->second->PeerGuessedPort();
         }
@@ -220,10 +219,10 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
         if (sockets_.size() == 1U) {
           // This is a handshake packet from a peer replying to this node's join attempt,
           // or from a peer starting a zero state network with this node
-          LOG(kVerbose) << "This is a handshake packet from " << endpoint
+          LOG(kVerbose) << DebugId(kThisNodeId_) << " This is a handshake packet from " << endpoint
                         << " which is replying to a join request, or starting a new network";
         } else {
-          LOG(kVerbose) << "This is a handshake packet from " << endpoint
+          LOG(kVerbose) << DebugId(kThisNodeId_) << " This is a handshake packet from " << endpoint
                         << " which is replying to a ping request";
         }
       }
@@ -237,15 +236,16 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
     return socket_iter->second;
   } else {
     const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
-    LOG(kInfo) << "Received a packet \"0x" << std::hex << static_cast<int>(*p) << std::dec
-                << "\" for unknown connection " << socket_id << " from " << endpoint;
+    LOG(kVerbose) << DebugId(kThisNodeId_) << "  Received a packet \"0x" << std::hex
+                  << static_cast<int>(*p) << std::dec << "\" for unknown connection " << socket_id
+                  << " from " << endpoint;
     return nullptr;
   }
 }
 
 void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
                                        const Endpoint& endpoint) {
-  LOG(kVerbose) << "This is a handshake packet from " << endpoint
+  LOG(kVerbose) << DebugId(kThisNodeId_) << " This is a handshake packet from " << endpoint
                 << " which is trying to ping this node or join the network";
   if (handshake_packet.node_id() == kThisNodeId_) {
     LOG(kWarning) << DebugId(kThisNodeId_) << " is handshaking with another local transport.";
@@ -256,7 +256,7 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
     ConnectionPtr joining_connection;
     bool bootstrap_and_drop(handshake_packet.ConnectionReason() == Session::kBootstrapAndDrop);
     {
-      boost::mutex::scoped_lock lock(mutex_);
+      std::lock_guard<std::mutex> lock(mutex_);
       auto itr(FindConnection(handshake_packet.node_id()));
       if (itr != connections_.end() && !bootstrap_and_drop)
         joining_connection = *itr;
@@ -280,10 +280,10 @@ bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id,
                                                 bool validated,
                                                 Endpoint& peer_endpoint) {
   peer_endpoint = Endpoint();
-  boost::mutex::scoped_lock lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
-    LOG(kWarning) << "Not currently connected to " << DebugId(peer_id);
+    LOG(kWarning) << DebugId(kThisNodeId_) << " Not currently connected to " << DebugId(peer_id);
     return false;
   }
   (*itr)->MakePermanent(validated);
@@ -294,7 +294,7 @@ bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id,
 }
 
 Endpoint ConnectionManager::ThisEndpoint(const NodeId& peer_id) {
-  boost::mutex::scoped_lock lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end())
     return Endpoint();
@@ -306,7 +306,7 @@ void ConnectionManager::SetBestGuessExternalEndpoint(const Endpoint& external_en
 }
 
 Endpoint ConnectionManager::RemoteNatDetectionEndpoint(const NodeId& peer_id) {
-  boost::mutex::scoped_lock lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end())
     return Endpoint();
@@ -330,7 +330,7 @@ void ConnectionManager::RemoveSocket(uint32_t id) {
 }
 
 size_t ConnectionManager::NormalConnectionsCount() const {
-  boost::mutex::scoped_lock lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   return connections_.size();
 }
 
@@ -354,7 +354,7 @@ std::shared_ptr<asymm::PublicKey> ConnectionManager::public_key() const {
 
 std::string ConnectionManager::DebugString() {
   std::string s;
-  boost::mutex::scoped_lock lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_);
   for (auto c : connections_) {
     s += "\t\tPeer " + c->PeerDebugId();
     s += std::string("  ") + boost::lexical_cast<std::string>(c->state());

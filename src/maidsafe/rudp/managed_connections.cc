@@ -49,8 +49,7 @@ ManagedConnections::PendingConnection::PendingConnection(const NodeId& node_id_i
     : node_id(node_id_in),
       pending_transport(transport),
       timer(io_service, bptime::microsec_clock::universal_time() +
-                        Parameters::rendezvous_connect_timeout +
-                        bptime::milliseconds(RandomUint32() % 500)),
+                        Parameters::rendezvous_connect_timeout),
       connecting(false) {}
 
 
@@ -346,7 +345,7 @@ bool ManagedConnections::ExistingConnection(const NodeId& peer_id,
     return false;
 
   std::shared_ptr<detail::Connection> connection((*itr).second->GetConnection(peer_id));
-  assert(connection);
+  //assert(connection);
   if (!connection) {
     LOG(kError) << "Internal ManagedConnections error: mismatch between connections_ and "
                 << "actual connections.";
@@ -680,7 +679,7 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
 #ifndef NDEBUG
   auto itr(idle_transports_.begin());
   while (itr != idle_transports_.end()) {
-    assert((*itr)->IsIdle());
+    //assert((*itr)->IsIdle());
     if (!(*itr)->IsAvailable())
       itr = idle_transports_.erase(itr);
     else
