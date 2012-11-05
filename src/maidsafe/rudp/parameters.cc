@@ -23,6 +23,8 @@ int Parameters::max_transports(10);
 uint32_t Parameters::default_window_size(64);
 uint32_t Parameters::maximum_window_size(512);
 uint32_t Parameters::default_size(1480);
+// TODO(Fraser#5#): 2012-11-05 - Re-enable higher buffer limits on Windows once Session is able to
+//                               set these on a per-connection basis during handshaking.
 // #ifdef MAIDSAFE_WIN32
 // uint32_t Parameters::max_size(25980);
 // uint32_t Parameters::max_data_size(25950);
