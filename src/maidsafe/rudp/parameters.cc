@@ -23,13 +23,13 @@ int Parameters::max_transports(10);
 uint32_t Parameters::default_window_size(64);
 uint32_t Parameters::maximum_window_size(512);
 uint32_t Parameters::default_size(1480);
-#ifdef MAIDSAFE_WIN32
-uint32_t Parameters::max_size(25980);
-uint32_t Parameters::max_data_size(25950);
-#else
+// #ifdef MAIDSAFE_WIN32
+// uint32_t Parameters::max_size(25980);
+// uint32_t Parameters::max_data_size(25950);
+// #else
 uint32_t Parameters::max_size(8192);
 uint32_t Parameters::max_data_size(8162);
-#endif
+// #endif
 uint32_t Parameters::default_data_size(1450);
 Timeout Parameters::default_send_timeout(bptime::milliseconds(500));
 Timeout Parameters::default_receive_timeout(bptime::milliseconds(500));

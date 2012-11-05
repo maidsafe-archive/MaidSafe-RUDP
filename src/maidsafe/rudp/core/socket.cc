@@ -178,7 +178,6 @@ void Socket::StartProbe() {
   if (kSuccess != sender_.SendKeepalive(keepalive_packet)) {
     waiting_probe_ec_ = boost::asio::error::try_again;
     waiting_probe_.cancel();
-    waiting_keepalive_sequence_number_ = 0;
   }
 }
 

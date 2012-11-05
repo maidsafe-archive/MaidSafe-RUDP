@@ -201,6 +201,7 @@ void Sender::HandleKeepalive(const KeepalivePacket& packet) {
 }
 
 ReturnCode Sender::SendKeepalive(const KeepalivePacket& keepalive_packet) {
+  assert(keepalive_packet.SequenceNumber());
   return peer_.Send(keepalive_packet);
 }
 
