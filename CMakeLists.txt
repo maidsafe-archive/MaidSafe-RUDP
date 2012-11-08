@@ -98,10 +98,12 @@ set(STYLE_RUDP ${STYLE_RUDP} ${ALL_TEST_FILES})
 # Define MaidSafe libraries and executables                                                       #
 ###################################################################################################
 ms_add_static_library(rudp ${ALL_FILES})
-ms_add_executable(TESTrudp "Tests/RUDP" ${ALL_TEST_FILES})
-
 target_link_libraries(maidsafe_rudp maidsafe_common)
-target_link_libraries(TESTrudp maidsafe_rudp)
+
+if(MAIDSAFE_TESTING)
+  ms_add_executable(TESTrudp "Tests/RUDP" ${ALL_TEST_FILES})
+  target_link_libraries(TESTrudp maidsafe_rudp)
+endif()
 
 rename_outdated_built_exes()
 
@@ -115,7 +117,9 @@ include(maidsafe_standard_flags)
 ###################################################################################################
 # Tests                                                                                           #
 ###################################################################################################
-add_style_test(${STYLE_RUDP})
-add_gtests(TESTrudp)
-add_project_experimental()
-test_summary_output()
+if(MAIDSAFE_TESTING)
+  add_style_test(${STYLE_RUDP})
+  add_gtests(TESTrudp)
+  add_project_experimental()
+  test_summary_output()
+endif()
