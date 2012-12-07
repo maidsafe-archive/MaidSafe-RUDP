@@ -13,12 +13,12 @@
 #define MAIDSAFE_RUDP_TESTS_TEST_UTILS_H_
 
 #include <cstdint>
+#include <future>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "boost/asio/ip/udp.hpp"
-#include "boost/thread/future.hpp"
 #include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 #include "maidsafe/common/test.h"
@@ -54,8 +54,7 @@ class Node {
   int Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
                 NodeId& chosen_bootstrap_peer,
                 Endpoint local_endpoint = Endpoint());
-  boost::unique_future<std::vector<std::string>> GetFutureForMessages(
-      const uint32_t& message_count);
+  std::future<std::vector<std::string>> GetFutureForMessages(const uint32_t& message_count);
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
   std::string debug_node_id() const { return DebugId(node_id_); }
@@ -87,7 +86,7 @@ class Node {
   ManagedConnectionsPtr managed_connections_;
   bool promised_;
   uint32_t total_message_count_expectation_;
-  boost::promise<std::vector<std::string>> message_promise_;
+  std::promise<std::vector<std::string>> message_promise_;
 };
 
 

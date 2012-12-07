@@ -49,7 +49,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
   void RunNetworkTest(const uint16_t& num_messages, const int& messages_size) {
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
     std::vector<std::vector<std::string>> sent_messages;
-    std::vector<boost::unique_future<std::vector<std::string>>> futures;  // NOLINT (Fraser)
+    std::vector<std::future<std::vector<std::string>>> futures;  // NOLINT (Fraser)
 
     // Generate_messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
@@ -89,8 +89,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Waiting for all results (promises)
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      bptime::milliseconds timeout((num_messages * messages_size / 20) + 5000);
-      if (futures.at(i).timed_wait(timeout)) {
+      std::chrono::milliseconds timeout((num_messages * messages_size / 20) + 5000);
+      if (futures.at(i).wait_for(timeout) == std::future_status::ready) {
         auto messages(futures.at(i).get());
         EXPECT_TRUE(!messages.empty());
       } else {

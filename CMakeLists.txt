@@ -67,6 +67,7 @@ file(GLOB HEADER_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/t
 set(ALL_FILES_RUDP_TESTS_DIR ${SOURCE_FILES_RUDP_TESTS_DIR} ${HEADER_FILES_RUDP_TESTS_DIR})
 source_group("Main Test Source Files" FILES ${SOURCE_FILES_RUDP_TESTS_DIR})
 source_group("Main Test Header Files" FILES ${HEADER_FILES_RUDP_TESTS_DIR})
+list(REMOVE_ITEM ALL_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/performance_tool.cc")
 
 file(GLOB SOURCE_FILES_RUDP_CORE_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/tests/*.cc")
 file(GLOB HEADER_FILES_RUDP_CORE_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/tests/*.h")
@@ -91,7 +92,7 @@ set(ALL_TEST_FILES
     ${ALL_FILES_RUDP_CORE_TESTS_DIR}
 #     ${ALL_FILES_RUDP_OPERATIONS_TESTS_DIR}
     ${ALL_FILES_RUDP_PACKETS_TESTS_DIR})
-set(STYLE_RUDP ${STYLE_RUDP} ${ALL_TEST_FILES})
+set(STYLE_RUDP ${STYLE_RUDP} ${ALL_TEST_FILES} "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/performance_tool.cc")
 
 
 ###################################################################################################
@@ -102,7 +103,12 @@ target_link_libraries(maidsafe_rudp maidsafe_common)
 
 if(MAIDSAFE_TESTING)
   ms_add_executable(TESTrudp "Tests/RUDP" ${ALL_TEST_FILES})
+  ms_add_executable(rudp_performance_tool "Tools"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/performance_tool.cc"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/test_utils.cc"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/test_utils.h")
   target_link_libraries(TESTrudp maidsafe_rudp)
+  target_link_libraries(rudp_performance_tool maidsafe_rudp)
 endif()
 
 rename_outdated_built_exes()
