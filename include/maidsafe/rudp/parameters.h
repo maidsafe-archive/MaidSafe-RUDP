@@ -105,6 +105,9 @@ struct Parameters {
   };
   static ConnectionType connection_type;
 
+  // Rudp Encryption switch
+  static bool rudp_encrypt;
+
  private:
   // Disallow copying and assignment.
   Parameters(const Parameters&);

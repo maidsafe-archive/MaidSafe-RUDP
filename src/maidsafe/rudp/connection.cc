@@ -189,15 +189,13 @@ void Connection::StartSending(const std::string& data,
                 << ManagedConnections::kMaxMessageSize() << ")";
     InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
   }
-
+  std::string data_str(data);
+  if (Parameters::rudp_encrypt)
+    data_str = asymm::Encrypt(asymm::PlainText(data), *socket_.PeerPublicKey()).string();
   try {
-    strand_.post(
-      std::bind(
-        &Connection::DoQueueSendRequest,
-        shared_from_this(),
-        SendRequest(
-          asymm::Encrypt(asymm::PlainText(data), *socket_.PeerPublicKey()).string(),
-          message_sent_functor)));
+    strand_.post(std::bind(&Connection::DoQueueSendRequest,
+                           shared_from_this(),
+                           SendRequest(data_str, message_sent_functor)));
   }
   catch(const std::exception& e) {
     LOG(kError) << "Failed to encrypt message: " << e.what();
@@ -230,7 +228,7 @@ void Connection::DoStartSending(SendRequest const& request) {
   MessageSentFunctor wrapped_functor([this, message_sent_functor](int result) {
       InvokeSentFunctor(message_sent_functor, result);
     });
-  
+
   if (Stopped()) {
     InvokeSentFunctor(message_sent_functor, kSendFailure);
     FinishSendAndQueueNext();
@@ -276,7 +274,7 @@ void Connection::StartTick() {
 void Connection::HandleTick() {
   if (!socket_.IsOpen())
     return DoClose();
-  
+
 //  if (sending_) {
 //    uint32_t sent_length = socket_.SentLength();
 //    if (sent_length > 0)
