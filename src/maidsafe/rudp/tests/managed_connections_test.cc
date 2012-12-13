@@ -75,7 +75,10 @@ class ManagedConnectionsTest : public testing::Test {
         nodes_(),
         bootstrap_endpoints_(),
         do_nothing_on_message_([](const std::string&) {}),
-        do_nothing_on_connection_lost_([](const NodeId&) {}) {}
+        do_nothing_on_connection_lost_([](const NodeId&) {}) {
+    rendezvous_connect_timeout = std::chrono::milliseconds(
+        Parameters::rendezvous_connect_timeout.total_milliseconds());
+  }
   ~ManagedConnectionsTest() {}
 
  protected:
@@ -532,7 +535,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
                                                nodes_[1]->node_id(),
                                                nodes_[1]->public_key());
   ASSERT_EQ(kSuccess, multiplexer->Open(endpoint));
-  
+
   multiplexer->AsyncDispatch(std::bind(&DispatchHandler, args::_1, multiplexer));
 
   detail::Socket socket(*multiplexer, peer_nat_type);
@@ -584,7 +587,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   for(unsigned count=0;(nodes_[1]->managed_connections()->GetActiveConnectionCount()<4) &&(count<10);++count)
       Sleep(bptime::milliseconds(100));
   EXPECT_EQ(nodes_[1]->managed_connections()->GetActiveConnectionCount(), 4);
-    
+
   node_.managed_connections()->Remove(chosen_node);
   ASSERT_TRUE(wait_for_signals(1));
   ASSERT_EQ(node_.connection_lost_node_ids().size(), 1U);
