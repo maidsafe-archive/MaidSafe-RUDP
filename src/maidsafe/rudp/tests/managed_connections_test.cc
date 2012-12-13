@@ -748,6 +748,87 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
     EXPECT_EQ(kMessage, peer_message);
 }
 
+
+TEST_F(ManagedConnectionsTest, BEH_API_ManyTimesSimpleSend) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
+
+  int result_of_send(kSuccess);
+  int result_arrived_count(0);
+  std::condition_variable cond_var;
+  std::mutex mutex;
+  std::unique_lock<std::mutex> lock(mutex);
+  MessageSentFunctor message_sent_functor([&](int result_in) {
+    std::lock_guard<std::mutex> lock(mutex);
+    result_of_send = result_in;
+    ++result_arrived_count;
+    cond_var.notify_one();
+  });
+  auto wait_for_result([&](int count) {
+    return cond_var.wait_for(lock,
+                             std::chrono::seconds(60),
+                             [&]() { return result_arrived_count == count; });  // NOLINT (Fraser)
+  });
+
+  NodeId chosen_node;
+  EXPECT_EQ(kSuccess,
+            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
+  ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
+  for(unsigned count=0;(nodes_[0]->managed_connections()->GetActiveConnectionCount()<2) &&(count<10);++count)
+      Sleep(bptime::milliseconds(100));
+  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
+
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->GetAvailableEndpoint(nodes_[1]->node_id(),
+                                                              EndpointPair(),
+                                                              this_endpoint_pair,
+                                                              nat_type));
+  EXPECT_EQ(kSuccess,
+            nodes_[1]->managed_connections()->GetAvailableEndpoint(node_.node_id(),
+                                                                   this_endpoint_pair,
+                                                                   peer_endpoint_pair,
+                                                                   nat_type));
+  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+
+  auto peer_futures(nodes_[1]->GetFutureForMessages(1));
+  auto this_node_futures(node_.GetFutureForMessages(1));
+  EXPECT_EQ(kSuccess,
+            nodes_[1]->managed_connections()->Add(node_.node_id(),
+                                                  this_endpoint_pair,
+                                                  nodes_[1]->validation_data()));
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->Add(nodes_[1]->node_id(),
+                                             peer_endpoint_pair,
+                                             node_.validation_data()));
+  ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(rendezvous_connect_timeout));
+  auto peer_messages(peer_futures.get());
+  ASSERT_EQ(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+  auto this_node_messages(this_node_futures.get());
+  ASSERT_EQ(1U, peer_messages.size());
+  ASSERT_EQ(1U, this_node_messages.size());
+  EXPECT_EQ(node_.validation_data(), peer_messages[0]);
+  EXPECT_EQ(nodes_[1]->validation_data(), this_node_messages[0]);
+
+  node_.ResetData();
+  nodes_[1]->ResetData();
+  const int kRepeatCount(10000);
+  peer_futures = nodes_[1]->GetFutureForMessages(kRepeatCount);
+  const std::string kMessage(RandomAlphaNumericString(1024));
+  for (int i(0); i != kRepeatCount; ++i)
+    node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, message_sent_functor);
+
+  ASSERT_TRUE(wait_for_result(kRepeatCount));
+  EXPECT_EQ(kSuccess, result_of_send);
+  ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(std::chrono::minutes(2)));
+  peer_messages = peer_futures.get();
+  ASSERT_EQ(static_cast<size_t>(kRepeatCount), peer_messages.size());
+  for (auto peer_message : peer_messages)
+    EXPECT_EQ(kMessage, peer_message);
+}
+
+
 TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
