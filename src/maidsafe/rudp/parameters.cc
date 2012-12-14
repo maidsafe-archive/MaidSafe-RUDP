@@ -50,9 +50,7 @@ uint32_t Parameters::maximum_keepalive_failures(20);
 Timeout Parameters::bootstrap_connection_lifespan(bptime::minutes(10));
 Timeout Parameters::disconnection_timeout(bptime::milliseconds(500));
 Parameters::ConnectionType Parameters::connection_type(Parameters::kWireless);
-#ifdef NO_ENCRYPTION
-bool Parameters::rudp_encrypt(false);
-#else
+#ifdef TESTING
 bool Parameters::rudp_encrypt(true);
 #endif
 

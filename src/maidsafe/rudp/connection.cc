@@ -189,13 +189,16 @@ void Connection::StartSending(const std::string& data,
                 << ManagedConnections::kMaxMessageSize() << ")";
     InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
   }
-  std::string data_str(data);
-  if (Parameters::rudp_encrypt)
-    data_str = asymm::Encrypt(asymm::PlainText(data), *socket_.PeerPublicKey()).string();
   try {
-    strand_.post(std::bind(&Connection::DoQueueSendRequest,
-                           shared_from_this(),
-                           SendRequest(data_str, message_sent_functor)));
+    strand_.post(std::bind(
+        &Connection::DoQueueSendRequest,
+        shared_from_this(),
+        SendRequest(
+#ifdef TESTING
+            !Parameters::rudp_encrypt ? data :
+#endif
+                asymm::Encrypt(asymm::PlainText(data), *socket_.PeerPublicKey()).string(),
+            message_sent_functor)));
   }
   catch(const std::exception& e) {
     LOG(kError) << "Failed to encrypt message: " << e.what();

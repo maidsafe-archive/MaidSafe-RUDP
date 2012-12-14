@@ -107,7 +107,6 @@ if(MAIDSAFE_TESTING)
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/performance_tool.cc"
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/test_utils.cc"
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/test_utils.h")
-  set_target_properties(maidsafe_rudp PROPERTIES COMPILE_DEFINITIONS "NO_ENCRYPTION")
   target_link_libraries(TESTrudp maidsafe_rudp)
   target_link_libraries(rudp_performance_tool maidsafe_rudp)
 endif()
