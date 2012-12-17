@@ -55,7 +55,7 @@ bool ParseArgs(int argc, char **argv, int& message_count, int& message_size) {
 
 
 int main(int argc, char **argv) {
-  int message_count(0), message_size(0);
+  auto message_count(0), message_size(0);
   if (!ParseArgs(argc, argv, message_count, message_size))
     return -1;
 
@@ -108,12 +108,12 @@ int main(int argc, char **argv) {
       [message_count, &result_arrived_count] { return result_arrived_count == message_count; });  // NOLINT (Fraser)
 
   auto received_messages(messages_futures.get());
-  if (received_messages.size() != message_count) {
+  if (received_messages.size() != static_cast<size_t>(message_count)) {
     LOG(kError) << "Only received " << received_messages.size() << " of " << message_count
                 << " messages.";
     return -3;
   }
-  auto finish_point(std::chrono::steady_clock::now());
+  // auto finish_point(std::chrono::steady_clock::now());
   std::chrono::milliseconds elapsed(std::chrono::steady_clock::now() - start_point);
 
   LOG(kSuccess) << "All messages sent and received.";
