@@ -626,8 +626,11 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
   LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();
 
   try {
-    std::string decrypted_message =
-        asymm::Decrypt(asymm::CipherText(message), *private_key_).string();
+    std::string decrypted_message(
+#ifdef TESTING
+        !Parameters::rudp_encrypt ? message :
+#endif
+            asymm::Decrypt(asymm::CipherText(message), *private_key_).string());
     MessageReceivedFunctor local_callback;
     {
       std::lock_guard<std::mutex> guard(callback_mutex_);
