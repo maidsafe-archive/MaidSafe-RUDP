@@ -113,8 +113,8 @@ int main(int argc, char **argv) {
                 << " messages.";
     return -3;
   }
-  // auto finish_point(std::chrono::steady_clock::now());
-  std::chrono::milliseconds elapsed(std::chrono::steady_clock::now() - start_point);
+  auto finish_point(std::chrono::steady_clock::now());
+  auto elapsed(std::chrono::duration_cast<std::chrono::milliseconds>(finish_point - start_point));
 
   LOG(kSuccess) << "All messages sent and received.";
   intmax_t transfer_rate((message_count * message_size * 1000) / elapsed.count());
