@@ -108,13 +108,13 @@ int main(int argc, char **argv) {
       [message_count, &result_arrived_count] { return result_arrived_count == message_count; });  // NOLINT (Fraser)
 
   auto received_messages(messages_futures.get());
-  if (received_messages.size() != message_count) {
+  if (received_messages.size() != (unsigned)message_count) {
     LOG(kError) << "Only received " << received_messages.size() << " of " << message_count
                 << " messages.";
     return -3;
   }
   auto finish_point(std::chrono::steady_clock::now());
-  std::chrono::milliseconds elapsed(std::chrono::steady_clock::now() - start_point);
+  std::chrono::milliseconds elapsed(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_point));
 
   LOG(kSuccess) << "All messages sent and received.";
   intmax_t transfer_rate((message_count * message_size * 1000) / elapsed.count());
