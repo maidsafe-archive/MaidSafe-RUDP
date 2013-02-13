@@ -59,13 +59,13 @@ class Transport : public std::enable_shared_from_this<Transport> {
  public:
   typedef std::function<void(const std::string&)> OnMessage;
 
-  typedef std::function<
-      void(const NodeId&, std::shared_ptr<Transport>, bool, bool&)> OnConnectionAdded;
+  typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool&)>
+          OnConnectionAdded;
 
-  typedef std::function<
-      void(const NodeId&, std::shared_ptr<Transport>, bool, bool)> OnConnectionLost;
+  typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool)>
+          OnConnectionLost;
 
-  Transport(AsioService& asio_service, NatType& nat_type_);  // NOLINT (Fraser)
+  Transport(AsioService& asio_service, NatType& nat_type_);
 
   virtual ~Transport();
 
@@ -132,7 +132,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   NodeId ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                     const boost::asio::ip::udp::endpoint& bootstrap_endpoint,
                                     const boost::posix_time::time_duration& lifespan);
-  void DetectNatType(NodeId const& peer_id,boost::unique_lock<boost::mutex>& lock);
+  void DetectNatType(NodeId const& peer_id, boost::unique_lock<boost::mutex>& lock);
 
   void DoConnect(const NodeId& peer_id,
                  const EndpointPair& peer_endpoint_pair,
@@ -157,7 +157,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   MultiplexerPtr multiplexer_;
   std::unique_ptr<ConnectionManager> connection_manager_;
   std::mutex callback_mutex_;
-  
+
   OnMessage on_message_;
   OnConnectionAdded on_connection_added_;
   OnConnectionLost on_connection_lost_;

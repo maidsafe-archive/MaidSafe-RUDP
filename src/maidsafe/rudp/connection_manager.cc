@@ -66,15 +66,13 @@ ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
   multiplexer_->dispatcher_.SetConnectionManager(this);
 }
 
-ConnectionManager::~ConnectionManager() {
-  Close();
-}
+ConnectionManager::~ConnectionManager() { Close(); }
 
 void ConnectionManager::Close() {
   multiplexer_->dispatcher_.SetConnectionManager(nullptr);
   std::lock_guard<std::mutex> lock(mutex_);
-  for (auto it = connections_.begin(); it != connections_.end(); ++it)
-    strand_.post(std::bind(&Connection::Close, *it));
+  for (auto connection : connections_)
+    strand_.post(std::bind(&Connection::Close, connection));
 }
 
 void ConnectionManager::Connect(const NodeId& peer_id,
@@ -174,24 +172,23 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
       // This is a handshake packet on a newly-added socket
       LOG(kVerbose) << DebugId(kThisNodeId_)
                     << " This is a handshake packet on a newly-added socket from " << endpoint;
-      socket_iter = std::find_if(
-          sockets_.begin(),
-          sockets_.end(),
-          [endpoint](const SocketMap::value_type& socket_pair) {
-            return socket_pair.second->PeerEndpoint() == endpoint &&
-                   !socket_pair.second->IsConnected();
-          });
+      socket_iter = std::find_if(sockets_.begin(),
+                                 sockets_.end(),
+                                 [endpoint] (const SocketMap::value_type& socket_pair) {
+                                   return socket_pair.second->PeerEndpoint() == endpoint &&
+                                         !socket_pair.second->IsConnected();
+                                 });
       // If the socket wasn't found, this could be a connect attempt from a peer using symmetric
       // NAT, so the peer's port may be different to what this node was told to expect.
       if (socket_iter == sockets_.end()) {
-        socket_iter = std::find_if(
-            sockets_.begin(),
-            sockets_.end(),
-            [endpoint](const SocketMap::value_type& socket_pair) {
-              return socket_pair.second->PeerEndpoint().address() == endpoint.address() &&
-                     !OnPrivateNetwork(socket_pair.second->PeerEndpoint()) &&
-                     !socket_pair.second->IsConnected();
-            });
+        socket_iter = std::find_if(sockets_.begin(),
+                                   sockets_.end(),
+                                   [endpoint] (const SocketMap::value_type& socket_pair) {
+                                     return socket_pair.second->PeerEndpoint().address() ==
+                                                endpoint.address() &&
+                                            !OnPrivateNetwork(socket_pair.second->PeerEndpoint()) &&
+                                            !socket_pair.second->IsConnected();
+                                   });
         if (socket_iter != sockets_.end()) {
           LOG(kVerbose) << DebugId(kThisNodeId_) << " Updating peer's endpoint from "
                         << socket_iter->second->PeerEndpoint() << " to " << endpoint;
@@ -202,12 +199,11 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
         }
       }
     } else {  // Session::mode_ != kNormal
-      socket_iter = std::find_if(
-          sockets_.begin(),
-          sockets_.end(),
-          [endpoint](const SocketMap::value_type& socket_pair) {
-            return socket_pair.second->PeerEndpoint() == endpoint;
-          });
+      socket_iter = std::find_if(sockets_.begin(),
+                                 sockets_.end(),
+                                 [endpoint] (const SocketMap::value_type& socket_pair) {
+                                   return socket_pair.second->PeerEndpoint() == endpoint;
+                                 });
       if (socket_iter == sockets_.end()) {
         // This is a handshake packet from a peer trying to ping this node or join the network
         HandlePingFrom(handshake_packet, endpoint);
@@ -265,7 +261,10 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
       joining_connection->Close();
     } else {
       // Joining node is not already connected - start new bootstrap or temporary connection
-      Connect(handshake_packet.node_id(), endpoint, "", Parameters::bootstrap_connect_timeout,
+      Connect(handshake_packet.node_id(),
+              endpoint,
+              "",
+              Parameters::bootstrap_connect_timeout,
               bootstrap_and_drop ? bptime::time_duration() :
                                    Parameters::bootstrap_connection_lifespan);
     }

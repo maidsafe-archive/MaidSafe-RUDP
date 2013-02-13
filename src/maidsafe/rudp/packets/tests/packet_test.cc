@@ -576,8 +576,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
 
 #ifndef NDEBUG
     // Encode and decode with an invalid public key
-    handshake_packet_.SetPublicKey(
-        std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey()));
+    handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey()));
     ASSERT_DEATH({ handshake_packet_.Encode(boost::asio::buffer(dbuffer)); }, "");  // NOLINT (Fraser)
 #endif
   }
