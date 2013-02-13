@@ -45,18 +45,18 @@ const ip::address_v4 kMinClassC(3232235520U);  // 192.168.0.0
 const ip::address_v4 kMaxClassC(3232301055U);  // 192.168.255.255
 
 bool IsPrivateNetworkAddress(const ip::address_v4& address) {
-  BOOST_ASSERT_MSG(!kMinClassA.is_unspecified(),
-                   (kMinClassA.to_string() + " (kMinClassA) is unspecified.").c_str());
-  BOOST_ASSERT_MSG(!kMaxClassA.is_unspecified(),
-                   (kMaxClassA.to_string() + " (kMaxClassA) is unspecified.").c_str());
-  BOOST_ASSERT_MSG(!kMinClassB.is_unspecified(),
-                   (kMinClassB.to_string() + " (kMinClassB) is unspecified.").c_str());
-  BOOST_ASSERT_MSG(!kMaxClassB.is_unspecified(),
-                   (kMaxClassB.to_string() + " (kMaxClassB) is unspecified.").c_str());
-  BOOST_ASSERT_MSG(!kMinClassC.is_unspecified(),
-                   (kMinClassC.to_string() + " (kMinClassC) is unspecified.").c_str());
-  BOOST_ASSERT_MSG(!kMaxClassC.is_unspecified(),
-                   (kMaxClassC.to_string() + " (kMaxClassC) is unspecified.").c_str());
+  assert(!kMinClassA.is_unspecified() &&
+         (kMinClassA.to_string() + " (kMinClassA) is unspecified.").c_str());
+  assert(!kMaxClassA.is_unspecified() &&
+         (kMaxClassA.to_string() + " (kMaxClassA) is unspecified.").c_str());
+  assert(!kMinClassB.is_unspecified() &&
+         (kMinClassB.to_string() + " (kMinClassB) is unspecified.").c_str());
+  assert(!kMaxClassB.is_unspecified() &&
+         (kMaxClassB.to_string() + " (kMaxClassB) is unspecified.").c_str());
+  assert(!kMinClassC.is_unspecified() &&
+         (kMinClassC.to_string() + " (kMinClassC) is unspecified.").c_str());
+  assert(!kMaxClassC.is_unspecified() &&
+         (kMaxClassC.to_string() + " (kMaxClassC) is unspecified.").c_str());
   if (address <= kMaxClassA)
     return address >= kMinClassA;
   if (address <= kMaxClassB)

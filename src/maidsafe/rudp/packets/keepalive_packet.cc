@@ -47,7 +47,7 @@ bool KeepalivePacket::IsResponse() const {
 }
 
 bool KeepalivePacket::IsResponseOf(const uint32_t& sequence_number) const {
-  BOOST_VERIFY(IsResponse() && (sequence_number & 0x00000001));
+  assert(IsResponse() && (sequence_number & 0x00000001));
   return (sequence_number + 1 == SequenceNumber());
 }
 

@@ -106,12 +106,9 @@ void CongestionControl::OnGenerateAck(uint32_t /*seqnum*/) {
 
   // Determine packet arrival speed only if we had more than 8 valid values.
   if ((total > 0) && (num_valid_intervals > 8)) {
-    BOOST_ASSERT(num_valid_intervals <=
-                 std::numeric_limits<uint64_t>::max() / 1000000);
-    BOOST_ASSERT((1000000 * num_valid_intervals) / total <=
-                 std::numeric_limits<uint32_t>::max());
-    packets_receiving_rate_ =
-        static_cast<uint32_t>(((1000000 * num_valid_intervals) / total));
+    assert(num_valid_intervals <= std::numeric_limits<uint64_t>::max() / 1000000);
+    assert((1000000 * num_valid_intervals) / total <= std::numeric_limits<uint32_t>::max());
+    packets_receiving_rate_ = static_cast<uint32_t>(((1000000 * num_valid_intervals) / total));
   } else {
     packets_receiving_rate_ = 0;
   }
@@ -258,7 +255,7 @@ bool CongestionControl::IsSlowTransmission(size_t /*length*/) {
 //    // only calculate speed every calculation interval
 //    boost::posix_time::time_duration duration = now - last_record_transmit_time_;
 //    if (duration > Parameters::speed_calculate_inverval) {
-//      BOOST_ASSERT(transmitted_bytes_ < std::numeric_limits<uintmax_t>::max() / 1000);
+//      assert(transmitted_bytes_ < std::numeric_limits<uintmax_t>::max() / 1000);
 //      bits_per_second_ = (1000 * transmitted_bytes_) / duration.total_milliseconds();
 //      // be different to the initial state
 //      transmitted_bytes_ = 0;
@@ -303,7 +300,7 @@ size_t CongestionControl::SendDataSize() const {
 }
 
 int32_t CongestionControl::BestReadBufferSize() const {
-  BOOST_ASSERT(static_cast<int32_t>(receive_window_size_ * Parameters::max_data_size) > 0);
+  assert(static_cast<int32_t>(receive_window_size_ * Parameters::max_data_size) > 0);
   return static_cast<int32_t>(receive_window_size_ * Parameters::max_data_size);
 }
 

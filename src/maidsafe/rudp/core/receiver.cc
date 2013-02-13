@@ -218,11 +218,9 @@ void Receiver::HandleTick() {
 }
 
 uint32_t Receiver::AvailableBufferSize() const {
-  size_t free_packets = unread_packets_.IsFull() ?
-                        0 : unread_packets_.MaximumSize() -
-                            unread_packets_.Size();
-  BOOST_ASSERT(free_packets * Parameters::max_data_size <
-               std::numeric_limits<uint32_t>::max());
+  size_t free_packets =
+      unread_packets_.IsFull() ? 0 : unread_packets_.MaximumSize() - unread_packets_.Size();
+  assert(free_packets * Parameters::max_data_size < std::numeric_limits<uint32_t>::max());
   return static_cast<uint32_t>(free_packets * Parameters::max_data_size);
 }
 

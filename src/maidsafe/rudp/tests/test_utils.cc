@@ -349,7 +349,7 @@ void Node::ResetData() {
 }
 
 std::future<std::vector<std::string>> Node::GetFutureForMessages(const uint32_t& message_count) {
-  BOOST_ASSERT(message_count > 0);
+  assert(message_count > 0);
   total_message_count_expectation_ = message_count;
   promised_ = true;
   std::promise<std::vector<std::string>> message_promise;

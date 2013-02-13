@@ -68,8 +68,8 @@ bool Transport::Bootstrap(
     OnConnectionLost on_connection_lost_slot,
     const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
     NodeId& chosen_id) {
-  BOOST_ASSERT(on_nat_detection_requested_slot);
-  BOOST_ASSERT(!multiplexer_->IsOpen());
+  assert(on_nat_detection_requested_slot);
+  assert(!multiplexer_->IsOpen());
 
   chosen_id = NodeId();
   ReturnCode result = multiplexer_->Open(local_endpoint);
@@ -87,7 +87,7 @@ bool Transport::Bootstrap(
     on_connection_added_=std::move(on_connection_added_slot);
     on_connection_lost_=std::move(on_connection_lost_slot);
   }
-  
+
   on_nat_detection_requested_slot_ = on_nat_detection_requested_slot;
 
   connection_manager_.reset(new ConnectionManager(shared_from_this(), strand_, multiplexer_,
@@ -142,11 +142,11 @@ namespace{
     std::mutex& mutex_;
     FunctorType& functor_to_replace_;
     FunctorType& save_slot_;
-    
+
     LocalFunctorReplacement(LocalFunctorReplacement const&);
     LocalFunctorReplacement& operator=(LocalFunctorReplacement const&);
   };
-  
+
 }
 
 
@@ -169,7 +169,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
   {
     OnConnectionAdded saved_on_connection_added;
     OnConnectionLost saved_on_connection_lost;
-    
+
     LocalFunctorReplacement<OnConnectionAdded> on_conn_added_guard(
       callback_mutex_,on_connection_added_,saved_on_connection_added,
       [&](
@@ -179,7 +179,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
         bool& is_duplicate_normal_connection) {
         saved_on_connection_added(
           connected_peer_id,transport,temporary_connection,is_duplicate_normal_connection);
-        
+
         assert(!slot_called);
         boost::mutex::scoped_lock local_lock(local_mutex);
         slot_called = true;
@@ -194,7 +194,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
         bool temporary_connection,
         bool timed_out) {
         saved_on_connection_lost(connected_peer_id,transport,temporary_connection,timed_out);
-        
+
         boost::mutex::scoped_lock local_lock(local_mutex);
         if (!slot_called) {
           slot_called = true;
@@ -203,10 +203,10 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           local_cond_var.notify_one();
         }
       });
-    
+
     connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
                                  Parameters::bootstrap_connect_timeout, lifespan);
-    
+
     lock.lock();
     if(!local_cond_var.timed_wait(
          lock,Parameters::bootstrap_connect_timeout + bptime::seconds(1),
@@ -229,7 +229,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
 
 void Transport::DetectNatType(NodeId const& peer_id,boost::unique_lock<boost::mutex>& lock){
   assert(lock.owns_lock());
-  
+
   Endpoint nat_detection_endpoint(
       connection_manager_->RemoteNatDetectionEndpoint(peer_id));
   if (IsValid(nat_detection_endpoint)) {
@@ -439,7 +439,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
       connection->MarkAsDuplicateAndClose(Connection::State::kDuplicate);
     }
   }
-  
+
 #ifndef NDEBUG
   std::string s("\n++++++++++++++++++++++++\nAdded ");
   s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
