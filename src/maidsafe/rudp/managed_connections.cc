@@ -189,7 +189,7 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
                             public_key_,
                             local_endpoint,
                             bootstrap_off_existing_connection,
-                            boost::bind(&ManagedConnections::OnMessageSlot, this, _1),
+                            std::bind(&ManagedConnections::OnMessageSlot, this, args::_1),
                             [this] (const NodeId& peer_id,
                                     TransportPtr transport,
                                     bool temporary_connection,
@@ -199,10 +199,10 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
                                                     temporary_connection,
                                                     is_duplicate_normal_connection);
                             },
-                            boost::bind(&ManagedConnections::OnConnectionLostSlot, this,
-                                        _1, _2, _3),
-                            boost::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this,
-                                        _1, _2, _3, _4),
+                            std::bind(&ManagedConnections::OnConnectionLostSlot, this,
+                                      args::_1, args::_2, args::_3),
+                            std::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this,
+                                      args::_1, args::_2, args::_3, args::_4),
                             chosen_id)) {
     std::lock_guard<std::mutex> lock(mutex_);
     LOG(kWarning) << "Failed to start a new Transport.";
