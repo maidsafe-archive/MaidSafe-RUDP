@@ -760,16 +760,16 @@ TEST_F(ManagedConnectionsTest, BEH_API_ManyTimesSimpleSend) {
   int result_arrived_count(0);
   std::condition_variable cond_var;
   std::mutex mutex;
-  std::unique_lock<std::mutex> lock(mutex);
   MessageSentFunctor message_sent_functor([&](int result_in) {
-    std::lock_guard<std::mutex> lock(mutex);
-    result_of_send = result_in;
-    ++result_arrived_count;
-    cond_var.notify_one();
-  });
-  auto wait_for_result([&](int count) {
+                                            std::lock_guard<std::mutex> lock(mutex);
+                                            result_of_send = result_in;
+                                            ++result_arrived_count;
+                                            cond_var.notify_one();
+                                          });
+  auto wait_for_result([&] (int count) {
+    std::unique_lock<std::mutex> lock(mutex);
     return cond_var.wait_for(lock,
-                             std::chrono::seconds(60),
+                             std::chrono::seconds(500),
                              [&]() { return result_arrived_count == count; });  // NOLINT (Fraser)
   });
 
@@ -825,7 +825,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_ManyTimesSimpleSend) {
   for (int i(0); i != kRepeatCount; ++i)
     node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, message_sent_functor);
 
-  ASSERT_TRUE(wait_for_result(kRepeatCount));
+  ASSERT_TRUE(wait_for_result(kRepeatCount)) << result_arrived_count << " - " << kRepeatCount;
   EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(std::chrono::minutes(2)));
   peer_messages = peer_futures.get();
@@ -844,7 +844,6 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   bool result_arrived(false);
   std::condition_variable cond_var;
   std::mutex mutex;
-  std::unique_lock<std::mutex> lock(mutex);
   MessageSentFunctor message_sent_functor([&] (int result_in) {
                                             std::lock_guard<std::mutex> lock(mutex);
                                             result_of_send = result_in;
@@ -852,6 +851,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
                                             cond_var.notify_one();
                                           });
   auto wait_for_result([&] {
+    std::unique_lock<std::mutex> lock(mutex);
     return cond_var.wait_for(lock,
                              std::chrono::milliseconds(1000),
                              [&result_arrived] () { return result_arrived; });  // NOLINT (Fraser)
@@ -1009,9 +1009,12 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   nodes_[1]->managed_connections()->Send(node_.node_id(),
                                          sent_message,
                                          message_sent_functor);
-  ASSERT_TRUE(cond_var.wait_for(lock,
-                                std::chrono::seconds(20),
-                                [&result_arrived]() { return result_arrived; }));  // NOLINT (Fraser)
+  {
+   std::unique_lock<std::mutex> lock(mutex);
+    ASSERT_TRUE(cond_var.wait_for(lock,
+                                  std::chrono::seconds(20),
+                                  [&result_arrived]() { return result_arrived; }));  // NOLINT (Fraser)
+  }
   EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_EQ(std::future_status::ready, future_messages_at_peer.wait_for(std::chrono::seconds(20)));
   messages = future_messages_at_peer.get();
@@ -1027,9 +1030,12 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   nodes_[1]->managed_connections()->Send(node_.node_id(),
                                          sent_message,
                                          message_sent_functor);
-  ASSERT_TRUE(cond_var.wait_for(lock,
-                                std::chrono::seconds(10),
-                                [&result_arrived]() { return result_arrived; }));  // NOLINT (Fraser)
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    ASSERT_TRUE(cond_var.wait_for(lock,
+                                  std::chrono::seconds(10),
+                                  [&result_arrived]() { return result_arrived; }));  // NOLINT (Fraser)
+  }
   EXPECT_EQ(kMessageTooLarge, result_of_send);
 }
 

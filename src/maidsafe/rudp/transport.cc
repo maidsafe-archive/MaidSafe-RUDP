@@ -37,6 +37,12 @@ namespace rudp {
 
 namespace detail {
 
+template<typename Rep>
+std::chrono::duration<Rep> BoostToChrono(boost::posix_time::time_duration const & from) {
+  return std::chrono::duration_cast<std::chrono::duration<Rep>>(
+             std::chrono::nanoseconds(from.total_nanoseconds()));
+}
+
 namespace {
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
@@ -87,7 +93,7 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
 Transport::~Transport() { Close(); }
 
 bool Transport::Bootstrap(
-    const std::vector<std::pair<NodeId, Endpoint>> &bootstrap_peers,
+    const std::vector<std::pair<NodeId, Endpoint> > &bootstrap_peers,
     const NodeId& this_node_id,
     std::shared_ptr<asymm::PublicKey> this_public_key,
     Endpoint local_endpoint,
@@ -162,12 +168,12 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
   }
 
   // Temporarily connect to the signals until the connect attempt has succeeded or failed.
-  boost::mutex local_mutex;
-  boost::condition_variable local_cond_var;
+  std::mutex local_mutex;
+  std::condition_variable local_cond_var;
   bool slot_called(false);
   bool timed_out_connecting(false);
   NodeId peer_id;
-  boost::unique_lock<boost::mutex> lock(local_mutex, boost::defer_lock);
+  std::unique_lock<std::mutex> lock(local_mutex, std::defer_lock);
 
   {
     OnConnectionAdded saved_on_connection_added;
@@ -186,7 +192,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                     temporary_connection,
                                     is_duplicate_normal_connection);
           assert(!slot_called);
-          boost::mutex::scoped_lock local_lock(local_mutex);
+          std::lock_guard<std::mutex> local_lock(local_mutex);
           slot_called = true;
           peer_id = connected_peer_id;
           local_cond_var.notify_one();
@@ -200,7 +206,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
              bool temporary_connection,
              bool timed_out) {
           saved_on_connection_lost(connected_peer_id, transport, temporary_connection, timed_out);
-          boost::mutex::scoped_lock local_lock(local_mutex);
+          std::lock_guard<std::mutex> local_lock(local_mutex);
           if (!slot_called) {
             slot_called = true;
             peer_id = connected_peer_id;
@@ -216,9 +222,9 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                  lifespan);
 
     lock.lock();
-    if (!local_cond_var.timed_wait(lock,
-                                   Parameters::bootstrap_connect_timeout + bptime::seconds(1),
-                                   [&] { return slot_called; })) {  // NOLINT (Fraser)
+    if (!local_cond_var.wait_for(lock,
+                                 BoostToChrono<int>(Parameters::bootstrap_connect_timeout + bptime::seconds(1)),
+                                 [&] { return slot_called; })) {  // NOLINT (Fraser)
       LOG(kError) << "Timed out waiting for connection. External endpoint: "
                   << multiplexer_->external_endpoint() << "  Local endpoint: "
                   << multiplexer_->local_endpoint();
@@ -235,25 +241,25 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
   return peer_id;
 }
 
-void Transport::DetectNatType(NodeId const& peer_id, boost::unique_lock<boost::mutex>& lock) {
+void Transport::DetectNatType(NodeId const& peer_id, std::unique_lock<std::mutex>& lock) {
   assert(lock.owns_lock());
 
   Endpoint nat_detection_endpoint(connection_manager_->RemoteNatDetectionEndpoint(peer_id));
   if (IsValid(nat_detection_endpoint)) {
-    boost::condition_variable local_cond_var;
-    boost::mutex& local_mutex = *lock.mutex();
+    std::condition_variable local_cond_var;
+    std::mutex& local_mutex = *lock.mutex();
     int result(kPendingResult);
     connection_manager_->Ping(peer_id,
                               nat_detection_endpoint,
                               [&](int result_in) {
-                                boost::lock_guard<boost::mutex> local_lock(local_mutex);
+                                boost::lock_guard<std::mutex> local_lock(local_mutex);
                                 result = result_in;
                                 local_cond_var.notify_one();
                               });
 
-    bool const success = local_cond_var.timed_wait(lock,
-                                                   Parameters::ping_timeout + bptime::seconds(1),
-                                                   [&] { return result != kPendingResult; });  // NOLINT (Fraser)
+    bool const success = local_cond_var.wait_for(lock,
+                                                 BoostToChrono<int>(Parameters::ping_timeout + bptime::seconds(1)),
+                                                 [&] { return result != kPendingResult; });  // NOLINT (Fraser)
     if (!success || result != kSuccess) {
       LOG(kWarning) << "Timed out waiting for NAT detection ping - setting NAT type to symmetric";
       nat_type_ = NatType::kSymmetric;

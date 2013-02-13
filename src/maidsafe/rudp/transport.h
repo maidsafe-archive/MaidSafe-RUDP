@@ -132,7 +132,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   NodeId ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                     const boost::asio::ip::udp::endpoint& bootstrap_endpoint,
                                     const boost::posix_time::time_duration& lifespan);
-  void DetectNatType(NodeId const& peer_id, boost::unique_lock<boost::mutex>& lock);
+  void DetectNatType(NodeId const& peer_id, std::unique_lock<std::mutex>& lock);
 
   void DoConnect(const NodeId& peer_id,
                  const EndpointPair& peer_endpoint_pair,
