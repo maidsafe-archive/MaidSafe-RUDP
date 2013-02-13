@@ -35,7 +35,7 @@ uint32_t Parameters::max_data_size(8162);
 uint32_t Parameters::default_data_size(1450);
 Timeout Parameters::default_send_timeout(bptime::milliseconds(500));
 Timeout Parameters::default_receive_timeout(bptime::milliseconds(500));
-Timeout Parameters::default_send_delay(bptime::seconds(1));
+Timeout Parameters::default_send_delay(bptime::milliseconds(10));
 Timeout Parameters::default_receive_delay(bptime::milliseconds(100));
 Timeout Parameters::default_ack_timeout(bptime::seconds(1));
 Timeout Parameters::ack_interval(bptime::milliseconds(100));
