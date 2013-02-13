@@ -59,9 +59,7 @@ class DataPacket : public Packet {
   void SetData(const std::string& data);
 
   template <typename Iterator>
-  void SetData(Iterator begin, Iterator end) {
-    data_.assign(begin, end);
-  }
+  void SetData(Iterator begin, Iterator end) { data_.assign(begin, end); }
 
   static bool IsValid(const boost::asio::const_buffer& buffer);
   bool Decode(const boost::asio::const_buffer& buffer);

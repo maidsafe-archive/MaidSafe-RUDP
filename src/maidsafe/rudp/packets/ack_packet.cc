@@ -35,74 +35,41 @@ AckPacket::AckPacket()
   SetType(kPacketType);
 }
 
-uint32_t AckPacket::AckSequenceNumber() const {
-  return AdditionalInfo();
-}
+uint32_t AckPacket::AckSequenceNumber() const { return AdditionalInfo(); }
 
-void AckPacket::SetAckSequenceNumber(uint32_t n) {
-  SetAdditionalInfo(n);
-}
+void AckPacket::SetAckSequenceNumber(uint32_t n) { SetAdditionalInfo(n); }
 
-uint32_t AckPacket::PacketSequenceNumber() const {
-  return packet_sequence_number_;
-}
+uint32_t AckPacket::PacketSequenceNumber() const { return packet_sequence_number_; }
 
-void AckPacket::SetPacketSequenceNumber(uint32_t n) {
-  packet_sequence_number_ = n;
-}
+void AckPacket::SetPacketSequenceNumber(uint32_t n) { packet_sequence_number_ = n; }
 
-bool AckPacket::HasOptionalFields() const {
-  return has_optional_fields_;
-}
+bool AckPacket::HasOptionalFields() const { return has_optional_fields_; }
 
-void AckPacket::SetHasOptionalFields(bool b) {
-  has_optional_fields_ = b;
-}
+void AckPacket::SetHasOptionalFields(bool b) { has_optional_fields_ = b; }
 
-uint32_t AckPacket::RoundTripTime() const {
-  return round_trip_time_;
-}
+uint32_t AckPacket::RoundTripTime() const { return round_trip_time_; }
 
-void AckPacket::SetRoundTripTime(uint32_t n) {
-  round_trip_time_ = n;
-}
+void AckPacket::SetRoundTripTime(uint32_t n) { round_trip_time_ = n; }
 
-uint32_t AckPacket::RoundTripTimeVariance() const {
-  return round_trip_time_variance_;
-}
+uint32_t AckPacket::RoundTripTimeVariance() const { return round_trip_time_variance_; }
 
-void AckPacket::SetRoundTripTimeVariance(uint32_t n) {
-  round_trip_time_variance_ = n;
-}
+void AckPacket::SetRoundTripTimeVariance(uint32_t n) { round_trip_time_variance_ = n; }
 
-uint32_t AckPacket::AvailableBufferSize() const {
-  return available_buffer_size_;
-}
+uint32_t AckPacket::AvailableBufferSize() const { return available_buffer_size_; }
 
-void AckPacket::SetAvailableBufferSize(uint32_t n) {
-  available_buffer_size_ = n;
-}
+void AckPacket::SetAvailableBufferSize(uint32_t n) { available_buffer_size_ = n; }
 
-uint32_t AckPacket::PacketsReceivingRate() const {
-  return packets_receiving_rate_;
-}
+uint32_t AckPacket::PacketsReceivingRate() const { return packets_receiving_rate_; }
 
-void AckPacket::SetPacketsReceivingRate(uint32_t n) {
-  packets_receiving_rate_ = n;
-}
+void AckPacket::SetPacketsReceivingRate(uint32_t n) { packets_receiving_rate_ = n; }
 
-uint32_t AckPacket::EstimatedLinkCapacity() const {
-  return estimated_link_capacity_;
-}
+uint32_t AckPacket::EstimatedLinkCapacity() const { return estimated_link_capacity_; }
 
-void AckPacket::SetEstimatedLinkCapacity(uint32_t n) {
-  estimated_link_capacity_ = n;
-}
+void AckPacket::SetEstimatedLinkCapacity(uint32_t n) { estimated_link_capacity_ = n; }
 
 bool AckPacket::IsValid(const asio::const_buffer& buffer) {
-  return (IsValidBase(buffer, kPacketType) &&
-          ((asio::buffer_size(buffer) == kPacketSize) ||
-           (asio::buffer_size(buffer) == kOptionalPacketSize)));
+  return (IsValidBase(buffer, kPacketType) && ((asio::buffer_size(buffer) == kPacketSize) ||
+                                               (asio::buffer_size(buffer) == kOptionalPacketSize)));
 }
 
 bool AckPacket::Decode(const asio::const_buffer& buffer) {
@@ -152,8 +119,8 @@ size_t AckPacket::Encode(const asio::mutable_buffer& buffer) const {
     EncodeUint32(estimated_link_capacity_, p + 20);
   }
 
-  return has_optional_fields_ ? static_cast<size_t>(kOptionalPacketSize)
-      : static_cast<size_t>(kPacketSize);
+  return has_optional_fields_ ? static_cast<size_t>(kOptionalPacketSize) :
+                                static_cast<size_t>(kPacketSize);
 }
 
 }  // namespace detail

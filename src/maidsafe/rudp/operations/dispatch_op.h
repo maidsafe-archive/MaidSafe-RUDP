@@ -56,7 +56,7 @@ class DispatchOp {
     while (!local_ec) {
       std::lock_guard<std::mutex> lock(*mutex_);
       dispatcher_->HandleReceiveFrom(boost::asio::buffer(buffer_, bytes_transferred),
-                                      *sender_endpoint_);
+                                     *sender_endpoint_);
       bytes_transferred = socket_->receive_from(boost::asio::buffer(buffer_),
                                                 *sender_endpoint_, 0, local_ec);
     }

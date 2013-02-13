@@ -26,8 +26,7 @@ ShutdownPacket::ShutdownPacket() {
 }
 
 bool ShutdownPacket::IsValid(const asio::const_buffer& buffer) {
-  return (IsValidBase(buffer, kPacketType) &&
-          (asio::buffer_size(buffer) == kPacketSize));
+  return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) == kPacketSize));
 }
 
 bool ShutdownPacket::Decode(const asio::const_buffer& buffer) {

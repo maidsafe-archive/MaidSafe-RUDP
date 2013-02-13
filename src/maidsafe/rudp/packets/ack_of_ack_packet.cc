@@ -21,21 +21,14 @@ namespace rudp {
 
 namespace detail {
 
-AckOfAckPacket::AckOfAckPacket() {
-  SetType(kPacketType);
-}
+AckOfAckPacket::AckOfAckPacket() { SetType(kPacketType); }
 
-uint32_t AckOfAckPacket::AckSequenceNumber() const {
-  return AdditionalInfo();
-}
+uint32_t AckOfAckPacket::AckSequenceNumber() const { return AdditionalInfo(); }
 
-void AckOfAckPacket::SetAckSequenceNumber(uint32_t n) {
-  SetAdditionalInfo(n);
-}
+void AckOfAckPacket::SetAckSequenceNumber(uint32_t n) { SetAdditionalInfo(n); }
 
 bool AckOfAckPacket::IsValid(const asio::const_buffer& buffer) {
-  return (IsValidBase(buffer, kPacketType) &&
-          (asio::buffer_size(buffer) == kPacketSize));
+  return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) == kPacketSize));
 }
 
 bool AckOfAckPacket::Decode(const asio::const_buffer& buffer) {
