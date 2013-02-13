@@ -620,7 +620,8 @@ void ManagedConnections::Send(NodeId peer_id,
                                    });
     } else {
       // Probably haven't bootstrapped, so asio_service_ won't be running.
-      std::thread(message_sent_functor, kInvalidConnection);
+      std::thread thread(message_sent_functor, kInvalidConnection);
+      thread.detach();
     }
   }
 }
