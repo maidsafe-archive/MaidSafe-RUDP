@@ -54,9 +54,8 @@ void Receiver::Reset(uint32_t initial_sequence_number) {
 
 bool Receiver::Flushed() const {
   uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
-  return acks_.IsEmpty() &&
-         (ack_packet_seqnum == last_ack_packet_sequence_number_ ||
-          last_ack_packet_sequence_number_ == 0);
+  return acks_.IsEmpty() && (ack_packet_seqnum == last_ack_packet_sequence_number_ ||
+                             last_ack_packet_sequence_number_ == 0);
 }
 
 size_t Receiver::ReadData(const boost::asio::mutable_buffer& data) {
@@ -73,14 +72,12 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer& data) {
     if (p.lost) {
       break;
     } else if (p.packet.Data().size() > p.bytes_read) {
-      size_t length = std::min<size_t>(end - ptr,
-                                       p.packet.Data().size() - p.bytes_read);
+      size_t length = std::min<size_t>(end - ptr, p.packet.Data().size() - p.bytes_read);
       std::memcpy(ptr, p.packet.Data().data() + p.bytes_read, length);
       ptr += length;
       p.bytes_read += length;
       if (p.packet.Data().size() == p.bytes_read) {
         unread_packets_.Remove();
-      } else {
       }
     } else {
       unread_packets_.Remove();
@@ -159,8 +156,7 @@ void Receiver::HandleTick() {
   // acknowledgement.
   uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
   if ((ack_packet_seqnum != last_ack_packet_sequence_number_) ||
-      (!acks_.IsEmpty() &&
-       (acks_.Back().send_time + congestion_control_.AckTimeout() <= now))) {
+      (!acks_.IsEmpty() && (acks_.Back().send_time + congestion_control_.AckTimeout() <= now))) {
 // TODO(Fraser#5#): 2012-09-03 - Confirm this is OK to be removed.
 //    if (acks_.IsFull())
 //      acks_.Remove();
@@ -172,13 +168,10 @@ void Receiver::HandleTick() {
     a.packet.SetPacketSequenceNumber(ack_packet_seqnum);
     a.packet.SetHasOptionalFields(true);
     a.packet.SetRoundTripTime(congestion_control_.RoundTripTime());
-    a.packet.SetRoundTripTimeVariance(
-        congestion_control_.RoundTripTimeVariance());
+    a.packet.SetRoundTripTimeVariance(congestion_control_.RoundTripTimeVariance());
     a.packet.SetAvailableBufferSize(AvailableBufferSize());
-    a.packet.SetPacketsReceivingRate(
-        congestion_control_.PacketsReceivingRate());
-    a.packet.SetEstimatedLinkCapacity(
-        congestion_control_.EstimatedLinkCapacity());
+    a.packet.SetPacketsReceivingRate(congestion_control_.PacketsReceivingRate());
+    a.packet.SetEstimatedLinkCapacity(congestion_control_.EstimatedLinkCapacity());
     a.send_time = now;
     peer_.Send(a.packet);
     last_ack_packet_sequence_number_ = ack_packet_seqnum;
@@ -186,8 +179,7 @@ void Receiver::HandleTick() {
 
   if (!acks_.IsEmpty()) {
     if (acks_.Back().send_time + congestion_control_.AckTimeout() > now) {
-      tick_timer_.TickAt(acks_.Back().send_time +
-                         congestion_control_.AckTimeout());
+      tick_timer_.TickAt(acks_.Back().send_time + congestion_control_.AckTimeout());
     }
   }
 
@@ -227,8 +219,7 @@ uint32_t Receiver::AvailableBufferSize() const {
 uint32_t Receiver::AckPacketSequenceNumber() const {
   // Work out what sequence number we need to acknowledge up to.
   uint32_t ack_packet_seqnum = unread_packets_.Begin();
-  while (ack_packet_seqnum != unread_packets_.End() &&
-         !unread_packets_[ack_packet_seqnum].lost)
+  while (ack_packet_seqnum != unread_packets_.End() && !unread_packets_[ack_packet_seqnum].lost)
     ack_packet_seqnum = unread_packets_.Next(ack_packet_seqnum);
   return ack_packet_seqnum;
 }

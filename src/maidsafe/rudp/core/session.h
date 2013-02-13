@@ -43,7 +43,7 @@ class Session {
 
   enum Mode { kNormal, kBootstrapAndDrop, kBootstrapAndKeep };
 
-  explicit Session(Peer& peer,                                                    // NOLINT (Fraser)
+  explicit Session(Peer& peer,
                    TickTimer& tick_timer,
                    boost::asio::ip::udp::endpoint& this_external_endpoint,
                    std::mutex& this_external_endpoint_mutex,

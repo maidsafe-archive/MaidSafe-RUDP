@@ -40,7 +40,7 @@ class Socket;
 
 class Multiplexer {
  public:
-  explicit Multiplexer(boost::asio::io_service& asio_service);  // NOLINT (Fraser)
+  explicit Multiplexer(boost::asio::io_service& asio_service);
 
   // Open the multiplexer.  If endpoint is valid, the new socket will be bound to it.
   ReturnCode Open(const boost::asio::ip::udp::endpoint& endpoint);
@@ -63,8 +63,7 @@ class Multiplexer {
   // Called by the socket objects to send a packet. Returns kSuccess if the data was sent
   // successfully, kSendFailure otherwise.
   template <typename Packet>
-  ReturnCode SendTo(const Packet& packet,
-                    const boost::asio::ip::udp::endpoint& endpoint) {
+  ReturnCode SendTo(const Packet& packet, const boost::asio::ip::udp::endpoint& endpoint) {
     std::array<unsigned char, Parameters::kUDPPayload> data;
     auto buffer = boost::asio::buffer(&data[0], Parameters::max_size);
     if (size_t length = packet.Encode(buffer)) {
@@ -72,7 +71,7 @@ class Multiplexer {
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
 #ifndef NDEBUG
-        std::lock_guard<std::mutex> lock(mutex_);
+//        std::lock_guard<std::mutex> lock(mutex_);
         if (!local_endpoint().address().is_unspecified()) {
           LOG(kWarning) << "Error sending " << length << " bytes from " << local_endpoint()
                         << " to << " << endpoint << " - " << ec.message();

@@ -130,7 +130,11 @@ class Socket {
                     Session::OnNatDetectionRequested::slot_type on_nat_detection_requested_slot) {
     ConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
     waiting_connect_.async_wait(op);
-    StartConnect(this_node_id, this_public_key, remote, peer_node_id, open_mode,
+    StartConnect(this_node_id,
+                 this_public_key,
+                 remote,
+                 peer_node_id,
+                 open_mode,
                  on_nat_detection_requested_slot);
   }
 

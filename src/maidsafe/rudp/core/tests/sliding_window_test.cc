@@ -55,8 +55,7 @@ TEST(SlidingWindowTest, BEH_FromN) {
 }
 
 TEST(SlidingWindowTest, BEH_Wraparound) {
-  TestWindowRange(SlidingWindow<uint32_t>::kMaxSequenceNumber -
-                  kTestPacketCount / 2);
+  TestWindowRange(SlidingWindow<uint32_t>::kMaxSequenceNumber - kTestPacketCount / 2);
 }
 
 }  // namespace test

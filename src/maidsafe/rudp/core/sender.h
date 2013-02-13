@@ -41,7 +41,7 @@ class TickTimer;
 
 class Sender {
  public:
-  explicit Sender(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control);  // NOLINT (Fraser)
+  explicit Sender(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control);
 
   // Get the sequence number that will be used for the next packet.
   uint32_t GetNextPacketSequenceNumber() const;

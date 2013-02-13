@@ -42,7 +42,7 @@ class TickTimer;
 
 class Receiver {
  public:
-  explicit Receiver(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control);  // NOLINT (Fraser)
+  explicit Receiver(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control);
 
   // Reset receiver so that it is ready to start receiving data from the specified sequence number.
   void Reset(uint32_t initial_sequence_number);

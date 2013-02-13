@@ -32,7 +32,7 @@ namespace rudp {
 
 namespace detail {
 
-Sender::Sender(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control)  // NOLINT (Fraser)
+Sender::Sender(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control)
     : peer_(peer),
       tick_timer_(tick_timer),
       congestion_control_(congestion_control),
@@ -40,13 +40,9 @@ Sender::Sender(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_
       send_timeout_(),
       current_message_number_(0) {}
 
-uint32_t Sender::GetNextPacketSequenceNumber() const {
-  return unacked_packets_.End();
-}
+uint32_t Sender::GetNextPacketSequenceNumber() const { return unacked_packets_.End(); }
 
-bool Sender::Flushed() const {
-  return unacked_packets_.IsEmpty();
-}
+bool Sender::Flushed() const { return unacked_packets_.IsEmpty(); }
 
 size_t Sender::AddData(const asio::const_buffer& data, const uint32_t& message_number) {
   if ((congestion_control_.SendWindowSize() == 0) && (unacked_packets_.Size() == 0))
@@ -136,10 +132,10 @@ void Sender::HandleTick() {
 
     // Mark all timedout unacknowledged packets as lost.
     for (uint32_t n = unacked_packets_.Begin();
-        n != unacked_packets_.End();
-        n = unacked_packets_.Next(n)) {
-      if ((unacked_packets_[n].last_send_time
-           + congestion_control_.SendTimeout()) < tick_timer_.Now()) {
+         n != unacked_packets_.End();
+         n = unacked_packets_.Next(n)) {
+      if ((unacked_packets_[n].last_send_time + congestion_control_.SendTimeout()) <
+          tick_timer_.Now()) {
         congestion_control_.OnSendTimeout(n);
         unacked_packets_[n].lost = true;
         // LOG(kVerbose) << "Lost packet " << n;
