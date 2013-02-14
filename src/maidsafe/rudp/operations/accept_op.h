@@ -30,7 +30,7 @@ namespace detail {
 template <typename AcceptHandler>
 class AcceptOp {
  public:
-  AcceptOp(AcceptHandler handler, Socket& socket)  // NOLINT (Fraser)
+  AcceptOp(AcceptHandler handler, Socket& socket)
       : handler_(handler),
         socket_(socket) {}
 

@@ -14,14 +14,15 @@
 #include "maidsafe/rudp/core/session.h"
 
 #include <cassert>
+
 #include "maidsafe/common/log.h"
 
-#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/utils.h"
 #include "maidsafe/rudp/core/peer.h"
 #include "maidsafe/rudp/core/sliding_window.h"
 #include "maidsafe/rudp/core/tick_timer.h"
-#include "maidsafe/rudp/nat_type.h"
-#include "maidsafe/rudp/utils.h"
+#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/packets/handshake_packet.h"
 
 namespace bptime = boost::posix_time;
 

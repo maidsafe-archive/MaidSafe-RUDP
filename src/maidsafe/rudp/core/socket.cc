@@ -24,6 +24,13 @@
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/core/multiplexer.h"
+#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
+#include "maidsafe/rudp/packets/ack_packet.h"
+#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/packets/handshake_packet.h"
+#include "maidsafe/rudp/packets/keepalive_packet.h"
+#include "maidsafe/rudp/packets/negative_ack_packet.h"
+#include "maidsafe/rudp/packets/shutdown_packet.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;
@@ -253,6 +260,7 @@ void Socket::ProcessFlush() {
 
 void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::endpoint& endpoint) {
   if (endpoint == peer_.PeerEndpoint()) {
+    // TODO(Team): Surely this can be templetised somehow to avoid all the obejct creation
     DataPacket data_packet;
     AckPacket ack_packet;
     AckOfAckPacket ack_of_ack_packet;

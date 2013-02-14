@@ -28,7 +28,7 @@ namespace detail {
 template <typename ProbeHandler>
 class ProbeOp {
  public:
-  ProbeOp(ProbeHandler handler, const boost::system::error_code* ec)
+  ProbeOp(ProbeHandler handler, const boost::system::error_code& ec)
       : handler_(handler),
         ec_(ec) {}
 
@@ -38,7 +38,7 @@ class ProbeOp {
     if (boost::asio::error::timed_out == ec)
       handler_(ec);
     else
-      handler_(*ec_);
+      handler_(ec_);
   }
 
   friend void* asio_handler_allocate(size_t n, ProbeOp* op) {
@@ -62,7 +62,7 @@ class ProbeOp {
   ProbeOp& operator=(const ProbeOp&);
 
   ProbeHandler handler_;
-  const boost::system::error_code* ec_;
+  const boost::system::error_code& ec_;
 };
 
 }  // namespace detail

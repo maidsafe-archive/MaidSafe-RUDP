@@ -16,12 +16,14 @@
 
 #include <mutex>
 #include <cstdint>
+
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/signals2/connection.hpp"
 #include "boost/signals2/signal.hpp"
+
 #include "maidsafe/common/rsa.h"
-#include "maidsafe/rudp/packets/handshake_packet.h"
+
 #include "maidsafe/rudp/nat_type.h"
 
 
@@ -31,6 +33,7 @@ namespace rudp {
 
 namespace detail {
 
+class HandshakePacket;
 class Peer;
 class TickTimer;
 

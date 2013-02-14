@@ -174,7 +174,7 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   if (asio::buffer_size(buffer) != kMinPacketSize) {
     asymm::EncodedPublicKey encoded_public_key(std::string(p + 121, p + length));
     try {
-      public_key_.reset(new asymm::PublicKey(asymm::DecodeKey(encoded_public_key)));
+      public_key_ = std::make_shared<asymm::PublicKey>(asymm::DecodeKey(encoded_public_key));
       if (!asymm::ValidateKey(*public_key_)) {
         LOG(kError) << "Failed to validate peer's public key.";
         return false;

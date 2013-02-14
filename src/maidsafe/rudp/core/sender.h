@@ -21,13 +21,10 @@
 #include "boost/asio/ip/udp.hpp"
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 
-#include "maidsafe/rudp/packets/ack_packet.h"
-#include "maidsafe/rudp/packets/data_packet.h"
-#include "maidsafe/rudp/packets/keepalive_packet.h"
-#include "maidsafe/rudp/packets/negative_ack_packet.h"
-#include "maidsafe/rudp/packets/shutdown_packet.h"
-#include "maidsafe/rudp/core/sliding_window.h"
 #include "maidsafe/rudp/return_codes.h"
+#include "maidsafe/rudp/core/sliding_window.h"
+#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/packets/shutdown_packet.h"
 
 namespace maidsafe {
 
@@ -35,7 +32,10 @@ namespace rudp {
 
 namespace detail {
 
+class AckPacket;
 class CongestionControl;
+class KeepalivePacket;
+class NegativeAckPacket;
 class Peer;
 class TickTimer;
 

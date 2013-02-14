@@ -25,13 +25,13 @@ namespace rudp {
 namespace detail {
 
 AckPacket::AckPacket()
-  : packet_sequence_number_(0),
-    has_optional_fields_(false),
-    round_trip_time_(0),
-    round_trip_time_variance_(0),
-    available_buffer_size_(0),
-    packets_receiving_rate_(0),
-    estimated_link_capacity_(0) {
+    : packet_sequence_number_(0),
+      has_optional_fields_(false),
+      round_trip_time_(0),
+      round_trip_time_variance_(0),
+      available_buffer_size_(0),
+      packets_receiving_rate_(0),
+      estimated_link_capacity_(0) {
   SetType(kPacketType);
 }
 

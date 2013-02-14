@@ -32,14 +32,14 @@ template <typename DispatchHandler>
 class DispatchOp {
  public:
   DispatchOp(DispatchHandler handler,
-             boost::asio::ip::udp::socket* socket,
+             boost::asio::ip::udp::socket& socket,
              const boost::asio::mutable_buffer& buffer,
-             boost::asio::ip::udp::endpoint* sender_endpoint,
-             Dispatcher* dispatcher)
+             boost::asio::ip::udp::endpoint& sender_endpoint,
+             Dispatcher& dispatcher)
       : handler_(handler),
         socket_(socket),
         buffer_(buffer),
-        mutex_(new std::mutex),
+        mutex_(std::make_shared<std::mutex>()),
         sender_endpoint_(sender_endpoint),
         dispatcher_(dispatcher) {}
 
@@ -55,10 +55,12 @@ class DispatchOp {
     boost::system::error_code local_ec = ec;
     while (!local_ec) {
       std::lock_guard<std::mutex> lock(*mutex_);
-      dispatcher_->HandleReceiveFrom(boost::asio::buffer(buffer_, bytes_transferred),
-                                     *sender_endpoint_);
-      bytes_transferred = socket_->receive_from(boost::asio::buffer(buffer_),
-                                                *sender_endpoint_, 0, local_ec);
+      dispatcher_.HandleReceiveFrom(boost::asio::buffer(buffer_, bytes_transferred),
+                                    sender_endpoint_);
+      bytes_transferred = socket_.receive_from(boost::asio::buffer(buffer_),
+                                               sender_endpoint_,
+                                               0,
+                                               local_ec);
     }
 
     handler_(ec);
@@ -85,11 +87,11 @@ class DispatchOp {
   DispatchOp& operator=(const DispatchOp&);
 
   DispatchHandler handler_;
-  boost::asio::ip::udp::socket* socket_;
+  boost::asio::ip::udp::socket& socket_;
   boost::asio::mutable_buffer buffer_;
   std::shared_ptr<std::mutex> mutex_;
-  boost::asio::ip::udp::endpoint* sender_endpoint_;
-  Dispatcher* dispatcher_;
+  boost::asio::ip::udp::endpoint& sender_endpoint_;
+  Dispatcher& dispatcher_;
 };
 
 }  // namespace detail

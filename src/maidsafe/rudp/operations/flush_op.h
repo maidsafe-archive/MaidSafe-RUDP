@@ -28,14 +28,14 @@ namespace detail {
 template <typename FlushHandler>
 class FlushOp {
  public:
-  FlushOp(FlushHandler handler, const boost::system::error_code* ec)
+  FlushOp(FlushHandler handler, const boost::system::error_code& ec)
       : handler_(handler),
         ec_(ec) {}
 
   FlushOp(const FlushOp& other) : handler_(other.handler_), ec_(other.ec_) {}
 
   void operator()(boost::system::error_code) {
-    handler_(*ec_);
+    handler_(ec_);
   }
 
   friend void* asio_handler_allocate(size_t n, FlushOp* op) {
@@ -59,7 +59,7 @@ class FlushOp {
   FlushOp& operator=(const FlushOp&);
 
   FlushHandler handler_;
-  const boost::system::error_code* ec_;
+  const boost::system::error_code& ec_;
 };
 
 }  // namespace detail

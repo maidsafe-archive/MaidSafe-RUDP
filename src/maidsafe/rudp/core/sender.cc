@@ -16,11 +16,15 @@
 #include <algorithm>
 #include <cassert>
 
-#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
+#include "maidsafe/common/utils.h"
+
 #include "maidsafe/rudp/core/congestion_control.h"
 #include "maidsafe/rudp/core/peer.h"
 #include "maidsafe/rudp/core/tick_timer.h"
-#include "maidsafe/common/utils.h"
+#include "maidsafe/rudp/packets/ack_packet.h"
+#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
+#include "maidsafe/rudp/packets/keepalive_packet.h"
+#include "maidsafe/rudp/packets/negative_ack_packet.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;

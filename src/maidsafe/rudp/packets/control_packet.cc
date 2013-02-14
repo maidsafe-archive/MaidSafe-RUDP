@@ -54,10 +54,10 @@ void ControlPacket::SetDestinationSocketId(uint32_t n) { destination_socket_id_ 
 bool ControlPacket::IsValidBase(const asio::const_buffer& buffer,
                                 uint16_t expected_packet_type) {
   const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
-  return ((asio::buffer_size(buffer) >= kHeaderSize) &&
-          ((p[0] & 0x80) != 0) &&
-          ((p[0] & 0x7f) == ((expected_packet_type >> 8) & 0x7f)) &&
-          (p[1] == (expected_packet_type & 0xff)));
+  return (asio::buffer_size(buffer) >= kHeaderSize) &&
+         ((p[0] & 0x80) != 0) &&
+         ((p[0] & 0x7f) == ((expected_packet_type >> 8) & 0x7f)) &&
+         (p[1] == (expected_packet_type & 0xff));
 }
 
 bool ControlPacket::DecodeBase(const asio::const_buffer& buffer, uint16_t expected_packet_type) {

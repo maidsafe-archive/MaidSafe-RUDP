@@ -43,14 +43,6 @@
 #include "maidsafe/rudp/operations/tick_op.h"
 #include "maidsafe/rudp/operations/write_op.h"
 
-#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
-#include "maidsafe/rudp/packets/ack_packet.h"
-#include "maidsafe/rudp/packets/data_packet.h"
-#include "maidsafe/rudp/packets/handshake_packet.h"
-#include "maidsafe/rudp/packets/keepalive_packet.h"
-#include "maidsafe/rudp/packets/negative_ack_packet.h"
-#include "maidsafe/rudp/packets/shutdown_packet.h"
-
 #include "maidsafe/rudp/nat_type.h"
 #include "maidsafe/rudp/parameters.h"
 
@@ -60,7 +52,14 @@ namespace rudp {
 
 namespace detail {
 
+class AckPacket;
+class AckOfAckPacket;
+class DataPacket;
 class Dispatcher;
+class HandshakePacket;
+class KeepalivePacket;
+class NegativeAckPacket;
+
 
 class Socket {
  public:
@@ -112,7 +111,7 @@ class Socket {
   // the next time-based event that is of interest to the socket.
   template <typename TickHandler>
   void AsyncTick(TickHandler handler) {
-    TickOp<TickHandler, Socket> op(handler, this, &tick_timer_);
+    TickOp<TickHandler, Socket> op(handler, *this, tick_timer_);
     tick_timer_.AsyncWait(op);
   }
 
@@ -128,7 +127,7 @@ class Socket {
                     ConnectHandler handler,
                     Session::Mode open_mode,
                     Session::OnNatDetectionRequested::slot_type on_nat_detection_requested_slot) {
-    ConnectOp<ConnectHandler> op(handler, &waiting_connect_ec_);
+    ConnectOp<ConnectHandler> op(handler, waiting_connect_ec_);
     waiting_connect_.async_wait(op);
     StartConnect(this_node_id,
                  this_public_key,
@@ -147,7 +146,7 @@ class Socket {
   void AsyncWrite(const boost::asio::const_buffer& data,
                   const std::function<void(int)>& message_sent_functor,  // NOLINT (Fraser)
                   WriteHandler handler) {
-    WriteOp<WriteHandler> op(handler, &waiting_write_ec_, &waiting_write_bytes_transferred_);
+    WriteOp<WriteHandler> op(handler, waiting_write_ec_, waiting_write_bytes_transferred_);
     waiting_write_.async_wait(op);
     StartWrite(data, message_sent_functor);
   }
@@ -157,7 +156,7 @@ class Socket {
   void AsyncRead(const boost::asio::mutable_buffer& data,
                  size_t transfer_at_least,
                  ReadHandler handler) {
-    ReadOp<ReadHandler> op(handler, &waiting_read_ec_, &waiting_read_bytes_transferred_);
+    ReadOp<ReadHandler> op(handler, waiting_read_ec_, waiting_read_bytes_transferred_);
     waiting_read_.async_wait(op);
     StartRead(data, transfer_at_least);
   }
@@ -165,7 +164,7 @@ class Socket {
   // Initiate an asynchronous operation to flush all outbound data.
   template <typename FlushHandler>
   void AsyncFlush(FlushHandler handler) {
-    FlushOp<FlushHandler> op(handler, &waiting_flush_ec_);
+    FlushOp<FlushHandler> op(handler, waiting_flush_ec_);
     waiting_flush_.async_wait(op);
     StartFlush();
   }
@@ -174,7 +173,7 @@ class Socket {
   // handler is called upon receiving valid keepalive response.
   template <typename ProbeHandler>
   void AsyncProbe(ProbeHandler handler) {
-    ProbeOp<ProbeHandler> op(handler, &waiting_probe_ec_);
+    ProbeOp<ProbeHandler> op(handler, waiting_probe_ec_);
     waiting_probe_.expires_from_now(Parameters::keepalive_timeout);
     waiting_probe_.async_wait(op);
     StartProbe();
@@ -239,7 +238,7 @@ class Socket {
 
   // Called to handle a tick event.
   void HandleTick();
-  friend void DispatchTick(Socket* socket) { socket->HandleTick(); }
+  friend void DispatchTick(Socket& socket) { socket.HandleTick(); }
 
   // The dispatcher that holds this sockets registration.
   Dispatcher& dispatcher_;
