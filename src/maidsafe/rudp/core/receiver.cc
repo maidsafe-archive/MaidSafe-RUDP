@@ -24,9 +24,10 @@
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/core/congestion_control.h"
-#include "maidsafe/rudp/packets/negative_ack_packet.h"
 #include "maidsafe/rudp/core/peer.h"
 #include "maidsafe/rudp/core/tick_timer.h"
+#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
+#include "maidsafe/rudp/packets/negative_ack_packet.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;
@@ -154,6 +155,27 @@ void Receiver::HandleTick() {
   // Generate an acknowledgement only if the latest sequence number has
   // changed, or if it has been too long since the last unacknowledged
   // acknowledgement.
+  AddAckToWindow(now);
+  if (!acks_.IsEmpty()) {
+    if (acks_.Back().send_time + congestion_control_.AckTimeout() > now) {
+      tick_timer_.TickAt(acks_.Back().send_time + congestion_control_.AckTimeout());
+    }
+  }
+
+  // Generate a negative acknowledgement packet to request missing packets.
+  NegativeAckPacket negative_ack;
+  negative_ack.SetDestinationSocketId(peer_.SocketId());
+  AddMissingSequenceNumbersToNegAck(negative_ack);
+  if (negative_ack.HasSequenceNumbers()) {
+    peer_.Send(negative_ack);
+    tick_timer_.TickAt(now + congestion_control_.AckTimeout());
+  }
+}
+
+void Receiver::AddAckToWindow(const bptime::ptime& now) {
+  // Generate an acknowledgement only if the latest sequence number has
+  // changed, or if it has been too long since the last unacknowledged
+  // acknowledgement.
   uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
   if ((ack_packet_seqnum != last_ack_packet_sequence_number_) ||
       (!acks_.IsEmpty() && (acks_.Back().send_time + congestion_control_.AckTimeout() <= now))) {
@@ -176,16 +198,9 @@ void Receiver::HandleTick() {
     peer_.Send(a.packet);
     last_ack_packet_sequence_number_ = ack_packet_seqnum;
   }
+}
 
-  if (!acks_.IsEmpty()) {
-    if (acks_.Back().send_time + congestion_control_.AckTimeout() > now) {
-      tick_timer_.TickAt(acks_.Back().send_time + congestion_control_.AckTimeout());
-    }
-  }
-
-  // Generate a negative acknowledgement packet to request missing packets.
-  NegativeAckPacket negative_ack;
-  negative_ack.SetDestinationSocketId(peer_.SocketId());
+void Receiver::AddMissingSequenceNumbersToNegAck(NegativeAckPacket& negative_ack) {
   uint32_t n = unread_packets_.Begin();
   while (n != unread_packets_.End()) {
     if (unread_packets_[n].lost) {
@@ -202,10 +217,6 @@ void Receiver::HandleTick() {
     } else {
       n = unread_packets_.Next(n);
     }
-  }
-  if (negative_ack.HasSequenceNumbers()) {
-    peer_.Send(negative_ack);
-    tick_timer_.TickAt(now + congestion_control_.AckTimeout());
   }
 }
 

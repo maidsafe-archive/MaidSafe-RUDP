@@ -23,12 +23,9 @@
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 
 #include "maidsafe/rudp/packets/ack_packet.h"
-#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
 #include "maidsafe/rudp/packets/data_packet.h"
 #include "maidsafe/rudp/core/sliding_window.h"
 
-
-namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
@@ -36,7 +33,9 @@ namespace rudp {
 
 namespace detail {
 
+class AckOfAckPacket;
 class CongestionControl;
+class NegativeAckPacket;
 class Peer;
 class TickTimer;
 
@@ -67,6 +66,12 @@ class Receiver {
   Receiver(const Receiver&);
   Receiver& operator=(const Receiver&);
 
+  // Helper function to decide the addition of an ack packet to the sliding window
+  void AddAckToWindow(const boost::posix_time::ptime& now);
+
+  // Helper function to add the sequence numbers of missing packets to a negative ack packet
+  void AddMissingSequenceNumbersToNegAck(NegativeAckPacket& negative_ack);
+
   // Helper function to calculate the available buffer size.
   uint32_t AvailableBufferSize() const;
 
@@ -91,10 +96,10 @@ class Receiver {
     DataPacket packet;
     bool lost;
     size_t bytes_read;
-    bptime::ptime reserve_time;
+    boost::posix_time::ptime reserve_time;
 
-    bool Missing(bptime::time_duration time_out) {
-      bptime::ptime now = boost::asio::deadline_timer::traits_type::now();
+    bool Missing(boost::posix_time::time_duration time_out) {
+      boost::posix_time::ptime now = boost::asio::deadline_timer::traits_type::now();
       return (lost && ((reserve_time + time_out) < now));
     }
   };

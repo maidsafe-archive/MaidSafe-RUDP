@@ -71,7 +71,6 @@ class Multiplexer {
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
 #ifndef NDEBUG
-//        std::lock_guard<std::mutex> lock(mutex_);
         if (!local_endpoint().address().is_unspecified()) {
           LOG(kWarning) << "Error sending " << length << " bytes from " << local_endpoint()
                         << " to << " << endpoint << " - " << ec.message();

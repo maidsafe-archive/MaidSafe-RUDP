@@ -30,6 +30,7 @@
 namespace asio = boost::asio;
 namespace ip = asio::ip;
 namespace args = std::placeholders;
+namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
@@ -38,7 +39,7 @@ namespace rudp {
 namespace detail {
 
 template<typename Rep>
-std::chrono::duration<Rep> BoostToChrono(boost::posix_time::time_duration const & from) {
+std::chrono::duration<Rep> BoostToChrono(bptime::time_duration const & from) {
   return std::chrono::duration_cast<std::chrono::duration<Rep>>(
              std::chrono::nanoseconds(from.total_nanoseconds()));
 }
