@@ -20,6 +20,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "boost/asio/ip/address.hpp"

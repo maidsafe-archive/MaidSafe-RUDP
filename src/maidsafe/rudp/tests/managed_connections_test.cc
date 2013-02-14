@@ -1010,7 +1010,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
                                          sent_message,
                                          message_sent_functor);
   {
-   std::unique_lock<std::mutex> lock(mutex);
+    std::unique_lock<std::mutex> lock(mutex);
     ASSERT_TRUE(cond_var.wait_for(lock,
                                   std::chrono::seconds(20),
                                   [&result_arrived]() { return result_arrived; }));  // NOLINT (Fraser)
