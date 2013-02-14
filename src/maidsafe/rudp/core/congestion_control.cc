@@ -99,9 +99,9 @@ void CongestionControl::OnGenerateAck(uint32_t /*seqnum*/) {
   // Calculate average of all intervals in range (median / 8) to (median * 8).
   size_t num_valid_intervals = 0;
   uint64_t total = 0;
-  for (auto iter = intervals.begin(); iter != intervals.end(); ++iter) {
-    if ((median / 8 <= *iter) && (*iter <= median * 8))
-      ++num_valid_intervals, total += *iter;
+  for (const auto& item : intervals) {
+    if ((median / 8 <= item) && (item <= median * 8))
+      ++num_valid_intervals, total += item;
   }
 
   // Determine packet arrival speed only if we had more than 8 valid values.
@@ -120,8 +120,8 @@ void CongestionControl::OnGenerateAck(uint32_t /*seqnum*/) {
     // packet pair intervals, and from that determining the number of packets
     // per second.
     std::vector<uint64_t> packet_pair_intervals;
-    for (auto iter = packet_pair_intervals_.begin(); iter != packet_pair_intervals_.end(); ++iter)
-      packet_pair_intervals.push_back(iter->total_microseconds());
+    for (const auto& item : packet_pair_intervals_)
+      packet_pair_intervals.push_back(item.total_microseconds());
     std::sort(packet_pair_intervals.begin(), packet_pair_intervals.end());
     uint64_t packet_pair_median = packet_pair_intervals[packet_pair_intervals.size() / 2];
     estimated_link_capacity_ =

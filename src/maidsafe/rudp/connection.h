@@ -206,8 +206,8 @@ std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& o
       break;
   }
 
-  for (std::string::iterator itr(state_str.begin()); itr != state_str.end(); ++itr)
-    ostream << ostream.widen(*itr);
+  for (auto& ch : state_str)
+    ostream << ostream.widen(ch);
   return ostream;
 }
 

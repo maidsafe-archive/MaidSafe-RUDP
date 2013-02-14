@@ -63,7 +63,7 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer& data) {
   unsigned char* ptr = begin;
   unsigned char* end = begin + asio::buffer_size(data);
 
-  for (boost::uint32_t n = unread_packets_.Begin();
+  for (uint32_t n = unread_packets_.Begin();
        (n != unread_packets_.End()) && (ptr < end);
        n = unread_packets_.Next(n)) {
     UnreadPacket& p = unread_packets_[n];
