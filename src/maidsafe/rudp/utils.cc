@@ -81,7 +81,8 @@ bool OnSameLocalNetwork(const ip::udp::endpoint& endpoint1, const ip::udp::endpo
     return endpoint1.address().to_v6().is_link_local();
   } else if (endpoint1.address().is_v6() && endpoint1.address().to_v6().is_v4_compatible()) {
     return OnSameLocalNetwork(ip::udp::endpoint(endpoint1.address().to_v6().to_v4(),
-                                                endpoint1.port()), endpoint2);
+                                                endpoint1.port()),
+                              endpoint2);
   } else if (endpoint2.address().is_v6() && endpoint2.address().to_v6().is_v4_compatible()) {
     return OnSameLocalNetwork(endpoint1, ip::udp::endpoint(endpoint2.address().to_v6().to_v4(),
                                                            endpoint2.port()));

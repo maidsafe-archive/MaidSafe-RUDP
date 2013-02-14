@@ -39,7 +39,38 @@ const boost::asio::ip::udp::endpoint kNonRoutable(boost::asio::ip::address_v4(34
 namespace {
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
-typedef std::vector<std::pair<NodeId, Endpoint>> NodeIdEndpointPairs;
+typedef std::vector<std::pair<NodeId, Endpoint> > NodeIdEndpointPairs;
+
+int CheckBootstrappingParameters(const std::vector<Endpoint>& bootstrap_endpoints,
+                                 MessageReceivedFunctor message_received_functor,
+                                 ConnectionLostFunctor connection_lost_functor,
+                                 NodeId this_node_id,
+                                 std::shared_ptr<asymm::PrivateKey> private_key,
+                                 std::shared_ptr<asymm::PublicKey> public_key) {
+  if (!message_received_functor) {
+    LOG(kError) << "You must provide a valid MessageReceivedFunctor.";
+    return kInvalidParameter;
+  }
+  if (!connection_lost_functor) {
+    LOG(kError) << "You must provide a valid ConnectionLostFunctor.";
+    return kInvalidParameter;
+  }
+  if (this_node_id == NodeId()) {
+    LOG(kError) << "You must provide a valid NodeId.";
+    return kInvalidParameter;
+  }
+  if (!private_key || !asymm::ValidateKey(*private_key) ||
+      !public_key || !asymm::ValidateKey(*public_key)) {
+    LOG(kError) << "You must provide a valid private and public key.";
+    return kInvalidParameter;
+  }
+  if (bootstrap_endpoints.empty()) {
+    LOG(kError) << "You must provide at least one Bootstrap endpoint.";
+    return kNoBootstrapEndpoints;
+  }
+
+  return kSuccess;
+}
 
 }  // unnamed namespace
 
@@ -94,52 +125,61 @@ int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoin
                                   NodeId& chosen_bootstrap_peer,
                                   NatType& nat_type,
                                   Endpoint local_endpoint) {
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!connections_.empty()) {
-      for (auto connection_details : connections_) {
-        assert(connection_details.second->GetConnection(connection_details.first)->state() ==
-               detail::Connection::State::kBootstrapping);
-        connection_details.second->Close();
-      }
-      connections_.clear();
-    }
-    pendings_.clear();
-    for (auto idle_transport : idle_transports_)
-      idle_transport->Close();
-    idle_transports_.clear();
-  }
+  ClearConnectionsAndIdleTransports();
+  int result(CheckBootstrappingParameters(bootstrap_endpoints,
+                                          message_received_functor,
+                                          connection_lost_functor,
+                                          this_node_id,
+                                          private_key,
+                                          public_key));
+  if (result != kSuccess)
+    return result;
 
-  if (!message_received_functor) {
-    LOG(kError) << "You must provide a valid MessageReceivedFunctor.";
-    return kInvalidParameter;
-  }
-  if (!connection_lost_functor) {
-    LOG(kError) << "You must provide a valid ConnectionLostFunctor.";
-    return kInvalidParameter;
-  }
-  if (this_node_id == NodeId()) {
-    LOG(kError) << "You must provide a valid NodeId.";
-    return kInvalidParameter;
-  }
+
   this_node_id_ = this_node_id;
-  if (!private_key || !asymm::ValidateKey(*private_key) ||
-      !public_key || !asymm::ValidateKey(*public_key)) {
-    LOG(kError) << "You must provide a valid private and public key.";
-    return kInvalidParameter;
-  }
   private_key_ = private_key;
   public_key_ = public_key;
-
-  if (bootstrap_endpoints.empty()) {
-    LOG(kError) << "You must provide at least one Bootstrap endpoint.";
-    return kNoBootstrapEndpoints;
-  }
-
   asio_service_.Start();
 
-  bool zero_state(detail::IsValid(local_endpoint));
+  result = TryToDetermineLocalEndpoint(local_endpoint);
+  if (result != kSuccess)
+    return result;
 
+  result = AttemptStartNewTransport(bootstrap_endpoints,
+                                    local_endpoint,
+                                    chosen_bootstrap_peer,
+                                    nat_type);
+  if (result != kSuccess)
+    return result;
+
+  // Add callbacks now.
+  {
+    std::lock_guard<std::mutex> guard(callback_mutex_);
+    message_received_functor_ = message_received_functor;
+    connection_lost_functor_ = connection_lost_functor;
+  }
+
+  return kSuccess;
+}
+
+void ManagedConnections::ClearConnectionsAndIdleTransports() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!connections_.empty()) {
+    for (auto connection_details : connections_) {
+      assert(connection_details.second->GetConnection(connection_details.first)->state() ==
+             detail::Connection::State::kBootstrapping);
+      connection_details.second->Close();
+    }
+    connections_.clear();
+  }
+  pendings_.clear();
+  for (auto idle_transport : idle_transports_)
+    idle_transport->Close();
+  idle_transports_.clear();
+}
+
+int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
+  bool zero_state(detail::IsValid(local_endpoint));
   if (zero_state) {
     local_ip_ = local_endpoint.address();
   } else {
@@ -150,8 +190,14 @@ int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoin
     }
     local_endpoint = Endpoint(local_ip_, 0);
   }
+  return kSuccess;
+}
 
-  std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers;
+int ManagedConnections::AttemptStartNewTransport(const std::vector<Endpoint>& bootstrap_endpoints,
+                                                 const Endpoint& local_endpoint,
+                                                 NodeId& chosen_bootstrap_peer,
+                                                 NatType& nat_type) {
+  NodeIdEndpointPairs bootstrap_peers;
   for (auto element : bootstrap_endpoints)
     bootstrap_peers.push_back(std::make_pair(NodeId(), element));
   if (!StartNewTransport(bootstrap_peers, local_endpoint)) {
@@ -160,14 +206,6 @@ int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoin
   }
   chosen_bootstrap_peer = chosen_bootstrap_node_id_;
   nat_type = nat_type_;
-
-  // Add callbacks now.
-  {
-    std::lock_guard<std::mutex> guard(callback_mutex_);
-    message_received_functor_ = message_received_functor;
-    connection_lost_functor_ = connection_lost_functor;
-  }
-
   return kSuccess;
 }
 

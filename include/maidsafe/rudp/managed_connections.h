@@ -142,12 +142,19 @@ class ManagedConnections {
   ManagedConnections(const ManagedConnections&);
   ManagedConnections& operator=(const ManagedConnections&);
 
+  void ClearConnectionsAndIdleTransports();
+  int TryToDetermineLocalEndpoint(boost::asio::ip::udp::endpoint& local_endpoint);
+  int AttemptStartNewTransport(
+      const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
+      const boost::asio::ip::udp::endpoint& local_endpoint,
+      NodeId& chosen_bootstrap_peer,
+      NatType& nat_type);
   bool StartNewTransport(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers,  // NOLINT (Fraser)
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint> > bootstrap_peers,
       boost::asio::ip::udp::endpoint local_endpoint);
 
   void GetBootstrapEndpoints(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,  // NOLINT (Fraser)
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint> >& bootstrap_peers,
       boost::asio::ip::address& this_external_address);
 
   bool ExistingConnectionAttempt(const NodeId& peer_id, EndpointPair& this_endpoint_pair) const;
@@ -161,9 +168,9 @@ class ManagedConnections {
 
   void AddPending(std::unique_ptr<PendingConnection> connection);
   void RemovePending(const NodeId& peer_id);
-  std::vector<std::unique_ptr<PendingConnection>>::const_iterator FindPendingTransportWithNodeId(  // NOLINT (Fraser)
+  std::vector<std::unique_ptr<PendingConnection> >::const_iterator FindPendingTransportWithNodeId(  // NOLINT (Fraser)
       const NodeId& peer_id) const;
-  std::vector<std::unique_ptr<PendingConnection>>::iterator FindPendingTransportWithNodeId(  // NOLINT (Fraser)
+  std::vector<std::unique_ptr<PendingConnection> >::iterator FindPendingTransportWithNodeId(  // NOLINT (Fraser)
       const NodeId& peer_id);
 
   void OnMessageSlot(const std::string& message);

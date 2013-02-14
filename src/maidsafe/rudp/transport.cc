@@ -131,6 +131,12 @@ bool Transport::Bootstrap(
 
   StartDispatch();
 
+  return TryBootstrapping(bootstrap_peers, bootstrap_off_existing_connection, chosen_id);
+}
+
+bool Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint> > &bootstrap_peers,
+                                 bool bootstrap_off_existing_connection,
+                                 NodeId& chosen_id) {
   bool try_connect(true);
   bptime::time_duration lifespan;
   if (bootstrap_off_existing_connection)
@@ -154,11 +160,6 @@ bool Transport::Bootstrap(
 
   return false;
 }
-
-namespace {
-
-}  // namespace
-
 
 NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                              const Endpoint& bootstrap_endpoint,
@@ -224,7 +225,8 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
 
     lock.lock();
     if (!local_cond_var.wait_for(lock,
-                                 BoostToChrono<int>(Parameters::bootstrap_connect_timeout + bptime::seconds(1)),
+                                 BoostToChrono<int>(Parameters::bootstrap_connect_timeout +
+                                                    bptime::seconds(1)),
                                  [&] { return slot_called; })) {  // NOLINT (Fraser)
       LOG(kError) << "Timed out waiting for connection. External endpoint: "
                   << multiplexer_->external_endpoint() << "  Local endpoint: "
@@ -259,7 +261,8 @@ void Transport::DetectNatType(NodeId const& peer_id, std::unique_lock<std::mutex
                               });
 
     bool const success = local_cond_var.wait_for(lock,
-                                                 BoostToChrono<int>(Parameters::ping_timeout + bptime::seconds(1)),
+                                                 BoostToChrono<int>(Parameters::ping_timeout +
+                                                                    bptime::seconds(1)),
                                                  [&] { return result != kPendingResult; });  // NOLINT (Fraser)
     if (!success || result != kSuccess) {
       LOG(kWarning) << "Timed out waiting for NAT detection ping - setting NAT type to symmetric";

@@ -129,6 +129,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
 
+  bool TryBootstrapping(
+      const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint> > &bootstrap_peers,
+      bool bootstrap_off_existing_connection,
+      NodeId& chosen_id);
   NodeId ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                     const boost::asio::ip::udp::endpoint& bootstrap_endpoint,
                                     const boost::posix_time::time_duration& lifespan);
