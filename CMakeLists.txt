@@ -68,6 +68,8 @@ set(ALL_FILES_RUDP_TESTS_DIR ${SOURCE_FILES_RUDP_TESTS_DIR} ${HEADER_FILES_RUDP_
 source_group("Main Test Source Files" FILES ${SOURCE_FILES_RUDP_TESTS_DIR})
 source_group("Main Test Header Files" FILES ${HEADER_FILES_RUDP_TESTS_DIR})
 list(REMOVE_ITEM ALL_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/performance_tool.cc")
+list(REMOVE_ITEM ALL_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_client.cc")
+list(REMOVE_ITEM ALL_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_echo_server.cc")
 
 file(GLOB SOURCE_FILES_RUDP_CORE_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/tests/*.cc")
 file(GLOB HEADER_FILES_RUDP_CORE_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/tests/*.h")
@@ -107,8 +109,14 @@ if(MAIDSAFE_TESTING)
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/performance_tool.cc"
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/test_utils.cc"
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/test_utils.h")
+  ms_add_executable(udp_server "Tools"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_echo_server.cc")
+  ms_add_executable(udp_client "Tools"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_client.cc")
   target_link_libraries(TESTrudp maidsafe_rudp)
   target_link_libraries(rudp_performance_tool maidsafe_rudp)
+  target_link_libraries(udp_server maidsafe_rudp)
+  target_link_libraries(udp_client maidsafe_rudp)
 endif()
 
 rename_outdated_built_exes()
