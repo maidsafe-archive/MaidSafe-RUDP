@@ -83,11 +83,11 @@ bool Transport::Bootstrap(
   // already been executed at that point in time.
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
-    on_message_=std::move(on_message_slot);
-    on_connection_added_=std::move(on_connection_added_slot);
-    on_connection_lost_=std::move(on_connection_lost_slot);
+    on_message_ = std::move(on_message_slot);
+    on_connection_added_= std::move(on_connection_added_slot);
+    on_connection_lost_ = std::move(on_connection_lost_slot);
   }
-  
+
   on_nat_detection_requested_slot_ = on_nat_detection_requested_slot;
 
   connection_manager_.reset(new ConnectionManager(shared_from_this(), strand_, multiplexer_,
@@ -119,34 +119,31 @@ bool Transport::Bootstrap(
   return false;
 }
 
-namespace{
+namespace {
   template<typename FunctorType>
-  class LocalFunctorReplacement{
+  class LocalFunctorReplacement {
   public:
     LocalFunctorReplacement(
-      std::mutex& mutex,FunctorType& functor_to_replace,FunctorType& save_slot,
-      FunctorType replacement):
-      mutex_(mutex),functor_to_replace_(functor_to_replace),save_slot_(save_slot)
-    {
+        std::mutex& mutex, FunctorType& functor_to_replace,
+        FunctorType& save_slot, FunctorType replacement)
+          : mutex_(mutex), functor_to_replace_(functor_to_replace), save_slot_(save_slot) {
       std::lock_guard<std::mutex> guard(mutex_);
-      save_slot_=std::move(functor_to_replace_);
-      functor_to_replace_=std::move(replacement);
+      save_slot_ = std::move(functor_to_replace_);
+      functor_to_replace_ = std::move(replacement);
     }
-    ~LocalFunctorReplacement()
-    {
+    ~LocalFunctorReplacement() {
       std::lock_guard<std::mutex> guard(mutex_);
-      functor_to_replace_=std::move(save_slot_);
+      functor_to_replace_ = std::move(save_slot_);
     }
 
   private:
     std::mutex& mutex_;
     FunctorType& functor_to_replace_;
     FunctorType& save_slot_;
-    
-    LocalFunctorReplacement(LocalFunctorReplacement const&);
+
+    explicit LocalFunctorReplacement(LocalFunctorReplacement const&);
     LocalFunctorReplacement& operator=(LocalFunctorReplacement const&);
   };
-  
 }
 
 
@@ -164,22 +161,22 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
   bool slot_called(false);
   bool timed_out_connecting(false);
   NodeId peer_id;
-  boost::unique_lock<boost::mutex> lock(local_mutex,boost::defer_lock);
+  boost::unique_lock<boost::mutex> lock(local_mutex, boost::defer_lock);
 
   {
     OnConnectionAdded saved_on_connection_added;
     OnConnectionLost saved_on_connection_lost;
-    
+
     LocalFunctorReplacement<OnConnectionAdded> on_conn_added_guard(
-      callback_mutex_,on_connection_added_,saved_on_connection_added,
+      callback_mutex_, on_connection_added_, saved_on_connection_added,
       [&](
         const NodeId& connected_peer_id,
         TransportPtr transport,
         bool temporary_connection,
         bool& is_duplicate_normal_connection) {
         saved_on_connection_added(
-          connected_peer_id,transport,temporary_connection,is_duplicate_normal_connection);
-        
+          connected_peer_id, transport, temporary_connection, is_duplicate_normal_connection);
+
         assert(!slot_called);
         boost::mutex::scoped_lock local_lock(local_mutex);
         slot_called = true;
@@ -187,14 +184,14 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
         local_cond_var.notify_one();
       });
     LocalFunctorReplacement<OnConnectionLost> on_conn_lost_guard(
-      callback_mutex_,on_connection_lost_,saved_on_connection_lost,
+      callback_mutex_, on_connection_lost_, saved_on_connection_lost,
       [&](
         const NodeId& connected_peer_id,
         TransportPtr transport,
         bool temporary_connection,
         bool timed_out) {
-        saved_on_connection_lost(connected_peer_id,transport,temporary_connection,timed_out);
-        
+        saved_on_connection_lost(connected_peer_id, transport, temporary_connection, timed_out);
+
         boost::mutex::scoped_lock local_lock(local_mutex);
         if (!slot_called) {
           slot_called = true;
@@ -203,13 +200,13 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           local_cond_var.notify_one();
         }
       });
-    
+
     connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
                                  Parameters::bootstrap_connect_timeout, lifespan);
-    
+
     lock.lock();
-    if(!local_cond_var.timed_wait(
-         lock,Parameters::bootstrap_connect_timeout + bptime::seconds(1),
+    if (!local_cond_var.timed_wait(lock,
+         Parameters::bootstrap_connect_timeout + bptime::seconds(1),
          [&] { return slot_called; })) {  // NOLINT (Fraser)
       LOG(kError) << "Timed out waiting for connection. External endpoint: "
                   << multiplexer_->external_endpoint() << "  Local endpoint: "
@@ -223,13 +220,13 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
     return NodeId();
   }
 
-  DetectNatType(peer_id,lock);
+  DetectNatType(peer_id, lock);
   return peer_id;
 }
 
-void Transport::DetectNatType(NodeId const& peer_id,boost::unique_lock<boost::mutex>& lock){
+void Transport::DetectNatType(NodeId const& peer_id, boost::unique_lock<boost::mutex>& lock) {
   assert(lock.owns_lock());
-  
+
   Endpoint nat_detection_endpoint(
       connection_manager_->RemoteNatDetectionEndpoint(peer_id));
   if (IsValid(nat_detection_endpoint)) {
@@ -257,9 +254,9 @@ void Transport::DetectNatType(NodeId const& peer_id,boost::unique_lock<boost::mu
 void Transport::Close() {
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
-    on_message_=nullptr;
-    on_connection_added_=nullptr;
-    on_connection_lost_=nullptr;
+    on_message_ = nullptr;
+    on_connection_added_ = nullptr;
+    on_connection_lost_ = nullptr;
   }
   if (connection_manager_)
     connection_manager_->Close();
@@ -388,9 +385,9 @@ void Transport::DoSignalMessageReceived(const std::string& message) {
   OnMessage local_callback;
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
-    local_callback=on_message_;
+    local_callback = on_message_;
   }
-  if(local_callback)
+  if (local_callback)
     local_callback(message);
 }
 
@@ -412,7 +409,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
     } else if (result == kConnectionAlreadyExists) {
       LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
                   << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
-      //assert(false);
+      // assert(false);
       return connection->MarkAsDuplicateAndClose(Connection::State::kExactDuplicate);
     }
   }
@@ -424,9 +421,9 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
   OnConnectionAdded local_callback;
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
-    local_callback=on_connection_added_;
+    local_callback = on_connection_added_;
   }
-  if(local_callback){
+  if (local_callback) {
     local_callback(
       connection->Socket().PeerNodeId(),
       shared_from_this(),
@@ -439,7 +436,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
       connection->MarkAsDuplicateAndClose(Connection::State::kDuplicate);
     }
   }
-  
+
 #ifndef NDEBUG
   std::string s("\n++++++++++++++++++++++++\nAdded ");
   s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
@@ -467,7 +464,7 @@ void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
 
   // If the connection has a failure_functor, invoke that, otherwise invoke on_connection_lost_.
   auto failure_functor(connection->GetAndClearFailureFunctor());
-  if (failure_functor){
+  if (failure_functor) {
     return failure_functor();
   }
 
@@ -475,9 +472,9 @@ void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
     OnConnectionLost local_callback;
     {
       std::lock_guard<std::mutex> guard(callback_mutex_);
-      local_callback=on_connection_lost_;
+      local_callback = on_connection_lost_;
     }
-    if(local_callback)
+    if (local_callback)
       local_callback(
         connection->Socket().PeerNodeId(),
         shared_from_this(),

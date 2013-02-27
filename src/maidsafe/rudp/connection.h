@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <queue>
 
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/io_service.hpp"
@@ -107,16 +108,16 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   struct SendRequest {
     std::string encrypted_data_;
-    std::function<void(int)> message_sent_functor_;
-    
+    std::function<void(int result)> message_sent_functor_;
+
     SendRequest(
       std::string const&encrypted_data,
-      std::function<void(int)> const& message_sent_functor):
+      std::function<void(int result)> const& message_sent_functor):
       encrypted_data_(encrypted_data),
       message_sent_functor_(message_sent_functor)
     {}
   };
-  
+
   void DoClose(bool timed_out = false);
   void DoStartConnecting(const NodeId& peer_node_id,
                          const boost::asio::ip::udp::endpoint& peer_endpoint,

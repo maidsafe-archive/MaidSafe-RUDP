@@ -22,7 +22,8 @@ project(rudp)
 include(../../cmake_modules/maidsafe_standard_setup.cmake)
 
 include_directories(${common_SOURCE_DIR}/include)
-
+include_directories(${private_SOURCE_DIR}/include)
+include_directories(${passport_SOURCE_DIR}/include)
 
 ###################################################################################################
 # Set up all files as GLOBs                                                                       #
@@ -70,6 +71,9 @@ source_group("Main Test Header Files" FILES ${HEADER_FILES_RUDP_TESTS_DIR})
 list(REMOVE_ITEM ALL_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/performance_tool.cc")
 list(REMOVE_ITEM ALL_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_client.cc")
 list(REMOVE_ITEM ALL_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_echo_server.cc")
+list(REMOVE_ITEM ALL_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/rudp_node.cc")
+list(REMOVE_ITEM ALL_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/rudp_node_impl.h")
+list(REMOVE_ITEM ALL_FILES_RUDP_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/rudp_node_impl.cc")
 
 file(GLOB SOURCE_FILES_RUDP_CORE_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/tests/*.cc")
 file(GLOB HEADER_FILES_RUDP_CORE_TESTS_DIR "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/core/tests/*.h")
@@ -109,12 +113,17 @@ if(MAIDSAFE_TESTING)
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/performance_tool.cc"
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/test_utils.cc"
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/test_utils.h")
+  ms_add_executable(rudp_node "Tools"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/rudp_node.cc"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/rudp_node_impl.h"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/rudp_node_impl.cc")
   ms_add_executable(udp_server "Tools"
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_echo_server.cc")
   ms_add_executable(udp_client "Tools"
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_client.cc")
   target_link_libraries(TESTrudp maidsafe_rudp)
   target_link_libraries(rudp_performance_tool maidsafe_rudp)
+  target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
   target_link_libraries(udp_server maidsafe_rudp)
   target_link_libraries(udp_client maidsafe_rudp)
 endif()
@@ -160,4 +169,8 @@ if(MAIDSAFE_TESTING)
                           )
   add_project_experimental()
   test_summary_output()
+endif()
+
+if(UNIX)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-effc++")
 endif()
