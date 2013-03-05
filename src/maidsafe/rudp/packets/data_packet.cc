@@ -34,71 +34,43 @@ DataPacket::DataPacket()
       destination_socket_id_(0),
       data_() {}
 
-uint32_t DataPacket::PacketSequenceNumber() const {
-  return packet_sequence_number_;
-}
+uint32_t DataPacket::PacketSequenceNumber() const { return packet_sequence_number_; }
 
 void DataPacket::SetPacketSequenceNumber(uint32_t n) {
   assert(n <= 0x7fffffff);
   packet_sequence_number_ = n;
 }
 
-bool DataPacket::FirstPacketInMessage() const {
-  return first_packet_in_message_;
-}
+bool DataPacket::FirstPacketInMessage() const { return first_packet_in_message_; }
 
-void DataPacket::SetFirstPacketInMessage(bool b) {
-  first_packet_in_message_ = b;
-}
+void DataPacket::SetFirstPacketInMessage(bool b) { first_packet_in_message_ = b; }
 
-bool DataPacket::LastPacketInMessage() const {
-  return last_packet_in_message_;
-}
+bool DataPacket::LastPacketInMessage() const { return last_packet_in_message_; }
 
-void DataPacket::SetLastPacketInMessage(bool b) {
-  last_packet_in_message_ = b;
-}
+void DataPacket::SetLastPacketInMessage(bool b) { last_packet_in_message_ = b; }
 
-bool DataPacket::InOrder() const {
-  return in_order_;
-}
+bool DataPacket::InOrder() const { return in_order_; }
 
-void DataPacket::SetInOrder(bool b) {
-  in_order_ = b;
-}
+void DataPacket::SetInOrder(bool b) { in_order_ = b; }
 
-uint32_t DataPacket::MessageNumber() const {
-  return message_number_;
-}
+uint32_t DataPacket::MessageNumber() const { return message_number_; }
 
 void DataPacket::SetMessageNumber(uint32_t n) {
   assert(n <= 0x1fffffff);
   message_number_ = n;
 }
 
-uint32_t DataPacket::TimeStamp() const {
-  return time_stamp_;
-}
+uint32_t DataPacket::TimeStamp() const { return time_stamp_; }
 
-void DataPacket::SetTimeStamp(uint32_t n) {
-  time_stamp_ = n;
-}
+void DataPacket::SetTimeStamp(uint32_t n) { time_stamp_ = n; }
 
-uint32_t DataPacket::DestinationSocketId() const {
-  return destination_socket_id_;
-}
+uint32_t DataPacket::DestinationSocketId() const { return destination_socket_id_; }
 
-void DataPacket::SetDestinationSocketId(uint32_t n) {
-  destination_socket_id_ = n;
-}
+void DataPacket::SetDestinationSocketId(uint32_t n) { destination_socket_id_ = n; }
 
-const std::string& DataPacket::Data() const {
-  return data_;
-}
+const std::string& DataPacket::Data() const { return data_; }
 
-void DataPacket::SetData(const std::string& data) {
-  data_ = data;
-}
+void DataPacket::SetData(const std::string& data) { data_ = data; }
 
 bool DataPacket::IsValid(const asio::const_buffer& buffer) {
   return ((asio::buffer_size(buffer) >= 16) &&

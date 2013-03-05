@@ -34,12 +34,13 @@ namespace detail {
 
 namespace test {
 
-//class RudpTransportTest : public testing::Test {
+// class RudpTransportTest : public testing::Test {
 // public:
 //  RudpTransportTest()
 //      : transports_(),
 //        network_size_(2),
-//        kTimeOut_(Parameters::keepalive_interval * (Parameters::maximum_keepalive_failures + 1)) {}
+//        kTimeOut_(Parameters::keepalive_interval *
+//                  (Parameters::maximum_keepalive_failures + 1)) {}
 //
 //  ~RudpTransportTest() {}
 //
@@ -148,9 +149,9 @@ namespace test {
 //  std::vector<std::shared_ptr<TestPeer> > transports_;
 //  uint16_t network_size_;
 //  bptime::time_duration kTimeOut_;
-//};
+// };
 //
-//TEST_F(RudpTransportTest, BEH_Connection) {
+// TEST_F(RudpTransportTest, BEH_Connection) {
 //  ConnectTestPeers();
 //
 //  transports_[1]->messages_received.clear();
@@ -182,9 +183,9 @@ namespace test {
 //                                     transports_[1]->key_pair.private_key,
 //                                     &decrypted_msg));
 //  EXPECT_EQ(msg_content, decrypted_msg);
-//}
+// }
 //
-//TEST_F(RudpTransportTest, BEH_CloseConnection) {
+// TEST_F(RudpTransportTest, BEH_CloseConnection) {
 //  ConnectTestPeers();
 //  transports_[1]->transport->CloseConnection(transports_[0]->local_endpoint);
 //  {
@@ -203,9 +204,9 @@ namespace test {
 //  EXPECT_FALSE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
 //  EXPECT_EQ(kInvalidConnection, send_result);
 //  EXPECT_EQ(0, transports_[1]->messages_received.size());
-//}
+// }
 //
-//TEST_F(RudpTransportTest, BEH_DropConnection) {
+// TEST_F(RudpTransportTest, BEH_DropConnection) {
 //  ConnectTestPeers();
 //  Endpoint dropped_endpoint(transports_[0]->local_endpoint);
 //  int attempts(0);
@@ -229,7 +230,7 @@ namespace test {
 //  EXPECT_FALSE(transports_[0]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
 //  EXPECT_EQ(kInvalidConnection, send_result);
 //  EXPECT_EQ(0, transports_[0]->messages_received.size());
-//}
+// }
 
 }  // namespace test
 

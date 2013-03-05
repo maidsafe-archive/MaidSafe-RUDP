@@ -28,14 +28,14 @@ namespace detail {
 template <typename ConnectHandler>
 class ConnectOp {
  public:
-  ConnectOp(ConnectHandler handler, const boost::system::error_code* ec)
+  ConnectOp(ConnectHandler handler, const boost::system::error_code& ec)
       : handler_(handler),
         ec_(ec) {}
 
   ConnectOp(const ConnectOp& other) : handler_(other.handler_), ec_(other.ec_) {}
 
   void operator()(boost::system::error_code) {
-    handler_(*ec_);
+    handler_(ec_);
   }
 
   friend void* asio_handler_allocate(size_t n, ConnectOp* op) {
@@ -59,7 +59,7 @@ class ConnectOp {
   ConnectOp& operator=(const ConnectOp&);
 
   ConnectHandler handler_;
-  const boost::system::error_code* ec_;
+  const boost::system::error_code& ec_;
 };
 
 }  // namespace detail

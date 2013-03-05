@@ -44,16 +44,15 @@ class ControlPacket : public Packet {
   void SetDestinationSocketId(uint32_t n);
 
   friend class test::ControlPacketTest;
+
  protected:
   void SetType(uint16_t n);
 
   uint32_t AdditionalInfo() const;
   void SetAdditionalInfo(uint32_t n);
 
-  static bool IsValidBase(const boost::asio::const_buffer& buffer,
-                          uint16_t expected_packet_type);
-  bool DecodeBase(const boost::asio::const_buffer& buffer,
-                  uint16_t expected_packet_type);
+  static bool IsValidBase(const boost::asio::const_buffer& buffer, uint16_t expected_packet_type);
+  bool DecodeBase(const boost::asio::const_buffer& buffer, uint16_t expected_packet_type);
   size_t EncodeBase(const boost::asio::mutable_buffer& buffer) const;
 
   // Prevent deletion through this type.

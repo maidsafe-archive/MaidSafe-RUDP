@@ -41,8 +41,8 @@ std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& o
       break;
   }
 
-  for (std::string::iterator itr(nat_str.begin()); itr != nat_str.end(); ++itr)
-    ostream << ostream.widen(*itr);
+  for (auto& ch : nat_str)
+    ostream << ostream.widen(ch);
   return ostream;
 }
 

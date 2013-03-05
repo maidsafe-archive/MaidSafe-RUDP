@@ -26,7 +26,7 @@ namespace detail {
 // move it further away.
 class TickTimer {
  public:
-  explicit TickTimer(boost::asio::io_service& asio_service)  // NOLINT (Fraser)
+  explicit TickTimer(boost::asio::io_service& asio_service)
       : timer_(asio_service) {
     Reset();
   }

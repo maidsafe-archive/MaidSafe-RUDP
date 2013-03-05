@@ -33,7 +33,7 @@ namespace detail {
 template <typename TickHandler, typename Socket>
 class TickOp {
  public:
-  TickOp(TickHandler handler, Socket* socket, TickTimer* tick_timer)
+  TickOp(TickHandler handler, Socket& socket, TickTimer& tick_timer)
       : handler_(handler),
         socket_(socket),
         tick_timer_(tick_timer) {}
@@ -45,9 +45,9 @@ class TickOp {
 
   void operator()(boost::system::error_code) {
     boost::system::error_code ec;
-    if (socket_->IsOpen()) {
-      if (tick_timer_->Expired()) {
-        tick_timer_->Reset();
+    if (socket_.IsOpen()) {
+      if (tick_timer_.Expired()) {
+        tick_timer_.Reset();
         DispatchTick(socket_);
       }
     } else {
@@ -77,8 +77,8 @@ class TickOp {
   TickOp& operator=(const TickOp&);
 
   TickHandler handler_;
-  Socket* socket_;
-  TickTimer* tick_timer_;
+  Socket& socket_;
+  TickTimer& tick_timer_;
 };
 
 }  // namespace detail

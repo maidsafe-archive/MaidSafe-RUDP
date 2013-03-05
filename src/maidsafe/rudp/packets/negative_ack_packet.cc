@@ -69,9 +69,7 @@ bool NegativeAckPacket::ContainsSequenceNumber(uint32_t n) const {
   return false;
 }
 
-bool NegativeAckPacket::HasSequenceNumbers() const {
-  return !sequence_numbers_.empty();
-}
+bool NegativeAckPacket::HasSequenceNumbers() const { return !sequence_numbers_.empty(); }
 
 bool NegativeAckPacket::Decode(const asio::const_buffer& buffer) {
   // Refuse to decode if the input buffer is not valid.

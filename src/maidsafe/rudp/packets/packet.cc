@@ -21,11 +21,9 @@ namespace rudp {
 
 namespace detail {
 
-Packet::~Packet() {
-}
+Packet::~Packet() {}
 
-bool Packet::DecodeDestinationSocketId(uint32_t* id,
-                                       const asio::const_buffer& data) {
+bool Packet::DecodeDestinationSocketId(uint32_t* id, const asio::const_buffer& data) {
   // Refuse to decode anything that's too short.
   if (asio::buffer_size(data) < 16)
     return false;

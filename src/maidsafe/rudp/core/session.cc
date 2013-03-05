@@ -14,14 +14,15 @@
 #include "maidsafe/rudp/core/session.h"
 
 #include <cassert>
+
 #include "maidsafe/common/log.h"
 
-#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/utils.h"
 #include "maidsafe/rudp/core/peer.h"
 #include "maidsafe/rudp/core/sliding_window.h"
 #include "maidsafe/rudp/core/tick_timer.h"
-#include "maidsafe/rudp/nat_type.h"
-#include "maidsafe/rudp/utils.h"
+#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/packets/handshake_packet.h"
 
 namespace bptime = boost::posix_time;
 
@@ -32,7 +33,7 @@ namespace rudp {
 
 namespace detail {
 
-Session::Session(Peer& peer,  // NOLINT (Fraser)
+Session::Session(Peer& peer,
                  TickTimer& tick_timer,
                  boost::asio::ip::udp::endpoint& this_external_endpoint,
                  std::mutex& this_external_endpoint_mutex,
@@ -113,7 +114,7 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
                   << "  Waiting for Cookie.";
     return;
   }
-  
+
 //    if (packet.SynCookie() == 1) {
   peer_.SetThisEndpoint(packet.PeerEndpoint());
   if (!CalculateEndpoint())
@@ -130,8 +131,8 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
   receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
   peer_.SetPublicKey(packet.PublicKey());
   if (packet.NatDetectionPort() != 0) {
-    peer_nat_detection_endpoint_ = boost::asio::ip::udp::endpoint(
-      peer_.PeerEndpoint().address(),packet.NatDetectionPort());
+    peer_nat_detection_endpoint_ = boost::asio::ip::udp::endpoint(peer_.PeerEndpoint().address(),
+                                                                  packet.NatDetectionPort());
   }
 
   if (mode_ == kBootstrapAndDrop)
@@ -168,9 +169,9 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
 
   // TODO(Fraser#5#): 2012-04-04 - Handle SynCookies
   if (state_ == kProbing) {
-      HandleHandshakeWhenProbing(packet);
+    HandleHandshakeWhenProbing(packet);
   } else if (state_ == kHandshaking) {
-      HandleHandshakeWhenHandshaking(packet);
+    HandleHandshakeWhenHandshaking(packet);
   }
 }
 

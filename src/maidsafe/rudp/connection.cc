@@ -14,9 +14,10 @@
 #include "maidsafe/rudp/connection.h"
 
 #include <array>
-#include <thread>
 #include <algorithm>
 #include <functional>
+#include <queue>
+#include <thread>
 
 #include "boost/asio/read.hpp"
 #include "boost/asio/write.hpp"
@@ -206,17 +207,17 @@ void Connection::StartSending(const std::string& data,
   }
 }
 
-void Connection::DoQueueSendRequest(SendRequest const& request){
-  if(sending_){
+void Connection::DoQueueSendRequest(SendRequest const& request) {
+  if (sending_) {
     send_queue_.push(request);
   } else {
     DoStartSending(request);
   }
 }
 
-void Connection::FinishSendAndQueueNext(){
-  if(send_queue_.empty()){
-    sending_=false;
+void Connection::FinishSendAndQueueNext() {
+  if (send_queue_.empty()) {
+    sending_ = false;
   } else {
     strand_.post(std::bind(&Connection::DoStartSending, shared_from_this(), send_queue_.front()));
     send_queue_.pop();
@@ -227,10 +228,11 @@ void Connection::FinishSendAndQueueNext(){
 
 void Connection::DoStartSending(SendRequest const& request) {
   sending_ = true;
-  const std::function<void(int)> &message_sent_functor=request.message_sent_functor_;
-  MessageSentFunctor wrapped_functor([this, message_sent_functor](int result) {
-      InvokeSentFunctor(message_sent_functor, result);
-    });
+  const std::function<void(int)> &message_sent_functor = request.message_sent_functor_;  // NOLINT (Dan)
+  MessageSentFunctor wrapped_functor([this,
+                                     message_sent_functor] (int result) {
+                                       InvokeSentFunctor(message_sent_functor, result);
+                                     });
 
   if (Stopped()) {
     InvokeSentFunctor(message_sent_functor, kSendFailure);
@@ -262,7 +264,8 @@ void Connection::CheckTimeout(const bs::error_code& ec) {
 
   // Keep processing timeouts until the socket is completely closed.
   timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckTimeout,
-                                           shared_from_this(), args::_1)));
+                                           shared_from_this(),
+                                           args::_1)));
 }
 
 bool Connection::Stopped() const {

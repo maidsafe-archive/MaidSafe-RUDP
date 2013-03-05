@@ -14,9 +14,10 @@
 #ifndef MAIDSAFE_RUDP_CONNECTION_H_
 #define MAIDSAFE_RUDP_CONNECTION_H_
 
-#include <mutex>
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -107,16 +108,14 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   struct SendRequest {
     std::string encrypted_data_;
-    std::function<void(int)> message_sent_functor_;
-    
-    SendRequest(
-      std::string const&encrypted_data,
-      std::function<void(int)> const& message_sent_functor):
-      encrypted_data_(encrypted_data),
-      message_sent_functor_(message_sent_functor)
-    {}
+    std::function<void(int)> message_sent_functor_;  // NOLINT (Dan)
+
+    SendRequest(std::string const&encrypted_data,
+                std::function<void(int)> const& message_sent_functor)  // NOLINT (Dan)
+        : encrypted_data_(encrypted_data),
+          message_sent_functor_(message_sent_functor) {}
   };
-  
+
   void DoClose(bool timed_out = false);
   void DoStartConnecting(const NodeId& peer_node_id,
                          const boost::asio::ip::udp::endpoint& peer_endpoint,
@@ -207,8 +206,8 @@ std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& o
       break;
   }
 
-  for (std::string::iterator itr(state_str.begin()); itr != state_str.end(); ++itr)
-    ostream << ostream.widen(*itr);
+  for (auto& ch : state_str)
+    ostream << ostream.widen(ch);
   return ostream;
 }
 

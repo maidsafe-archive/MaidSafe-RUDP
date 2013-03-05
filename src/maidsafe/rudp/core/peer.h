@@ -31,7 +31,7 @@ namespace detail {
 
 class Peer {
  public:
-  explicit Peer(Multiplexer& multiplexer)  // NOLINT (Fraser)
+  explicit Peer(Multiplexer& multiplexer)
       : multiplexer_(multiplexer),
         peer_endpoint_(),
         this_endpoint_(),
@@ -64,9 +64,7 @@ class Peer {
   void SetPeerGuessedPort() { peer_guessed_port_ = peer_endpoint_.port(); }
 
   template <typename Packet>
-  ReturnCode Send(const Packet& packet) {
-    return multiplexer_.SendTo(packet, peer_endpoint_);
-  }
+  ReturnCode Send(const Packet& packet) { return multiplexer_.SendTo(packet, peer_endpoint_); }
 
  private:
   // Disallow copying and assignment.

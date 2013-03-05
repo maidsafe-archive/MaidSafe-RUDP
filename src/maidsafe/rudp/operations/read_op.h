@@ -28,7 +28,7 @@ namespace detail {
 template <typename ReadHandler>
 class ReadOp {
  public:
-  ReadOp(ReadHandler handler, const boost::system::error_code* ec, const size_t* bytes_transferred)
+  ReadOp(ReadHandler handler, const boost::system::error_code& ec, const size_t& bytes_transferred)
       : handler_(handler),
         ec_(ec),
         bytes_transferred_(bytes_transferred) {}
@@ -39,7 +39,7 @@ class ReadOp {
         bytes_transferred_(other.bytes_transferred_) {}
 
   void operator()(boost::system::error_code) {
-    handler_(*ec_, *bytes_transferred_);
+    handler_(ec_, bytes_transferred_);
   }
 
   friend void* asio_handler_allocate(size_t n, ReadOp* op) {
@@ -63,8 +63,8 @@ class ReadOp {
   ReadOp& operator=(const ReadOp&);
 
   ReadHandler handler_;
-  const boost::system::error_code* ec_;
-  const size_t* bytes_transferred_;
+  const boost::system::error_code& ec_;
+  const size_t& bytes_transferred_;
 };
 
 }  // namespace detail

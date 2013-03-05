@@ -46,13 +46,11 @@ bool ParseArgs(int argc, char **argv, int& message_count, int& message_size) {
   catch(const std::exception&) {
     return fail();
   }
-  
+
   return true;
 }
 
 }  // unnamed namespace
-
-
 
 int main(int argc, char **argv) {
   auto message_count(0), message_size(0);
@@ -69,7 +67,6 @@ int main(int argc, char **argv) {
     LOG(kError) << "Failed to setup network.";
     return -2;
   }
-
 
   maidsafe::rudp::MessageReceivedFunctor do_nothing_on_message;
   maidsafe::rudp::ConnectionLostFunctor do_nothing_on_connection_lost;

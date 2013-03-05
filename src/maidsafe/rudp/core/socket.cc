@@ -24,6 +24,13 @@
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/core/multiplexer.h"
+#include "maidsafe/rudp/packets/ack_of_ack_packet.h"
+#include "maidsafe/rudp/packets/ack_packet.h"
+#include "maidsafe/rudp/packets/data_packet.h"
+#include "maidsafe/rudp/packets/handshake_packet.h"
+#include "maidsafe/rudp/packets/keepalive_packet.h"
+#include "maidsafe/rudp/packets/negative_ack_packet.h"
+#include "maidsafe/rudp/packets/shutdown_packet.h"
 
 namespace asio = boost::asio;
 namespace ip = asio::ip;
@@ -78,33 +85,19 @@ Socket::~Socket() {
     message_sent_functor.second(kConnectionClosed);
 }
 
-uint32_t Socket::Id() const {
-  return session_.Id();
-}
+uint32_t Socket::Id() const { return session_.Id(); }
 
-int32_t Socket::BestReadBufferSize() const {
-  return congestion_control_.BestReadBufferSize();
-}
+int32_t Socket::BestReadBufferSize() const { return congestion_control_.BestReadBufferSize(); }
 
-ip::udp::endpoint Socket::PeerEndpoint() const {
-  return peer_.PeerEndpoint();
-}
+ip::udp::endpoint Socket::PeerEndpoint() const { return peer_.PeerEndpoint(); }
 
-uint32_t Socket::PeerSocketId() const {
-  return peer_.SocketId();
-}
+uint32_t Socket::PeerSocketId() const { return peer_.SocketId(); }
 
-NodeId Socket::PeerNodeId() const {
-  return peer_.node_id();
-}
+NodeId Socket::PeerNodeId() const { return peer_.node_id(); }
 
-bool Socket::IsOpen() const {
-  return session_.IsOpen();
-}
+bool Socket::IsOpen() const { return session_.IsOpen(); }
 
-bool Socket::IsConnected() const {
-  return session_.IsConnected();
-}
+bool Socket::IsConnected() const { return session_.IsConnected(); }
 
 void Socket::UpdatePeerEndpoint(const ip::udp::endpoint& remote) {
   peer_.SetPeerGuessedPort();
@@ -267,6 +260,7 @@ void Socket::ProcessFlush() {
 
 void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::endpoint& endpoint) {
   if (endpoint == peer_.PeerEndpoint()) {
+    // TODO(Team): Surely this can be templetised somehow to avoid all the obejct creation
     DataPacket data_packet;
     AckPacket ack_packet;
     AckOfAckPacket ack_of_ack_packet;
@@ -324,7 +318,7 @@ void Socket::HandleKeepalive(const KeepalivePacket& packet) {
   if (session_.IsConnected()) {
     if (packet.IsResponse()) {
       if (waiting_keepalive_sequence_number_ &&
-            packet.IsResponseOf(waiting_keepalive_sequence_number_)) {
+          packet.IsResponseOf(waiting_keepalive_sequence_number_)) {
         waiting_probe_ec_.clear();
         waiting_probe_.cancel();
         waiting_keepalive_sequence_number_ += 2;
@@ -397,17 +391,11 @@ void Socket::HandleTick() {
   }
 }
 
-void Socket::MakeNormal() {
-  session_.MakeNormal();
-}
+void Socket::MakeNormal() { session_.MakeNormal(); }
 
-ip::udp::endpoint Socket::ThisEndpoint() const {
-  return peer_.ThisEndpoint();
-}
+ip::udp::endpoint Socket::ThisEndpoint() const { return peer_.ThisEndpoint(); }
 
-std::shared_ptr<asymm::PublicKey> Socket::PeerPublicKey() const {
-  return peer_.public_key();
-}
+std::shared_ptr<asymm::PublicKey> Socket::PeerPublicKey() const { return peer_.public_key(); }
 
 }  // namespace detail
 

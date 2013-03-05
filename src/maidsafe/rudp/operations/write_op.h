@@ -29,8 +29,8 @@ template <typename WriteHandler>
 class WriteOp {
  public:
   WriteOp(WriteHandler handler,
-          const boost::system::error_code* ec,
-          const size_t* bytes_transferred)
+          const boost::system::error_code& ec,
+          const size_t& bytes_transferred)
       : handler_(handler),
         ec_(ec),
         bytes_transferred_(bytes_transferred) {}
@@ -41,7 +41,7 @@ class WriteOp {
         bytes_transferred_(other.bytes_transferred_) {}
 
   void operator()(boost::system::error_code) {
-    handler_(*ec_, *bytes_transferred_);
+    handler_(ec_, bytes_transferred_);
   }
 
   friend void* asio_handler_allocate(size_t n, WriteOp* op) {
@@ -65,8 +65,8 @@ class WriteOp {
   WriteOp& operator=(const WriteOp&);
 
   WriteHandler handler_;
-  const boost::system::error_code* ec_;
-  const size_t* bytes_transferred_;
+  const boost::system::error_code& ec_;
+  const size_t& bytes_transferred_;
 };
 
 }  // namespace detail

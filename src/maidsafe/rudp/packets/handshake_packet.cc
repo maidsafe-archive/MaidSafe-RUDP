@@ -44,21 +44,13 @@ HandshakePacket::HandshakePacket()
   SetType(kPacketType);
 }
 
-uint32_t HandshakePacket::RudpVersion() const {
-  return rudp_version_;
-}
+uint32_t HandshakePacket::RudpVersion() const { return rudp_version_; }
 
-void HandshakePacket::SetRudpVersion(uint32_t n) {
-  rudp_version_ = n;
-}
+void HandshakePacket::SetRudpVersion(uint32_t n) { rudp_version_ = n; }
 
-uint32_t HandshakePacket::SocketType() const {
-  return socket_type_;
-}
+uint32_t HandshakePacket::SocketType() const { return socket_type_; }
 
-void HandshakePacket::SetSocketType(uint32_t n) {
-  socket_type_ = n;
-}
+void HandshakePacket::SetSocketType(uint32_t n) { socket_type_ = n; }
 
 uint32_t HandshakePacket::InitialPacketSequenceNumber() const {
   return initial_packet_sequence_number_;
@@ -68,61 +60,33 @@ void HandshakePacket::SetInitialPacketSequenceNumber(uint32_t n) {
   initial_packet_sequence_number_ = n;
 }
 
-uint32_t HandshakePacket::MaximumPacketSize() const {
-  return maximum_packet_size_;
-}
+uint32_t HandshakePacket::MaximumPacketSize() const { return maximum_packet_size_; }
 
-void HandshakePacket::SetMaximumPacketSize(uint32_t n) {
-  maximum_packet_size_ = n;
-}
+void HandshakePacket::SetMaximumPacketSize(uint32_t n) { maximum_packet_size_ = n; }
 
-uint32_t HandshakePacket::MaximumFlowWindowSize() const {
-  return maximum_flow_window_size_;
-}
+uint32_t HandshakePacket::MaximumFlowWindowSize() const { return maximum_flow_window_size_; }
 
-void HandshakePacket::SetMaximumFlowWindowSize(uint32_t n) {
-  maximum_flow_window_size_ = n;
-}
+void HandshakePacket::SetMaximumFlowWindowSize(uint32_t n) { maximum_flow_window_size_ = n; }
 
-uint32_t HandshakePacket::ConnectionType() const {
-  return connection_type_;
-}
+uint32_t HandshakePacket::ConnectionType() const { return connection_type_; }
 
-void HandshakePacket::SetConnectionType(uint32_t n) {
-  connection_type_ = n;
-}
+void HandshakePacket::SetConnectionType(uint32_t n) { connection_type_ = n; }
 
-uint32_t HandshakePacket::ConnectionReason() const {
-  return connection_reason_;
-}
+uint32_t HandshakePacket::ConnectionReason() const { return connection_reason_; }
 
-void HandshakePacket::SetConnectionReason(uint32_t n) {
-  connection_reason_ = n;
-}
+void HandshakePacket::SetConnectionReason(uint32_t n) { connection_reason_ = n; }
 
-uint32_t HandshakePacket::SocketId() const {
-  return socket_id_;
-}
+uint32_t HandshakePacket::SocketId() const { return socket_id_; }
 
-void HandshakePacket::SetSocketId(uint32_t n) {
-  socket_id_ = n;
-}
+void HandshakePacket::SetSocketId(uint32_t n) { socket_id_ = n; }
 
-NodeId HandshakePacket::node_id() const {
-  return node_id_;
-}
+NodeId HandshakePacket::node_id() const { return node_id_; }
 
-void HandshakePacket::set_node_id(NodeId node_id) {
-  node_id_ = node_id;
-}
+void HandshakePacket::set_node_id(NodeId node_id) { node_id_ = node_id; }
 
-uint32_t HandshakePacket::SynCookie() const {
-  return syn_cookie_;
-}
+uint32_t HandshakePacket::SynCookie() const { return syn_cookie_; }
 
-void HandshakePacket::SetSynCookie(uint32_t n) {
-  syn_cookie_ = n;
-}
+void HandshakePacket::SetSynCookie(uint32_t n) { syn_cookie_ = n; }
 
 //  asio::ip::address HandshakePacket::IpAddress() const {
 //    if (ip_address_.is_v4_compatible())
@@ -137,33 +101,21 @@ void HandshakePacket::SetSynCookie(uint32_t n) {
 //      ip_address_ = address.to_v6();
 //  }
 
-bool HandshakePacket::RequestNatDetectionPort() const {
-  return request_nat_detection_port_;
-}
+bool HandshakePacket::RequestNatDetectionPort() const { return request_nat_detection_port_; }
 
-void HandshakePacket::SetRequestNatDetectionPort(bool b) {
-  request_nat_detection_port_ = b;
-}
+void HandshakePacket::SetRequestNatDetectionPort(bool b) { request_nat_detection_port_ = b; }
 
-uint16_t HandshakePacket::NatDetectionPort() const {
-  return nat_detection_port_;
-}
+uint16_t HandshakePacket::NatDetectionPort() const { return nat_detection_port_; }
 
-void HandshakePacket::SetNatDetectionPort(uint16_t port) {
-  nat_detection_port_ = port;
-}
+void HandshakePacket::SetNatDetectionPort(uint16_t port) { nat_detection_port_ = port; }
 
-asio::ip::udp::endpoint HandshakePacket::PeerEndpoint() const {
-  return peer_endpoint_;
-}
+asio::ip::udp::endpoint HandshakePacket::PeerEndpoint() const { return peer_endpoint_; }
 
 void HandshakePacket::SetPeerEndpoint(const asio::ip::udp::endpoint& endpoint) {
   peer_endpoint_ = endpoint;
 }
 
-std::shared_ptr<asymm::PublicKey> HandshakePacket::PublicKey() const {
-  return public_key_;
-}
+std::shared_ptr<asymm::PublicKey> HandshakePacket::PublicKey() const { return public_key_; }
 
 void HandshakePacket::SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key) {
   public_key_ = public_key;
@@ -222,7 +174,7 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   if (asio::buffer_size(buffer) != kMinPacketSize) {
     asymm::EncodedPublicKey encoded_public_key(std::string(p + 121, p + length));
     try {
-      public_key_.reset(new asymm::PublicKey(asymm::DecodeKey(encoded_public_key)));
+      public_key_ = std::make_shared<asymm::PublicKey>(asymm::DecodeKey(encoded_public_key));
       if (!asymm::ValidateKey(*public_key_)) {
         LOG(kError) << "Failed to validate peer's public key.";
         return false;

@@ -67,9 +67,9 @@ TEST(SocketTest, BEH_Socket) {
   NodeId server_node_id(NodeId::kRandomId), client_node_id(NodeId::kRandomId);
   asymm::Keys server_key_pair(asymm::GenerateKeyPair()), client_key_pair(asymm::GenerateKeyPair());
   std::shared_ptr<asymm::PublicKey> server_public_key(
-      new asymm::PublicKey(server_key_pair.public_key));
+      std::make_shared<asymm::PublicKey>(server_key_pair.public_key));
   std::shared_ptr<asymm::PublicKey> client_public_key(
-      new asymm::PublicKey(client_key_pair.public_key));
+      std::make_shared<asymm::PublicKey>(client_key_pair.public_key));
 
   std::shared_ptr<Multiplexer> server_multiplexer(new Multiplexer(io_service));
   ConnectionManager server_connection_manager(std::shared_ptr<Transport>(),
@@ -95,7 +95,7 @@ TEST(SocketTest, BEH_Socket) {
 
   client_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, client_multiplexer));
 
-  NatType server_nat_type=NatType::kUnknown, client_nat_type=NatType::kUnknown;
+  NatType server_nat_type = NatType::kUnknown, client_nat_type = NatType::kUnknown;
   Socket server_socket(*server_multiplexer, server_nat_type);
   server_ec = asio::error::would_block;
 
@@ -123,8 +123,7 @@ TEST(SocketTest, BEH_Socket) {
 
   do {
     io_service.run_one();
-  } while (server_ec == asio::error::would_block ||
-           client_ec == asio::error::would_block);
+  } while (server_ec == asio::error::would_block || client_ec == asio::error::would_block);
   ASSERT_TRUE(!server_ec);
   ASSERT_TRUE(server_socket.IsOpen());
   ASSERT_TRUE(!client_ec);
@@ -137,13 +136,14 @@ TEST(SocketTest, BEH_Socket) {
   for (size_t i = 0; i < kIterations; ++i) {
     std::vector<unsigned char> server_buffer(kBufferSize);
     server_ec = asio::error::would_block;
-    server_socket.AsyncRead(asio::buffer(server_buffer), kBufferSize,
+    server_socket.AsyncRead(asio::buffer(server_buffer),
+                            kBufferSize,
                             std::bind(&handler1, args::_1, &server_ec));
 
     std::vector<unsigned char> client_buffer(kBufferSize, 'A');
     client_ec = asio::error::would_block;
     client_socket.AsyncWrite(asio::buffer(client_buffer),
-                             [](int) {},  // NOLINT (Fraser)
+                             [] (int) {},  // NOLINT (Fraser)
                              std::bind(&handler1, args::_1, &client_ec));
 
     do {
@@ -173,9 +173,9 @@ TEST(SocketTest, BEH_AsyncProbe) {
   asymm::Keys server_key_pair(asymm::GenerateKeyPair()), client_key_pair(asymm::GenerateKeyPair());
   NodeId server_node_id(NodeId::kRandomId), client_node_id(NodeId::kRandomId);
   std::shared_ptr<asymm::PublicKey> server_public_key(
-      new asymm::PublicKey(server_key_pair.public_key));
+      std::make_shared<asymm::PublicKey>(server_key_pair.public_key));
   std::shared_ptr<asymm::PublicKey> client_public_key(
-      new asymm::PublicKey(client_key_pair.public_key));
+      std::make_shared<asymm::PublicKey>(client_key_pair.public_key));
 
   std::shared_ptr<Multiplexer> server_multiplexer(new Multiplexer(io_service));
   ConnectionManager server_connection_manager(std::shared_ptr<Transport>(),
