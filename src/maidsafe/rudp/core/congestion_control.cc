@@ -100,8 +100,10 @@ void CongestionControl::OnGenerateAck(uint32_t /*seqnum*/) {
   size_t num_valid_intervals = 0;
   uint64_t total = 0;
   for (auto& item : intervals) {
-    if ((median / 8 <= item) && (item <= median * 8))
-      ++num_valid_intervals, total += item;
+    if ((median / 8 <= item) && (item <= median * 8)) {
+      ++num_valid_intervals;
+      total += item;
+    }
   }
 
   // Determine packet arrival speed only if we had more than 8 valid values.

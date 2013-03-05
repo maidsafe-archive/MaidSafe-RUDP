@@ -37,7 +37,8 @@ bool KeepalivePacket::IsResponse() const { return !IsRequest(); }
 
 bool KeepalivePacket::IsResponseOf(const uint32_t& sequence_number) const {
   assert(IsResponse() && (sequence_number & 0x00000001));
-  return (sequence_number + 1 == SequenceNumber());
+  return (IsResponse() && (sequence_number & 0x00000001) &&
+          sequence_number + 1 == SequenceNumber());
 }
 
 bool KeepalivePacket::Decode(const asio::const_buffer& buffer) {

@@ -408,11 +408,10 @@ void Transport::DoSignalMessageReceived(const std::string& message) {
   OnMessage local_callback;
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
-    if (!on_message_)
-      return;
     local_callback = on_message_;
   }
-  local_callback(message);
+  if (local_callback)
+    local_callback(message);
 }
 
 void Transport::AddConnection(ConnectionPtr connection) {
