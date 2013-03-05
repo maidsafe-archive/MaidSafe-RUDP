@@ -766,7 +766,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_ManyTimesSimpleSend) {
                                             ++result_arrived_count;
                                             cond_var.notify_one();
                                           });
-  auto wait_for_result([&] (int count) {
+  auto wait_for_result([&] (int count)->bool {
     std::unique_lock<std::mutex> lock(mutex);
     return cond_var.wait_for(lock,
                              std::chrono::seconds(500),
@@ -850,7 +850,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
                                             result_arrived = true;
                                             cond_var.notify_one();
                                           });
-  auto wait_for_result([&] {
+  auto wait_for_result([&]()->bool {
     std::unique_lock<std::mutex> lock(mutex);
     return cond_var.wait_for(lock,
                              std::chrono::milliseconds(1000),
