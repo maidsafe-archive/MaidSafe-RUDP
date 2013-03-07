@@ -30,8 +30,9 @@
 #include "boost/signals2/connection.hpp"
 
 #include "maidsafe/common/asio_service.h"
-#include "maidsafe/common/rsa.h"
 #include "maidsafe/common/node_id.h"
+#include "maidsafe/common/rsa.h"
+#include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/nat_type.h"
 
@@ -62,18 +63,18 @@ class ManagedConnections {
   ~ManagedConnections();
 
   static int32_t kMaxMessageSize() { return 2097152; }
-  static unsigned short kResiliencePort() { return 5483; }  // NOLINT (Fraser)
+  static unsigned short kResiliencePort() { return kLivePort; }  // NOLINT (Fraser)
 
   // Creates a new transport object and bootstraps it to one of the provided bootstrap_endpoints.
-  // It first tries bootstrapping to "own_local_address:5483".  Bootstrapping involves connecting to
-  // the peer, then connecting again to another endpoint (provided by the same bootstrap peer) to
-  // establish the local NAT type, which is returned in the nat_type parameter.  The successfully-
-  // connected endpoint is returned, or a default endpoint is returned if bootstrapping is
-  // unsuccessful.  If bootstrapping is successful and start_resilience_transport is true, the node
-  // starts a transport on port 5483.  All messages are decrypted using private_key before being
-  // passed up via MessageReceivedFunctor.  Before bootstrapping begins, if there are any existing
-  // transports they are destroyed and all connections closed.  For zero-state network, pass the
-  // required local_endpoint.
+  // It first tries bootstrapping to "own_local_address:kLivePort".  Bootstrapping involves
+  // connecting to the peer, then connecting again to another endpoint (provided by the same
+  // bootstrap peer) to establish the local NAT type, which is returned in the nat_type parameter.
+  // The successfully connected endpoint is returned, or a default endpoint is returned if
+  // bootstrapping is unsuccessful.  If bootstrapping is successful and start_resilience_transport
+  // is true, the node starts a transport on port kLivePort.  All messages are decrypted using
+  // private_key before being passed up via MessageReceivedFunctor.  Before bootstrapping begins, if
+  // there are any existing transports they are destroyed and all connections closed.  For
+  // zero-state network, pass the required local_endpoint.
   int Bootstrap(const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
                 MessageReceivedFunctor message_received_functor,
                 ConnectionLostFunctor connection_lost_functor,
@@ -107,7 +108,7 @@ class ManagedConnections {
   // Marks the connection to peer_endpoint as valid.  If it exists and is already permanent, or
   // is successfully upgraded to permanent, then the function is successful.  If the peer is direct-
   // connected, its endpoint is returned.
-  // TODO(Fraser#5#): 2012-09-11 - Handle passing back peer_endpoint iff it's direct-connected.
+  // TODO(Fraser#5#): 2012-09-11 - Handle passing back peer_endpoint if it's direct-connected.
   //                  Currently returned whenever peer_endpoint is a non-private addresses.
   int MarkConnectionAsValid(NodeId peer_id, boost::asio::ip::udp::endpoint& peer_endpoint);
 
