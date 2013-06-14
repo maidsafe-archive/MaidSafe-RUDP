@@ -24,7 +24,7 @@ class Server {
 
  public:
   Server(boost::asio::io_service& io_service, uint16_t port)
-    : io_service_(io_service),
+    : // TODO (dirvine) unused io_service_(io_service),
       socket_(io_service, udp::endpoint(udp::v4(), port)),
       sender_endpoint_() {
     socket_.async_receive_from(
@@ -53,7 +53,7 @@ class Server {
   }
 
  private:
-  boost::asio::io_service& io_service_;
+//  boost::asio::io_service& io_service_; Unused
   udp::socket socket_;
   udp::endpoint sender_endpoint_;
   char data_[kMaxLength];

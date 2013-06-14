@@ -77,7 +77,7 @@ class RudpNode {
   std::shared_ptr<maidsafe::rudp::detail::Transport> transport_;
   bool reply_;
   size_t data_size_;
-  size_t data_rate_;
+//  size_t data_rate_;  (dirvine) currently unused
   bool result_arrived_, finish_;
   boost::mutex wait_mutex_;
   boost::condition_variable wait_cond_var_;

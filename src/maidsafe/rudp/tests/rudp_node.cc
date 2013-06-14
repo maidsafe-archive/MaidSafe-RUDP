@@ -46,7 +46,7 @@ void UseUnreferenced() {
 }
 #endif
 
-volatile bool ctrlc_pressed(false);
+//volatile bool ctrlc_pressed(false);
 // reported unused (dirvine)
 // void CtrlCHandler(int /*a*/) {
 //   ctrlc_pressed = true;
