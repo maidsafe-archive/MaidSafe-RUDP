@@ -45,11 +45,12 @@ namespace detail {
 
 namespace {
 
-// TODO(dirvine) currently unused
-//std::ostream& operator<<(std::ostream& ostream, const Multiplexer& multiplexer) {
-//  ostream << multiplexer.external_endpoint() << " / " << multiplexer.local_endpoint();
-//  return ostream;
-//}
+#ifdef USE_LOGGING
+std::ostream& operator<<(std::ostream& ostream, const Multiplexer& multiplexer) {
+  ostream << multiplexer.external_endpoint() << " / " << multiplexer.local_endpoint();
+  return ostream;
+}
+#endif
 
 }  // unnamed namespace
 
