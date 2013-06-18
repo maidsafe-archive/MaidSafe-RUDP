@@ -36,8 +36,6 @@ glob_dir(RudpPackets ${RudpSourcesDir}/packets "Packets\\\\")
 
 glob_dir(RudpTests ${RudpSourcesDir}/tests "Main Test")
 list(REMOVE_ITEM RudpTestsAllFiles ${RudpSourcesDir}/tests/performance_tool.cc
-                                   ${RudpSourcesDir}/tests/udp_client.cc
-                                   ${RudpSourcesDir}/tests/udp_echo_server.cc
                                    ${RudpSourcesDir}/tests/rudp_node.cc
                                    ${RudpSourcesDir}/tests/rudp_node_impl.h
                                    ${RudpSourcesDir}/tests/rudp_node_impl.cc)
@@ -57,15 +55,15 @@ if(MaidsafeTesting)
                                           ${RudpCoreTestsAllFiles}
 #                                          ${RudpOperationsTestsAllFiles}
                                           ${RudpPacketsTestsAllFiles})
-  ms_add_executable(rudp_performance_tool "Tools" ${RudpSourcesDir}/tests/performance_tool.cc
-                                                  ${RudpSourcesDir}/tests/test_utils.cc
-                                                  ${RudpSourcesDir}/tests/test_utils.h)
-  ms_add_executable(rudp_node "Tools" ${RudpSourcesDir}/tests/rudp_node.cc
-                                      ${RudpSourcesDir}/tests/rudp_node_impl.h
-                                      ${RudpSourcesDir}/tests/rudp_node_impl.cc)
+#  ms_add_executable(rudp_performance_tool "Tools" ${RudpSourcesDir}/tests/performance_tool.cc
+#                                                  ${RudpSourcesDir}/tests/test_utils.cc
+#                                                  ${RudpSourcesDir}/tests/test_utils.h)
+#  ms_add_executable(rudp_node "Tools" ${RudpSourcesDir}/tests/rudp_node.cc
+#                                      ${RudpSourcesDir}/tests/rudp_node_impl.h
+#                                      ${RudpSourcesDir}/tests/rudp_node_impl.cc)
   target_link_libraries(TESTrudp maidsafe_rudp)
-  target_link_libraries(rudp_performance_tool maidsafe_rudp)
-  target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
+#  target_link_libraries(rudp_performance_tool maidsafe_rudp)
+#  target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
 endif()
 
 rename_outdated_built_exes()
@@ -109,8 +107,4 @@ if(MaidsafeTesting)
                           )
   add_project_experimental()
   test_summary_output()
-endif()
-
-if(UNIX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-effc++")
 endif()
