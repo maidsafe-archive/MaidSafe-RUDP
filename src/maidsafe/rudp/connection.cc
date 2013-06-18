@@ -52,6 +52,8 @@ std::ostream& operator<<(std::ostream& ostream, const Multiplexer& multiplexer) 
 }
 #endif
 
+typedef std::function<void(int)> PingFunctor;
+
 }  // unnamed namespace
 
 Connection::Connection(const std::shared_ptr<Transport> &transport,

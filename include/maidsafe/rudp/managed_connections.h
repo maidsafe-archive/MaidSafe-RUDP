@@ -45,7 +45,7 @@ namespace detail { class Transport; }
 
 typedef std::function<void(const std::string& /*message*/)> MessageReceivedFunctor;
 typedef std::function<void(const NodeId& /*peer_id*/)> ConnectionLostFunctor;
-typedef std::function<void(int /*result*/)> MessageSentFunctor, PingFunctor;  // NOLINT (Fraser)
+typedef std::function<void(int /*result*/)> MessageSentFunctor;
 
 struct EndpointPair {
   EndpointPair() : local(), external() {}
