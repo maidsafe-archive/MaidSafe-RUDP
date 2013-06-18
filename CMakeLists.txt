@@ -63,13 +63,9 @@ if(MaidsafeTesting)
   ms_add_executable(rudp_node "Tools" ${RudpSourcesDir}/tests/rudp_node.cc
                                       ${RudpSourcesDir}/tests/rudp_node_impl.h
                                       ${RudpSourcesDir}/tests/rudp_node_impl.cc)
-  ms_add_executable(udp_server "Tools" ${RudpSourcesDir}/tests/udp_echo_server.cc)
-  ms_add_executable(udp_client "Tools" ${RudpSourcesDir}/tests/udp_client.cc)
   target_link_libraries(TESTrudp maidsafe_rudp)
   target_link_libraries(rudp_performance_tool maidsafe_rudp)
   target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
-  target_link_libraries(udp_server maidsafe_rudp)
-  target_link_libraries(udp_client maidsafe_rudp)
 endif()
 
 rename_outdated_built_exes()
