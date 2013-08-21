@@ -93,7 +93,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
     // Waiting for all results (promises)
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       std::chrono::milliseconds timeout((num_messages * messages_size / 20) + 5000);
-      if (futures.at(i).wait_for(timeout) == std::future_status::ready) {
+      if (WaitForFutureWhichDefinitelyIsntDeferred(futures.at(i), timeout) ==
+          std::future_status::ready) {
         auto messages(futures.at(i).get());
         EXPECT_TRUE(!messages.empty());
       } else {

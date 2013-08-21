@@ -102,11 +102,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   nodes[1]->AddConnectedNodeId(nodes[0]->node_id());
 
   std::chrono::milliseconds timeout(Parameters::rendezvous_connect_timeout.total_milliseconds());
-  if (futures0.wait_for(timeout) != std::future_status::ready) {
+  if (WaitForFutureWhichDefinitelyIsntDeferred(futures0, timeout) != std::future_status::ready) {
     return testing::AssertionFailure() << "Failed waiting for " << nodes[0]->id()
         << " to receive " << nodes[1]->id() << "'s validation data.";
   }
-  if (futures1.wait_for(timeout) != std::future_status::ready) {
+  if (WaitForFutureWhichDefinitelyIsntDeferred(futures1, timeout) != std::future_status::ready) {
     return testing::AssertionFailure() << "Failed waiting for " << nodes[1]->id()
         << " to receive " << nodes[0]->id() << "'s validation data.";
   }
@@ -231,11 +231,13 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
 
       // Check validation data was received correctly at each peer, and if so call
       // MarkConnectionAsValid.
-      if (futures0.wait_for(rendezvous_connect_timeout) != std::future_status::ready) {
+      if (WaitForFutureWhichDefinitelyIsntDeferred(futures0, rendezvous_connect_timeout) !=
+          std::future_status::ready) {
         return testing::AssertionFailure() << "Failed waiting for " << nodes[i]->id()
             << " to receive " << nodes[j]->id() << "'s validation data.";
       }
-      if (futures1.wait_for(rendezvous_connect_timeout) != std::future_status::ready) {
+      if (WaitForFutureWhichDefinitelyIsntDeferred(futures1, rendezvous_connect_timeout) !=
+          std::future_status::ready) {
         return testing::AssertionFailure() << "Failed waiting for " << nodes[j]->id()
             << " to receive " << nodes[i]->id() << "'s validation data.";
       }

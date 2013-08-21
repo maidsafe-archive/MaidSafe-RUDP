@@ -42,6 +42,17 @@ typedef std::shared_ptr<ManagedConnections> ManagedConnectionsPtr;
 
 namespace test {
 
+// Workaround for VC++ marking a future as deferred despite being constructed from a std::promise.
+template<typename Future, typename Timeout>
+int WaitForFutureWhichDefinitelyIsntDeferred(const Future& future, const Timeout& timeout) {
+  int result(future.wait_for(timeout));
+  if (result != std::future_status::deferred)
+    return result;
+
+  auto wrapper_future(std::async(std::launch::async, [&] { future.wait(); }));
+  return wrapper_future.wait_for(timeout);
+}
+
 class Node;
 typedef std::shared_ptr<Node> NodePtr;
 
