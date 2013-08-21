@@ -44,8 +44,14 @@ namespace test {
 
 // Workaround for VC++ marking a future as deferred despite being constructed from a std::promise.
 template<typename Future, typename Timeout>
-int WaitForFutureWhichDefinitelyIsntDeferred(const Future& future, const Timeout& timeout) {
-  int result(future.wait_for(timeout));
+#ifdef _MSC_VER
+std::future_status::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future& future,
+                                                                           const Timeout& timeout) {
+#else
+std::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future& future,
+                                                            const Timeout& timeout) {
+#endif
+  auto result(future.wait_for(timeout));
   if (result != std::future_status::deferred)
     return result;
 
