@@ -1209,15 +1209,15 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   });
 
   // Perform sends
-  std::vector<boost::thread> threads(kNetworkSize);
+  std::vector<std::thread> threads(kNetworkSize);
   for (int i(0); i != kNetworkSize - 1; ++i) {
-    threads[i] = boost::thread(&ManagedConnections::Send,
-                               nodes_[i]->managed_connections().get(),
-                               node_.node_id(),
-                               sent_messages[i],
-                               message_sent_functors[i]);
+    threads[i] = std::move(std::thread(&ManagedConnections::Send,
+                                       nodes_[i]->managed_connections().get(),
+                                       node_.node_id(),
+                                       sent_messages[i],
+                                       message_sent_functors[i]));
   }
-  for (boost::thread& thread : threads)
+  for (auto& thread : threads)
     thread.join();
 
   // Assess results
@@ -1298,7 +1298,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   // Sleep for bootstrap_disconnection_timeout to allow connection to timeout and close
   node_.ResetData();
   nodes_[0]->ResetData();
-  boost::this_thread::sleep(Parameters::bootstrap_connection_lifespan);
+  Sleep(std::chrono::milliseconds(Parameters::bootstrap_connection_lifespan.total_milliseconds()));
   int count(0);
   do {
     Sleep(std::chrono::milliseconds(100));
