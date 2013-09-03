@@ -215,7 +215,7 @@ namespace test {
 //  int attempts(0);
 //  while ((attempts < 10) && (transports_[0]->messages_received.size() == 0)) {
 //    ++attempts;
-//    Sleep(bptime::milliseconds(100));
+//    Sleep(std::chrono::milliseconds(100));
 //  }
 //  transports_.erase(transports_.begin());
 //

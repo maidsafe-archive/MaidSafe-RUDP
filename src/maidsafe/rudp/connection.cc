@@ -56,7 +56,7 @@ std::ostream& operator<<(std::ostream& ostream, const Multiplexer& multiplexer) 
 }
 #endif
 
-typedef std::function<void(int)> PingFunctor;
+typedef std::function<void(int /*result*/)> PingFunctor;
 
 }  // unnamed namespace
 

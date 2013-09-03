@@ -44,15 +44,7 @@ typedef int32_t DataSize;
 class Multiplexer;
 
 
-#ifdef __GNUC__
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Weffc++"
-#endif
 class Connection : public std::enable_shared_from_this<Connection> {
-#ifdef __GNUC__
-#  pragma GCC diagnostic pop
-#endif
-
  public:
   enum class State {
     // GetAvailableEndpoint has been called, but connection has not yet been made.

@@ -51,15 +51,7 @@ class Connection;
 class Multiplexer;
 class Socket;
 
-#ifdef __GNUC__
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Weffc++"
-#endif
 class Transport : public std::enable_shared_from_this<Transport> {
-#ifdef __GNUC__
-#  pragma GCC diagnostic pop
-#endif
-
  public:
   typedef std::function<void(const std::string&)> OnMessage;
 

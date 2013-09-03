@@ -57,7 +57,7 @@ std::future<std::pair<int, std::string>> GetFuture(std::vector<NodePtr>& nodes, 
         EndpointPair endpoint_pair;
         NatType nat_type;
         boost::this_thread::disable_interruption disable_interruption;
-        Sleep(boost::posix_time::milliseconds(RandomUint32() % 100));
+        Sleep(std::chrono::milliseconds(RandomUint32() % 100));
         return std::make_pair(
             nodes[x]->managed_connections()->GetAvailableEndpoint(
               nodes[y]->node_id(), EndpointPair(), endpoint_pair, nat_type),
@@ -98,7 +98,7 @@ class ManagedConnectionsTest : public testing::Test {
     ASSERT_EQ(kSuccess,
               node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[index]), chosen_node));
     ASSERT_EQ(nodes_[index]->node_id(), chosen_node);
-    Sleep(boost::posix_time::milliseconds(250));
+    Sleep(std::chrono::milliseconds(250));
     nodes_[index]->ResetData();
 
     EXPECT_EQ(kBootstrapConnectionAlreadyExists,
@@ -342,7 +342,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
     EXPECT_EQ(this_endpoint_pair.local, test_endpoint_pair.local);
   }
 
-  Sleep(Parameters::rendezvous_connect_timeout / 2);
+  Sleep(rendezvous_connect_timeout / 2);
 
   // Remove one from the pendings_ by calling Add to complete making the connection.
   const int kSelected((RandomUint32() % (kNodeCount - 1)) + 1);
@@ -372,7 +372,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
     }
   }
 
-  Sleep(Parameters::rendezvous_connect_timeout / 2 + boost::posix_time::milliseconds(500));
+  Sleep(rendezvous_connect_timeout / 2 + std::chrono::milliseconds(500));
 
   for (int i(1); i != kNodeCount; ++i) {
     EXPECT_EQ((i == kSelected ? kUnvalidatedConnectionAlreadyExists : kSuccess),
@@ -391,7 +391,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
   EXPECT_FALSE(chosen_node.IsZero());
-  Sleep(boost::posix_time::milliseconds(250));
+  Sleep(std::chrono::milliseconds(250));
 
   nodes_[0]->ResetData();
   EndpointPair peer_endpoint_pair0, peer_endpoint_pair2,
@@ -489,7 +489,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
   EXPECT_FALSE(chosen_node.IsZero());
-  Sleep(boost::posix_time::milliseconds(250));
+  Sleep(std::chrono::milliseconds(250));
 
   nodes_[0]->ResetData();
   EndpointPair peer_endpoint_pair, this_endpoint_pair;
@@ -558,7 +558,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
                       on_nat_detection_requested_slot);
 
   auto future(std::async(std::launch::async, [&io_service]() { io_service.run_one(); }));
-  Sleep(boost::posix_time::milliseconds(500));
+  Sleep(std::chrono::milliseconds(500));
   EXPECT_FALSE(socket.IsConnected());
   socket.Close();
   future.get();
@@ -569,7 +569,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   auto wait_for_signals([&](int node_index)->bool {
     int count(0);
     do {
-      Sleep(bptime::milliseconds(100));
+      Sleep(std::chrono::milliseconds(100));
       ++count;
     } while ((node_.connection_lost_node_ids().empty() ||
              nodes_[node_index]->connection_lost_node_ids().empty()) &&
@@ -590,7 +590,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   for (unsigned count(0);
        nodes_[1]->managed_connections()->GetActiveConnectionCount() < 4 && count < 10;
        ++count)
-    Sleep(bptime::milliseconds(100));
+    Sleep(std::chrono::milliseconds(100));
   EXPECT_EQ(nodes_[1]->managed_connections()->GetActiveConnectionCount(), 4);
 
   node_.managed_connections()->Remove(chosen_node);
@@ -607,7 +607,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   nodes_[0]->ResetData();
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
   NatType nat_type;
-  Sleep(boost::posix_time::milliseconds(250));
+  Sleep(std::chrono::milliseconds(250));
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             node_.managed_connections()->GetAvailableEndpoint(chosen_node,
                                                               EndpointPair(),
@@ -701,7 +701,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   for (unsigned count(0);
        nodes_[0]->managed_connections()->GetActiveConnectionCount() < 2 && count < 10;
        ++count)
-    Sleep(bptime::milliseconds(100));
+    Sleep(std::chrono::milliseconds(100));
   EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
 
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
@@ -783,7 +783,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_ManyTimesSimpleSend) {
   for (unsigned count(0);
        nodes_[0]->managed_connections()->GetActiveConnectionCount() < 2 && count < 10;
        ++count)
-    Sleep(bptime::milliseconds(100));
+    Sleep(std::chrono::milliseconds(100));
   EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
 
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
@@ -984,7 +984,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.managed_connections()->Remove(nodes_[0]->node_id());
   int count(0);
   do {
-    Sleep(bptime::milliseconds(100));
+    Sleep(std::chrono::milliseconds(100));
     ++count;
   } while ((node_.connection_lost_node_ids().empty() ||
             nodes_[0]->connection_lost_node_ids().empty()) &&
@@ -1209,15 +1209,15 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   });
 
   // Perform sends
-  std::vector<boost::thread> threads(kNetworkSize);
+  std::vector<std::thread> threads(kNetworkSize);
   for (int i(0); i != kNetworkSize - 1; ++i) {
-    threads[i] = boost::thread(&ManagedConnections::Send,
-                               nodes_[i]->managed_connections().get(),
-                               node_.node_id(),
-                               sent_messages[i],
-                               message_sent_functors[i]);
+    threads[i] = std::move(std::thread(&ManagedConnections::Send,
+                                       nodes_[i]->managed_connections().get(),
+                                       node_.node_id(),
+                                       sent_messages[i],
+                                       message_sent_functors[i]));
   }
-  for (boost::thread& thread : threads)
+  for (auto& thread : threads)
     thread.join();
 
   // Assess results
@@ -1298,10 +1298,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   // Sleep for bootstrap_disconnection_timeout to allow connection to timeout and close
   node_.ResetData();
   nodes_[0]->ResetData();
-  boost::this_thread::sleep(Parameters::bootstrap_connection_lifespan);
+  Sleep(std::chrono::milliseconds(Parameters::bootstrap_connection_lifespan.total_milliseconds()));
   int count(0);
   do {
-    Sleep(bptime::milliseconds(100));
+    Sleep(std::chrono::milliseconds(100));
     ++count;
   } while ((node_.connection_lost_node_ids().empty() ||
             nodes_[0]->connection_lost_node_ids().empty()) &&

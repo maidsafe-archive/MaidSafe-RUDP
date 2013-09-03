@@ -104,7 +104,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
     }
 
     // TODO(Fraser#5#): 2012-09-03 - Handle properly
-    Sleep(boost::posix_time::seconds(1));
+    Sleep(std::chrono::seconds(1));
 
     // Check send results
     for (uint16_t i = 0; i != nodes_.size(); ++i) {

@@ -338,7 +338,7 @@ bool Transport::Send(const NodeId& peer_id,
 
 void Transport::Ping(const NodeId& peer_id,
                      const Endpoint& peer_endpoint,
-                     const std::function<void(int)>& ping_functor) {
+                     const std::function<void(int /*result*/)>& ping_functor) {
   connection_manager_->Ping(peer_id, peer_endpoint, ping_functor);
 }
 
