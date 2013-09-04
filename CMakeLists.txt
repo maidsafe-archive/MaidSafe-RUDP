@@ -87,30 +87,6 @@ include(standard_flags)
 if(MaidsafeTesting)
   add_style_test()
   add_gtests(TESTrudp)
-  label_as_critical_tests(ManagedConnectionsFuncTest.FUNC_API_NetworkSingle1kBMessages
-                          ManagedConnectionsFuncTest.FUNC_API_NetworkSingle256kBMessages
-                          ManagedConnectionsFuncTest.FUNC_API_NetworkSingle512kBMessages
-                          ManagedConnectionsFuncTest.FUNC_API_NetworkSingle1MBMessages
-                          ManagedConnectionsFuncTest.FUNC_API_NetworkSingle2MBMessages
-                          ManagedConnectionsFuncTest.FUNC_API_NetworkMultiple1kBMessages
-                          ManagedConnectionsFuncTest.FUNC_API_NetworkMultiple256kBMessages
-                          ManagedConnectionsFuncTest.FUNC_API_NetworkMultiple512kBMessages
-                          ManagedConnectionsFuncTest.FUNC_API_NetworkMultiple1MBMessages
-                          ManagedConnectionsFuncTest.FUNC_API_NetworkMultiple2MBMessages
-                          ManagedConnectionsTest.BEH_API_RandomSizeSetup
-                          ManagedConnectionsTest.BEH_API_Bootstrap
-                          ManagedConnectionsTest.BEH_API_GetAvailableEndpoint
-                          ManagedConnectionsTest.BEH_API_PendingConnectionsPruning
-                          ManagedConnectionsTest.BEH_API_Add
-                          ManagedConnectionsTest.BEH_API_AddDuplicateBootstrap
-                          ManagedConnectionsTest.BEH_API_Remove
-                          ManagedConnectionsTest.BEH_API_SimpleSend
-                          ManagedConnectionsTest.FUNC_API_Send
-                          ManagedConnectionsTest.FUNC_API_ParallelSend
-                          ManagedConnectionsTest.FUNC_API_ParallelReceive
-                          ManagedConnectionsTest.BEH_API_BootstrapTimeout
-                          ManagedConnectionsTest.FUNC_API_ConcurrentGetAvailablesAndAdds
-                          )
   add_project_experimental()
   test_summary_output()
 endif()
