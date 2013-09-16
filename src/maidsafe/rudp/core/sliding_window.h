@@ -35,9 +35,11 @@ namespace detail {
 template <typename T>
 class SlidingWindow {
  public:
+  typedef uint32_t seq_num_t;
+
   // The maximum possible sequence number. When reached, sequence numbers are wrapped around to
   // start from 0.
-  enum { kMaxSequenceNumber = 0x7fffffff };
+  static const seq_num_t kMaxSequenceNumber = 0x7fffffff;
 
   // Construct to start with a random sequence number.
   SlidingWindow() : items_(), maximum_size_(0), begin_(0), end_(0) {
@@ -45,14 +47,13 @@ class SlidingWindow {
   }
 
   // Construct to start with a specified sequence number.
-  explicit SlidingWindow(uint32_t initial_sequence_number)
-      : items_(),
-        maximum_size_(Parameters::default_window_size),
-        begin_(initial_sequence_number),
-        end_(initial_sequence_number) {}
+  explicit SlidingWindow(seq_num_t initial_sequence_number)
+      : items_(), maximum_size_(0), begin_(0), end_(0) {
+    Reset(initial_sequence_number);
+  }
 
   // Reset to empty starting with the specified sequence number.
-  void Reset(uint32_t initial_sequence_number) {
+  void Reset(seq_num_t initial_sequence_number) {
     assert(initial_sequence_number <= kMaxSequenceNumber);
     maximum_size_ = Parameters::default_window_size;
     begin_ = end_ = initial_sequence_number;
@@ -60,20 +61,20 @@ class SlidingWindow {
   }
 
   // Get the sequence number of the first item in window.
-  uint32_t Begin() const { return begin_; }
+  seq_num_t Begin() const { return begin_; }
 
   // Get the one-past-the-end sequence number.
-  uint32_t End() const { return end_; }
+  seq_num_t End() const { return end_; }
 
   // Determine whether a sequence number is in the window.
-  bool Contains(uint32_t n) const { return IsInRange(begin_, end_, n); }
+  bool Contains(seq_num_t n) const { return IsInRange(begin_, end_, n); }
 
   // Determine whether a sequence number is within one window size past the end. This is used to
   // filter out packets with non-sensical sequence numbers.
-  bool IsComingSoon(uint32_t n) const {
-    uint32_t begin = end_;
-    uint32_t end = (begin + Parameters::maximum_window_size) %
-                   (static_cast<uint32_t>(kMaxSequenceNumber) + 1);
+  bool IsComingSoon(seq_num_t n) const {
+    seq_num_t begin = end_;
+    seq_num_t end = (begin + Parameters::maximum_window_size) %
+                    (kMaxSequenceNumber + 1);
     return IsInRange(begin, end, n);
   }
 
@@ -96,10 +97,10 @@ class SlidingWindow {
 
   // Add a new item to the end.
   // Precondition: !IsFull().
-  uint32_t Append() {
+  seq_num_t Append() {
     assert(!IsFull());
     items_.push_back(T());
-    uint32_t n = end_;
+    seq_num_t n = end_;
     end_ = Next(end_);
     return n;
   }
@@ -114,11 +115,11 @@ class SlidingWindow {
 
   // Get the item with the specified sequence number.
   // Precondition: Contains(n).
-  T& operator[](uint32_t n) { return items_[SequenceNumberToIndex(n)]; }
+  T& operator[](seq_num_t n) { return items_[SequenceNumberToIndex(n)]; }
 
   // Get the item with the specified sequence number.
   // Precondition: Contains(n).
-  const T& operator[](uint32_t n) const { return items_[SequenceNumberToIndex(n)]; }
+  const T& operator[](seq_num_t n) const { return items_[SequenceNumberToIndex(n)]; }
 
   // Get the element at the front of the window.
   // Precondition: !IsEmpty().
@@ -132,7 +133,7 @@ class SlidingWindow {
   // Precondition: !IsEmpty().
   T& Back() {
     assert(!IsEmpty());
-    return items_.front();
+    return items_.back();
   }
 
   // Get the element at the back of the window.
@@ -143,7 +144,7 @@ class SlidingWindow {
   }
 
   // Get the sequence number that follows a given number.
-  static uint32_t Next(uint32_t n) { return (n == kMaxSequenceNumber) ? 0 : n + 1; }
+  static seq_num_t Next(seq_num_t n) { return (n == kMaxSequenceNumber) ? 0 : n + 1; }
 
  private:
   // Disallow copying and assignment.
@@ -151,7 +152,7 @@ class SlidingWindow {
   SlidingWindow& operator=(const SlidingWindow&);
 
   // Helper function to convert a sequence number into an index in the window.
-  size_t SequenceNumberToIndex(uint32_t n) const {
+  size_t SequenceNumberToIndex(seq_num_t n) const {
     assert(Contains(n));
     if (begin_ <= end_)
       return n - begin_;
@@ -162,15 +163,15 @@ class SlidingWindow {
   }
 
   // Helper function to generate an initial sequence number.
-  static uint32_t GenerateSequenceNumber() {
-    uint32_t seqnum = 0;
+  static seq_num_t GenerateSequenceNumber() {
+    seq_num_t seqnum = 0;
     while (seqnum == 0)
-      seqnum = (RandomUint32() & 0x7fffffff);
+      seqnum = (RandomUint32() & kMaxSequenceNumber);
     return seqnum;
   }
 
   // Helper function to determine if a sequence number is in a given range.
-  static bool IsInRange(uint32_t begin, uint32_t end, uint32_t n) {
+  static bool IsInRange(seq_num_t begin, seq_num_t end, seq_num_t n) {
     if (begin <= end)
       return (begin <= n) && (n < end);
     else
@@ -184,11 +185,11 @@ class SlidingWindow {
   size_t maximum_size_;
 
   // The sequence number of the first item in window.
-  uint32_t begin_;
+  seq_num_t begin_;
 
   // The one-past-the-end sequence number for the window. Will be used as the sequence number of the
   // next item added.
-  uint32_t end_;
+  seq_num_t end_;
 };
 
 }  // namespace detail
