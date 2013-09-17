@@ -1380,7 +1380,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
       if (result.first != kSuccess &&
           result.first != kUnvalidatedConnectionAlreadyExists &&
           result.first != kConnectAttemptAlreadyRunning)
-        FAIL() << result.second << " returned " << result.first;
+        GTEST_FAIL() << result.second << " returned " << result.first;
     }
   }
 }
