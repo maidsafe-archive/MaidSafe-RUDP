@@ -36,7 +36,7 @@ template <typename ProbeHandler>
 class ProbeOp {
  public:
   ProbeOp(ProbeHandler handler, const boost::system::error_code& ec)
-      : handler_(handler),
+      : handler_(std::move(handler)),
         ec_(ec) {}
 
   ProbeOp(const ProbeOp& other) : handler_(other.handler_), ec_(other.ec_) {}

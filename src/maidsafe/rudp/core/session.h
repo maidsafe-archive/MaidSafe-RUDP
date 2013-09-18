@@ -57,7 +57,7 @@ class Session {
                    TickTimer& tick_timer,
                    boost::asio::ip::udp::endpoint& this_external_endpoint,
                    std::mutex& this_external_endpoint_mutex,
-                   const boost::asio::ip::udp::endpoint& this_local_endpoint,
+                   boost::asio::ip::udp::endpoint  this_local_endpoint,
                    NatType& nat_type);
 
   // Open the session.

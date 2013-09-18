@@ -70,7 +70,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   Connection(const std::shared_ptr<Transport> &transport,
              const boost::asio::io_service::strand& strand,
-             const std::shared_ptr<Multiplexer> &multiplexer);
+             std::shared_ptr<Multiplexer> multiplexer);
 
   detail::Socket& Socket();
 
@@ -109,10 +109,10 @@ class Connection : public std::enable_shared_from_this<Connection> {
     std::string encrypted_data_;
     std::function<void(int)> message_sent_functor_;  // NOLINT (Dan)
 
-    SendRequest(const std::string& encrypted_data,
-                const std::function<void(int)>& message_sent_functor)  // NOLINT (Dan)
-        : encrypted_data_(encrypted_data),
-          message_sent_functor_(message_sent_functor) {}
+    SendRequest(std::string  encrypted_data,
+                std::function<void(int)>  message_sent_functor)  // NOLINT (Dan)
+        : encrypted_data_(std::move(encrypted_data)),
+          message_sent_functor_(std::move(message_sent_functor)) {}
   };
 
   void DoClose(bool timed_out = false);

@@ -41,7 +41,7 @@ template <typename TickHandler, typename Socket>
 class TickOp {
  public:
   TickOp(TickHandler handler, Socket& socket, TickTimer& tick_timer)
-      : handler_(handler),
+      : handler_(std::move(handler)),
         socket_(socket),
         tick_timer_(tick_timer) {}
 
