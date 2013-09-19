@@ -43,7 +43,7 @@ namespace test {
 
 testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                       std::vector<Endpoint> &bootstrap_endpoints,
-                                      const int& node_count) {
+                                      int node_count) {
   if (node_count < 2)
     return testing::AssertionFailure() << "Network size must be greater than 1";
 
@@ -356,11 +356,11 @@ void Node::ResetData() {
   total_message_count_expectation_ = 0;
 }
 
-std::future<std::vector<std::string>> Node::GetFutureForMessages(const uint32_t& message_count) {
+std::future<Node::messages_t> Node::GetFutureForMessages(uint32_t message_count) {
   assert(message_count > 0);
   total_message_count_expectation_ = message_count;
   promised_ = true;
-  std::promise<std::vector<std::string>> message_promise;
+  std::promise<messages_t> message_promise;
   message_promise_.swap(message_promise);
   return message_promise_.get_future();
 }

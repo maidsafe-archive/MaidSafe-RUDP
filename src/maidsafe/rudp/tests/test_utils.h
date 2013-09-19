@@ -67,26 +67,32 @@ typedef std::shared_ptr<Node> NodePtr;
 
 testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
                                       std::vector<Endpoint> &bootstrap_endpoints,
-                                      const int& node_count);
+                                      int node_count);
 
 
 class Node {
  public:
+  typedef std::string message_t;
+  typedef std::vector<message_t> messages_t;
+
+ public:
   explicit Node(int id);
   std::vector<NodeId> connection_lost_node_ids() const;
-  std::vector<std::string> messages() const;
+  messages_t messages() const;
   int Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
                 NodeId& chosen_bootstrap_peer,
                 Endpoint local_endpoint = Endpoint());
-  std::future<std::vector<std::string>> GetFutureForMessages(const uint32_t& message_count);
+  std::future<messages_t> GetFutureForMessages(uint32_t message_count);
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
   std::string debug_node_id() const { return DebugId(node_id_); }
   std::string validation_data() const { return validation_data_.string(); }
   std::shared_ptr<asymm::PrivateKey> private_key() const {
-      return std::shared_ptr<asymm::PrivateKey>(new asymm::PrivateKey(key_pair_.private_key)); }
+      return std::make_shared<asymm::PrivateKey>(key_pair_.private_key); 
+  }
   std::shared_ptr<asymm::PublicKey> public_key() const {
-      return std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey(key_pair_.public_key)); }
+      return std::make_shared<asymm::PublicKey>(key_pair_.public_key); 
+  }
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
   int GetReceivedMessageCount(const std::string& message) const;
   void ResetData();
@@ -106,11 +112,11 @@ class Node {
   mutable std::mutex mutex_;
   std::vector<NodeId> connection_lost_node_ids_;
   std::vector<NodeId> connected_node_ids_;
-  std::vector<std::string> messages_;
+  messages_t messages_;
   ManagedConnectionsPtr managed_connections_;
   bool promised_;
   uint32_t total_message_count_expectation_;
-  std::promise<std::vector<std::string>> message_promise_;
+  std::promise<messages_t> message_promise_;
 };
 
 

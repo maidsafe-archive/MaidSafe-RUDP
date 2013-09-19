@@ -52,14 +52,14 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
  protected:
   // Each node sending n messsages to all other connected nodes.
-  void RunNetworkTest(const uint16_t& num_messages, const int& messages_size) {
+  void RunNetworkTest(uint8_t num_messages, int messages_size) {
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
-    std::vector<std::vector<std::string>> sent_messages;
-    std::vector<std::future<std::vector<std::string>>> futures;  // NOLINT (Fraser)
+    std::vector<Node::messages_t> sent_messages;
+    std::vector<std::future<Node::messages_t>> futures;  // NOLINT (Fraser)
 
     // Generate_messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      sent_messages.push_back(std::vector<std::string>());
+	  sent_messages.push_back(Node::messages_t());
       std::string message_prefix(std::string("Msg from ") + nodes_[i]->id() + " ");
       for (uint8_t j = 0; j != num_messages; ++j) {
         sent_messages[i].push_back(
@@ -68,9 +68,9 @@ class ManagedConnectionsFuncTest : public testing::Test {
     }
 
     // Get futures for messages from individual nodes
-    for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      nodes_.at(i)->ResetData();
-      futures.emplace_back(nodes_.at(i)->GetFutureForMessages(messages_received_per_node));
+    for (auto node_ptr : nodes_) {
+      node_ptr->ResetData();
+      futures.emplace_back(node_ptr->GetFutureForMessages(messages_received_per_node));
     }
 
     // Sending messages
@@ -79,11 +79,12 @@ class ManagedConnectionsFuncTest : public testing::Test {
         std::vector<std::vector<int>>(                                            // NOLINT (Fraser)
             nodes_.size() - 1,
             std::vector<int>(num_messages, kReturnCodeLimit)));
+
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       std::vector<NodeId> peers(nodes_.at(i)->GetConnectedNodeIds());
       ASSERT_EQ(nodes_.size() - 1, peers.size());
       for (uint16_t j = 0; j != peers.size(); ++j) {
-        for (uint16_t k = 0; k != num_messages; ++k) {
+        for (uint8_t k = 0; k != num_messages; ++k) {
           nodes_.at(i)->managed_connections()->Send(peers.at(j),
                                                     sent_messages[i][k],
                                                     [=, &send_results](int result_in) {
@@ -99,7 +100,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
       if (WaitForFutureWhichDefinitelyIsntDeferred(futures.at(i), timeout) ==
           std::future_status::ready) {
         auto messages(futures.at(i).get());
-        EXPECT_TRUE(!messages.empty());
+        EXPECT_FALSE(messages.empty()) << "Something";
       } else {
         EXPECT_FALSE(true) << "Timed out on " << nodes_.at(i)->id();
       }
@@ -111,7 +112,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
     // Check send results
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       for (uint16_t j = 0; j != nodes_.size(); ++j) {
-        for (uint16_t k = 0; k != num_messages; ++k) {
+        for (uint8_t k = 0; k != num_messages; ++k) {
           if (j != nodes_.size() - 1) {
             EXPECT_EQ(kSuccess, send_results[i][j][k])
                 << "send_results[" << i << "][" << j << "][" << k << "]: " << send_results[i][j][k];
@@ -125,7 +126,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
     }
   }
 
-  std::vector<std::shared_ptr<Node>> nodes_;
+  std::vector<NodePtr> nodes_;
   std::vector<Endpoint> bootstrap_endpoints_;
   uint16_t network_size_;
 
