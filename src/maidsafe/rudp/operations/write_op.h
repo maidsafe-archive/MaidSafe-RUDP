@@ -38,7 +38,7 @@ class WriteOp {
   WriteOp(WriteHandler handler,
           const boost::system::error_code& ec,
           const size_t& bytes_transferred)
-      : handler_(handler),
+      : handler_(std::move(handler)),
         ec_(ec),
         bytes_transferred_(bytes_transferred) {}
 

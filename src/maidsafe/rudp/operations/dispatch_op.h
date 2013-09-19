@@ -40,12 +40,12 @@ class DispatchOp {
  public:
   DispatchOp(DispatchHandler handler,
              boost::asio::ip::udp::socket& socket,
-             const boost::asio::mutable_buffer& buffer,
+             boost::asio::mutable_buffer  buffer,
              boost::asio::ip::udp::endpoint& sender_endpoint,
              Dispatcher& dispatcher)
-      : handler_(handler),
+      : handler_(std::move(handler)),
         socket_(socket),
-        buffer_(buffer),
+        buffer_(std::move(buffer)),
         mutex_(std::make_shared<std::mutex>()),
         sender_endpoint_(sender_endpoint),
         dispatcher_(dispatcher) {}

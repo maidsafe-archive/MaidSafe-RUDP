@@ -315,8 +315,8 @@ int Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
       bootstrap_endpoints,
       [this](const std::string& message) {
         bool is_printable(true);
-        for (auto itr(message.begin()); itr != message.end(); ++itr) {
-          if (*itr < 32) {
+        for (const auto & elem : message) {
+          if (elem < 32) {
             is_printable = false;
             break;
           }

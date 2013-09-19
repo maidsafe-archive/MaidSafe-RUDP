@@ -65,10 +65,10 @@ typedef std::function<void(int /*result*/)> PingFunctor;
 
 Connection::Connection(const std::shared_ptr<Transport> &transport,
                        const asio::io_service::strand& strand,
-                       const std::shared_ptr<Multiplexer> &multiplexer)
+                       std::shared_ptr<Multiplexer> multiplexer)
     : transport_(transport),
       strand_(strand),
-      multiplexer_(multiplexer),
+      multiplexer_(std::move(multiplexer)),
       socket_(*multiplexer_, transport->nat_type_),
       timer_(strand_.get_io_service()),
       probe_interval_timer_(strand_.get_io_service()),

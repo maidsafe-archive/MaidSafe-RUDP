@@ -80,11 +80,11 @@ int CheckBootstrappingParameters(const std::vector<Endpoint>& bootstrap_endpoint
 
 }  // unnamed namespace
 
-ManagedConnections::PendingConnection::PendingConnection(const NodeId& node_id_in,
+ManagedConnections::PendingConnection::PendingConnection(NodeId  node_id_in,
                                                          TransportPtr transport,
                                                          boost::asio::io_service &io_service)
-    : node_id(node_id_in),
-      pending_transport(transport),
+    : node_id(std::move(node_id_in)),
+      pending_transport(std::move(transport)),
       timer(io_service,
             bptime::microsec_clock::universal_time() + Parameters::rendezvous_connect_timeout),
       connecting(false) {}
