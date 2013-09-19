@@ -59,7 +59,7 @@ bool IsNormal(std::shared_ptr<Connection> connection) {
 ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
                                      const boost::asio::io_service::strand& strand,
                                      MultiplexerPtr multiplexer,
-                                     NodeId  this_node_id,
+                                     NodeId this_node_id,
                                      std::shared_ptr<asymm::PublicKey> this_public_key)
     : connections_(),
       mutex_(),

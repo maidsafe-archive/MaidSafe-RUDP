@@ -109,7 +109,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
     std::string encrypted_data_;
     std::function<void(int)> message_sent_functor_;  // NOLINT (Dan)
 
-    SendRequest(std::string  encrypted_data,
+    SendRequest(std::string encrypted_data,
                 std::function<void(int)>  message_sent_functor)  // NOLINT (Dan)
         : encrypted_data_(std::move(encrypted_data)),
           message_sent_functor_(std::move(message_sent_functor)) {}

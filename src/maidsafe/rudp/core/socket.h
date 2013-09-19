@@ -300,7 +300,7 @@ class Socket {
   boost::system::error_code waiting_probe_ec_;
 
   // This class allows only one outstanding flush operation at a time. The
-  // following data members  store the pending flush, and the result that is
+  // following data members store the pending flush, and the result that is
   // intended for its completion handler.
   boost::asio::deadline_timer waiting_flush_;
   boost::system::error_code waiting_flush_ec_;

@@ -138,7 +138,7 @@ class ManagedConnections {
   typedef std::shared_ptr<detail::Transport> TransportPtr;
   typedef std::map<NodeId, TransportPtr> ConnectionMap;
   struct PendingConnection {
-    PendingConnection(NodeId  node_id_in,
+    PendingConnection(NodeId node_id_in,
                       TransportPtr transport,
                       boost::asio::io_service &io_service);
     NodeId node_id;

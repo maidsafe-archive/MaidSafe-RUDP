@@ -80,7 +80,7 @@ int CheckBootstrappingParameters(const std::vector<Endpoint>& bootstrap_endpoint
 
 }  // unnamed namespace
 
-ManagedConnections::PendingConnection::PendingConnection(NodeId  node_id_in,
+ManagedConnections::PendingConnection::PendingConnection(NodeId node_id_in,
                                                          TransportPtr transport,
                                                          boost::asio::io_service &io_service)
     : node_id(std::move(node_id_in)),
