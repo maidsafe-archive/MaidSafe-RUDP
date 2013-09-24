@@ -322,7 +322,7 @@ int Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
           }
         }
         LOG(kInfo) << id() << " -- Received: " << (is_printable ? message.substr(0, 30) :
-                                                   EncodeToHex(message.substr(0, 15)));
+                                                   HexEncode(message.substr(0, 15)));
         std::lock_guard<std::mutex> guard(mutex_);
         messages_.emplace_back(message);
         SetPromiseIfDone();
