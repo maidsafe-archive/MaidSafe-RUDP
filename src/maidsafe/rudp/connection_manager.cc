@@ -140,7 +140,6 @@ void ConnectionManager::Ping(const NodeId& peer_id, const Endpoint& peer_endpoin
 
 bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
                              const std::function<void(int)>& message_sent_functor) {  // NOLINT
-                                                                                      // (Fraser)
   std::unique_lock<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
@@ -150,8 +149,7 @@ bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
 
   ConnectionPtr connection(*itr);
   lock.unlock();
-  strand_.dispatch([=] { connection->StartSending(message, message_sent_functor); });  // NOLINT
-                                                                                       // (Fraser)
+  strand_.dispatch([=] { connection->StartSending(message, message_sent_functor); });
   return true;
 }
 

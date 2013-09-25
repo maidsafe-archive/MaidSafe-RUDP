@@ -157,8 +157,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void EncodeData(const std::string& data);
 
-  void InvokeSentFunctor(const std::function<void(int)>& message_sent_functor,
-                         int result) const;  // NOLINT (Fraser)
+  void InvokeSentFunctor(const std::function<void(int)>& message_sent_functor,  // NOLINT (Fraser)
+                         int result) const;
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;

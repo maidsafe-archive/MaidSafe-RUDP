@@ -116,8 +116,7 @@ TEST_F(DataPacketTest, BEH_SequenceNumber) {
 #ifdef MAIDSAFE_WIN32
   assertion_message = "Assertion failed: .* <= 0x7fffffff";
 #endif
-  ASSERT_DEATH({ data_packet_.SetPacketSequenceNumber(0x80000000); },
-               assertion_message);  // NOLINT (Fraser)
+  ASSERT_DEATH({ data_packet_.SetPacketSequenceNumber(0x80000000); }, assertion_message);  // NOLINT
 #endif
   data_packet_.SetPacketSequenceNumber(0x7fffffff);
   EXPECT_EQ(0x7fffffff, data_packet_.PacketSequenceNumber());
@@ -148,8 +147,7 @@ TEST_F(DataPacketTest, BEH_MessageNumber) {
 #ifdef MAIDSAFE_WIN32
   assertion_message = "Assertion failed: .* <= 0x1fffffff";
 #endif
-  ASSERT_DEATH({ data_packet_.SetMessageNumber(0x20000000); },
-               assertion_message);  // NOLINT (Fraser)
+  ASSERT_DEATH({ data_packet_.SetMessageNumber(0x20000000); }, assertion_message);  // NOLINT
 #endif
   data_packet_.SetMessageNumber(0x1fffffff);
   EXPECT_EQ(0x1fffffff, data_packet_.MessageNumber());
@@ -576,8 +574,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
 #ifndef NDEBUG
     // Encode and decode with an invalid public key
     handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey()));
-    ASSERT_DEATH({ handshake_packet_.Encode(boost::asio::buffer(dbuffer)); },
-                 "");  // NOLINT (Fraser)
+    ASSERT_DEATH({ handshake_packet_.Encode(boost::asio::buffer(dbuffer)); }, "");  // NOLINT
 #endif
   }
 }

@@ -55,7 +55,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
   void RunNetworkTest(uint8_t num_messages, int messages_size) {
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
     std::vector<Node::messages_t> sent_messages;
-    std::vector<std::future<Node::messages_t>> futures;  // NOLINT (Fraser)
+    std::vector<std::future<Node::messages_t>> futures;
 
     // Generate_messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
@@ -74,8 +74,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
     }
 
     // Sending messages
-    std::vector<std::vector<std::vector<int>>> send_results(  // NOLINT (Fraser)
-        nodes_.size(), std::vector<std::vector<int>>(         // NOLINT (Fraser)
+    std::vector<std::vector<std::vector<int>>> send_results(
+        nodes_.size(), std::vector<std::vector<int>>(
                            nodes_.size() - 1, std::vector<int>(num_messages, kReturnCodeLimit)));
 
     for (uint16_t i = 0; i != nodes_.size(); ++i) {

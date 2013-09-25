@@ -168,12 +168,10 @@ class ManagedConnections {
 
   void AddPending(std::unique_ptr<PendingConnection> connection);
   void RemovePending(const NodeId& peer_id);
-  std::vector<std::unique_ptr<PendingConnection>>::const_iterator
-      FindPendingTransportWithNodeId(  // NOLINT (Fraser)
-          const NodeId& peer_id) const;
-  std::vector<std::unique_ptr<PendingConnection>>::iterator
-      FindPendingTransportWithNodeId(  // NOLINT (Fraser)
-          const NodeId& peer_id);
+  std::vector<std::unique_ptr<PendingConnection>>::const_iterator FindPendingTransportWithNodeId(
+      const NodeId& peer_id) const;
+  std::vector<std::unique_ptr<PendingConnection>>::iterator FindPendingTransportWithNodeId(
+      const NodeId& peer_id);
 
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,

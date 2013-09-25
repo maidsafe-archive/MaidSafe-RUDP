@@ -215,7 +215,6 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
   //                             Endpoint(local_ip_, kResiliencePort()));
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });  // NOLINT
-                                                                                      // (Fraser)
   NodeId chosen_id;
   if (!transport->Bootstrap(
            bootstrap_peers, this_node_id_, public_key_, local_endpoint,
@@ -486,18 +485,17 @@ void ManagedConnections::RemovePending(const NodeId& peer_id) {
 }
 
 std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::const_iterator  // NOLINT
-                                                                                     // (Fraser)
     ManagedConnections::FindPendingTransportWithNodeId(const NodeId& peer_id) const {
   return std::find_if(pendings_.cbegin(), pendings_.cend(),
                       [&peer_id](const std::unique_ptr<PendingConnection> &
-                                 element) { return element->node_id == peer_id; });
+                                 element) { return element->node_id == peer_id; });  // NOLINT
 }
 
-std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator  // NOLINT (Fraser)
+std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator  // NOLINT
     ManagedConnections::FindPendingTransportWithNodeId(const NodeId& peer_id) {
   return std::find_if(pendings_.begin(), pendings_.end(),
                       [&peer_id](const std::unique_ptr<PendingConnection> &
-                                 element) { return element->node_id == peer_id; });
+                                 element) { return element->node_id == peer_id; });  // NOLINT
 }
 
 int ManagedConnections::Add(NodeId peer_id, EndpointPair peer_endpoint_pair,
