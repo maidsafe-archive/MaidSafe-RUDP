@@ -46,13 +46,13 @@ typedef std::shared_ptr<ManagedConnections> ManagedConnectionsPtr;
 namespace test {
 
 // Workaround for VC++ marking a future as deferred despite being constructed from a std::promise.
-template<typename Future, typename Timeout>
+template <typename Future, typename Timeout>
 #ifdef _MSC_VER
 std::future_status::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future& future,
                                                                            const Timeout& timeout) {
 #else
-std::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future& future,
-                                                            const Timeout& timeout) {
+std::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future & future,
+                                                            const Timeout & timeout) {
 #endif
   auto result(future.wait_for(timeout));
   if (result != std::future_status::deferred)
@@ -65,9 +65,8 @@ std::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future& future
 class Node;
 typedef std::shared_ptr<Node> NodePtr;
 
-testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
-                                      std::vector<Endpoint> &bootstrap_endpoints,
-                                      int node_count);
+testing::AssertionResult SetupNetwork(std::vector<NodePtr> & nodes,
+                                      std::vector<Endpoint> & bootstrap_endpoints, int node_count);
 
 
 class Node {
@@ -79,8 +78,7 @@ class Node {
   explicit Node(int id);
   std::vector<NodeId> connection_lost_node_ids() const;
   messages_t messages() const;
-  int Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
-                NodeId& chosen_bootstrap_peer,
+  int Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints, NodeId& chosen_bootstrap_peer,
                 Endpoint local_endpoint = Endpoint());
   std::future<messages_t> GetFutureForMessages(uint32_t message_count);
   std::string id() const { return id_; }

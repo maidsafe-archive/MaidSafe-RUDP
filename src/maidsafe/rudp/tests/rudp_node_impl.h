@@ -41,7 +41,6 @@
 #include "maidsafe/rudp/utils.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 
-
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -52,29 +51,22 @@ namespace test {
 
 class RudpNode {
  public:
-  RudpNode(std::vector<maidsafe::passport::Pmid> all_pmids,
-           int identity_index,
-           int peer_identity_index,
-           const std::string& peer);
+  RudpNode(std::vector<maidsafe::passport::Pmid> all_pmids, int identity_index,
+           int peer_identity_index, const std::string& peer);
   void Run();
-  void GetPeer(const std::string &peer);
+  void GetPeer(const std::string& peer);
 
  private:
   void PrintUsage();
-  void ProcessCommand(const std::string &cmdline);
+  void ProcessCommand(const std::string& cmdline);
 
   void OnMessageSlot(const std::string& message);
-  void OnConnectionAddedSlot(const NodeId& peer_id,
-                             std::shared_ptr<detail::Transport> transport,
-                             bool temporary_connection,
-                             bool& is_duplicate_normal_connection);
-  void OnConnectionLostSlot(const NodeId& peer_id,
-                            std::shared_ptr<detail::Transport> transport,
+  void OnConnectionAddedSlot(const NodeId& peer_id, std::shared_ptr<detail::Transport> transport,
+                             bool temporary_connection, bool& is_duplicate_normal_connection);
+  void OnConnectionLostSlot(const NodeId& peer_id, std::shared_ptr<detail::Transport> transport,
                             bool temporary_connection);
-  void OnNatDetectionRequestedSlot(const Endpoint& this_local_endpoint,
-                                   const NodeId& peer_id,
-                                   const Endpoint& peer_endpoint,
-                                   uint16_t& another_external_port);
+  void OnNatDetectionRequestedSlot(const Endpoint& this_local_endpoint, const NodeId& peer_id,
+                                   const Endpoint& peer_endpoint, uint16_t& another_external_port);
 
   std::vector<maidsafe::passport::Pmid> all_pmids_;
   std::vector<NodeId> all_ids_;
@@ -86,7 +78,7 @@ class RudpNode {
   std::shared_ptr<maidsafe::rudp::detail::Transport> transport_;
   bool reply_;
   size_t data_size_;
-//  size_t data_rate_;  (dirvine) currently unused
+  //  size_t data_rate_;  (dirvine) currently unused
   bool result_arrived_, finish_;
   boost::mutex wait_mutex_;
   boost::condition_variable wait_cond_var_;

@@ -42,8 +42,12 @@ namespace detail {
 
 class HandshakePacket : public ControlPacket {
  public:
-  enum { kMinPacketSize = ControlPacket::kHeaderSize + 121 };
-  enum { kPacketType = 0 };
+  enum {
+    kMinPacketSize = ControlPacket::kHeaderSize + 121
+  };
+  enum {
+    kPacketType = 0
+  };
 
   HandshakePacket();
   virtual ~HandshakePacket() {}

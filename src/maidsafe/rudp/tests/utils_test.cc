@@ -39,14 +39,14 @@ TEST(UtilsTest, BEH_EndpointIsValid) {
   EXPECT_TRUE(IsValid(Endpoint(boost::asio::ip::address::from_string("1.1.1.1"), 1025)));
   EXPECT_TRUE(IsValid(Endpoint(boost::asio::ip::address::from_string("1.1.1.1"), 49150)));
   EXPECT_TRUE(IsValid(Endpoint(boost::asio::ip::address::from_string("1.1.1.1"), 65535)));
-//  EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::address::from_string("1.1.1.1"), 49151)));
+  //  EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::address::from_string("1.1.1.1"), 49151)));
   EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::address::from_string("0.0.0.0"), 49150)));
 
   boost::system::error_code error_code;
   try {
     boost::asio::ip::address::from_string("Rubbish");
   }
-  catch(const boost::system::system_error& system_error) {
+  catch (const boost::system::system_error& system_error) {
     error_code = system_error.code();
   }
 #ifdef WIN32
@@ -60,7 +60,7 @@ TEST(UtilsTest, BEH_EndpointIsValid) {
   try {
     boost::asio::ip::address::from_string("256.1.1.1");
   }
-  catch(const boost::system::system_error& system_error) {
+  catch (const boost::system::system_error& system_error) {
     error_code = system_error.code();
   }
   EXPECT_EQ(error_code.value(), kErrorCodeValue);

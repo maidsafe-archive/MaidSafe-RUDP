@@ -32,8 +32,12 @@ namespace detail {
 
 class AckOfAckPacket : public ControlPacket {
  public:
-  enum { kPacketSize = ControlPacket::kHeaderSize };
-  enum { kPacketType = 6 };
+  enum {
+    kPacketSize = ControlPacket::kHeaderSize
+  };
+  enum {
+    kPacketType = 6
+  };
 
   AckOfAckPacket();
   virtual ~AckOfAckPacket() {}

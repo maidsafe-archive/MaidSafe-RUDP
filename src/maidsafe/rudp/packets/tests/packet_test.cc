@@ -89,8 +89,8 @@ class DataPacketTest : public testing::Test {
     data_packet_.SetDestinationSocketId(destination_socket_id);
 
     char char_array[Parameters::kUDPPayload] = {0};
-    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(&char_array[0],
-                                        DataPacket::kHeaderSize + Parameters::max_size));
+    boost::asio::mutable_buffer dbuffer(
+        boost::asio::buffer(&char_array[0], DataPacket::kHeaderSize + Parameters::max_size));
     EXPECT_EQ(DataPacket::kHeaderSize + data.size(), data_packet_.Encode(dbuffer));
     RestoreDefault();
     EXPECT_TRUE(data_packet_.Decode(dbuffer));
@@ -113,10 +113,11 @@ TEST_F(DataPacketTest, BEH_SequenceNumber) {
   EXPECT_EQ(0U, data_packet_.PacketSequenceNumber());
 #ifndef NDEBUG
   std::string assertion_message;
-#  ifdef MAIDSAFE_WIN32
+#ifdef MAIDSAFE_WIN32
   assertion_message = "Assertion failed: .* <= 0x7fffffff";
-#  endif
-  ASSERT_DEATH({ data_packet_.SetPacketSequenceNumber(0x80000000); }, assertion_message);  // NOLINT (Fraser)
+#endif
+  ASSERT_DEATH({ data_packet_.SetPacketSequenceNumber(0x80000000); },
+               assertion_message);  // NOLINT (Fraser)
 #endif
   data_packet_.SetPacketSequenceNumber(0x7fffffff);
   EXPECT_EQ(0x7fffffff, data_packet_.PacketSequenceNumber());
@@ -144,10 +145,11 @@ TEST_F(DataPacketTest, BEH_MessageNumber) {
   EXPECT_EQ(0U, data_packet_.MessageNumber());
 #ifndef NDEBUG
   std::string assertion_message;
-#  ifdef MAIDSAFE_WIN32
+#ifdef MAIDSAFE_WIN32
   assertion_message = "Assertion failed: .* <= 0x1fffffff";
-#  endif
-  ASSERT_DEATH({ data_packet_.SetMessageNumber(0x20000000); }, assertion_message);  // NOLINT (Fraser)
+#endif
+  ASSERT_DEATH({ data_packet_.SetMessageNumber(0x20000000); },
+               assertion_message);  // NOLINT (Fraser)
 #endif
   data_packet_.SetMessageNumber(0x1fffffff);
   EXPECT_EQ(0x1fffffff, data_packet_.MessageNumber());
@@ -239,9 +241,7 @@ class ControlPacketTest : public testing::Test {
     EXPECT_EQ(0xffffffff, control_packet_.AdditionalInfo());
   }
 
-  void SetType(uint16_t n) {
-    control_packet_.SetType(n);
-  }
+  void SetType(uint16_t n) { control_packet_.SetType(n); }
 
   bool IsValidBase(const boost::asio::const_buffer& buffer, uint16_t expected_packet_type) {
     return control_packet_.IsValidBase(buffer, expected_packet_type);
@@ -261,8 +261,7 @@ class ControlPacketTest : public testing::Test {
 
       char char_array[ControlPacket::kHeaderSize] = {0};
       boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
-      EXPECT_EQ(ControlPacket::kHeaderSize,
-                control_packet_.EncodeBase(dbuffer));
+      EXPECT_EQ(ControlPacket::kHeaderSize, control_packet_.EncodeBase(dbuffer));
 
       control_packet_.SetType(0);
       control_packet_.SetAdditionalInfo(0);
@@ -284,18 +283,16 @@ TEST_F(ControlPacketTest, BEH_Type) {
   EXPECT_EQ(0U, control_packet_.Type());
 #ifndef NDEBUG
   std::string assertion_message;
-#  ifdef MAIDSAFE_WIN32
+#ifdef MAIDSAFE_WIN32
   assertion_message = "Assertion failed: .* <= 0x7fff";
-#  endif
+#endif
   ASSERT_DEATH({ SetType(0x8000); }, assertion_message);  // NOLINT (Fraser)
 #endif
   SetType(0x7fff);
   EXPECT_EQ(0x7fff, control_packet_.Type());
 }
 
-TEST_F(ControlPacketTest, BEH_AdditionalInfo) {
-  TestAdditionalInfo();
-}
+TEST_F(ControlPacketTest, BEH_AdditionalInfo) { TestAdditionalInfo(); }
 
 TEST_F(ControlPacketTest, BEH_TimeStamp) {
   EXPECT_EQ(0U, control_packet_.TimeStamp());
@@ -336,9 +333,7 @@ TEST_F(ControlPacketTest, BEH_IsValidBase) {
   }
 }
 
-TEST_F(ControlPacketTest, BEH_EncodeDecode) {
-  TestEncodeDecode();
-}
+TEST_F(ControlPacketTest, BEH_EncodeDecode) { TestEncodeDecode(); }
 
 class AckPacketTest : public testing::Test {
  public:
@@ -364,8 +359,7 @@ class AckPacketTest : public testing::Test {
     boost::asio::mutable_buffer dbuffer;
     if (ack_packet_.HasOptionalFields()) {
       dbuffer = boost::asio::buffer(char_array_optional);
-      EXPECT_EQ(AckPacket::kOptionalPacketSize,
-                ack_packet_.Encode(dbuffer));
+      EXPECT_EQ(AckPacket::kOptionalPacketSize, ack_packet_.Encode(dbuffer));
     } else {
       dbuffer = boost::asio::buffer(char_array);
       EXPECT_EQ(AckPacket::kPacketSize, ack_packet_.Encode(dbuffer));
@@ -494,8 +488,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetRequestNatDetectionPort(true);
     handshake_packet_.SetNatDetectionPort(9999);
     boost::asio::ip::udp::endpoint endpoint(
-        boost::asio::ip::address::from_string("2001:db8:85a3:8d3:1319:8a2e:370:7348"),
-        12345);
+        boost::asio::ip::address::from_string("2001:db8:85a3:8d3:1319:8a2e:370:7348"), 12345);
     handshake_packet_.SetPeerEndpoint(endpoint);
 
     char char_array1[HandshakePacket::kMinPacketSize] = {0};
@@ -583,7 +576,8 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
 #ifndef NDEBUG
     // Encode and decode with an invalid public key
     handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey()));
-    ASSERT_DEATH({ handshake_packet_.Encode(boost::asio::buffer(dbuffer)); }, "");  // NOLINT (Fraser)
+    ASSERT_DEATH({ handshake_packet_.Encode(boost::asio::buffer(dbuffer)); },
+                 "");  // NOLINT (Fraser)
 #endif
   }
 }
@@ -792,10 +786,11 @@ TEST_F(NegativeAckPacketTest, BEH_EncodeDecode) {
     EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x5));
 #ifndef NDEBUG
     std::string assertion_message;
-#  ifdef MAIDSAFE_WIN32
+#ifdef MAIDSAFE_WIN32
     assertion_message = "Assertion failed: .* <= 0x7fffffff";
-#  endif
-    ASSERT_DEATH({ negative_ack_packet_.ContainsSequenceNumber(0x80000000); }, assertion_message);  // NOLINT (Fraser)
+#endif
+    ASSERT_DEATH({ negative_ack_packet_.ContainsSequenceNumber(0x80000000); },
+                 assertion_message);  // NOLINT (Fraser)
 #else
     EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x80000000));
 #endif

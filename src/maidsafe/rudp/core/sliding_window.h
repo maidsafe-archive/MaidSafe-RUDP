@@ -76,8 +76,7 @@ class SlidingWindow {
   // filter out packets with non-sensical sequence numbers.
   bool IsComingSoon(seq_num_t n) const {
     seq_num_t begin = end_;
-    seq_num_t end = (begin + Parameters::maximum_window_size) %
-                    (kMaxSequenceNumber + 1);
+    seq_num_t end = (begin + Parameters::maximum_window_size) % (kMaxSequenceNumber + 1);
     return IsInRange(begin, end, n);
   }
 

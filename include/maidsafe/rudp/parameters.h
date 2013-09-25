@@ -22,7 +22,6 @@
 #include <cstdint>
 #include "boost/date_time/posix_time/posix_time_duration.hpp"
 
-
 namespace maidsafe {
 
 namespace rudp {
@@ -45,7 +44,9 @@ struct Parameters {
   // Packet size permitted in RUDP.  Shall not exceed the UDP payload, which is 65507.
   static uint32_t default_size;
   static uint32_t max_size;
-  enum { kUDPPayload = 65507 };
+  enum {
+    kUDPPayload = 65507
+  };
 
   // Data Payload size permitted in RUDP.  Shall not exceed Packet Size defined.
   static uint32_t max_data_size;

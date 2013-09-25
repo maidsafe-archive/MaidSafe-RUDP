@@ -19,7 +19,6 @@
 #ifndef MAIDSAFE_RUDP_RETURN_CODES_H_
 #define MAIDSAFE_RUDP_RETURN_CODES_H_
 
-
 namespace maidsafe {
 
 namespace rudp {

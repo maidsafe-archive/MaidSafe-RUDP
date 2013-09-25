@@ -41,14 +41,10 @@ template <typename TickHandler, typename Socket>
 class TickOp {
  public:
   TickOp(TickHandler handler, Socket& socket, TickTimer& tick_timer)
-      : handler_(std::move(handler)),
-        socket_(socket),
-        tick_timer_(tick_timer) {}
+      : handler_(std::move(handler)), socket_(socket), tick_timer_(tick_timer) {}
 
   TickOp(const TickOp& other)
-      : handler_(other.handler_),
-        socket_(other.socket_),
-        tick_timer_(other.tick_timer_) {}
+      : handler_(other.handler_), socket_(other.socket_), tick_timer_(other.tick_timer_) {}
 
   void operator()(boost::system::error_code) {
     boost::system::error_code ec;

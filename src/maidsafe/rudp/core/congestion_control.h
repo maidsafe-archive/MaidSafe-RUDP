@@ -48,11 +48,8 @@ class CongestionControl {
   void OnDataPacketReceived(uint32_t seqnum);
   void OnGenerateAck(uint32_t seqnum);
   void OnAck(uint32_t seqnum);
-  void OnAck(uint32_t seqnum,
-             uint32_t round_trip_time,
-             uint32_t round_trip_time_variance,
-             uint32_t available_buffer_size,
-             uint32_t packets_receiving_rate,
+  void OnAck(uint32_t seqnum, uint32_t round_trip_time, uint32_t round_trip_time_variance,
+             uint32_t available_buffer_size, uint32_t packets_receiving_rate,
              uint32_t estimated_link_capacity);
   void OnNegativeAck(uint32_t seqnum);
   void OnSendTimeout(uint32_t seqnum);
@@ -75,7 +72,7 @@ class CongestionControl {
   boost::posix_time::time_duration AckDelay() const;
   boost::posix_time::time_duration AckTimeout() const;
   uint32_t AckInterval() const;
-//  boost::posix_time::time_duration AckInterval() const;
+  //  boost::posix_time::time_duration AckInterval() const;
 
   // Return the best read-buffer size
   int32_t BestReadBufferSize() const;
@@ -113,10 +110,14 @@ class CongestionControl {
   size_t lost_packets_;
   size_t corrupted_packets_;
 
-  enum { kMaxArrivalTimes = 16 + 1 };
+  enum {
+    kMaxArrivalTimes = 16 + 1
+  };
   std::deque<boost::posix_time::ptime> arrival_times_;
 
-  enum { kMaxPacketPairIntervals = 16 + 1 };
+  enum {
+    kMaxPacketPairIntervals = 16 + 1
+  };
   std::deque<boost::posix_time::time_duration> packet_pair_intervals_;
 
   // The peer's connection type

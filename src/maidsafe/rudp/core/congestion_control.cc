@@ -38,41 +38,38 @@ namespace detail {
 static const bptime::time_duration kSynPeriod = bptime::milliseconds(10);
 
 CongestionControl::CongestionControl()
-  : slow_start_phase_(true),
-    round_trip_time_(0),
-    round_trip_time_variance_(0),
-    packets_receiving_rate_(0),
-    estimated_link_capacity_(0),
-    send_window_size_(Parameters::default_window_size),
-    receive_window_size_(Parameters::default_window_size),
-    send_data_size_(Parameters::default_data_size),
-    send_delay_(Parameters::default_send_delay),
-    send_timeout_(Parameters::default_send_timeout),
-    receive_delay_(Parameters::default_receive_delay),
-    receive_timeout_(Parameters::default_receive_timeout),
-    ack_delay_(bptime::milliseconds(10)),
-    ack_timeout_(Parameters::default_ack_timeout),
-    ack_interval_(16),
-    lost_packets_(0),
-    corrupted_packets_(0),
-    arrival_times_(),
-    packet_pair_intervals_(),
-    peer_connection_type_(0),
-    allowed_lost_(0),
-    transmitted_bytes_(std::numeric_limits<uintmax_t>::max()),
-    bits_per_second_(0),
-    last_record_transmit_time_() {}
+    : slow_start_phase_(true),
+      round_trip_time_(0),
+      round_trip_time_variance_(0),
+      packets_receiving_rate_(0),
+      estimated_link_capacity_(0),
+      send_window_size_(Parameters::default_window_size),
+      receive_window_size_(Parameters::default_window_size),
+      send_data_size_(Parameters::default_data_size),
+      send_delay_(Parameters::default_send_delay),
+      send_timeout_(Parameters::default_send_timeout),
+      receive_delay_(Parameters::default_receive_delay),
+      receive_timeout_(Parameters::default_receive_timeout),
+      ack_delay_(bptime::milliseconds(10)),
+      ack_timeout_(Parameters::default_ack_timeout),
+      ack_interval_(16),
+      lost_packets_(0),
+      corrupted_packets_(0),
+      arrival_times_(),
+      packet_pair_intervals_(),
+      peer_connection_type_(0),
+      allowed_lost_(0),
+      transmitted_bytes_(std::numeric_limits<uintmax_t>::max()),
+      bits_per_second_(0),
+      last_record_transmit_time_() {}
 
 void CongestionControl::OnOpen(uint32_t /*send_seqnum*/, uint32_t /*receive_seqnum*/) {
   transmitted_bytes_ = std::numeric_limits<uintmax_t>::max();
 }
 
-void CongestionControl::OnClose() {
-  transmitted_bytes_ = std::numeric_limits<uintmax_t>::max();
-}
+void CongestionControl::OnClose() { transmitted_bytes_ = std::numeric_limits<uintmax_t>::max(); }
 
-void CongestionControl::OnDataPacketSent(uint32_t /*seqnum*/) {
-}
+void CongestionControl::OnDataPacketSent(uint32_t /*seqnum*/) {}
 
 void CongestionControl::OnDataPacketReceived(uint32_t seqnum) {
   bptime::ptime now = TickTimer::Now();
@@ -140,23 +137,19 @@ void CongestionControl::OnGenerateAck(uint32_t /*seqnum*/) {
   // TODO(qi.ma@maidsafe.net) : The receive_window_size shall be based on the
   // local processing power, i.e. the reading speed of the data flow
   receive_window_size_ = Parameters::maximum_window_size;
-//   receive_window_size_ = (packets_receiving_rate_ * round_trip_time_) / 1000000;
-//   // The speed of generating Ack Packets shall be considered
-//   receive_window_size_ *= (1000 / Parameters::ack_interval.total_milliseconds());
-//   receive_window_size_ = std::max(receive_window_size_, Parameters::default_window_size);
-//   receive_window_size_ = std::min(receive_window_size_, Parameters::maximum_window_size);
+  //   receive_window_size_ = (packets_receiving_rate_ * round_trip_time_) / 1000000;
+  //   // The speed of generating Ack Packets shall be considered
+  //   receive_window_size_ *= (1000 / Parameters::ack_interval.total_milliseconds());
+  //   receive_window_size_ = std::max(receive_window_size_, Parameters::default_window_size);
+  //   receive_window_size_ = std::min(receive_window_size_, Parameters::maximum_window_size);
   // TODO(Team) calculate SND (send_delay_).
 }
 
-void CongestionControl::OnAck(uint32_t /*seqnum*/) {
-}
+void CongestionControl::OnAck(uint32_t /*seqnum*/) {}
 
-void CongestionControl::OnAck(uint32_t /*seqnum*/,
-                              uint32_t round_trip_time,
-                              uint32_t round_trip_time_variance,
-                              uint32_t available_buffer_size,
-                              uint32_t packets_receiving_rate,
-                              uint32_t estimated_link_capacity) {
+void CongestionControl::OnAck(uint32_t /*seqnum*/, uint32_t round_trip_time,
+                              uint32_t round_trip_time_variance, uint32_t available_buffer_size,
+                              uint32_t packets_receiving_rate, uint32_t estimated_link_capacity) {
   round_trip_time_ = round_trip_time;
   round_trip_time_variance_ = round_trip_time_variance;
 
@@ -194,26 +187,22 @@ void CongestionControl::OnAck(uint32_t /*seqnum*/,
   //    a step of 20% for reducing window size is defined
   if (available_buffer_size > (8 * send_data_size_)) {
     send_window_size_ += (available_buffer_size + 1) / Parameters::max_data_size;
-    send_window_size_ = std::min(send_window_size_,
-                                 static_cast<size_t>(Parameters::maximum_window_size));
+    send_window_size_ =
+        std::min(send_window_size_, static_cast<size_t>(Parameters::maximum_window_size));
   } else {
     send_window_size_ = static_cast<size_t>(0.9 * send_window_size_);
-    send_window_size_ = std::max(send_window_size_,
-                                 static_cast<size_t>(Parameters::default_window_size));
+    send_window_size_ =
+        std::max(send_window_size_, static_cast<size_t>(Parameters::default_window_size));
   }
 }
 
-void CongestionControl::OnNegativeAck(uint32_t /*seqnum*/) {
-  ++corrupted_packets_;
-}
+void CongestionControl::OnNegativeAck(uint32_t /*seqnum*/) { ++corrupted_packets_; }
 
-void CongestionControl::OnSendTimeout(uint32_t /*seqnum*/) {
-  ++lost_packets_;
-}
+void CongestionControl::OnSendTimeout(uint32_t /*seqnum*/) { ++lost_packets_; }
 
 void CongestionControl::OnAckOfAck(uint32_t round_trip_time) {
-  uint32_t diff = (round_trip_time < round_trip_time_) ? (round_trip_time_ - round_trip_time) :
-                                                         (round_trip_time - round_trip_time_);
+  uint32_t diff = (round_trip_time < round_trip_time_) ? (round_trip_time_ - round_trip_time)
+                                                       : (round_trip_time - round_trip_time_);
 
   uint32_t tmp = round_trip_time_ * UINT64_C(7);
   tmp = (tmp + round_trip_time) / 8;
@@ -242,93 +231,65 @@ void CongestionControl::SetPeerConnectionType(uint32_t connection_type) {
 }
 
 bool CongestionControl::IsSlowTransmission(size_t /*length*/) {
-//  // if length keeps to be zero, socket will have timeout eventually
-//  // so don't need to worry about all 0 situation here
-//  if (transmitted_bytes_ == std::numeric_limits<uintmax_t>::max()) {
-//    transmitted_bytes_ = length;
-//    last_record_transmit_time_ = TickTimer::Now();
-//  } else {
-//    boost::posix_time::ptime now(TickTimer::Now());
-//    transmitted_bytes_ += length;
-//    // only calculate speed every calculation interval
-//    boost::posix_time::time_duration duration = now - last_record_transmit_time_;
-//    if (duration > Parameters::speed_calculate_inverval) {
-//      assert(transmitted_bytes_ < std::numeric_limits<uintmax_t>::max() / 1000);
-//      bits_per_second_ = (1000 * transmitted_bytes_) / duration.total_milliseconds();
-//      // be different to the initial state
-//      transmitted_bytes_ = 0;
-//      last_record_transmit_time_ = now;
-//      if (bits_per_second_ < Parameters::slow_speed_threshold)
-//        return true;
-//    }
-//  }
+  //  // if length keeps to be zero, socket will have timeout eventually
+  //  // so don't need to worry about all 0 situation here
+  //  if (transmitted_bytes_ == std::numeric_limits<uintmax_t>::max()) {
+  //    transmitted_bytes_ = length;
+  //    last_record_transmit_time_ = TickTimer::Now();
+  //  } else {
+  //    boost::posix_time::ptime now(TickTimer::Now());
+  //    transmitted_bytes_ += length;
+  //    // only calculate speed every calculation interval
+  //    boost::posix_time::time_duration duration = now - last_record_transmit_time_;
+  //    if (duration > Parameters::speed_calculate_inverval) {
+  //      assert(transmitted_bytes_ < std::numeric_limits<uintmax_t>::max() / 1000);
+  //      bits_per_second_ = (1000 * transmitted_bytes_) / duration.total_milliseconds();
+  //      // be different to the initial state
+  //      transmitted_bytes_ = 0;
+  //      last_record_transmit_time_ = now;
+  //      if (bits_per_second_ < Parameters::slow_speed_threshold)
+  //        return true;
+  //    }
+  //  }
   return false;
 }
 
-size_t CongestionControl::AllowedLost() const {
-  return allowed_lost_;
-}
+size_t CongestionControl::AllowedLost() const { return allowed_lost_; }
 
-uint32_t CongestionControl::RoundTripTime() const {
-  return round_trip_time_;
-}
+uint32_t CongestionControl::RoundTripTime() const { return round_trip_time_; }
 
-uint32_t CongestionControl::RoundTripTimeVariance() const {
-  return round_trip_time_variance_;
-}
+uint32_t CongestionControl::RoundTripTimeVariance() const { return round_trip_time_variance_; }
 
-uint32_t CongestionControl::PacketsReceivingRate() const {
-  return packets_receiving_rate_;
-}
+uint32_t CongestionControl::PacketsReceivingRate() const { return packets_receiving_rate_; }
 
-uint32_t CongestionControl::EstimatedLinkCapacity() const {
-  return estimated_link_capacity_;
-}
+uint32_t CongestionControl::EstimatedLinkCapacity() const { return estimated_link_capacity_; }
 
-size_t CongestionControl::SendWindowSize() const {
-  return send_window_size_;
-}
+size_t CongestionControl::SendWindowSize() const { return send_window_size_; }
 
-size_t CongestionControl::ReceiveWindowSize() const {
-  return receive_window_size_;
-}
+size_t CongestionControl::ReceiveWindowSize() const { return receive_window_size_; }
 
-size_t CongestionControl::SendDataSize() const {
-  return send_data_size_;
-}
+size_t CongestionControl::SendDataSize() const { return send_data_size_; }
 
 int32_t CongestionControl::BestReadBufferSize() const {
   assert(static_cast<int32_t>(receive_window_size_ * Parameters::max_data_size) > 0);
   return static_cast<int32_t>(receive_window_size_ * Parameters::max_data_size);
 }
 
-boost::posix_time::time_duration CongestionControl::SendDelay() const {
-  return send_delay_;
-}
+boost::posix_time::time_duration CongestionControl::SendDelay() const { return send_delay_; }
 
-boost::posix_time::time_duration CongestionControl::SendTimeout() const {
-  return send_timeout_;
-}
+boost::posix_time::time_duration CongestionControl::SendTimeout() const { return send_timeout_; }
 
-boost::posix_time::time_duration CongestionControl::ReceiveDelay() const {
-  return receive_delay_;
-}
+boost::posix_time::time_duration CongestionControl::ReceiveDelay() const { return receive_delay_; }
 
 boost::posix_time::time_duration CongestionControl::ReceiveTimeout() const {
   return receive_timeout_;
 }
 
-boost::posix_time::time_duration CongestionControl::AckDelay() const {
-  return ack_delay_;
-}
+boost::posix_time::time_duration CongestionControl::AckDelay() const { return ack_delay_; }
 
-boost::posix_time::time_duration CongestionControl::AckTimeout() const {
-  return ack_timeout_;
-}
+boost::posix_time::time_duration CongestionControl::AckTimeout() const { return ack_timeout_; }
 
-uint32_t CongestionControl::AckInterval() const {
-  return ack_interval_;
-}
+uint32_t CongestionControl::AckInterval() const { return ack_interval_; }
 
 //  boost::posix_time::time_duration CongestionControl::AckInterval() const {
 //    return Parameters::ack_interval;

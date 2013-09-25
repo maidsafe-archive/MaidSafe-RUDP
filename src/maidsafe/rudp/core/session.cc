@@ -33,19 +33,16 @@
 
 namespace bptime = boost::posix_time;
 
-
 namespace maidsafe {
 
 namespace rudp {
 
 namespace detail {
 
-Session::Session(Peer& peer,
-                 TickTimer& tick_timer,
+Session::Session(Peer& peer, TickTimer& tick_timer,
                  boost::asio::ip::udp::endpoint& this_external_endpoint,
                  std::mutex& this_external_endpoint_mutex,
-                 boost::asio::ip::udp::endpoint this_local_endpoint,
-                 NatType& nat_type)
+                 boost::asio::ip::udp::endpoint this_local_endpoint, NatType& nat_type)
     : peer_(peer),
       tick_timer_(tick_timer),
       this_external_endpoint_(this_external_endpoint),
@@ -65,10 +62,8 @@ Session::Session(Peer& peer,
       on_nat_detection_requested_(),
       signal_connection_() {}
 
-void Session::Open(uint32_t id,
-                   NodeId this_node_id,
-                   std::shared_ptr<asymm::PublicKey> this_public_key,
-                   uint32_t sequence_number,
+void Session::Open(uint32_t id, NodeId this_node_id,
+                   std::shared_ptr<asymm::PublicKey> this_public_key, uint32_t sequence_number,
                    Mode mode,
                    const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
   assert(id != 0);
@@ -83,25 +78,15 @@ void Session::Open(uint32_t id,
   SendConnectionRequest();
 }
 
-bool Session::IsOpen() const {
-  return state_ != kClosed;
-}
+bool Session::IsOpen() const { return state_ != kClosed; }
 
-bool Session::IsConnected() const {
-  return state_ == kConnected;
-}
+bool Session::IsConnected() const { return state_ == kConnected; }
 
-uint32_t Session::Id() const {
-  return id_;
-}
+uint32_t Session::Id() const { return id_; }
 
-uint32_t Session::ReceivingSequenceNumber() const {
-  return receiving_sequence_number_;
-}
+uint32_t Session::ReceivingSequenceNumber() const { return receiving_sequence_number_; }
 
-uint32_t Session::PeerConnectionType() const {
-  return peer_connection_type_;
-}
+uint32_t Session::PeerConnectionType() const { return peer_connection_type_; }
 
 void Session::Close() {
   signal_connection_.disconnect();
@@ -109,7 +94,7 @@ void Session::Close() {
 }
 
 void Session::HandleHandshakeWhenProbing(const HandshakePacket& packet) {
-//    if (packet.ConnectionType() == 1 && packet.SynCookie() == 0)
+  //    if (packet.ConnectionType() == 1 && packet.SynCookie() == 0)
   state_ = kHandshaking;
   peer_requested_nat_detection_port_ = packet.RequestNatDetectionPort();
   SendCookie();
@@ -122,7 +107,7 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
     return;
   }
 
-//    if (packet.SynCookie() == 1) {
+  //    if (packet.SynCookie() == 1) {
   peer_.SetThisEndpoint(packet.PeerEndpoint());
   if (!CalculateEndpoint())
     return;
@@ -138,8 +123,8 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
   receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
   peer_.SetPublicKey(packet.PublicKey());
   if (packet.NatDetectionPort() != 0) {
-    peer_nat_detection_endpoint_ = boost::asio::ip::udp::endpoint(peer_.PeerEndpoint().address(),
-                                                                  packet.NatDetectionPort());
+    peer_nat_detection_endpoint_ =
+        boost::asio::ip::udp::endpoint(peer_.PeerEndpoint().address(), packet.NatDetectionPort());
   }
 
   if (mode_ == kBootstrapAndDrop)
@@ -151,9 +136,8 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
     mode_ = kBootstrapAndDrop;
 
   SendCookie();
-//    }
+  //    }
 }
-
 
 void Session::HandleHandshake(const HandshakePacket& packet) {
   if (peer_.SocketId() == 0)
@@ -285,18 +269,13 @@ void Session::SendCookie() {
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
-void Session::MakeNormal() {
-  mode_ = kNormal;
-}
+void Session::MakeNormal() { mode_ = kNormal; }
 
-Session::Mode Session::mode() const {
-  return mode_;
-}
+Session::Mode Session::mode() const { return mode_; }
 
 boost::asio::ip::udp::endpoint Session::RemoteNatDetectionEndpoint() const {
   return peer_nat_detection_endpoint_;
 }
-
 
 }  // namespace detail
 

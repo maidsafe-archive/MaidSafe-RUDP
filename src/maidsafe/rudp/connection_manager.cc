@@ -36,7 +36,6 @@ namespace asio = boost::asio;
 namespace ip = asio::ip;
 namespace bptime = boost::posix_time;
 
-
 namespace maidsafe {
 
 namespace rudp {
@@ -55,11 +54,9 @@ bool IsNormal(std::shared_ptr<Connection> connection) {
 
 }  // unnamed namespace
 
-
 ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
                                      const boost::asio::io_service::strand& strand,
-                                     MultiplexerPtr multiplexer,
-                                     NodeId this_node_id,
+                                     MultiplexerPtr multiplexer, NodeId this_node_id,
                                      std::shared_ptr<asymm::PublicKey> this_public_key)
     : connections_(),
       mutex_(),
@@ -81,8 +78,7 @@ void ConnectionManager::Close() {
     strand_.post(std::bind(&Connection::Close, connection));
 }
 
-void ConnectionManager::Connect(const NodeId& peer_id,
-                                const Endpoint& peer_endpoint,
+void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                                 const std::string& validation_data,
                                 const bptime::time_duration& connect_attempt_timeout,
                                 const bptime::time_duration& lifespan,
@@ -133,9 +129,8 @@ ConnectionManager::ConnectionPtr ConnectionManager::GetConnection(const NodeId& 
   return *itr;
 }
 
-void ConnectionManager::Ping(const NodeId& peer_id,
-                             const Endpoint& peer_endpoint,
-                             const std::function<void(int)> &ping_functor) {  // NOLINT (Fraser)
+void ConnectionManager::Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
+                             const std::function<void(int)>& ping_functor) {  // NOLINT (Fraser)
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     assert(ping_functor);
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
@@ -143,9 +138,9 @@ void ConnectionManager::Ping(const NodeId& peer_id,
   }
 }
 
-bool ConnectionManager::Send(const NodeId& peer_id,
-                             const std::string& message,
-                             const std::function<void(int)>& message_sent_functor) {  // NOLINT (Fraser)
+bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
+                             const std::function<void(int)>& message_sent_functor) {  // NOLINT
+                                                                                      // (Fraser)
   std::unique_lock<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
@@ -155,7 +150,8 @@ bool ConnectionManager::Send(const NodeId& peer_id,
 
   ConnectionPtr connection(*itr);
   lock.unlock();
-  strand_.dispatch([=] { connection->StartSending(message, message_sent_functor); });  // NOLINT (Fraser)
+  strand_.dispatch([=] { connection->StartSending(message, message_sent_functor); });  // NOLINT
+                                                                                       // (Fraser)
   return true;
 }
 
@@ -178,38 +174,33 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
       // This is a handshake packet on a newly-added socket
       LOG(kVerbose) << DebugId(kThisNodeId_)
                     << " This is a handshake packet on a newly-added socket from " << endpoint;
-      socket_iter = std::find_if(sockets_.begin(),
-                                 sockets_.end(),
-                                 [endpoint] (const SocketMap::value_type& socket_pair) {
-                                   return socket_pair.second->PeerEndpoint() == endpoint &&
-                                         !socket_pair.second->IsConnected();
-                                 });
+      socket_iter = std::find_if(sockets_.begin(), sockets_.end(),
+                                 [endpoint](const SocketMap::value_type & socket_pair) {
+        return socket_pair.second->PeerEndpoint() == endpoint && !socket_pair.second->IsConnected();
+      });
       // If the socket wasn't found, this could be a connect attempt from a peer using symmetric
       // NAT, so the peer's port may be different to what this node was told to expect.
       if (socket_iter == sockets_.end()) {
-        socket_iter = std::find_if(sockets_.begin(),
-                                   sockets_.end(),
-                                   [endpoint] (const SocketMap::value_type& socket_pair) {
-                                     return socket_pair.second->PeerEndpoint().address() ==
-                                                endpoint.address() &&
-                                            !OnPrivateNetwork(socket_pair.second->PeerEndpoint()) &&
-                                            !socket_pair.second->IsConnected();
-                                   });
+        socket_iter = std::find_if(sockets_.begin(), sockets_.end(),
+                                   [endpoint](const SocketMap::value_type & socket_pair) {
+          return socket_pair.second->PeerEndpoint().address() == endpoint.address() &&
+                 !OnPrivateNetwork(socket_pair.second->PeerEndpoint()) &&
+                 !socket_pair.second->IsConnected();
+        });
         if (socket_iter != sockets_.end()) {
           LOG(kVerbose) << DebugId(kThisNodeId_) << " Updating peer's endpoint from "
                         << socket_iter->second->PeerEndpoint() << " to " << endpoint;
           socket_iter->second->UpdatePeerEndpoint(endpoint);
-          LOG(kVerbose) << DebugId(kThisNodeId_) << " Peer's endpoint now: "
-                        << socket_iter->second->PeerEndpoint() << "  and guessed port = "
-                        << socket_iter->second->PeerGuessedPort();
+          LOG(kVerbose) << DebugId(kThisNodeId_)
+                        << " Peer's endpoint now: " << socket_iter->second->PeerEndpoint()
+                        << "  and guessed port = " << socket_iter->second->PeerGuessedPort();
         }
       }
     } else {  // Session::mode_ != kNormal
-      socket_iter = std::find_if(sockets_.begin(),
-                                 sockets_.end(),
-                                 [endpoint] (const SocketMap::value_type& socket_pair) {
-                                   return socket_pair.second->PeerEndpoint() == endpoint;
-                                 });
+      socket_iter = std::find_if(sockets_.begin(), sockets_.end(),
+                                 [endpoint](const SocketMap::value_type & socket_pair) {
+        return socket_pair.second->PeerEndpoint() == endpoint;
+      });
       if (socket_iter == sockets_.end()) {
         // This is a handshake packet from a peer trying to ping this node or join the network
         HandlePingFrom(handshake_packet, endpoint);
@@ -267,19 +258,15 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
       joining_connection->Close();
     } else {
       // Joining node is not already connected - start new bootstrap or temporary connection
-      Connect(handshake_packet.node_id(),
-              endpoint,
-              "",
-              Parameters::bootstrap_connect_timeout,
-              bootstrap_and_drop ? bptime::time_duration() :
-                                   Parameters::bootstrap_connection_lifespan);
+      Connect(
+          handshake_packet.node_id(), endpoint, "", Parameters::bootstrap_connect_timeout,
+          bootstrap_and_drop ? bptime::time_duration() : Parameters::bootstrap_connection_lifespan);
     }
     return;
   }
 }
 
-bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id,
-                                                bool validated,
+bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id, bool validated,
                                                 Endpoint& peer_endpoint) {
   peer_endpoint = Endpoint();
   std::lock_guard<std::mutex> lock(mutex_);
@@ -315,7 +302,6 @@ Endpoint ConnectionManager::RemoteNatDetectionEndpoint(const NodeId& peer_id) {
   return (*itr)->Socket().RemoteNatDetectionEndpoint();
 }
 
-
 uint32_t ConnectionManager::AddSocket(Socket* socket) {
   // Generate a new unique id for the socket.
   uint32_t id = 0;
@@ -339,20 +325,15 @@ size_t ConnectionManager::NormalConnectionsCount() const {
 ConnectionManager::ConnectionGroup::iterator ConnectionManager::FindConnection(
     const NodeId& peer_id) const {
   assert(!mutex_.try_lock());
-  return std::find_if(connections_.begin(),
-                      connections_.end(),
-                      [&peer_id](const ConnectionPtr& connection) {
-                        return connection->Socket().PeerNodeId() == peer_id;
-                      });
+  return std::find_if(connections_.begin(), connections_.end(),
+                      [&peer_id](const ConnectionPtr & connection) {
+    return connection->Socket().PeerNodeId() == peer_id;
+  });
 }
 
-NodeId ConnectionManager::node_id() const {
-  return kThisNodeId_;
-}
+NodeId ConnectionManager::node_id() const { return kThisNodeId_; }
 
-std::shared_ptr<asymm::PublicKey> ConnectionManager::public_key() const {
-  return this_public_key_;
-}
+std::shared_ptr<asymm::PublicKey> ConnectionManager::public_key() const { return this_public_key_; }
 
 std::string ConnectionManager::DebugString() {
   std::string s;

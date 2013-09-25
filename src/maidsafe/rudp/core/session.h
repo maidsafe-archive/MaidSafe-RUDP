@@ -33,7 +33,6 @@
 
 #include "maidsafe/rudp/nat_type.h"
 
-
 namespace maidsafe {
 
 namespace rudp {
@@ -46,26 +45,24 @@ class TickTimer;
 
 class Session {
  public:
-  typedef boost::signals2::signal<void(const boost::asio::ip::udp::endpoint&,
-                                       const NodeId&,
-                                       const boost::asio::ip::udp::endpoint&,
-                                       uint16_t&)> OnNatDetectionRequested;
+  typedef boost::signals2::signal<void(const boost::asio::ip::udp::endpoint&, const NodeId&,
+                                       const boost::asio::ip::udp::endpoint&, uint16_t&)>
+      OnNatDetectionRequested;
 
-  enum Mode { kNormal, kBootstrapAndDrop, kBootstrapAndKeep };
+  enum Mode {
+    kNormal,
+    kBootstrapAndDrop,
+    kBootstrapAndKeep
+  };
 
-  explicit Session(Peer& peer,
-                   TickTimer& tick_timer,
+  explicit Session(Peer& peer, TickTimer& tick_timer,
                    boost::asio::ip::udp::endpoint& this_external_endpoint,
                    std::mutex& this_external_endpoint_mutex,
-                   boost::asio::ip::udp::endpoint this_local_endpoint,
-                   NatType& nat_type);
+                   boost::asio::ip::udp::endpoint this_local_endpoint, NatType& nat_type);
 
   // Open the session.
-  void Open(uint32_t id,
-            NodeId this_node_id,
-            std::shared_ptr<asymm::PublicKey> this_public_key,
-            uint32_t sequence_number,
-            Mode mode,
+  void Open(uint32_t id, NodeId this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
+            uint32_t sequence_number, Mode mode,
             const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
 
   // Get whether the session is already open. May not be connected.
@@ -124,7 +121,7 @@ class Session {
   boost::asio::ip::udp::endpoint& this_external_endpoint_;
 
   // Mutex protecting this_external_endpoint_.  Object owned by multiplexer.
-  std::mutex &this_external_endpoint_mutex_;
+  std::mutex& this_external_endpoint_mutex_;
 
   // This node's local endpoint.
   const boost::asio::ip::udp::endpoint kThisLocalEndpoint_;
@@ -160,7 +157,12 @@ class Session {
   Mode mode_;
 
   // The state of the session.
-  enum State { kClosed, kProbing, kHandshaking, kConnected } state_;
+  enum State {
+    kClosed,
+    kProbing,
+    kHandshaking,
+    kConnected
+  } state_;
 
   OnNatDetectionRequested on_nat_detection_requested_;
   boost::signals2::connection signal_connection_;

@@ -63,4 +63,3 @@ bool Parameters::rudp_encrypt(true);
 }  // namespace rudp
 
 }  // namespace maidsafe
-

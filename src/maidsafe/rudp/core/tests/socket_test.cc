@@ -63,9 +63,7 @@ void tick_handler(const bs::error_code& ec, Socket* sock) {
     sock->AsyncTick(std::bind(&tick_handler, args::_1, sock));
 }
 
-void handler1(const bs::error_code& ec, bs::error_code* out_ec) {
-  *out_ec = ec;
-}
+void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; }
 
 TEST(SocketTest, BEH_Socket) {
   asio::io_service io_service;
@@ -79,22 +77,18 @@ TEST(SocketTest, BEH_Socket) {
       std::make_shared<asymm::PublicKey>(client_key_pair.public_key));
 
   std::shared_ptr<Multiplexer> server_multiplexer(new Multiplexer(io_service));
-  ConnectionManager server_connection_manager(std::shared_ptr<Transport>(),
-                                              asio::io_service::strand(io_service),
-                                              server_multiplexer,
-                                              server_node_id,
-                                              std::shared_ptr<asymm::PublicKey>());
+  ConnectionManager server_connection_manager(
+      std::shared_ptr<Transport>(), asio::io_service::strand(io_service), server_multiplexer,
+      server_node_id, std::shared_ptr<asymm::PublicKey>());
   ip::udp::endpoint server_endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   ip::udp::endpoint client_endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   ReturnCode condition = server_multiplexer->Open(server_endpoint);
   ASSERT_EQ(kSuccess, condition);
 
   std::shared_ptr<Multiplexer> client_multiplexer(new Multiplexer(io_service));
-  ConnectionManager client_connection_manager(std::shared_ptr<Transport>(),
-                                              asio::io_service::strand(io_service),
-                                              client_multiplexer,
-                                              client_node_id,
-                                              std::shared_ptr<asymm::PublicKey>());
+  ConnectionManager client_connection_manager(
+      std::shared_ptr<Transport>(), asio::io_service::strand(io_service), client_multiplexer,
+      client_node_id, std::shared_ptr<asymm::PublicKey>());
   condition = client_multiplexer->Open(client_endpoint);
   ASSERT_EQ(kSuccess, condition);
 
@@ -108,24 +102,15 @@ TEST(SocketTest, BEH_Socket) {
 
   Socket client_socket(*client_multiplexer, client_nat_type);
   client_ec = asio::error::would_block;
-  auto on_nat_detection_requested_slot(
-      [](const boost::asio::ip::udp::endpoint& /*this_local_endpoint*/,
-         const NodeId& /*peer_id*/,
-         const boost::asio::ip::udp::endpoint& /*peer_endpoint*/,
-         uint16_t& /*another_external_port*/) {});
-  client_socket.AsyncConnect(client_node_id,
-                             client_public_key,
-                             server_endpoint,
-                             server_node_id,
-                             std::bind(&handler1, args::_1, &client_ec),
-                             Session::kNormal,
+  auto on_nat_detection_requested_slot([](
+      const boost::asio::ip::udp::endpoint & /*this_local_endpoint*/, const NodeId & /*peer_id*/,
+      const boost::asio::ip::udp::endpoint & /*peer_endpoint*/,
+      uint16_t & /*another_external_port*/) {});
+  client_socket.AsyncConnect(client_node_id, client_public_key, server_endpoint, server_node_id,
+                             std::bind(&handler1, args::_1, &client_ec), Session::kNormal,
                              on_nat_detection_requested_slot);
-  server_socket.AsyncConnect(server_node_id,
-                             server_public_key,
-                             client_endpoint,
-                             client_node_id,
-                             std::bind(&handler1, args::_1, &server_ec),
-                             Session::kNormal,
+  server_socket.AsyncConnect(server_node_id, server_public_key, client_endpoint, client_node_id,
+                             std::bind(&handler1, args::_1, &server_ec), Session::kNormal,
                              on_nat_detection_requested_slot);
 
   do {
@@ -143,14 +128,12 @@ TEST(SocketTest, BEH_Socket) {
   for (size_t i = 0; i < kIterations; ++i) {
     std::vector<unsigned char> server_buffer(kBufferSize);
     server_ec = asio::error::would_block;
-    server_socket.AsyncRead(asio::buffer(server_buffer),
-                            kBufferSize,
+    server_socket.AsyncRead(asio::buffer(server_buffer), kBufferSize,
                             std::bind(&handler1, args::_1, &server_ec));
 
     std::vector<unsigned char> client_buffer(kBufferSize, 'A');
     client_ec = asio::error::would_block;
-    client_socket.AsyncWrite(asio::buffer(client_buffer),
-                             [] (int) {},  // NOLINT (Fraser)
+    client_socket.AsyncWrite(asio::buffer(client_buffer), [](int) {},  // NOLINT (Fraser)
                              std::bind(&handler1, args::_1, &client_ec));
 
     do {
@@ -185,11 +168,9 @@ TEST(SocketTest, BEH_AsyncProbe) {
       std::make_shared<asymm::PublicKey>(client_key_pair.public_key));
 
   std::shared_ptr<Multiplexer> server_multiplexer(new Multiplexer(io_service));
-  ConnectionManager server_connection_manager(std::shared_ptr<Transport>(),
-                                              asio::io_service::strand(io_service),
-                                              server_multiplexer,
-                                              server_node_id,
-                                              std::shared_ptr<asymm::PublicKey>());
+  ConnectionManager server_connection_manager(
+      std::shared_ptr<Transport>(), asio::io_service::strand(io_service), server_multiplexer,
+      server_node_id, std::shared_ptr<asymm::PublicKey>());
   ReturnCode result(kPendingResult);
   ip::udp::endpoint server_endpoint;
   uint8_t attempts(0);
@@ -203,11 +184,9 @@ TEST(SocketTest, BEH_AsyncProbe) {
   ASSERT_EQ(kSuccess, result);
 
   std::shared_ptr<Multiplexer> client_multiplexer(new Multiplexer(io_service));
-  ConnectionManager client_connection_manager(std::shared_ptr<Transport>(),
-                                              asio::io_service::strand(io_service),
-                                              client_multiplexer,
-                                              client_node_id,
-                                              std::shared_ptr<asymm::PublicKey>());
+  ConnectionManager client_connection_manager(
+      std::shared_ptr<Transport>(), asio::io_service::strand(io_service), client_multiplexer,
+      client_node_id, std::shared_ptr<asymm::PublicKey>());
   ip::udp::endpoint client_endpoint;
   result = kPendingResult;
   attempts = 0;
@@ -240,24 +219,15 @@ TEST(SocketTest, BEH_AsyncProbe) {
   server_ec = asio::error::would_block;
   client_ec = asio::error::would_block;
 
-  auto on_nat_detection_requested_slot(
-      [](const boost::asio::ip::udp::endpoint& /*this_local_endpoint*/,
-         const NodeId& /*peer_id*/,
-         const boost::asio::ip::udp::endpoint& /*peer_endpoint*/,
-         uint16_t& /*another_external_port*/) {});
-  client_socket.AsyncConnect(client_node_id,
-                             client_public_key,
-                             server_endpoint,
-                             server_node_id,
-                             std::bind(&handler1, args::_1, &client_ec),
-                             Session::kNormal,
+  auto on_nat_detection_requested_slot([](
+      const boost::asio::ip::udp::endpoint & /*this_local_endpoint*/, const NodeId & /*peer_id*/,
+      const boost::asio::ip::udp::endpoint & /*peer_endpoint*/,
+      uint16_t & /*another_external_port*/) {});
+  client_socket.AsyncConnect(client_node_id, client_public_key, server_endpoint, server_node_id,
+                             std::bind(&handler1, args::_1, &client_ec), Session::kNormal,
                              on_nat_detection_requested_slot);
-  server_socket.AsyncConnect(server_node_id,
-                             server_public_key,
-                             client_endpoint,
-                             client_node_id,
-                             std::bind(&handler1, args::_1, &server_ec),
-                             Session::kNormal,
+  server_socket.AsyncConnect(server_node_id, server_public_key, client_endpoint, client_node_id,
+                             std::bind(&handler1, args::_1, &server_ec), Session::kNormal,
                              on_nat_detection_requested_slot);
 
   do {
@@ -301,8 +271,7 @@ TEST(SocketTest, BEH_AsyncProbe) {
   client_socket.AsyncProbe(std::bind(&handler1, args::_1, &client_ec_3));
   do {
     io_service.run_one();
-  } while (client_ec_1 == asio::error::would_block ||
-           client_ec_2 == asio::error::would_block||
+  } while (client_ec_1 == asio::error::would_block || client_ec_2 == asio::error::would_block ||
            client_ec_3 == asio::error::would_block);
   EXPECT_EQ(asio::error::operation_aborted, client_ec_1);
   EXPECT_EQ(asio::error::operation_aborted, client_ec_2);

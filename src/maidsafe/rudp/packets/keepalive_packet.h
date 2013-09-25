@@ -32,8 +32,12 @@ namespace detail {
 
 class KeepalivePacket : public ControlPacket {
  public:
-  enum { kPacketSize = ControlPacket::kHeaderSize };
-  enum { kPacketType = 1 };
+  enum {
+    kPacketSize = ControlPacket::kHeaderSize
+  };
+  enum {
+    kPacketType = 1
+  };
 
   KeepalivePacket();
   virtual ~KeepalivePacket() {}

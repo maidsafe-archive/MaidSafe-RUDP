@@ -36,14 +36,11 @@ template <typename ConnectHandler>
 class ConnectOp {
  public:
   ConnectOp(ConnectHandler handler, const boost::system::error_code& ec)
-      : handler_(std::move(handler)),
-        ec_(ec) {}
+      : handler_(std::move(handler)), ec_(ec) {}
 
   ConnectOp(const ConnectOp& other) : handler_(other.handler_), ec_(other.ec_) {}
 
-  void operator()(boost::system::error_code) {
-    handler_(ec_);
-  }
+  void operator()(boost::system::error_code) { handler_(ec_); }
 
   friend void* asio_handler_allocate(size_t n, ConnectOp* op) {
     using boost::asio::asio_handler_allocate;

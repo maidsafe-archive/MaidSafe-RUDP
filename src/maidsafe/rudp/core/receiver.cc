@@ -46,7 +46,8 @@ namespace rudp {
 
 namespace detail {
 
-Receiver::Receiver(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control)  // NOLINT (Fraser)
+Receiver::Receiver(Peer& peer, TickTimer& tick_timer,
+                   CongestionControl& congestion_control)  // NOLINT (Fraser)
     : peer_(peer),
       tick_timer_(tick_timer),
       congestion_control_(congestion_control),
@@ -71,12 +72,12 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer& data) {
   unsigned char* ptr = begin;
   unsigned char* end = begin + asio::buffer_size(data);
 
-  for (uint32_t n = unread_packets_.Begin();
-       (n != unread_packets_.End()) && (ptr < end);
+  for (uint32_t n = unread_packets_.Begin(); (n != unread_packets_.End()) && (ptr < end);
        n = unread_packets_.Next(n)) {
     UnreadPacket& p = unread_packets_[n];
-//    LOG(kSuccess) << p.packet.MessageNumber() << std::boolalpha << "\t"
-//                  << p.packet.FirstPacketInMessage() << "\t" << p.packet.LastPacketInMessage();
+    //    LOG(kSuccess) << p.packet.MessageNumber() << std::boolalpha << "\t"
+    //                  << p.packet.FirstPacketInMessage() << "\t" <<
+    // p.packet.LastPacketInMessage();
     if (p.lost) {
       break;
     } else if (p.packet.Data().size() > p.bytes_read) {
@@ -134,9 +135,9 @@ void Receiver::HandleData(const DataPacket& packet) {
     // Schedule generation of acknowledgement packets for later.
     tick_timer_.TickAfter(congestion_control_.AckDelay());
   }
-//  if (tick_timer_.Expired()) {
-//    tick_timer_.TickAfter(congestion_control_.ReceiveDelay());
-//  }
+  //  if (tick_timer_.Expired()) {
+  //    tick_timer_.TickAfter(congestion_control_.ReceiveDelay());
+  //  }
 }
 
 void Receiver::HandleAckOfAck(const AckOfAckPacket& packet) {
@@ -186,9 +187,9 @@ void Receiver::AddAckToWindow(const bptime::ptime& now) {
   uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
   if ((ack_packet_seqnum != last_ack_packet_sequence_number_) ||
       (!acks_.IsEmpty() && (acks_.Back().send_time + congestion_control_.AckTimeout() <= now))) {
-// TODO(Fraser#5#): 2012-09-03 - Confirm this is OK to be removed.
-//    if (acks_.IsFull())
-//      acks_.Remove();
+    // TODO(Fraser#5#): 2012-09-03 - Confirm this is OK to be removed.
+    //    if (acks_.IsFull())
+    //      acks_.Remove();
     congestion_control_.OnGenerateAck(ack_packet_seqnum);
     uint32_t n = acks_.Append();
     Ack& a = acks_[n];

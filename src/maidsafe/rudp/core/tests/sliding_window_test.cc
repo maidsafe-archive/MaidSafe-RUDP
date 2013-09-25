@@ -53,13 +53,9 @@ static void TestWindowRange(uint32_t first_sequence_number) {
   }
 }
 
-TEST(SlidingWindowTest, BEH_FromZero) {
-  TestWindowRange(0);
-}
+TEST(SlidingWindowTest, BEH_FromZero) { TestWindowRange(0); }
 
-TEST(SlidingWindowTest, BEH_FromN) {
-  TestWindowRange(123456);
-}
+TEST(SlidingWindowTest, BEH_FromN) { TestWindowRange(123456); }
 
 TEST(SlidingWindowTest, BEH_Wraparound) {
   TestWindowRange(SlidingWindow<uint32_t>::kMaxSequenceNumber - kTestPacketCount / 2);

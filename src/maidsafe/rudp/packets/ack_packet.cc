@@ -88,8 +88,8 @@ bool AckPacket::Decode(const asio::const_buffer& buffer) {
   if (!DecodeBase(buffer, kPacketType))
     return false;
 
-  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
-//   size_t length = asio::buffer_size(buffer) - kHeaderSize;
+  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
+  //   size_t length = asio::buffer_size(buffer) - kHeaderSize;
   p += kHeaderSize;
 
   DecodeUint32(&packet_sequence_number_, p + 0);
@@ -114,7 +114,7 @@ size_t AckPacket::Encode(const asio::mutable_buffer& buffer) const {
   if (EncodeBase(buffer) == 0)
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char*>(buffer);
   p += kHeaderSize;
 
   EncodeUint32(packet_sequence_number_, p + 0);
@@ -126,8 +126,8 @@ size_t AckPacket::Encode(const asio::mutable_buffer& buffer) const {
     EncodeUint32(estimated_link_capacity_, p + 20);
   }
 
-  return has_optional_fields_ ? static_cast<size_t>(kOptionalPacketSize) :
-                                static_cast<size_t>(kPacketSize);
+  return has_optional_fields_ ? static_cast<size_t>(kOptionalPacketSize)
+                              : static_cast<size_t>(kPacketSize);
 }
 
 }  // namespace detail

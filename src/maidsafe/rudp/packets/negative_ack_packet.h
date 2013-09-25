@@ -34,7 +34,9 @@ namespace detail {
 
 class NegativeAckPacket : public ControlPacket {
  public:
-  enum { kPacketType = 3 };
+  enum {
+    kPacketType = 3
+  };
 
   NegativeAckPacket();
   virtual ~NegativeAckPacket() {}

@@ -36,7 +36,6 @@
 #include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
-
 namespace maidsafe {
 
 namespace rudp {
@@ -49,20 +48,17 @@ class Multiplexer;
 class Socket;
 class HandshakePacket;
 
-
 class ConnectionManager {
  public:
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
-                    std::shared_ptr<Multiplexer> multiplexer,
-                    NodeId this_node_id,
+                    std::shared_ptr<Multiplexer> multiplexer, NodeId this_node_id,
                     std::shared_ptr<asymm::PublicKey> this_public_key);
   ~ConnectionManager();
 
   void Close();
 
-  void Connect(const NodeId& peer_id,
-               const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void Connect(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
                const std::string& validation_data,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan,
@@ -73,16 +69,13 @@ class ConnectionManager {
   void RemoveConnection(std::shared_ptr<Connection> connection);
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
-  void Ping(const NodeId& peer_id,
-            const boost::asio::ip::udp::endpoint& peer_endpoint,
-            const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
+  void Ping(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+            const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
-  bool Send(const NodeId& peer_id,
-            const std::string& message,
+  bool Send(const NodeId& peer_id, const std::string& message,
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
-  bool MakeConnectionPermanent(const NodeId& peer_id,
-                               bool validated,
+  bool MakeConnectionPermanent(const NodeId& peer_id, bool validated,
                                boost::asio::ip::udp::endpoint& peer_endpoint);
 
   // This node's endpoint as viewed by peer

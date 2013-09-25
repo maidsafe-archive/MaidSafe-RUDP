@@ -29,10 +29,9 @@
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 
-
 namespace {
 
-bool ParseArgs(int argc, char **argv, int& message_count, int& message_size) {
+bool ParseArgs(int argc, char** argv, int& message_count, int& message_size) {
   auto fail([]()->bool {
     std::cout << "Pass no. of messages and size of messages (in bytes) as first 2 arguments.\n";
     return false;
@@ -49,7 +48,7 @@ bool ParseArgs(int argc, char **argv, int& message_count, int& message_size) {
       return false;
     }
   }
-  catch(const std::exception&) {
+  catch (const std::exception&) {
     return fail();
   }
 
@@ -58,7 +57,7 @@ bool ParseArgs(int argc, char **argv, int& message_count, int& message_size) {
 
 }  // unnamed namespace
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   auto message_count(0), message_size(0);
   if (!ParseArgs(argc, argv, message_count, message_size))
     return -1;
@@ -107,8 +106,9 @@ int main(int argc, char **argv) {
     nodes[0]->managed_connections()->Send(nodes[1]->node_id(), messages[i], message_sent_functor);
 
   LOG(kSuccess) << "All messages enqueued.";
-  cond_var.wait(lock,
-      [message_count, &result_arrived_count] { return result_arrived_count == message_count; });  // NOLINT (Fraser)
+  cond_var.wait(lock, [message_count, &result_arrived_count] {
+    return result_arrived_count == message_count;
+  });  // NOLINT (Fraser)
 
   auto received_messages(messages_futures.get());
   if (received_messages.size() != static_cast<size_t>(message_count)) {
@@ -124,8 +124,8 @@ int main(int argc, char **argv) {
   intmax_t message_rate((message_count * 1000) / elapsed.count());
   TLOG(kDefaultColour) << "\nSent " << message_count << " messages of " << message_size
                        << " bytes in " << elapsed.count() << " milliseconds.\nTransfer rate: "
-                       << maidsafe::BytesToDecimalSiUnits(transfer_rate) << "/sec.\nMessage rate:  "
-                       << message_rate << " msg/sec.\n\n";
+                       << maidsafe::BytesToDecimalSiUnits(transfer_rate)
+                       << "/sec.\nMessage rate:  " << message_rate << " msg/sec.\n\n";
 
   return 0;
 }

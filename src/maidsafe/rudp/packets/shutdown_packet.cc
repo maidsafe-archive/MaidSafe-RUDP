@@ -28,9 +28,7 @@ namespace rudp {
 
 namespace detail {
 
-ShutdownPacket::ShutdownPacket() {
-  SetType(kPacketType);
-}
+ShutdownPacket::ShutdownPacket() { SetType(kPacketType); }
 
 bool ShutdownPacket::IsValid(const asio::const_buffer& buffer) {
   return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) == kPacketSize));

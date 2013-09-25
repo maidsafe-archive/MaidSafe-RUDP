@@ -46,7 +46,6 @@ typedef int32_t DataSize;
 
 class Multiplexer;
 
-
 class Connection : public std::enable_shared_from_this<Connection> {
  public:
   enum class State {
@@ -68,7 +67,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
     kExactDuplicate
   };
 
-  Connection(const std::shared_ptr<Transport> &transport,
+  Connection(const std::shared_ptr<Transport>& transport,
              const boost::asio::io_service::strand& strand,
              std::shared_ptr<Multiplexer> multiplexer);
 
@@ -83,10 +82,10 @@ class Connection : public std::enable_shared_from_this<Connection> {
                        const boost::posix_time::time_duration& connect_attempt_timeout,
                        const boost::posix_time::time_duration& lifespan,
                        const std::function<void()>& failure_functor);
-  void Ping(const NodeId& peer_node_id,
-            const boost::asio::ip::udp::endpoint& peer_endpoint,
-            const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
-  void StartSending(const std::string& data, const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
+  void Ping(const NodeId& peer_node_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+            const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
+  void StartSending(const std::string& data,
+                    const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
   State state() const;
   // Sets the state_ to kPermanent or kUnvalidated and sets the lifespan_timer_ to expire at
   // pos_infin.
@@ -110,7 +109,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
     std::function<void(int)> message_sent_functor_;  // NOLINT (Dan)
 
     SendRequest(std::string encrypted_data,
-                std::function<void(int)>  message_sent_functor)  // NOLINT (Dan)
+                std::function<void(int)> message_sent_functor)  // NOLINT (Dan)
         : encrypted_data_(std::move(encrypted_data)),
           message_sent_functor_(std::move(message_sent_functor)) {}
   };
@@ -137,9 +136,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartConnect(const std::string& validation_data,
                     const boost::posix_time::time_duration& connect_attempt_timeout,
                     const boost::posix_time::time_duration& lifespan,
-                    const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
-  void HandleConnect(const boost::system::error_code& ec,
-                     const std::string& validation_data,
+                    const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
+  void HandleConnect(const boost::system::error_code& ec, const std::string& validation_data,
                      std::function<void(int)> ping_functor);  // NOLINT (Fraser)
 
   void StartReadSize();
@@ -148,8 +146,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartReadData();
   void HandleReadData(const boost::system::error_code& ec, size_t length);
 
-  void StartWrite(const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
-  void HandleWrite(std::function<void(int)> message_sent_functor);  // NOLINT (Fraser)
+  void StartWrite(const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
+  void HandleWrite(std::function<void(int)> message_sent_functor);        // NOLINT (Fraser)
 
   void StartProbing();
   void DoProbe(const boost::system::error_code& ec);
@@ -159,7 +157,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void EncodeData(const std::string& data);
 
-  void InvokeSentFunctor(const std::function<void(int)> &message_sent_functor, int result) const;  // NOLINT (Fraser)
+  void InvokeSentFunctor(const std::function<void(int)>& message_sent_functor,
+                         int result) const;  // NOLINT (Fraser)
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
@@ -173,16 +172,19 @@ class Connection : public std::enable_shared_from_this<Connection> {
   uint8_t failed_probe_count_;
   State state_;
   mutable std::mutex state_mutex_;
-  enum class TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
+  enum class TimeoutState {
+    kConnecting,
+    kConnected,
+    kClosing
+  } timeout_state_;
   bool sending_;
   std::function<void()> failure_functor_;
   std::queue<SendRequest> send_queue_;
 };
 
-
 template <typename Elem, typename Traits>
 std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
-                                             const Connection::State &state) {
+                                             const Connection::State& state) {
   std::string state_str;
   switch (state) {
     case Connection::State::kPending:

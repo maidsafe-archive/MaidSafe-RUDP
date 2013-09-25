@@ -93,11 +93,8 @@ void Sender::HandleAck(const AckPacket& packet, std::vector<uint32_t>& completed
   uint32_t seqnum = packet.PacketSequenceNumber();
 
   if (packet.HasOptionalFields()) {
-    congestion_control_.OnAck(seqnum,
-                              packet.RoundTripTime(),
-                              packet.RoundTripTimeVariance(),
-                              packet.AvailableBufferSize(),
-                              packet.PacketsReceivingRate(),
+    congestion_control_.OnAck(seqnum, packet.RoundTripTime(), packet.RoundTripTimeVariance(),
+                              packet.AvailableBufferSize(), packet.PacketsReceivingRate(),
                               packet.EstimatedLinkCapacity());
   } else {
     congestion_control_.OnAck(seqnum);
@@ -112,8 +109,8 @@ void Sender::HandleAck(const AckPacket& packet, std::vector<uint32_t>& completed
     while (unacked_packets_.Begin() != seqnum) {
       if (unacked_packets_.Front().packet.LastPacketInMessage()) {
         completed_message_numbers.push_back(unacked_packets_.Front().packet.MessageNumber());
-//        LOG(kVerbose) << "Received ACK for last packet in message "
-//                      << unacked_packets_.Front().packet.MessageNumber();
+        //        LOG(kVerbose) << "Received ACK for last packet in message "
+        //                      << unacked_packets_.Front().packet.MessageNumber();
       }
       unacked_packets_.Remove();
     }
@@ -124,8 +121,7 @@ void Sender::HandleAck(const AckPacket& packet, std::vector<uint32_t>& completed
 
 void Sender::HandleNegativeAck(const NegativeAckPacket& packet) {
   // Mark the specified packets as lost.
-  for (uint32_t n = unacked_packets_.Begin();
-       n != unacked_packets_.End();
+  for (uint32_t n = unacked_packets_.Begin(); n != unacked_packets_.End();
        n = unacked_packets_.Next(n)) {
     if (packet.ContainsSequenceNumber(n)) {
       congestion_control_.OnNegativeAck(n);
@@ -142,8 +138,7 @@ void Sender::HandleTick() {
     send_timeout_ = bptime::pos_infin;
 
     // Mark all timedout unacknowledged packets as lost.
-    for (uint32_t n = unacked_packets_.Begin();
-         n != unacked_packets_.End();
+    for (uint32_t n = unacked_packets_.Begin(); n != unacked_packets_.End();
          n = unacked_packets_.Next(n)) {
       if ((unacked_packets_[n].last_send_time + congestion_control_.SendTimeout()) <
           tick_timer_.Now()) {
@@ -160,8 +155,7 @@ void Sender::HandleTick() {
 void Sender::DoSend() {
   bptime::ptime now = tick_timer_.Now();
 
-  for (uint32_t n = unacked_packets_.Begin();
-       n != unacked_packets_.End();
+  for (uint32_t n = unacked_packets_.Begin(); n != unacked_packets_.End();
        n = unacked_packets_.Next(n)) {
     UnackedPacket& p = unacked_packets_[n];
     if (p.lost) {

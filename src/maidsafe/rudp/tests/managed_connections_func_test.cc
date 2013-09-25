@@ -59,11 +59,11 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Generate_messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-	  sent_messages.push_back(Node::messages_t());
+      sent_messages.push_back(Node::messages_t());
       std::string message_prefix(std::string("Msg from ") + nodes_[i]->id() + " ");
       for (uint8_t j = 0; j != num_messages; ++j) {
-        sent_messages[i].push_back(
-            message_prefix + std::string(messages_size - message_prefix.size(), 'A' + j));
+        sent_messages[i].push_back(message_prefix +
+                                   std::string(messages_size - message_prefix.size(), 'A' + j));
       }
     }
 
@@ -74,22 +74,18 @@ class ManagedConnectionsFuncTest : public testing::Test {
     }
 
     // Sending messages
-    std::vector<std::vector<std::vector<int>>> send_results(                      // NOLINT (Fraser)
-        nodes_.size(),
-        std::vector<std::vector<int>>(                                            // NOLINT (Fraser)
-            nodes_.size() - 1,
-            std::vector<int>(num_messages, kReturnCodeLimit)));
+    std::vector<std::vector<std::vector<int>>> send_results(  // NOLINT (Fraser)
+        nodes_.size(), std::vector<std::vector<int>>(         // NOLINT (Fraser)
+                           nodes_.size() - 1, std::vector<int>(num_messages, kReturnCodeLimit)));
 
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       std::vector<NodeId> peers(nodes_.at(i)->GetConnectedNodeIds());
       ASSERT_EQ(nodes_.size() - 1, peers.size());
       for (uint16_t j = 0; j != peers.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
-          nodes_.at(i)->managed_connections()->Send(peers.at(j),
-                                                    sent_messages[i][k],
-                                                    [=, &send_results](int result_in) {
-                                                      send_results[i][j][k] = result_in;
-                                                    });
+          nodes_.at(i)->managed_connections()->Send(
+              peers.at(j), sent_messages[i][k],
+              [=, &send_results](int result_in) { send_results[i][j][k] = result_in; });
         }
       }
     }
@@ -114,8 +110,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
       for (uint16_t j = 0; j != nodes_.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
           if (j != nodes_.size() - 1) {
-            EXPECT_EQ(kSuccess, send_results[i][j][k])
-                << "send_results[" << i << "][" << j << "][" << k << "]: " << send_results[i][j][k];
+            EXPECT_EQ(kSuccess, send_results[i][j][k]) << "send_results[" << i << "][" << j << "]["
+                                                       << k << "]: " << send_results[i][j][k];
           }
           if (i != j) {
             EXPECT_EQ(1U, nodes_.at(i)->GetReceivedMessageCount(sent_messages[j][k]))

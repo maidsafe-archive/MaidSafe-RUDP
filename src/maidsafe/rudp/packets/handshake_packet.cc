@@ -143,7 +143,7 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   if (!DecodeBase(buffer, kPacketType))
     return false;
 
-  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
+  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
   size_t length = asio::buffer_size(buffer) - kHeaderSize;
 
   p += kHeaderSize;
@@ -187,7 +187,7 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
         return false;
       }
     }
-    catch(const std::exception& e) {
+    catch (const std::exception& e) {
       LOG(kError) << "Failed to parse peer's public key: " << e.what();
       return false;
     }
@@ -216,7 +216,7 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer& buffer) const {
   if (EncodeBase(buffer) == 0)
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char*>(buffer);
   p += kHeaderSize;
 
   EncodeUint32(rudp_version_, p + 0);

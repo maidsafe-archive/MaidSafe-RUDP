@@ -33,7 +33,6 @@
 #include "maidsafe/rudp/packets/data_packet.h"
 #include "maidsafe/rudp/core/sliding_window.h"
 
-
 namespace maidsafe {
 
 namespace rudp {

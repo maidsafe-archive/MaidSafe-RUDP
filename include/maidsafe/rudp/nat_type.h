@@ -21,16 +21,19 @@
 
 #include <string>
 
-
 namespace maidsafe {
 
 namespace rudp {
 
-enum class NatType { kSymmetric, kOther, kUnknown };
+enum class NatType {
+  kSymmetric,
+  kOther,
+  kUnknown
+};
 
 template <typename Elem, typename Traits>
 std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
-                                             const NatType &nat_type) {
+                                             const NatType& nat_type) {
   std::string nat_str;
   switch (nat_type) {
     case NatType::kSymmetric:

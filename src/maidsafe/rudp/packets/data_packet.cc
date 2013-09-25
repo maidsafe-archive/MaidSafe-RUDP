@@ -81,7 +81,7 @@ void DataPacket::SetData(const std::string& data) { data_ = data; }
 
 bool DataPacket::IsValid(const asio::const_buffer& buffer) {
   return ((asio::buffer_size(buffer) >= 16) &&
-          ((asio::buffer_cast<const unsigned char *>(buffer)[0] & 0x80) == 0));
+          ((asio::buffer_cast<const unsigned char*>(buffer)[0] & 0x80) == 0));
 }
 
 bool DataPacket::Decode(const asio::const_buffer& buffer) {
@@ -89,7 +89,7 @@ bool DataPacket::Decode(const asio::const_buffer& buffer) {
   if (!IsValid(buffer))
     return false;
 
-  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
+  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
   size_t length = asio::buffer_size(buffer);
 
   packet_sequence_number_ = (p[0] & 0x7f);
@@ -115,7 +115,7 @@ size_t DataPacket::Encode(const asio::mutable_buffer& buffer) const {
   if (asio::buffer_size(buffer) < kHeaderSize + data_.size())
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char*>(buffer);
 
   p[0] = ((packet_sequence_number_ >> 24) & 0x7f);
   p[1] = ((packet_sequence_number_ >> 16) & 0xff);

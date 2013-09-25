@@ -18,6 +18,4 @@
 
 #include "maidsafe/common/test.h"
 
-int main(int argc, char **argv) {
-  return maidsafe::test::ExecuteMain(argc, argv);
-}
+int main(int argc, char** argv) { return maidsafe::test::ExecuteMain(argc, argv); }

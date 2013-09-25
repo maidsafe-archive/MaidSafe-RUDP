@@ -29,7 +29,6 @@
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/core/socket.h"
 
-
 namespace asio = boost::asio;
 namespace ip = asio::ip;
 

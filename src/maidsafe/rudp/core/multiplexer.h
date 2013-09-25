@@ -61,11 +61,8 @@ class Multiplexer {
   // Asynchronously receive a single packet and dispatch it.
   template <typename DispatchHandler>
   void AsyncDispatch(DispatchHandler handler) {
-    DispatchOp<DispatchHandler> op(handler,
-                                   socket_,
-                                   boost::asio::buffer(receive_buffer_),
-                                   sender_endpoint_,
-                                   dispatcher_);
+    DispatchOp<DispatchHandler> op(handler, socket_, boost::asio::buffer(receive_buffer_),
+                                   sender_endpoint_, dispatcher_);
     socket_.async_receive_from(boost::asio::buffer(receive_buffer_), sender_endpoint_, 0, op);
   }
 

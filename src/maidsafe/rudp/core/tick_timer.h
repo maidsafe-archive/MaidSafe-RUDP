@@ -33,10 +33,7 @@ namespace detail {
 // move it further away.
 class TickTimer {
  public:
-  explicit TickTimer(boost::asio::io_service& asio_service)
-      : timer_(asio_service) {
-    Reset();
-  }
+  explicit TickTimer(boost::asio::io_service& asio_service) : timer_(asio_service) { Reset(); }
 
   static boost::posix_time::ptime Now() { return boost::asio::deadline_timer::traits_type::now(); }
 
@@ -59,7 +56,9 @@ class TickTimer {
   void TickAfter(const boost::posix_time::time_duration& duration) { TickAt(Now() + duration); }
 
   template <typename WaitHandler>
-  void AsyncWait(WaitHandler handler) { timer_.async_wait(handler); }
+  void AsyncWait(WaitHandler handler) {
+    timer_.async_wait(handler);
+  }
 
  private:
   boost::asio::deadline_timer timer_;

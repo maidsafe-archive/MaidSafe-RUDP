@@ -38,10 +38,8 @@ namespace detail {
 template <typename DispatchHandler>
 class DispatchOp {
  public:
-  DispatchOp(DispatchHandler handler,
-             boost::asio::ip::udp::socket& socket,
-             boost::asio::mutable_buffer buffer,
-             boost::asio::ip::udp::endpoint& sender_endpoint,
+  DispatchOp(DispatchHandler handler, boost::asio::ip::udp::socket& socket,
+             boost::asio::mutable_buffer buffer, boost::asio::ip::udp::endpoint& sender_endpoint,
              Dispatcher& dispatcher)
       : handler_(std::move(handler)),
         socket_(socket),
@@ -64,10 +62,8 @@ class DispatchOp {
       std::lock_guard<std::mutex> lock(*mutex_);
       dispatcher_.HandleReceiveFrom(boost::asio::buffer(buffer_, bytes_transferred),
                                     sender_endpoint_);
-      bytes_transferred = socket_.receive_from(boost::asio::buffer(buffer_),
-                                               sender_endpoint_,
-                                               0,
-                                               local_ec);
+      bytes_transferred =
+          socket_.receive_from(boost::asio::buffer(buffer_), sender_endpoint_, 0, local_ec);
     }
 
     handler_(ec);

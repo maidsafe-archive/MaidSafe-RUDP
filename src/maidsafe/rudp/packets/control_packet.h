@@ -34,11 +34,15 @@ namespace rudp {
 
 namespace detail {
 
-namespace test { class ControlPacketTest; }
+namespace test {
+class ControlPacketTest;
+}
 
 class ControlPacket : public Packet {
  public:
-  enum { kHeaderSize = 16 };
+  enum {
+    kHeaderSize = 16
+  };
 
   ControlPacket();
 

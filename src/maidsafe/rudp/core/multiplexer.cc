@@ -18,7 +18,6 @@
 
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
-
 #include "maidsafe/rudp/core/multiplexer.h"
 
 #include <cassert>
@@ -26,7 +25,6 @@
 #include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/utils.h"
-
 
 namespace asio = boost::asio;
 namespace ip = boost::asio::ip;
@@ -90,9 +88,7 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
   return kSuccess;
 }
 
-bool Multiplexer::IsOpen() const {
-  return socket_.is_open();
-}
+bool Multiplexer::IsOpen() const { return socket_.is_open(); }
 
 void Multiplexer::Close() {
   bs::error_code ec;
@@ -126,4 +122,3 @@ ip::udp::endpoint Multiplexer::external_endpoint() const {
 }  // namespace rudp
 
 }  // namespace maidsafe
-

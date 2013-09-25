@@ -32,10 +32,7 @@ namespace rudp {
 namespace detail {
 
 ControlPacket::ControlPacket()
-    : type_(0),
-      additional_info_(0),
-      time_stamp_(0),
-      destination_socket_id_(0) {}
+    : type_(0), additional_info_(0), time_stamp_(0), destination_socket_id_(0) {}
 
 ControlPacket::~ControlPacket() {}
 
@@ -58,11 +55,9 @@ uint32_t ControlPacket::DestinationSocketId() const { return destination_socket_
 
 void ControlPacket::SetDestinationSocketId(uint32_t n) { destination_socket_id_ = n; }
 
-bool ControlPacket::IsValidBase(const asio::const_buffer& buffer,
-                                uint16_t expected_packet_type) {
-  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
-  return (asio::buffer_size(buffer) >= kHeaderSize) &&
-         ((p[0] & 0x80) != 0) &&
+bool ControlPacket::IsValidBase(const asio::const_buffer& buffer, uint16_t expected_packet_type) {
+  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
+  return (asio::buffer_size(buffer) >= kHeaderSize) && ((p[0] & 0x80) != 0) &&
          ((p[0] & 0x7f) == ((expected_packet_type >> 8) & 0x7f)) &&
          (p[1] == (expected_packet_type & 0xff));
 }
@@ -72,8 +67,8 @@ bool ControlPacket::DecodeBase(const asio::const_buffer& buffer, uint16_t expect
   if (!IsValidBase(buffer, expected_packet_type))
     return false;
 
-  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
-//  size_t length = asio::buffer_size(buffer);
+  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
+  //  size_t length = asio::buffer_size(buffer);
 
   type_ = (p[0] & 0x7f);
   type_ = ((type_ << 8) | p[1]);
@@ -89,7 +84,7 @@ size_t ControlPacket::EncodeBase(const asio::mutable_buffer& buffer) const {
   if (asio::buffer_size(buffer) < kHeaderSize)
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char*>(buffer);
 
   p[0] = ((type_ >> 8) & 0x7f);
   p[0] |= 0x80;

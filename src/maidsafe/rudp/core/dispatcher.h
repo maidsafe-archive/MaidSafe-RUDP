@@ -26,7 +26,6 @@
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
 
-
 namespace maidsafe {
 
 namespace rudp {

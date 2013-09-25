@@ -67,7 +67,6 @@ class HandshakePacket;
 class KeepalivePacket;
 class NegativeAckPacket;
 
-
 class Socket {
  public:
   Socket(Multiplexer& multiplexer, NatType& nat_type);  // NOLINT (Fraser)
@@ -127,20 +126,13 @@ class Socket {
   // caller to set a timeout and close the socket after the timeout period
   // expires.
   template <typename ConnectHandler>
-  void AsyncConnect(const NodeId& this_node_id,
-                    std::shared_ptr<asymm::PublicKey> this_public_key,
-                    const boost::asio::ip::udp::endpoint& remote,
-                    const NodeId& peer_node_id,
-                    ConnectHandler handler,
-                    Session::Mode open_mode,
+  void AsyncConnect(const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
+                    const boost::asio::ip::udp::endpoint& remote, const NodeId& peer_node_id,
+                    ConnectHandler handler, Session::Mode open_mode,
                     Session::OnNatDetectionRequested::slot_type on_nat_detection_requested_slot) {
     ConnectOp<ConnectHandler> op(handler, waiting_connect_ec_);
     waiting_connect_.async_wait(op);
-    StartConnect(this_node_id,
-                 this_public_key,
-                 remote,
-                 peer_node_id,
-                 open_mode,
+    StartConnect(this_node_id, this_public_key, remote, peer_node_id, open_mode,
                  on_nat_detection_requested_slot);
   }
 
@@ -160,8 +152,7 @@ class Socket {
 
   // Initiate an asynchronous operation to read data.
   template <typename ReadHandler>
-  void AsyncRead(const boost::asio::mutable_buffer& data,
-                 size_t transfer_at_least,
+  void AsyncRead(const boost::asio::mutable_buffer& data, size_t transfer_at_least,
                  ReadHandler handler) {
     ReadOp<ReadHandler> op(handler, waiting_read_ec_, waiting_read_bytes_transferred_);
     waiting_read_.async_wait(op);
@@ -205,10 +196,8 @@ class Socket {
   Socket& operator=(const Socket&);
 
   void StartConnect(
-      const NodeId& this_node_id,
-      std::shared_ptr<asymm::PublicKey> this_public_key,
-      const boost::asio::ip::udp::endpoint& remote,
-      const NodeId& peer_node_id,
+      const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
+      const boost::asio::ip::udp::endpoint& remote, const NodeId& peer_node_id,
       Session::Mode open_mode,
       const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
   void StartWrite(const boost::asio::const_buffer& data,

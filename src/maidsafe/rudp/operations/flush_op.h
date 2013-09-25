@@ -36,14 +36,11 @@ template <typename FlushHandler>
 class FlushOp {
  public:
   FlushOp(FlushHandler handler, const boost::system::error_code& ec)
-      : handler_(std::move(handler)),
-        ec_(ec) {}
+      : handler_(std::move(handler)), ec_(ec) {}
 
   FlushOp(const FlushOp& other) : handler_(other.handler_), ec_(other.ec_) {}
 
-  void operator()(boost::system::error_code) {
-    handler_(ec_);
-  }
+  void operator()(boost::system::error_code) { handler_(ec_); }
 
   friend void* asio_handler_allocate(size_t n, FlushOp* op) {
     using boost::asio::asio_handler_allocate;

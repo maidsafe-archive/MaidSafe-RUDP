@@ -28,10 +28,7 @@ namespace rudp {
 
 namespace detail {
 
-NegativeAckPacket::NegativeAckPacket()
-    : sequence_numbers_() {
-  SetType(kPacketType);
-}
+NegativeAckPacket::NegativeAckPacket() : sequence_numbers_() { SetType(kPacketType); }
 
 void NegativeAckPacket::AddSequenceNumber(uint32_t n) {
   assert(n <= 0x7fffffff);
@@ -46,16 +43,14 @@ void NegativeAckPacket::AddSequenceNumbers(uint32_t first, uint32_t last) {
 }
 
 bool NegativeAckPacket::IsValid(const asio::const_buffer& buffer) {
-  return (IsValidBase(buffer, kPacketType) &&
-          (asio::buffer_size(buffer) > kHeaderSize) &&
+  return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) > kHeaderSize) &&
           ((asio::buffer_size(buffer) - kHeaderSize) % 4 == 0));
 }
 
 bool NegativeAckPacket::ContainsSequenceNumber(uint32_t n) const {
   assert(n <= 0x7fffffff);
   for (size_t i = 0; i < sequence_numbers_.size(); ++i) {
-    if (((sequence_numbers_[i] & 0x80000000) != 0) &&
-        (i + 1 < sequence_numbers_.size())) {
+    if (((sequence_numbers_[i] & 0x80000000) != 0) && (i + 1 < sequence_numbers_.size())) {
       // This is a range.
       uint32_t first = (sequence_numbers_[i] & 0x7fffffff);
       uint32_t last = (sequence_numbers_[i + 1] & 0x7fffffff);
@@ -87,7 +82,7 @@ bool NegativeAckPacket::Decode(const asio::const_buffer& buffer) {
   if (!DecodeBase(buffer, kPacketType))
     return false;
 
-  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
+  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
   size_t length = asio::buffer_size(buffer) - kHeaderSize;
   p += kHeaderSize;
 
@@ -110,7 +105,7 @@ size_t NegativeAckPacket::Encode(const asio::mutable_buffer& buffer) const {
   if (EncodeBase(buffer) == 0)
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char*>(buffer);
   p += kHeaderSize;
 
   for (size_t i = 0; i < sequence_numbers_.size(); ++i)

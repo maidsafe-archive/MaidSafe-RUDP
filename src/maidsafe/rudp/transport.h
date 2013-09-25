@@ -42,7 +42,6 @@
 #include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/core/session.h"
 
-
 namespace maidsafe {
 
 namespace rudp {
@@ -59,44 +58,38 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::function<void(const std::string&)> OnMessage;
 
   typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool&)>
-          OnConnectionAdded;
+      OnConnectionAdded;
 
   typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool)>
-          OnConnectionLost;
+      OnConnectionLost;
 
   Transport(AsioService& asio_service, NatType& nat_type_);
 
   virtual ~Transport();
 
   bool Bootstrap(
-      const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> &bootstrap_peers,
-      const NodeId& this_node_id,
-      std::shared_ptr<asymm::PublicKey> this_public_key,
-      boost::asio::ip::udp::endpoint local_endpoint,
-      bool bootstrap_off_existing_connection,
-      OnMessage on_message_slot,
-      OnConnectionAdded on_connection_added_slot,
+      const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,
+      const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
+      boost::asio::ip::udp::endpoint local_endpoint, bool bootstrap_off_existing_connection,
+      OnMessage on_message_slot, OnConnectionAdded on_connection_added_slot,
       OnConnectionLost on_connection_lost_slot,
       const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
       NodeId& chosen_id);
 
   void Close();
 
-  void Connect(const NodeId& peer_id,
-               const EndpointPair& peer_endpoint_pair,
+  void Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
                const std::string& validation_data);
 
   // If this causes the size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
   bool CloseConnection(const NodeId& peer_id);
 
-  bool Send(const NodeId& peer_id,
-            const std::string& message,
-            const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
+  bool Send(const NodeId& peer_id, const std::string& message,
+            const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
-  void Ping(const NodeId& peer_id,
-            const boost::asio::ip::udp::endpoint& peer_endpoint,
-            const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
+  void Ping(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+            const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
 
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
@@ -105,8 +98,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   boost::asio::ip::udp::endpoint ThisEndpointAsSeenByPeer(const NodeId& peer_id);
   void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
 
-  bool MakeConnectionPermanent(const NodeId& peer_id,
-                               bool validated,
+  bool MakeConnectionPermanent(const NodeId& peer_id, bool validated,
                                boost::asio::ip::udp::endpoint& peer_endpoint);
 
   size_t NormalConnectionsCount() const;
@@ -129,16 +121,14 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::shared_ptr<Connection> ConnectionPtr;
 
   bool TryBootstrapping(
-      const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint> > &bootstrap_peers,
-      bool bootstrap_off_existing_connection,
-      NodeId& chosen_id);
+      const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,
+      bool bootstrap_off_existing_connection, NodeId& chosen_id);
   NodeId ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                     const boost::asio::ip::udp::endpoint& bootstrap_endpoint,
                                     const boost::posix_time::time_duration& lifespan);
   void DetectNatType(NodeId const& peer_id, std::unique_lock<std::mutex>& lock);
 
-  void DoConnect(const NodeId& peer_id,
-                 const EndpointPair& peer_endpoint_pair,
+  void DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
                  const std::string& validation_data);
 
   void StartDispatch();

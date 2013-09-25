@@ -32,8 +32,12 @@ namespace detail {
 
 class ShutdownPacket : public ControlPacket {
  public:
-  enum { kPacketSize = ControlPacket::kHeaderSize };
-  enum { kPacketType = 5 };
+  enum {
+    kPacketSize = ControlPacket::kHeaderSize
+  };
+  enum {
+    kPacketType = 5
+  };
 
   ShutdownPacket();
   virtual ~ShutdownPacket() {}

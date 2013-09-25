@@ -29,7 +29,6 @@
 #include "maidsafe/common/rsa.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 
-
 namespace maidsafe {
 
 namespace rudp {
@@ -71,7 +70,9 @@ class Peer {
   void SetPeerGuessedPort() { peer_guessed_port_ = peer_endpoint_.port(); }
 
   template <typename Packet>
-  ReturnCode Send(const Packet& packet) { return multiplexer_.SendTo(packet, peer_endpoint_); }
+  ReturnCode Send(const Packet& packet) {
+    return multiplexer_.SendTo(packet, peer_endpoint_);
+  }
 
  private:
   // Disallow copying and assignment.

@@ -123,8 +123,8 @@ void Socket::NotifyClose() {
 }
 
 void Socket::Close() {
-  waiting_connect_ec_ = session_.IsConnected() ? boost::system::error_code() :
-                                                 asio::error::operation_aborted;
+  waiting_connect_ec_ =
+      session_.IsConnected() ? boost::system::error_code() : asio::error::operation_aborted;
   if (session_.IsOpen()) {
     sender_.NotifyClose();
     congestion_control_.OnClose();
@@ -147,21 +147,14 @@ void Socket::Close() {
 }
 
 void Socket::StartConnect(
-    const NodeId& this_node_id,
-    std::shared_ptr<asymm::PublicKey> this_public_key,
-    const ip::udp::endpoint& remote,
-    const NodeId& peer_node_id,
-    Session::Mode open_mode,
+    const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
+    const ip::udp::endpoint& remote, const NodeId& peer_node_id, Session::Mode open_mode,
     const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
   peer_.SetPeerEndpoint(remote);
   peer_.set_node_id(peer_node_id);
   peer_.SetSocketId(0);  // Assigned when handshake response is received.
-  session_.Open(dispatcher_.AddSocket(this),
-                this_node_id,
-                this_public_key,
-                sender_.GetNextPacketSequenceNumber(),
-                open_mode,
-                on_nat_detection_requested_slot);
+  session_.Open(dispatcher_.AddSocket(this), this_node_id, this_public_key,
+                sender_.GetNextPacketSequenceNumber(), open_mode, on_nat_detection_requested_slot);
 }
 
 void Socket::StartProbe() {
@@ -254,9 +247,7 @@ void Socket::ProcessRead() {
   }
 }
 
-void Socket::StartFlush() {
-  ProcessFlush();
-}
+void Socket::StartFlush() { ProcessFlush(); }
 
 void Socket::ProcessFlush() {
   if (sender_.Flushed() && receiver_.Flushed()) {
@@ -333,10 +324,9 @@ void Socket::HandleKeepalive(const KeepalivePacket& packet) {
           waiting_keepalive_sequence_number_ = 1;
         return;
       } else {
-        LOG(kWarning) << "Socket " << session_.Id()
-                      << " ignoring unexpected keepalive response " << packet.SequenceNumber()
-                      << " from " << peer_.PeerEndpoint() << ".  Current sequence number: "
-                      << waiting_keepalive_sequence_number_;
+        LOG(kWarning) << "Socket " << session_.Id() << " ignoring unexpected keepalive response "
+                      << packet.SequenceNumber() << " from " << peer_.PeerEndpoint()
+                      << ".  Current sequence number: " << waiting_keepalive_sequence_number_;
       }
     } else {
       sender_.HandleKeepalive(packet);

@@ -63,7 +63,7 @@ typedef std::function<void(int /*result*/)> PingFunctor;
 
 }  // unnamed namespace
 
-Connection::Connection(const std::shared_ptr<Transport> &transport,
+Connection::Connection(const std::shared_ptr<Transport>& transport,
                        const asio::io_service::strand& strand,
                        std::shared_ptr<Multiplexer> multiplexer)
     : transport_(transport),
@@ -90,9 +90,7 @@ Connection::Connection(const std::shared_ptr<Transport> &transport,
   timer_.expires_from_now(bptime::pos_infin);
 }
 
-Socket& Connection::Socket() {
-  return socket_;
-}
+Socket& Connection::Socket() { return socket_; }
 
 void Connection::Close() {
   strand_.dispatch(std::bind(&Connection::DoClose, shared_from_this(), false));
@@ -119,8 +117,7 @@ void Connection::DoClose(bool timed_out) {
   }
 }
 
-void Connection::StartConnecting(const NodeId& peer_node_id,
-                                 const ip::udp::endpoint& peer_endpoint,
+void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                                  const std::string& validation_data,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan,
@@ -130,8 +127,7 @@ void Connection::StartConnecting(const NodeId& peer_node_id,
                              PingFunctor(), failure_functor));
 }
 
-void Connection::Ping(const NodeId& peer_node_id,
-                      const ip::udp::endpoint& peer_endpoint,
+void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                       const PingFunctor& ping_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, "", Parameters::ping_timeout, bptime::time_duration(),
@@ -189,7 +185,6 @@ std::function<void()> Connection::GetAndClearFailureFunctor() {
   }
 }
 
-
 ip::udp::endpoint Connection::RemoteNatDetectionEndpoint() const {
   return socket_.RemoteNatDetectionEndpoint();
 }
@@ -202,17 +197,16 @@ void Connection::StartSending(const std::string& data,
     InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
   }
   try {
-    strand_.post(std::bind(
-        &Connection::DoQueueSendRequest,
-        shared_from_this(),
-        SendRequest(
+    strand_.post(
+        std::bind(&Connection::DoQueueSendRequest, shared_from_this(),
+                  SendRequest(
 #ifdef TESTING
-            !Parameters::rudp_encrypt ? data :
+                      !Parameters::rudp_encrypt ? data :
 #endif
-                asymm::Encrypt(asymm::PlainText(data), *socket_.PeerPublicKey()).string(),
-            message_sent_functor)));
+                          asymm::Encrypt(asymm::PlainText(data), *socket_.PeerPublicKey()).string(),
+                      message_sent_functor)));
   }
-  catch(const std::exception& e) {
+  catch (const std::exception& e) {
     LOG(kError) << "Failed to encrypt message: " << e.what();
     return InvokeSentFunctor(message_sent_functor, kFailedToEncryptMessage);
   }
@@ -235,15 +229,13 @@ void Connection::FinishSendAndQueueNext() {
   }
 }
 
-
-
 void Connection::DoStartSending(SendRequest const& request) {
   sending_ = true;
-  const std::function<void(int)> &message_sent_functor = request.message_sent_functor_;  // NOLINT (Dan)
-  MessageSentFunctor wrapped_functor([this,
-                                     message_sent_functor] (int result) {
-                                       InvokeSentFunctor(message_sent_functor, result);
-                                     });
+  const std::function<void(int)>& message_sent_functor =
+      request.message_sent_functor_;  // NOLINT (Dan)
+  MessageSentFunctor wrapped_functor([this, message_sent_functor](int result) {
+    InvokeSentFunctor(message_sent_functor, result);
+  });
 
   if (Stopped()) {
     InvokeSentFunctor(message_sent_functor, kSendFailure);
@@ -274,14 +266,11 @@ void Connection::CheckTimeout(const bs::error_code& ec) {
   }
 
   // Keep processing timeouts until the socket is completely closed.
-  timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckTimeout,
-                                           shared_from_this(),
-                                           args::_1)));
+  timer_.async_wait(
+      strand_.wrap(std::bind(&Connection::CheckTimeout, shared_from_this(), args::_1)));
 }
 
-bool Connection::Stopped() const {
-  return (!transport_.lock() || !socket_.IsOpen());
-}
+bool Connection::Stopped() const { return (!transport_.lock() || !socket_.IsOpen()); }
 
 void Connection::StartTick() {
   auto handler = strand_.wrap(std::bind(&Connection::HandleTick, shared_from_this()));
@@ -292,18 +281,18 @@ void Connection::HandleTick() {
   if (!socket_.IsOpen())
     return DoClose();
 
-//  if (sending_) {
-//    uint32_t sent_length = socket_.SentLength();
-//    if (sent_length > 0)
-//      timer_.expires_from_now(Parameters::speed_calculate_interval);
+  //  if (sending_) {
+  //    uint32_t sent_length = socket_.SentLength();
+  //    if (sent_length > 0)
+  //      timer_.expires_from_now(Parameters::speed_calculate_interval);
 
-    // If transmission speed is too slow, the socket shall be forced closed
-//    if (socket_.IsSlowTransmission(sent_length)) {
-//      LOG(kWarning) << "Connection to " << socket_.PeerEndpoint()
-//                    << " has slow transmission - closing now.";
-//      return DoClose();
-//    }
-//  }
+  // If transmission speed is too slow, the socket shall be forced closed
+  //    if (socket_.IsSlowTransmission(sent_length)) {
+  //      LOG(kWarning) << "Connection to " << socket_.PeerEndpoint()
+  //                    << " has slow transmission - closing now.";
+  //      return DoClose();
+  //    }
+  //  }
 
   if (timeout_state_ == TimeoutState::kConnecting && !multiplexer_->IsOpen())
     return DoClose();
@@ -319,8 +308,8 @@ void Connection::StartConnect(const std::string& validation_data,
                               const boost::posix_time::time_duration& connect_attempt_timeout,
                               const boost::posix_time::time_duration& lifespan,
                               const PingFunctor& ping_functor) {
-  auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(),
-                                        args::_1, validation_data, ping_functor));
+  auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(), args::_1,
+                                        validation_data, ping_functor));
   Session::Mode open_mode(Session::kNormal);
   lifespan_timer_.expires_from_now(lifespan);
   if (validation_data.empty()) {
@@ -328,8 +317,8 @@ void Connection::StartConnect(const std::string& validation_data,
     if (lifespan > bptime::time_duration()) {
       open_mode = Session::kBootstrapAndKeep;
       state_ = State::kBootstrapping;
-      lifespan_timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckLifespanTimeout,
-                                                        shared_from_this(), args::_1)));
+      lifespan_timer_.async_wait(
+          strand_.wrap(std::bind(&Connection::CheckLifespanTimeout, shared_from_this(), args::_1)));
     } else {
       open_mode = Session::kBootstrapAndDrop;
       state_ = State::kTemporary;
@@ -356,28 +345,26 @@ void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
 
   if (lifespan_timer_.expires_from_now() != bptime::pos_infin) {
     if (lifespan_timer_.expires_at() <= boost::asio::deadline_timer::traits_type::now()) {
-      LOG(kInfo) << "Closing connection from " << *multiplexer_ << " to "
-                 << socket_.PeerEndpoint() << "  Lifespan remaining: "
-                 << lifespan_timer_.expires_from_now();
+      LOG(kInfo) << "Closing connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
+                 << "  Lifespan remaining: " << lifespan_timer_.expires_from_now();
       return DoClose();
     } else {
       LOG(kInfo) << "Spuriously checking lifespan timeout of connection from " << *multiplexer_
-                 << " to " << socket_.PeerEndpoint() << "  Lifespan remaining: "
-                 << lifespan_timer_.expires_from_now();
-      lifespan_timer_.async_wait(strand_.wrap(std::bind(&Connection::CheckLifespanTimeout,
-                                                        shared_from_this(), args::_1)));
+                 << " to " << socket_.PeerEndpoint()
+                 << "  Lifespan remaining: " << lifespan_timer_.expires_from_now();
+      lifespan_timer_.async_wait(
+          strand_.wrap(std::bind(&Connection::CheckLifespanTimeout, shared_from_this(), args::_1)));
     }
   }
 }
 
-void Connection::HandleConnect(const bs::error_code& ec,
-                               const std::string& validation_data,
+void Connection::HandleConnect(const bs::error_code& ec, const std::string& validation_data,
                                PingFunctor ping_functor) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
-      LOG(kError) << "Failed to connect from " << *multiplexer_ << " to "
-                  << socket_.PeerEndpoint() << " - " << ec.message();
+      LOG(kError) << "Failed to connect from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
+                  << " - " << ec.message();
 #endif
     if (ping_functor)
       ping_functor(kPingFailed);
@@ -411,10 +398,10 @@ void Connection::HandleConnect(const bs::error_code& ec,
   StartReadSize();
   if (!validation_data.empty()) {
     StartSending(validation_data, [this](int result) {
-        if (result != kSuccess) {
-          LOG(kWarning) << "Failed to send validation data from " << *multiplexer_ << " to "
-                         << socket_.PeerEndpoint() << "  Result: " << result;
-        }
+      if (result != kSuccess) {
+        LOG(kWarning) << "Failed to send validation data from " << *multiplexer_ << " to "
+                      << socket_.PeerEndpoint() << "  Result: " << result;
+      }
     });
   }
 }
@@ -427,9 +414,9 @@ void Connection::StartReadSize() {
   }
   receive_buffer_.clear();
   receive_buffer_.resize(sizeof(DataSize));
-  socket_.AsyncRead(asio::buffer(receive_buffer_), sizeof(DataSize),
-                    strand_.wrap(std::bind(&Connection::HandleReadSize,
-                                           shared_from_this(), args::_1)));
+  socket_.AsyncRead(
+      asio::buffer(receive_buffer_), sizeof(DataSize),
+      strand_.wrap(std::bind(&Connection::HandleReadSize, shared_from_this(), args::_1)));
 }
 
 void Connection::HandleReadSize(const bs::error_code& ec) {
@@ -449,8 +436,10 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
     return DoClose();
   }
 
-  data_size_ = (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) |
-                receive_buffer_.at(2)) << 8) | receive_buffer_.at(3);
+  data_size_ =
+      (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) | receive_buffer_.at(2))
+       << 8) |
+      receive_buffer_.at(3);
   // Allow some leeway for encryption overhead
   if (data_size_ > ManagedConnections::kMaxMessageSize() + 1024) {
     LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > "
@@ -473,9 +462,9 @@ void Connection::StartReadData() {
   buffer_size += std::min(socket_.BestReadBufferSize(), data_size_ - data_received_);
   receive_buffer_.resize(buffer_size);
   asio::mutable_buffer data_buffer = asio::buffer(receive_buffer_) + data_received_;
-  socket_.AsyncRead(asio::buffer(data_buffer), 1,
-                    strand_.wrap(std::bind(&Connection::HandleReadData, shared_from_this(),
-                                           args::_1, args::_2)));
+  socket_.AsyncRead(
+      asio::buffer(data_buffer), 1,
+      strand_.wrap(std::bind(&Connection::HandleReadData, shared_from_this(), args::_1, args::_2)));
 }
 
 void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
@@ -504,14 +493,14 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
     }
   } else {
     // Need more data to complete the message.
-//    if (length > 0)
-//      timer_.expires_from_now(Parameters::speed_calculate_inverval);
-//    // If transmission speed is too slow, the socket shall be forced closed
-//    if (socket_.IsSlowTransmission(length)) {
-//      LOG(kWarning) << "Connection to " << socket_.PeerEndpoint()
-//                    << " has slow transmission - closing now.";
-//      return DoClose();
-//    }
+    //    if (length > 0)
+    //      timer_.expires_from_now(Parameters::speed_calculate_inverval);
+    //    // If transmission speed is too slow, the socket shall be forced closed
+    //    if (socket_.IsSlowTransmission(length)) {
+    //      LOG(kWarning) << "Connection to " << socket_.PeerEndpoint()
+    //                    << " has slow transmission - closing now.";
+    //      return DoClose();
+    //    }
     StartReadData();
   }
 }
@@ -533,10 +522,9 @@ void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
     FinishSendAndQueueNext();
     return DoClose();
   }
-  socket_.AsyncWrite(asio::buffer(send_buffer_),
-                     message_sent_functor,
-                     strand_.wrap(std::bind(&Connection::HandleWrite, shared_from_this(),
-                                  message_sent_functor)));
+  socket_.AsyncWrite(
+      asio::buffer(send_buffer_), message_sent_functor,
+      strand_.wrap(std::bind(&Connection::HandleWrite, shared_from_this(), message_sent_functor)));
 }
 
 void Connection::HandleWrite(MessageSentFunctor message_sent_functor) {
@@ -550,21 +538,21 @@ void Connection::HandleWrite(MessageSentFunctor message_sent_functor) {
     return DoClose();
   }
 
-//  LOG(kInfo) << boost::posix_time::microsec_clock::universal_time()
-//             << "  Message sent functor would have been called with kSuccess here.";
-//  InvokeSentFunctor(message_sent_functor, kSuccess);
+  //  LOG(kInfo) << boost::posix_time::microsec_clock::universal_time()
+  //             << "  Message sent functor would have been called with kSuccess here.";
+  //  InvokeSentFunctor(message_sent_functor, kSuccess);
 }
 
 void Connection::StartProbing() {
   probe_interval_timer_.expires_from_now(Parameters::keepalive_interval);
-  probe_interval_timer_.async_wait(strand_.wrap(std::bind(&Connection::DoProbe,
-                                                shared_from_this(), args::_1)));
+  probe_interval_timer_.async_wait(
+      strand_.wrap(std::bind(&Connection::DoProbe, shared_from_this(), args::_1)));
 }
 
 void Connection::DoProbe(const bs::error_code& ec) {
   if ((asio::error::operation_aborted != ec) && !Stopped()) {
-    socket_.AsyncProbe(strand_.wrap(std::bind(&Connection::HandleProbe,
-                                              shared_from_this(), args::_1)));
+    socket_.AsyncProbe(
+        strand_.wrap(std::bind(&Connection::HandleProbe, shared_from_this(), args::_1)));
   }
 }
 
@@ -576,7 +564,7 @@ void Connection::HandleProbe(const bs::error_code& ec) {
 
   if (((asio::error::try_again == ec) || (asio::error::timed_out == ec) ||
        (asio::error::operation_aborted == ec)) &&
-       (failed_probe_count_ < Parameters::maximum_keepalive_failures)) {
+      (failed_probe_count_ < Parameters::maximum_keepalive_failures)) {
     ++failed_probe_count_;
     bs::error_code ignored_ec;
     DoProbe(ignored_ec);

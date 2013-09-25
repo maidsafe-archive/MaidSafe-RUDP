@@ -45,26 +45,22 @@ namespace rudp {
 
 namespace detail {
 
-template<typename Rep>
-std::chrono::duration<Rep> BoostToChrono(bptime::time_duration const & from) {
+template <typename Rep>
+std::chrono::duration<Rep> BoostToChrono(bptime::time_duration const& from) {
   return std::chrono::duration_cast<std::chrono::duration<Rep>>(
-             std::chrono::nanoseconds(from.total_nanoseconds()));
+      std::chrono::nanoseconds(from.total_nanoseconds()));
 }
 
 namespace {
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
 
-template<typename FunctorType>
+template <typename FunctorType>
 class LocalFunctorReplacement {
  public:
-  LocalFunctorReplacement(std::mutex& mutex,
-                          FunctorType& functor_to_replace,
-                          FunctorType& save_slot,
-                          FunctorType replacement)
-      : mutex_(mutex),
-        functor_to_replace_(functor_to_replace),
-        save_slot_(save_slot) {
+  LocalFunctorReplacement(std::mutex& mutex, FunctorType& functor_to_replace,
+                          FunctorType& save_slot, FunctorType replacement)
+      : mutex_(mutex), functor_to_replace_(functor_to_replace), save_slot_(save_slot) {
     std::lock_guard<std::mutex> guard(mutex_);
     save_slot_ = std::move(functor_to_replace_);
     functor_to_replace_ = std::move(replacement);
@@ -101,14 +97,10 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
 Transport::~Transport() { Close(); }
 
 bool Transport::Bootstrap(
-    const std::vector<std::pair<NodeId, Endpoint> > &bootstrap_peers,
-    const NodeId& this_node_id,
-    std::shared_ptr<asymm::PublicKey> this_public_key,
-    Endpoint local_endpoint,
-    bool bootstrap_off_existing_connection,
-    OnMessage on_message_slot,
-    OnConnectionAdded on_connection_added_slot,
-    OnConnectionLost on_connection_lost_slot,
+    const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers, const NodeId& this_node_id,
+    std::shared_ptr<asymm::PublicKey> this_public_key, Endpoint local_endpoint,
+    bool bootstrap_off_existing_connection, OnMessage on_message_slot,
+    OnConnectionAdded on_connection_added_slot, OnConnectionLost on_connection_lost_slot,
     const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
     NodeId& chosen_id) {
   assert(on_nat_detection_requested_slot);
@@ -141,9 +133,8 @@ bool Transport::Bootstrap(
   return TryBootstrapping(bootstrap_peers, bootstrap_off_existing_connection, chosen_id);
 }
 
-bool Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint> > &bootstrap_peers,
-                                 bool bootstrap_off_existing_connection,
-                                 NodeId& chosen_id) {
+bool Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
+                                 bool bootstrap_off_existing_connection, NodeId& chosen_id) {
   bool try_connect(true);
   bptime::time_duration lifespan;
   if (bootstrap_off_existing_connection)
@@ -189,16 +180,10 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
     OnConnectionLost saved_on_connection_lost;
 
     LocalFunctorReplacement<OnConnectionAdded> on_conn_added_guard(
-        callback_mutex_,
-        on_connection_added_,
-        saved_on_connection_added,
-        [&] (const NodeId& connected_peer_id,
-             TransportPtr transport,
-             bool temporary_connection,
-             bool& is_duplicate_normal_connection) {
-          saved_on_connection_added(connected_peer_id,
-                                    transport,
-                                    temporary_connection,
+        callback_mutex_, on_connection_added_, saved_on_connection_added,
+        [&](const NodeId & connected_peer_id, TransportPtr transport, bool temporary_connection,
+            bool & is_duplicate_normal_connection) {
+          saved_on_connection_added(connected_peer_id, transport, temporary_connection,
                                     is_duplicate_normal_connection);
           assert(!slot_called);
           std::lock_guard<std::mutex> local_lock(local_mutex);
@@ -207,13 +192,9 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           local_cond_var.notify_one();
         });
     LocalFunctorReplacement<OnConnectionLost> on_conn_lost_guard(
-        callback_mutex_,
-        on_connection_lost_,
-        saved_on_connection_lost,
-        [&] (const NodeId& connected_peer_id,
-             TransportPtr transport,
-             bool temporary_connection,
-             bool timed_out) {
+        callback_mutex_, on_connection_lost_, saved_on_connection_lost,
+        [&](const NodeId & connected_peer_id, TransportPtr transport, bool temporary_connection,
+            bool timed_out) {
           saved_on_connection_lost(connected_peer_id, transport, temporary_connection, timed_out);
           std::lock_guard<std::mutex> local_lock(local_mutex);
           if (!slot_called) {
@@ -224,20 +205,16 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           }
         });
 
-    connection_manager_->Connect(bootstrap_node_id,
-                                 bootstrap_endpoint,
-                                 "",
-                                 Parameters::bootstrap_connect_timeout,
-                                 lifespan);
+    connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
+                                 Parameters::bootstrap_connect_timeout, lifespan);
 
     lock.lock();
-    if (!local_cond_var.wait_for(lock,
-                                 BoostToChrono<int>(Parameters::bootstrap_connect_timeout +
-                                                    bptime::seconds(1)),
-                                 [&] { return slot_called; })) {  // NOLINT (Fraser)
+    if (!local_cond_var.wait_for(
+             lock, BoostToChrono<int>(Parameters::bootstrap_connect_timeout + bptime::seconds(1)),
+             [&] { return slot_called; })) {  // NOLINT (Fraser)
       LOG(kError) << "Timed out waiting for connection. External endpoint: "
-                  << multiplexer_->external_endpoint() << "  Local endpoint: "
-                  << multiplexer_->local_endpoint();
+                  << multiplexer_->external_endpoint()
+                  << "  Local endpoint: " << multiplexer_->local_endpoint();
       return NodeId();
     }
   }
@@ -259,18 +236,15 @@ void Transport::DetectNatType(NodeId const& peer_id, std::unique_lock<std::mutex
     std::condition_variable local_cond_var;
     std::mutex& local_mutex = *lock.mutex();
     int result(kPendingResult);
-    connection_manager_->Ping(peer_id,
-                              nat_detection_endpoint,
-                              [&](int result_in) {
-                                boost::lock_guard<std::mutex> local_lock(local_mutex);
-                                result = result_in;
-                                local_cond_var.notify_one();
-                              });
+    connection_manager_->Ping(peer_id, nat_detection_endpoint, [&](int result_in) {
+      boost::lock_guard<std::mutex> local_lock(local_mutex);
+      result = result_in;
+      local_cond_var.notify_one();
+    });
 
-    bool const success = local_cond_var.wait_for(lock,
-                                                 BoostToChrono<int>(Parameters::ping_timeout +
-                                                                    bptime::seconds(1)),
-                                                 [&] { return result != kPendingResult; });  // NOLINT (Fraser)
+    bool const success = local_cond_var.wait_for(
+        lock, BoostToChrono<int>(Parameters::ping_timeout + bptime::seconds(1)),
+        [&] { return result != kPendingResult; });  // NOLINT (Fraser)
     if (!success || result != kSuccess) {
       LOG(kWarning) << "Timed out waiting for NAT detection ping - setting NAT type to symmetric";
       nat_type_ = NatType::kSymmetric;
@@ -294,15 +268,13 @@ void Transport::Close() {
   }
 }
 
-void Transport::Connect(const NodeId& peer_id,
-                        const EndpointPair& peer_endpoint_pair,
+void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
                         const std::string& validation_data) {
   strand_.dispatch(std::bind(&Transport::DoConnect, shared_from_this(), peer_id, peer_endpoint_pair,
                              validation_data));
 }
 
-void Transport::DoConnect(const NodeId& peer_id,
-                          const EndpointPair& peer_endpoint_pair,
+void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
                           const std::string& validation_data) {
   if (!multiplexer_->IsOpen())
     return;
@@ -311,14 +283,11 @@ void Transport::DoConnect(const NodeId& peer_id,
     std::function<void()> failure_functor;
     if (peer_endpoint_pair.local != peer_endpoint_pair.external) {
       failure_functor = [=] {
-                          if (!multiplexer_->IsOpen())
-                            return;
-                          connection_manager_->Connect(peer_id,
-                                                       peer_endpoint_pair.local,
-                                                       validation_data,
-                                                       Parameters::rendezvous_connect_timeout,
-                                                       bptime::pos_infin);
-                        };
+        if (!multiplexer_->IsOpen())
+          return;
+        connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
+                                     Parameters::rendezvous_connect_timeout, bptime::pos_infin);
+      };
     }
     connection_manager_->Connect(peer_id, peer_endpoint_pair.external, validation_data,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
@@ -333,14 +302,12 @@ bool Transport::CloseConnection(const NodeId& peer_id) {
   return connection_manager_->CloseConnection(peer_id);
 }
 
-bool Transport::Send(const NodeId& peer_id,
-                     const std::string& message,
+bool Transport::Send(const NodeId& peer_id, const std::string& message,
                      const MessageSentFunctor& message_sent_functor) {
   return connection_manager_->Send(peer_id, message, message_sent_functor);
 }
 
-void Transport::Ping(const NodeId& peer_id,
-                     const Endpoint& peer_endpoint,
+void Transport::Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
                      const std::function<void(int /*result*/)>& ping_functor) {
   connection_manager_->Ping(peer_id, peer_endpoint, ping_functor);
 }
@@ -349,13 +316,9 @@ std::shared_ptr<Connection> Transport::GetConnection(const NodeId& peer_id) {
   return connection_manager_->GetConnection(peer_id);
 }
 
-Endpoint Transport::external_endpoint() const {
-  return multiplexer_->external_endpoint();
-}
+Endpoint Transport::external_endpoint() const { return multiplexer_->external_endpoint(); }
 
-Endpoint Transport::local_endpoint() const {
-  return multiplexer_->local_endpoint();
-}
+Endpoint Transport::local_endpoint() const { return multiplexer_->local_endpoint(); }
 
 Endpoint Transport::ThisEndpointAsSeenByPeer(const NodeId& peer_id) {
   return connection_manager_->ThisEndpoint(peer_id);
@@ -365,8 +328,7 @@ void Transport::SetBestGuessExternalEndpoint(const Endpoint& external_endpoint) 
   connection_manager_->SetBestGuessExternalEndpoint(external_endpoint);
 }
 
-bool Transport::MakeConnectionPermanent(const NodeId& peer_id,
-                                        bool validated,
+bool Transport::MakeConnectionPermanent(const NodeId& peer_id, bool validated,
                                         Endpoint& peer_endpoint) {
   return connection_manager_->MakeConnectionPermanent(peer_id, validated, peer_endpoint);
 }
@@ -375,9 +337,7 @@ size_t Transport::NormalConnectionsCount() const {
   return connection_manager_->NormalConnectionsCount();
 }
 
-bool Transport::IsIdle() const {
-  return connection_manager_->NormalConnectionsCount() == 0U;
-}
+bool Transport::IsIdle() const { return connection_manager_->NormalConnectionsCount() == 0U; }
 
 bool Transport::IsAvailable() const {
   return detail::IsValid(multiplexer_->external_endpoint()) ||
@@ -389,16 +349,14 @@ void Transport::StartDispatch() {
   multiplexer_->AsyncDispatch(handler);
 }
 
-void Transport::HandleDispatch(const boost::system::error_code &/*ec*/) {
+void Transport::HandleDispatch(const boost::system::error_code& /*ec*/) {
   if (!multiplexer_->IsOpen())
     return;
 
   StartDispatch();
 }
 
-NodeId Transport::node_id() const {
-  return connection_manager_->node_id();
-}
+NodeId Transport::node_id() const { return connection_manager_->node_id(); }
 
 std::shared_ptr<asymm::PublicKey> Transport::public_key() const {
   return connection_manager_->public_key();
@@ -406,9 +364,8 @@ std::shared_ptr<asymm::PublicKey> Transport::public_key() const {
 
 void Transport::SignalMessageReceived(const std::string& message) {
   // Dispatch the message outside the strand.
-  strand_.get_io_service().post(std::bind(&Transport::DoSignalMessageReceived,
-                                          shared_from_this(),
-                                          message));
+  strand_.get_io_service().post(
+      std::bind(&Transport::DoSignalMessageReceived, shared_from_this(), message));
 }
 
 void Transport::DoSignalMessageReceived(const std::string& message) {
@@ -433,8 +390,8 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
   if (connection->state() != Connection::State::kTemporary) {
     auto result(connection_manager_->AddConnection(connection));
     if (result == kInvalidConnection) {
-      LOG(kError) << "Failed to add " << connection->state() << " connection from "
-                  << ThisDebugId() << " to " << connection->PeerDebugId();
+      LOG(kError) << "Failed to add " << connection->state() << " connection from " << ThisDebugId()
+                  << " to " << connection->PeerDebugId();
       return connection->Close();
     } else if (result == kConnectionAlreadyExists) {
       LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
@@ -454,8 +411,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
     local_callback = on_connection_added_;
   }
   if (local_callback) {
-    local_callback(connection->Socket().PeerNodeId(),
-                   shared_from_this(),
+    local_callback(connection->Socket().PeerNodeId(), shared_from_this(),
                    connection->state() == Connection::State::kTemporary,
                    is_duplicate_normal_connection);
 
@@ -477,10 +433,8 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
-  strand_.dispatch(std::bind(&Transport::DoRemoveConnection,
-                             shared_from_this(),
-                             connection,
-                             timed_out));
+  strand_.dispatch(
+      std::bind(&Transport::DoRemoveConnection, shared_from_this(), connection, timed_out));
 }
 
 void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
@@ -506,10 +460,8 @@ void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
       local_callback = on_connection_lost_;
     }
     if (local_callback)
-      local_callback(connection->Socket().PeerNodeId(),
-                     shared_from_this(),
-                     connection->state() == Connection::State::kTemporary,
-                     timed_out);
+      local_callback(connection->Socket().PeerNodeId(), shared_from_this(),
+                     connection->state() == Connection::State::kTemporary, timed_out);
 #ifndef NDEBUG
     std::string s("\n************************\nRemoved ");
     s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
@@ -537,7 +489,6 @@ std::string Transport::DebugString() const {
 void Transport::SetManagedConnectionsDebugPrintout(std::function<std::string()> functor) {
   managed_connections_debug_printout_ = functor;
 }
-
 
 }  // namespace detail
 

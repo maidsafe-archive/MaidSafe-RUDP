@@ -34,16 +34,14 @@
 
 namespace bptime = boost::posix_time;
 
-
 namespace maidsafe {
 
 namespace rudp {
 
 namespace test {
 
-testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
-                                      std::vector<Endpoint> &bootstrap_endpoints,
-                                      int node_count) {
+testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
+                                      std::vector<Endpoint>& bootstrap_endpoints, int node_count) {
   if (node_count < 2)
     return testing::AssertionFailure() << "Network size must be greater than 1";
 
@@ -62,8 +60,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   int result0(0);
 
   boost::thread thread([&] {
-    result0 = nodes[0]->Bootstrap(std::vector<Endpoint>(1, endpoints1.local),
-                                  chosen_node_id, endpoints0.local);
+    result0 = nodes[0]->Bootstrap(std::vector<Endpoint>(1, endpoints1.local), chosen_node_id,
+                                  endpoints0.local);
   });
   int result1(nodes[1]->Bootstrap(std::vector<Endpoint>(1, endpoints0.local),
                                   node1_chosen_bootstrap_peer, endpoints1.local));
@@ -89,15 +87,13 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   auto futures0(nodes[0]->GetFutureForMessages(1));
   auto futures1(nodes[1]->GetFutureForMessages(1));
   LOG(kInfo) << "Calling Add from " << endpoints0.local << " to " << endpoints1.local;
-  if (nodes[0]->managed_connections()->Add(nodes[1]->node_id(),
-                                           endpoints1,
+  if (nodes[0]->managed_connections()->Add(nodes[1]->node_id(), endpoints1,
                                            nodes[0]->validation_data()) != kSuccess) {
     return testing::AssertionFailure() << "Node 0 failed to add Node 1";
   }
   nodes[0]->AddConnectedNodeId(nodes[1]->node_id());
   LOG(kInfo) << "Calling Add from " << endpoints1.local << " to " << endpoints0.local;
-  if (nodes[1]->managed_connections()->Add(nodes[0]->node_id(),
-                                           endpoints0,
+  if (nodes[1]->managed_connections()->Add(nodes[0]->node_id(), endpoints0,
                                            nodes[1]->validation_data()) != kSuccess) {
     return testing::AssertionFailure() << "Node 1 failed to add Node 0";
   }
@@ -105,36 +101,36 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
 
   std::chrono::milliseconds timeout(Parameters::rendezvous_connect_timeout.total_milliseconds());
   if (WaitForFutureWhichDefinitelyIsntDeferred(futures0, timeout) != std::future_status::ready) {
-    return testing::AssertionFailure() << "Failed waiting for " << nodes[0]->id()
-        << " to receive " << nodes[1]->id() << "'s validation data.";
+    return testing::AssertionFailure() << "Failed waiting for " << nodes[0]->id() << " to receive "
+                                       << nodes[1]->id() << "'s validation data.";
   }
   if (WaitForFutureWhichDefinitelyIsntDeferred(futures1, timeout) != std::future_status::ready) {
-    return testing::AssertionFailure() << "Failed waiting for " << nodes[1]->id()
-        << " to receive " << nodes[0]->id() << "'s validation data.";
+    return testing::AssertionFailure() << "Failed waiting for " << nodes[1]->id() << " to receive "
+                                       << nodes[0]->id() << "'s validation data.";
   }
   auto messages0(futures0.get());
   auto messages1(futures1.get());
   if (messages0.size() != 1U) {
-    return testing::AssertionFailure() << nodes[0]->id() << " has "
-        << messages0.size() << " messages [should be 1].";
+    return testing::AssertionFailure() << nodes[0]->id() << " has " << messages0.size()
+                                       << " messages [should be 1].";
   }
   if (messages1.size() != 1U) {
-    return testing::AssertionFailure() << nodes[1]->id() << " has "
-        << messages1.size() << " messages [should be 1].";
+    return testing::AssertionFailure() << nodes[1]->id() << " has " << messages1.size()
+                                       << " messages [should be 1].";
   }
   if (messages0[0] != nodes[1]->validation_data()) {
     return testing::AssertionFailure() << nodes[0]->id() << " has received " << nodes[1]->id()
-        << "'s validation data as " << messages0[0] << " [should be \""
-        << nodes[1]->validation_data() << "\"].";
+                                       << "'s validation data as " << messages0[0]
+                                       << " [should be \"" << nodes[1]->validation_data() << "\"].";
   }
   if (messages1[0] != nodes[0]->validation_data()) {
     return testing::AssertionFailure() << nodes[1]->id() << " has received " << nodes[0]->id()
-        << "'s validation data as " << messages1[0] << " [should be \""
-        << nodes[0]->validation_data() << "\"].";
+                                       << "'s validation data as " << messages1[0]
+                                       << " [should be \"" << nodes[0]->validation_data() << "\"].";
   }
   Endpoint endpoint1, endpoint2;
-  int result(nodes[0]->managed_connections()->MarkConnectionAsValid(nodes[1]->node_id(),
-                                                                    endpoint1));
+  int result(
+      nodes[0]->managed_connections()->MarkConnectionAsValid(nodes[1]->node_id(), endpoint1));
   if (result != kSuccess) {
     return testing::AssertionFailure() << nodes[0]->id() << " failed to mark connection to "
                                        << nodes[1]->id() << " as valid.";
@@ -171,28 +167,23 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       // Call GetAvailableEndpoint at each peer.
       nodes[i]->ResetData();
       nodes[j]->ResetData();
-      int result(nodes[i]->managed_connections()->GetAvailableEndpoint(nodes[j]->node_id(),
-                                                                       empty_endpoint_pair,
-                                                                       this_endpoint_pair,
-                                                                       nat_type));
+      int result(nodes[i]->managed_connections()->GetAvailableEndpoint(
+          nodes[j]->node_id(), empty_endpoint_pair, this_endpoint_pair, nat_type));
       if (result != kSuccess && result != kBootstrapConnectionAlreadyExists) {
-        return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
-                                           << nodes[i]->id() << " with result " << result
+        return testing::AssertionFailure() << "GetAvailableEndpoint failed for " << nodes[i]->id()
+                                           << " with result " << result
                                            << ".  Local: " << this_endpoint_pair.local
                                            << "  External: " << this_endpoint_pair.external;
       } else {
-        LOG(kInfo) << "GetAvailableEndpoint on " << nodes[i]->id() << " to "
-                   << nodes[j]->id() << " with peer_id " << nodes[j]->debug_node_id()
-                   << " returned " << this_endpoint_pair.external << " / "
-                   << this_endpoint_pair.local;
+        LOG(kInfo) << "GetAvailableEndpoint on " << nodes[i]->id() << " to " << nodes[j]->id()
+                   << " with peer_id " << nodes[j]->debug_node_id() << " returned "
+                   << this_endpoint_pair.external << " / " << this_endpoint_pair.local;
       }
-      result = nodes[j]->managed_connections()->GetAvailableEndpoint(nodes[i]->node_id(),
-                                                                     this_endpoint_pair,
-                                                                     peer_endpoint_pair,
-                                                                     nat_type);
+      result = nodes[j]->managed_connections()->GetAvailableEndpoint(
+          nodes[i]->node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type);
       if (result != kSuccess && result != kBootstrapConnectionAlreadyExists) {
-        return testing::AssertionFailure() << "GetAvailableEndpoint failed for "
-                                           << nodes[j]->id() << " with result " << result
+        return testing::AssertionFailure() << "GetAvailableEndpoint failed for " << nodes[j]->id()
+                                           << " with result " << result
                                            << ".  Local: " << peer_endpoint_pair.local
                                            << "  External: " << peer_endpoint_pair.external
                                            << "  Peer: " << this_endpoint_pair.local;
@@ -207,28 +198,24 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       futures0 = nodes[i]->GetFutureForMessages(1);
       futures1 = nodes[j]->GetFutureForMessages(1);
 
-      LOG(kInfo) << "Calling Add from " << nodes[j]->id() << " on "
-                 << peer_endpoint_pair.local << " to " << nodes[i]->id()
-                 << " on " << this_endpoint_pair.local;
-      result = nodes[j]->managed_connections()->Add(nodes[i]->node_id(),
-                                                    this_endpoint_pair,
+      LOG(kInfo) << "Calling Add from " << nodes[j]->id() << " on " << peer_endpoint_pair.local
+                 << " to " << nodes[i]->id() << " on " << this_endpoint_pair.local;
+      result = nodes[j]->managed_connections()->Add(nodes[i]->node_id(), this_endpoint_pair,
                                                     nodes[j]->validation_data());
       nodes[j]->AddConnectedNodeId(nodes[i]->node_id());
       if (result != kSuccess) {
-        return testing::AssertionFailure() << "Add failed for " << nodes[j]->id()
-                                           << " with result " << result;
+        return testing::AssertionFailure() << "Add failed for " << nodes[j]->id() << " with result "
+                                           << result;
       }
 
-      LOG(kInfo) << "Calling Add from " << nodes[i]->id() << " on "
-                 << this_endpoint_pair.local << " to " << nodes[j]->id()
-                 << " on " << peer_endpoint_pair.local;
-      result = nodes[i]->managed_connections()->Add(nodes[j]->node_id(),
-                                                    peer_endpoint_pair,
+      LOG(kInfo) << "Calling Add from " << nodes[i]->id() << " on " << this_endpoint_pair.local
+                 << " to " << nodes[j]->id() << " on " << peer_endpoint_pair.local;
+      result = nodes[i]->managed_connections()->Add(nodes[j]->node_id(), peer_endpoint_pair,
                                                     nodes[i]->validation_data());
       nodes[i]->AddConnectedNodeId(nodes[j]->node_id());
       if (result != kSuccess) {
-        return testing::AssertionFailure() << "Add failed for " << nodes[i]->id()
-                                           << " with result " << result;
+        return testing::AssertionFailure() << "Add failed for " << nodes[i]->id() << " with result "
+                                           << result;
       }
 
       // Check validation data was received correctly at each peer, and if so call
@@ -236,42 +223,46 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
       if (WaitForFutureWhichDefinitelyIsntDeferred(futures0, rendezvous_connect_timeout) !=
           std::future_status::ready) {
         return testing::AssertionFailure() << "Failed waiting for " << nodes[i]->id()
-            << " to receive " << nodes[j]->id() << "'s validation data.";
+                                           << " to receive " << nodes[j]->id()
+                                           << "'s validation data.";
       }
       if (WaitForFutureWhichDefinitelyIsntDeferred(futures1, rendezvous_connect_timeout) !=
           std::future_status::ready) {
         return testing::AssertionFailure() << "Failed waiting for " << nodes[j]->id()
-            << " to receive " << nodes[i]->id() << "'s validation data.";
+                                           << " to receive " << nodes[i]->id()
+                                           << "'s validation data.";
       }
       messages0 = futures0.get();
       messages1 = futures1.get();
       if (messages0.size() != 1U) {
-        return testing::AssertionFailure() << nodes[i]->id() << " has "
-            << messages0.size() << " messages [should be 1].";
+        return testing::AssertionFailure() << nodes[i]->id() << " has " << messages0.size()
+                                           << " messages [should be 1].";
       }
       if (messages1.size() != 1U) {
-        return testing::AssertionFailure() << nodes[j]->id() << " has "
-            << messages1.size() << " messages [should be 1].";
+        return testing::AssertionFailure() << nodes[j]->id() << " has " << messages1.size()
+                                           << " messages [should be 1].";
       }
       if (messages0[0] != nodes[j]->validation_data()) {
         return testing::AssertionFailure() << nodes[i]->id() << " has received " << nodes[j]->id()
-            << "'s validation data as " << messages0[0] << " [should be \""
-            << nodes[j]->validation_data() << "\"].";
+                                           << "'s validation data as " << messages0[0]
+                                           << " [should be \"" << nodes[j]->validation_data()
+                                           << "\"].";
       }
       if (messages1[0] != nodes[i]->validation_data()) {
         return testing::AssertionFailure() << nodes[j]->id() << " has received " << nodes[i]->id()
-            << "'s validation data as " << messages1[0] << " [should be \""
-            << nodes[i]->validation_data() << "\"].";
+                                           << "'s validation data as " << messages1[0]
+                                           << " [should be \"" << nodes[i]->validation_data()
+                                           << "\"].";
       }
       Endpoint endpoint1, endpoint2;
-      result = nodes[i]->managed_connections()->MarkConnectionAsValid(nodes[j]->node_id(),
-                                                                      endpoint1);
+      result =
+          nodes[i]->managed_connections()->MarkConnectionAsValid(nodes[j]->node_id(), endpoint1);
       if (result != kSuccess) {
         return testing::AssertionFailure() << nodes[i]->id() << " failed to mark connection to "
                                            << nodes[j]->id() << " as valid.";
       }
-      result = nodes[j]->managed_connections()->MarkConnectionAsValid(nodes[i]->node_id(),
-                                                                      endpoint2);
+      result =
+          nodes[j]->managed_connections()->MarkConnectionAsValid(nodes[i]->node_id(), endpoint2);
       if (result != kSuccess) {
         return testing::AssertionFailure() << nodes[j]->id() << " failed to mark connection to "
                                            << nodes[i]->id() << " as valid.";
@@ -281,7 +272,6 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
   }
   return testing::AssertionSuccess();
 }
-
 
 Node::Node(int id)
     : node_id_(NodeId::kRandomId),
@@ -307,41 +297,34 @@ std::vector<std::string> Node::messages() const {
   return messages_;
 }
 
-int Node::Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
-                    NodeId& chosen_bootstrap_peer,
+int Node::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints, NodeId& chosen_bootstrap_peer,
                     Endpoint local_endpoint) {
   NatType nat_type(NatType::kUnknown);
   return managed_connections_->Bootstrap(
       bootstrap_endpoints,
-      [this](const std::string& message) {
+      [this](const std::string & message) {
         bool is_printable(true);
-        for (const auto & elem : message) {
+        for (const auto& elem : message) {
           if (elem < 32) {
             is_printable = false;
             break;
           }
         }
-        LOG(kInfo) << id() << " -- Received: " << (is_printable ? message.substr(0, 30) :
-                                                   HexEncode(message.substr(0, 15)));
+        LOG(kInfo) << id() << " -- Received: " << (is_printable ? message.substr(0, 30)
+                                                                : HexEncode(message.substr(0, 15)));
         std::lock_guard<std::mutex> guard(mutex_);
         messages_.emplace_back(message);
         SetPromiseIfDone();
       },
-      [this](const NodeId& peer_id) {
+      [this](const NodeId & peer_id) {
         LOG(kInfo) << id() << " -- Lost connection to " << DebugId(node_id_);
         std::lock_guard<std::mutex> guard(mutex_);
         connection_lost_node_ids_.emplace_back(peer_id);
-        connected_node_ids_.erase(std::remove(connected_node_ids_.begin(),
-                                              connected_node_ids_.end(),
-                                              peer_id),
-                                  connected_node_ids_.end());
+        connected_node_ids_.erase(
+            std::remove(connected_node_ids_.begin(), connected_node_ids_.end(), peer_id),
+            connected_node_ids_.end());
       },
-      node_id_,
-      private_key(),
-      public_key(),
-      chosen_bootstrap_peer,
-      nat_type,
-      local_endpoint);
+      node_id_, private_key(), public_key(), chosen_bootstrap_peer, nat_type, local_endpoint);
 }
 
 int Node::GetReceivedMessageCount(const std::string& message) const {
@@ -372,7 +355,6 @@ void Node::SetPromiseIfDone() {
     total_message_count_expectation_ = 0;
   }
 }
-
 
 }  // namespace test
 
