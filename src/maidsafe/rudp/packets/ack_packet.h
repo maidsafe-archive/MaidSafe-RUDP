@@ -40,7 +40,7 @@ class AckPacket : public ControlPacket {
   enum { kPacketSize = ControlPacket::kHeaderSize + 4 };
   enum { kOptionalPacketSize = 20 };
   enum { kPacketType = 2 };
-  static const uint32_t kMaxSequenceNumber = 0x7fffffff;
+  enum { kMaxSequenceNumber = 0x7fffffff };
 
   AckPacket();
   virtual ~AckPacket() {}
