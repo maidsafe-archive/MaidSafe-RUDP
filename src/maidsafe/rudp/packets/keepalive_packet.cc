@@ -39,7 +39,7 @@ bool KeepalivePacket::IsRequest() const { return (AdditionalInfo() & 0x00000001)
 
 bool KeepalivePacket::IsResponse() const { return !IsRequest(); }
 
-bool KeepalivePacket::IsResponseOf(const uint32_t& sequence_number) const {
+bool KeepalivePacket::IsResponseOf(uint32_t sequence_number) const {
   assert(IsResponse() && (sequence_number & 0x00000001));
   return (IsResponse() && (sequence_number & 0x00000001) &&
           sequence_number + 1 == SequenceNumber());

@@ -20,6 +20,7 @@ License.
 
 #include <cstdint>
 #include <deque>
+#include <set>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/deadline_timer.hpp"
@@ -80,7 +81,7 @@ class Receiver {
   uint32_t AvailableBufferSize() const;
 
   // Calculate the sequence number which should be sent in an acknowledgement.
-  uint32_t AckPacketSequenceNumber() const;
+  void AddAckPacketSequenceNumbers(AckPacket & packet);
 
   // The peer with which we are communicating.
   Peer& peer_;
@@ -123,6 +124,9 @@ class Receiver {
   // this window fills up the oldest entries are removed.
   typedef SlidingWindow<Ack> AckWindow;
   AckWindow acks_;
+
+  typedef std::set<uint32_t> ReceivedSequenceSet;
+  ReceivedSequenceSet received_sequences_;
 
   // The last packet sequence number to have been acknowledged.
   uint32_t last_ack_packet_sequence_number_;

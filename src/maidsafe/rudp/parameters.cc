@@ -23,9 +23,12 @@ namespace rudp {
 
 uint32_t Parameters::thread_count(2);
 int Parameters::max_transports(10);
-uint32_t Parameters::default_window_size(64);
-uint32_t Parameters::maximum_window_size(512);
+const uint32_t Parameters::maximum_segment_size(16);
+uint32_t Parameters::default_window_size(4*Parameters::maximum_segment_size);
+uint32_t Parameters::maximum_window_size(32*Parameters::maximum_segment_size);
+uint32_t Parameters::default_burst_send_size(1);
 uint32_t Parameters::default_size(1480);
+
 // TODO(Fraser#5#): 2012-11-05 - Re-enable higher buffer limits on Windows once Session is able to
 //                               set these on a per-connection basis during handshaking.
 // #ifdef MAIDSAFE_WIN32
@@ -36,7 +39,7 @@ uint32_t Parameters::max_size(8192);
 uint32_t Parameters::max_data_size(8162);
 // #endif
 uint32_t Parameters::default_data_size(1450);
-Timeout Parameters::default_send_timeout(bptime::milliseconds(500));
+Timeout Parameters::default_send_timeout(bptime::milliseconds(300));
 Timeout Parameters::default_receive_timeout(bptime::milliseconds(500));
 Timeout Parameters::default_send_delay(bptime::milliseconds(10));
 Timeout Parameters::default_receive_delay(bptime::milliseconds(100));

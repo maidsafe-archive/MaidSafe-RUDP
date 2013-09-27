@@ -35,9 +35,16 @@ struct Parameters {
   // Maximum number of Transports per ManagedConnections object
   static int max_transports;
 
+  // The window size increases/decreases by increments of the maximum_segment_size
+  static const uint32_t maximum_segment_size;
+
   // Window size permitted in RUDP.
   static uint32_t default_window_size;
   static uint32_t maximum_window_size;
+
+  // The default number of packets to write at a time
+  static uint32_t default_burst_send_size;
+
 
   // Packet size permitted in RUDP.  Shall not exceed the UDP payload, which is 65507.
   static uint32_t default_size;

@@ -20,6 +20,8 @@ License.
 
 #include <cstdint>
 #include <string>
+#include <vector>
+#include <utility>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/address.hpp"
@@ -36,17 +38,24 @@ namespace detail {
 class AckPacket : public ControlPacket {
  public:
   enum { kPacketSize = ControlPacket::kHeaderSize + 4 };
-  enum { kOptionalPacketSize = ControlPacket::kHeaderSize + 24 };
+  enum { kOptionalPacketSize = 20 };
   enum { kPacketType = 2 };
+  static const uint32_t kMaxSequenceNumber = 0x7fffffff;
 
   AckPacket();
   virtual ~AckPacket() {}
 
+  // the sequence number of the ack packet
   uint32_t AckSequenceNumber() const;
   void SetAckSequenceNumber(uint32_t n);
 
-  uint32_t PacketSequenceNumber() const;
-  void SetPacketSequenceNumber(uint32_t n);
+  void ClearSequenceNumbers();
+  void AddSequenceNumber(uint32_t n);
+  void AddSequenceNumbers(uint32_t first, uint32_t last);
+  std::vector<std::pair<uint32_t,uint32_t>> GetSequenceRanges() const;
+
+  bool ContainsSequenceNumber(uint32_t n) const;
+  bool HasSequenceNumbers() const;
 
   bool HasOptionalFields() const;
   void SetHasOptionalFields(bool b);
@@ -75,7 +84,7 @@ class AckPacket : public ControlPacket {
   size_t Encode(const boost::asio::mutable_buffer& buffer) const;
 
  private:
-  uint32_t packet_sequence_number_;
+  std::vector<std::pair<uint32_t,uint32_t>> sequence_numbers_;
   bool has_optional_fields_;
   uint32_t round_trip_time_;
   uint32_t round_trip_time_variance_;

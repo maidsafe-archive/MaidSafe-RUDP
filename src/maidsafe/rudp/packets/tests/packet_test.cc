@@ -338,6 +338,7 @@ TEST_F(ControlPacketTest, BEH_EncodeDecode) {
   TestEncodeDecode();
 }
 
+
 class AckPacketTest : public testing::Test {
  public:
   AckPacketTest() : ack_packet_() {}
@@ -345,7 +346,7 @@ class AckPacketTest : public testing::Test {
  protected:
   void RestoreDefault() {
     ack_packet_.SetAckSequenceNumber(0);
-    ack_packet_.SetPacketSequenceNumber(0);
+    ack_packet_.ClearSequenceNumbers();
     ack_packet_.SetRoundTripTime(0);
     ack_packet_.SetRoundTripTimeVariance(0);
     ack_packet_.SetAvailableBufferSize(0);
@@ -354,25 +355,41 @@ class AckPacketTest : public testing::Test {
   }
 
   void TestEncodeDecode() {
-    ack_packet_.SetAckSequenceNumber(0xffffffff);
-    ack_packet_.SetPacketSequenceNumber(0xffffffff);
+    ack_packet_.SetAckSequenceNumber(0xbabeface);
+    ack_packet_.AddSequenceNumber(0xface);
+    ack_packet_.AddSequenceNumbers(0xaceface,0xace);
 
-    char char_array_optional[AckPacket::kOptionalPacketSize] = {0};
-    char char_array[AckPacket::kPacketSize] = {0};
+    // About the magic numbers: 3 entries because of sequence wrap, 2 for start/end, 4-bytes each
+    const uint32_t optional_packet_size = AckPacket::kPacketSize +
+                                          AckPacket::kOptionalPacketSize +
+                                          3*2*4;
+
+    const uint32_t packet_size = AckPacket::kPacketSize +
+                                 3*2*4;
+
+    char char_array_optional[optional_packet_size] = {0};
+    char char_array[packet_size] = {0};
     boost::asio::mutable_buffer dbuffer;
     if (ack_packet_.HasOptionalFields()) {
       dbuffer = boost::asio::buffer(char_array_optional);
-      EXPECT_EQ(AckPacket::kOptionalPacketSize,
-                ack_packet_.Encode(dbuffer));
+      EXPECT_EQ(optional_packet_size, ack_packet_.Encode(dbuffer));
     } else {
       dbuffer = boost::asio::buffer(char_array);
-      EXPECT_EQ(AckPacket::kPacketSize, ack_packet_.Encode(dbuffer));
+      EXPECT_EQ(packet_size, ack_packet_.Encode(dbuffer));
     }
     RestoreDefault();
+    EXPECT_TRUE(AckPacket::IsValid(dbuffer));
     EXPECT_TRUE(ack_packet_.Decode(dbuffer));
 
-    EXPECT_EQ(0xffffffff, ack_packet_.AckSequenceNumber());
-    EXPECT_EQ(0xffffffff, ack_packet_.PacketSequenceNumber());
+    EXPECT_EQ(0xbabeface, ack_packet_.AckSequenceNumber());
+    EXPECT_TRUE(ack_packet_.ContainsSequenceNumber(0xface));
+    EXPECT_FALSE(ack_packet_.ContainsSequenceNumber(0xfacf));
+    EXPECT_TRUE(ack_packet_.ContainsSequenceNumber(0xaceface));
+    EXPECT_TRUE(ack_packet_.ContainsSequenceNumber(0xace));
+    EXPECT_TRUE(ack_packet_.ContainsSequenceNumber(0x7fffffff));
+    EXPECT_TRUE(ack_packet_.ContainsSequenceNumber(0x01));
+    EXPECT_FALSE(ack_packet_.ContainsSequenceNumber(0xacf));
+    EXPECT_FALSE(ack_packet_.ContainsSequenceNumber(0xacefacd));
   }
 
   AckPacket ack_packet_;

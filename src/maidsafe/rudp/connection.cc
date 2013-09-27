@@ -575,6 +575,9 @@ void Connection::HandleProbe(const bs::error_code& ec) {
        (asio::error::operation_aborted == ec)) &&
        (failed_probe_count_ < Parameters::maximum_keepalive_failures)) {
     ++failed_probe_count_;
+    LOG(kWarning) << "Probe error from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
+                  << "   error - " << ec.value()
+                  << "   probe_count: " << int(failed_probe_count_);
     bs::error_code ignored_ec;
     DoProbe(ignored_ec);
   } else {

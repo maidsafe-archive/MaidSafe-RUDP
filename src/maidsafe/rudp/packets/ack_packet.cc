@@ -29,8 +29,7 @@ namespace rudp {
 namespace detail {
 
 AckPacket::AckPacket()
-    : packet_sequence_number_(0),
-      has_optional_fields_(false),
+    : has_optional_fields_(false),
       round_trip_time_(0),
       round_trip_time_variance_(0),
       available_buffer_size_(0),
@@ -42,10 +41,6 @@ AckPacket::AckPacket()
 uint32_t AckPacket::AckSequenceNumber() const { return AdditionalInfo(); }
 
 void AckPacket::SetAckSequenceNumber(uint32_t n) { SetAdditionalInfo(n); }
-
-uint32_t AckPacket::PacketSequenceNumber() const { return packet_sequence_number_; }
-
-void AckPacket::SetPacketSequenceNumber(uint32_t n) { packet_sequence_number_ = n; }
 
 bool AckPacket::HasOptionalFields() const { return has_optional_fields_; }
 
@@ -72,9 +67,47 @@ uint32_t AckPacket::EstimatedLinkCapacity() const { return estimated_link_capaci
 void AckPacket::SetEstimatedLinkCapacity(uint32_t n) { estimated_link_capacity_ = n; }
 
 bool AckPacket::IsValid(const asio::const_buffer& buffer) {
-  return (IsValidBase(buffer, kPacketType) && ((asio::buffer_size(buffer) == kPacketSize) ||
-                                               (asio::buffer_size(buffer) == kOptionalPacketSize)));
+  // mjc : write this
+  return (IsValidBase(buffer, kPacketType));
 }
+
+void AckPacket::ClearSequenceNumbers() {
+  sequence_numbers_.clear();
+}
+
+void AckPacket::AddSequenceNumber(uint32_t n) {
+  AddSequenceNumbers(n,n);
+}
+
+void AckPacket::AddSequenceNumbers(uint32_t first, uint32_t last) {
+  assert(first <= kMaxSequenceNumber);
+  assert(last <= kMaxSequenceNumber);
+  if (last >= first) {
+    sequence_numbers_.push_back(std::make_pair(first,last));
+  } else {
+    // Sequence numbers have wrapped. Break into two segments.
+    sequence_numbers_.push_back(std::make_pair(first,kMaxSequenceNumber));
+    sequence_numbers_.push_back(std::make_pair(0,last));
+  }
+}
+
+bool AckPacket::ContainsSequenceNumber(uint32_t n) const {
+  for (auto seq_range: sequence_numbers_ ) {
+    if (seq_range.first <= n && n <= seq_range.second)
+      return true;
+  }
+  return false;
+}
+
+bool AckPacket::HasSequenceNumbers() const {
+  return !sequence_numbers_.empty();
+}
+
+std::vector<std::pair<uint32_t,uint32_t>> AckPacket::GetSequenceRanges() const {
+  return sequence_numbers_;
+}
+
+
 
 bool AckPacket::Decode(const asio::const_buffer& buffer) {
   // Refuse to decode if the input buffer is not valid.
@@ -86,25 +119,49 @@ bool AckPacket::Decode(const asio::const_buffer& buffer) {
     return false;
 
   const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
-//   size_t length = asio::buffer_size(buffer) - kHeaderSize;
+  const unsigned char* buffer_end = p + asio::buffer_size(buffer);
   p += kHeaderSize;
 
-  DecodeUint32(&packet_sequence_number_, p + 0);
-  if (asio::buffer_size(buffer) == kOptionalPacketSize) {
+  // get the number of sequence parameters
+  uint32_t sequence_count = 0;
+  DecodeUint32(&sequence_count, p);
+  p += 4;
+  sequence_numbers_.clear();
+  sequence_numbers_.reserve(sequence_count);
+  for (size_t i = 0; i < sequence_count; ++i) {
+    uint32_t first = 0;
+    DecodeUint32(&first, p + i*4);
+    uint32_t second = first;
+    if (first & 0x80000000) {
+      if (++i >= sequence_count)
+        return false;
+      first = first & 0x7fffffff;
+      DecodeUint32(&second, p + i*4);
+    }
+    sequence_numbers_.push_back(std::make_pair(first,second));
+  }
+
+  p += sequence_count * 4;
+
+  if ( (buffer_end - p) ==  kOptionalPacketSize) {
     has_optional_fields_ = true;
-    DecodeUint32(&round_trip_time_, p + 4);
-    DecodeUint32(&round_trip_time_variance_, p + 8);
-    DecodeUint32(&available_buffer_size_, p + 12);
-    DecodeUint32(&packets_receiving_rate_, p + 16);
-    DecodeUint32(&estimated_link_capacity_, p + 20);
+    DecodeUint32(&round_trip_time_, p);
+    DecodeUint32(&round_trip_time_variance_, p + 4);
+    DecodeUint32(&available_buffer_size_, p + 8);
+    DecodeUint32(&packets_receiving_rate_, p + 12);
+    DecodeUint32(&estimated_link_capacity_, p + 16);
   }
 
   return true;
 }
 
 size_t AckPacket::Encode(const asio::mutable_buffer& buffer) const {
+  size_t required_bytes = kPacketSize +
+                          (has_optional_fields_ ? kOptionalPacketSize : 0) +
+                          sequence_numbers_.size()*2*4;
+
   // Refuse to encode if the output buffer is not big enough.
-  if (asio::buffer_size(buffer) < kPacketSize)
+  if (asio::buffer_size(buffer) < required_bytes)
     return 0;
 
   // Encode the common parts of the control packet.
@@ -114,17 +171,34 @@ size_t AckPacket::Encode(const asio::mutable_buffer& buffer) const {
   unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
   p += kHeaderSize;
 
-  EncodeUint32(packet_sequence_number_, p + 0);
+
+  // get the pointer to the count so we can update it when we know the number
+  // of items stored
+  unsigned char* pcount = p;
+  p += 4;
+  for (auto seq_range : sequence_numbers_) {
+    //if (seq_range.first == seq_range.second) {
+    //  EncodeUint32(seq_range.first, p);
+    //  p += 4;
+    //} else {
+      EncodeUint32(seq_range.first | 0x80000000, p);
+      p += 4;
+      EncodeUint32(seq_range.second, p);
+      p += 4;
+    //}
+  }
+  // store the number of items in the list
+  EncodeUint32((p-pcount-4)/4, pcount);
+
   if (has_optional_fields_) {
-    EncodeUint32(round_trip_time_, p + 4);
-    EncodeUint32(round_trip_time_variance_, p + 8);
-    EncodeUint32(available_buffer_size_, p + 12);
-    EncodeUint32(packets_receiving_rate_, p + 16);
-    EncodeUint32(estimated_link_capacity_, p + 20);
+    EncodeUint32(round_trip_time_, p + 0);
+    EncodeUint32(round_trip_time_variance_, p + 4);
+    EncodeUint32(available_buffer_size_, p + 8);
+    EncodeUint32(packets_receiving_rate_, p + 12);
+    EncodeUint32(estimated_link_capacity_, p + 16);
   }
 
-  return has_optional_fields_ ? static_cast<size_t>(kOptionalPacketSize) :
-                                static_cast<size_t>(kPacketSize);
+  return required_bytes;
 }
 
 }  // namespace detail

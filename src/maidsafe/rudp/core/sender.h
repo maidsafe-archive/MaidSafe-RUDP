@@ -54,7 +54,7 @@ class Sender {
   bool Flushed() const;
 
   // Adds some application data to be sent. Returns number of bytes copied.
-  size_t AddData(const boost::asio::const_buffer& data, const uint32_t& message_number);
+  size_t AddData(const boost::asio::const_buffer& data, uint32_t message_number);
 
   // Notify the other side that the current connection is to be dropped
   void NotifyClose();
@@ -83,6 +83,11 @@ class Sender {
   // Send waiting packets.
   void DoSend();
 
+  // Called to mark unacked packets that have expired and should be
+  // proactively resent
+  void MarkExpiredPackets();
+  void MarkExpiredPackets(boost::posix_time::ptime expire_time);
+
   // The peer with which we are communicating.
   Peer& peer_;
 
@@ -93,9 +98,10 @@ class Sender {
   CongestionControl& congestion_control_;
 
   struct UnackedPacket {
-    UnackedPacket() : packet(), lost(false), last_send_time() {}
+    UnackedPacket() : packet(), lost(false), ackd(false), last_send_time() {}
     DataPacket packet;
     bool lost;
+    bool ackd;
     boost::posix_time::ptime last_send_time;
   };
 

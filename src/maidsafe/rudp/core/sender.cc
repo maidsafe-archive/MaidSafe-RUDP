@@ -51,7 +51,7 @@ uint32_t Sender::GetNextPacketSequenceNumber() const { return unacked_packets_.E
 
 bool Sender::Flushed() const { return unacked_packets_.IsEmpty(); }
 
-size_t Sender::AddData(const asio::const_buffer& data, const uint32_t& message_number) {
+size_t Sender::AddData(const asio::const_buffer& data, uint32_t message_number) {
   if ((congestion_control_.SendWindowSize() == 0) && (unacked_packets_.Size() == 0))
     unacked_packets_.SetMaximumSize(Parameters::default_window_size);
   else
@@ -86,17 +86,17 @@ size_t Sender::AddData(const asio::const_buffer& data, const uint32_t& message_n
 }
 
 void Sender::HandleAck(const AckPacket& packet, std::vector<uint32_t>& completed_message_numbers) {
-  uint32_t seqnum = packet.PacketSequenceNumber();
 
   if (packet.HasOptionalFields()) {
-    congestion_control_.OnAck(seqnum,
+    congestion_control_.OnAck(1, //seqnum,
                               packet.RoundTripTime(),
                               packet.RoundTripTimeVariance(),
                               packet.AvailableBufferSize(),
                               packet.PacketsReceivingRate(),
                               packet.EstimatedLinkCapacity());
   } else {
-    congestion_control_.OnAck(seqnum);
+    // mjc : seqnum argument isn't used
+    congestion_control_.OnAck(1);
   }
 
   AckOfAckPacket response_packet;
@@ -104,18 +104,30 @@ void Sender::HandleAck(const AckPacket& packet, std::vector<uint32_t>& completed
   response_packet.SetAckSequenceNumber(packet.AckSequenceNumber());
   peer_.Send(response_packet);
 
-  if (unacked_packets_.Contains(seqnum) || unacked_packets_.End() == seqnum) {
-    while (unacked_packets_.Begin() != seqnum) {
-      if (unacked_packets_.Front().packet.LastPacketInMessage()) {
-        completed_message_numbers.push_back(unacked_packets_.Front().packet.MessageNumber());
+
+  // mark ack'd packets
+  for (auto seq_range : packet.GetSequenceRanges()) {
+    for (uint32_t seq = seq_range.first; seq <= seq_range.second; ++seq) {
+      if (unacked_packets_.Contains(seq))
+        unacked_packets_[seq].ackd = true;
+    }
+  }
+
+
+  // trim the window
+  bool new_room = false;
+  while ( !unacked_packets_.IsEmpty() && unacked_packets_.Front().ackd ) {
+    if (unacked_packets_.Front().packet.LastPacketInMessage()) {
+      completed_message_numbers.push_back(unacked_packets_.Front().packet.MessageNumber());
 //        LOG(kVerbose) << "Received ACK for last packet in message "
 //                      << unacked_packets_.Front().packet.MessageNumber();
-      }
-      unacked_packets_.Remove();
     }
-
-    DoSend();
+    new_room = true;
+    unacked_packets_.Remove();
   }
+
+  if (new_room)
+    DoSend();
 }
 
 void Sender::HandleNegativeAck(const NegativeAckPacket& packet) {
@@ -133,31 +145,23 @@ void Sender::HandleNegativeAck(const NegativeAckPacket& packet) {
 }
 
 void Sender::HandleTick() {
-  if (send_timeout_ <= tick_timer_.Now()) {
+  bptime::ptime now = tick_timer_.Now();
+  if (send_timeout_ <= now) {
     // Clear timeout. Will be reset next time a data packet is sent.
     send_timeout_ = bptime::pos_infin;
 
-    // Mark all timedout unacknowledged packets as lost.
-    for (uint32_t n = unacked_packets_.Begin();
-         n != unacked_packets_.End();
-         n = unacked_packets_.Next(n)) {
-      if ((unacked_packets_[n].last_send_time + congestion_control_.SendTimeout()) <
-          tick_timer_.Now()) {
-        congestion_control_.OnSendTimeout(n);
-        unacked_packets_[n].lost = true;
-        // LOG(kVerbose) << "Lost packet " << n;
-      }
-    }
+    MarkExpiredPackets(now);
   }
 
   DoSend();
 }
 
 void Sender::DoSend() {
+  uint32_t packets_sent = 0;
   bptime::ptime now = tick_timer_.Now();
 
-  for (uint32_t n = unacked_packets_.Begin();
-       n != unacked_packets_.End();
+  for (UnackedPacketWindow::seq_num_t n = unacked_packets_.Begin();
+       n != unacked_packets_.End() && packets_sent < Parameters::default_burst_send_size;
        n = unacked_packets_.Next(n)) {
     UnackedPacket& p = unacked_packets_[n];
     if (p.lost) {
@@ -167,26 +171,48 @@ void Sender::DoSend() {
       // buffer (packet_size * window_size) will be sent out at once.
       // If we make the Send to be unblockable, i.e. handled by a seperate
       // thread, then we will need to first Check whether we are allowed to
-      // send another packet at this time, and then once request a packet to be
-      // sent, set the ticker to be with a fixed interval or
-      // tick_timer_.TickAt(now + congestion_control_.SendDelay());
+      // send another packet at this time.
       if (peer_.Send(p.packet) == kSuccess) {
+        ++packets_sent;
         p.lost = false;
         p.last_send_time = now;
         congestion_control_.OnDataPacketSent(n);
-        tick_timer_.TickAt(now + congestion_control_.SendDelay());
-        // LOG(kVerbose) << "Sent packet " << n;
-        return;
       } else {
         LOG(kVerbose) << "DoSend - failed sending packet " << n;
       }
     }
   }
+
+  if (packets_sent)
+    tick_timer_.TickAt(now + congestion_control_.SendDelay());
+  else
+    tick_timer_.TickAt(now + congestion_control_.SendTimeout());
+
+
   // Set the send timeout so that unacknowledged packets can be marked as lost.
   if (!unacked_packets_.IsEmpty()) {
     send_timeout_ = unacked_packets_.Front().last_send_time + congestion_control_.SendTimeout();
   }
 }
+
+
+void Sender::MarkExpiredPackets() {
+  MarkExpiredPackets(tick_timer_.Now());
+}
+
+void Sender::MarkExpiredPackets(boost::posix_time::ptime expire_time) {
+  // Mark all timedout unacknowledged packets as lost.
+  for (UnackedPacketWindow::seq_num_t n = unacked_packets_.Begin();
+       n != unacked_packets_.End();
+       n = unacked_packets_.Next(n)) {
+    if (!unacked_packets_[n].ackd &&
+        (unacked_packets_[n].last_send_time + congestion_control_.SendTimeout()) < expire_time) {
+      congestion_control_.OnSendTimeout(n);
+      unacked_packets_[n].lost = true;
+    }
+  }
+}
+
 
 void Sender::NotifyClose() {
   ShutdownPacket shut_down_packet;

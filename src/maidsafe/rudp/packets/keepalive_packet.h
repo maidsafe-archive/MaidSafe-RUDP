@@ -42,7 +42,7 @@ class KeepalivePacket : public ControlPacket {
   // Response will have even sequence number
   bool IsResponse() const;
   // Checks if this is a response to provided request sequence number (odd).
-  bool IsResponseOf(const uint32_t& sequence_number) const;
+  bool IsResponseOf(uint32_t sequence_number) const;
 
   static bool IsValid(const boost::asio::const_buffer& buffer);
   bool Decode(const boost::asio::const_buffer& buffer);

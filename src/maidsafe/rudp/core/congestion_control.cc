@@ -49,7 +49,7 @@ CongestionControl::CongestionControl()
     receive_timeout_(Parameters::default_receive_timeout),
     ack_delay_(bptime::milliseconds(10)),
     ack_timeout_(Parameters::default_ack_timeout),
-    ack_interval_(16),
+    ack_interval_(Parameters::maximum_segment_size),
     lost_packets_(0),
     corrupted_packets_(0),
     arrival_times_(),
@@ -76,6 +76,8 @@ void CongestionControl::OnDataPacketReceived(uint32_t seqnum) {
 
   if ((seqnum % 16 == 1) && !arrival_times_.empty()) {
     // The pushed in interval is the interval between every 16 arrived packets
+    // mjc : this doesn't do what the comment says. seqnum can come out-of-order
+    //       and even be missed completely due to the nature of UDP.
     packet_pair_intervals_.push_back(now - arrival_times_.back());
     while (packet_pair_intervals_.size() > kMaxPacketPairIntervals)
       packet_pair_intervals_.pop_front();
@@ -184,20 +186,26 @@ void CongestionControl::OnAck(uint32_t /*seqnum*/,
   }
   corrupted_packets_ = 0;
   lost_packets_ = 0;
-  // If the other side still has some available buffer size, then the speed
-  // can be increased this side. Otherwise, the sender's speed shall be reduced
-  // To prevent osillator:
-  //    a minum margin of 8 * max_data_size for increase is taken
-  //    a step of 20% for reducing window size is defined
-  if (available_buffer_size > (8 * send_data_size_)) {
-    send_window_size_ += (available_buffer_size + 1) / Parameters::max_data_size;
+
+  // The send_window_size is adjusted based on the receiver's available buffer.
+  // The window size will grow and shrink in increments of the maximum_segment_size.
+  //
+  // Growth occurs one maximum_segment_size at a time when the receiver has enough
+  //    room to hold a full maximum_segment_size of data.
+  //
+  // The send_window_size_ will decrease by a maximum_segment_size when the receiver
+  // has less than 50% maximum_segment_size headroom.
+  //
+  if (available_buffer_size >= (send_data_size_ * Parameters::maximum_segment_size)) {
+    send_window_size_ += Parameters::maximum_segment_size;
     send_window_size_ = std::min(send_window_size_,
                                  static_cast<size_t>(Parameters::maximum_window_size));
-  } else {
-    send_window_size_ = static_cast<size_t>(0.9 * send_window_size_);
+  } else if (available_buffer_size < (send_data_size_ * Parameters::maximum_segment_size/2)) {
+    send_window_size_ -= Parameters::maximum_segment_size;
     send_window_size_ = std::max(send_window_size_,
                                  static_cast<size_t>(Parameters::default_window_size));
   }
+
 }
 
 void CongestionControl::OnNegativeAck(uint32_t /*seqnum*/) {
