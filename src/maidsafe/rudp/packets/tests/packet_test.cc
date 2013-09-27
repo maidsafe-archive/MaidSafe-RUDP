@@ -351,7 +351,7 @@ class AckPacketTest : public testing::Test {
   void TestEncodeDecode() {
     ack_packet_.SetAckSequenceNumber(0xbabeface);
     ack_packet_.AddSequenceNumber(0xface);
-    ack_packet_.AddSequenceNumbers(0xaceface,0xace);
+    ack_packet_.AddSequenceNumbers(0xaceface, 0xace);
 
     // About the magic numbers: 3 entries because of sequence wrap, 2 for start/end, 4-bytes each
     const uint32_t optional_packet_size = AckPacket::kPacketSize +

@@ -79,23 +79,23 @@ void AckPacket::ClearSequenceNumbers() {
 }
 
 void AckPacket::AddSequenceNumber(uint32_t n) {
-  AddSequenceNumbers(n,n);
+  AddSequenceNumbers(n, n);
 }
 
 void AckPacket::AddSequenceNumbers(uint32_t first, uint32_t last) {
   assert(first <= kMaxSequenceNumber);
   assert(last <= kMaxSequenceNumber);
   if (last >= first) {
-    sequence_numbers_.push_back(std::make_pair(first,last));
+    sequence_numbers_.push_back(std::make_pair(first, last));
   } else {
     // Sequence numbers have wrapped. Break into two segments.
-    sequence_numbers_.push_back(std::make_pair(first,kMaxSequenceNumber));
-    sequence_numbers_.push_back(std::make_pair(0,last));
+    sequence_numbers_.push_back(std::make_pair(first, kMaxSequenceNumber));
+    sequence_numbers_.push_back(std::make_pair(0, last));
   }
 }
 
 bool AckPacket::ContainsSequenceNumber(uint32_t n) const {
-  for (auto seq_range: sequence_numbers_ ) {
+  for (auto seq_range : sequence_numbers_) {
     if (seq_range.first <= n && n <= seq_range.second)
       return true;
   }
@@ -106,7 +106,7 @@ bool AckPacket::HasSequenceNumbers() const {
   return !sequence_numbers_.empty();
 }
 
-std::vector<std::pair<uint32_t,uint32_t>> AckPacket::GetSequenceRanges() const {
+std::vector<std::pair<uint32_t, uint32_t>> AckPacket::GetSequenceRanges() const {
   return sequence_numbers_;
 }
 
@@ -141,12 +141,12 @@ bool AckPacket::Decode(const asio::const_buffer& buffer) {
       first = first & 0x7fffffff;
       DecodeUint32(&second, p + i*4);
     }
-    sequence_numbers_.push_back(std::make_pair(first,second));
+    sequence_numbers_.push_back(std::make_pair(first, second));
   }
 
   p += sequence_count * 4;
 
-  if ( (buffer_end - p) ==  kOptionalPacketSize) {
+  if ((buffer_end - p) ==  kOptionalPacketSize) {
     has_optional_fields_ = true;
     DecodeUint32(&round_trip_time_, p);
     DecodeUint32(&round_trip_time_variance_, p + 4);
@@ -180,18 +180,18 @@ size_t AckPacket::Encode(const asio::mutable_buffer& buffer) const {
   unsigned char* pcount = p;
   p += 4;
   for (auto seq_range : sequence_numbers_) {
-    //if (seq_range.first == seq_range.second) {
-    //  EncodeUint32(seq_range.first, p);
-    //  p += 4;
-    //} else {
+    // if (seq_range.first == seq_range.second) {
+    //   EncodeUint32(seq_range.first, p);
+    //   p += 4;
+    // } else {
       EncodeUint32(seq_range.first | 0x80000000, p);
       p += 4;
       EncodeUint32(seq_range.second, p);
       p += 4;
-    //}
+    // }
   }
   // store the number of items in the list
-  EncodeUint32((p-pcount-4)/4, pcount);
+  EncodeUint32(static_cast<uint32_t>(p-pcount-4)/4, pcount);
 
   if (has_optional_fields_) {
     EncodeUint32(round_trip_time_, p + 0);

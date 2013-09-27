@@ -49,7 +49,7 @@ class AckPacket : public ControlPacket {
   enum {
     kPacketType = 2
   };
-  enum { 
+  enum {
     kMaxSequenceNumber = 0x7fffffff
   };
 
@@ -63,7 +63,7 @@ class AckPacket : public ControlPacket {
   void ClearSequenceNumbers();
   void AddSequenceNumber(uint32_t n);
   void AddSequenceNumbers(uint32_t first, uint32_t last);
-  std::vector<std::pair<uint32_t,uint32_t>> GetSequenceRanges() const;
+  std::vector<std::pair<uint32_t, uint32_t>> GetSequenceRanges() const;
 
   bool ContainsSequenceNumber(uint32_t n) const;
   bool HasSequenceNumbers() const;
@@ -95,7 +95,7 @@ class AckPacket : public ControlPacket {
   size_t Encode(const boost::asio::mutable_buffer& buffer) const;
 
  private:
-  std::vector<std::pair<uint32_t,uint32_t>> sequence_numbers_;
+  std::vector<std::pair<uint32_t, uint32_t>> sequence_numbers_;
   bool has_optional_fields_;
   uint32_t round_trip_time_;
   uint32_t round_trip_time_variance_;

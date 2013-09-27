@@ -63,9 +63,9 @@ void Receiver::Reset(uint32_t initial_sequence_number) {
 
 bool Receiver::Flushed() const {
   // mjc : check
-  //uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
-  return acks_.IsEmpty();// && (ack_packet_seqnum == last_ack_packet_sequence_number_ ||
-                         //    last_ack_packet_sequence_number_ == 0);
+  // uint32_t ack_packet_seqnum = AckPacketSequenceNumber();
+  return acks_.IsEmpty();  // && (ack_packet_seqnum == last_ack_packet_sequence_number_ ||
+                           //    last_ack_packet_sequence_number_ == 0);
 }
 
 size_t Receiver::ReadData(const boost::asio::mutable_buffer& data) {
@@ -123,10 +123,9 @@ void Receiver::HandleData(const DataPacket& packet) {
       p.lost = false;
       p.bytes_read = 0;
       received_sequences_.insert(seqnum);
-    }
-	else {
+    } else {
       LOG(kWarning) << "Seqnum already received: " << seqnum;
-	}
+    }
   } else {
     LOG(kWarning) << "Ignoring incoming packet with seqnum " << seqnum
                   << ".\tCurrent unread range is " << unread_packets_.Begin() << " to "
@@ -138,7 +137,7 @@ void Receiver::HandleData(const DataPacket& packet) {
     HandleTick();
   } else {
     // Schedule generation of acknowledgement packets for later.
-    //tick_timer_.TickAfter(congestion_control_.AckDelay());
+    // tick_timer_.TickAfter(congestion_control_.AckDelay());
   }
 
   if (tick_timer_.Expired()) {
@@ -161,7 +160,6 @@ void Receiver::HandleAckOfAck(const AckOfAckPacket& packet) {
       for (uint32_t seq = seq_range.first; seq <= seq_range.second; ++seq)
         received_sequences_.erase(seq);
     }
-
   }
 
   while (acks_.Contains(ack_seqnum)) {
@@ -185,13 +183,13 @@ void Receiver::HandleTick() {
   //       Rework to allow selection. The NAK algorithm needs to be more sophesticated however.
   //
   // Generate a negative acknowledgement packet to request missing packets.
-  //NegativeAckPacket negative_ack;
-  //negative_ack.SetDestinationSocketId(peer_.SocketId());
-  //AddMissingSequenceNumbersToNegAck(negative_ack);
-  //if (negative_ack.HasSequenceNumbers()) {
-  //  peer_.Send(negative_ack);
-  //  tick_timer_.TickAt(now + congestion_control_.AckTimeout());
-  //}
+  // NegativeAckPacket negative_ack;
+  // negative_ack.SetDestinationSocketId(peer_.SocketId());
+  // AddMissingSequenceNumbersToNegAck(negative_ack);
+  // if (negative_ack.HasSequenceNumbers()) {
+  //   peer_.Send(negative_ack);
+  //   tick_timer_.TickAt(now + congestion_control_.AckTimeout());
+  // }
 }
 
 void Receiver::AddAckToWindow(const bptime::ptime& now) {
@@ -225,7 +223,7 @@ void Receiver::AddAckToWindow(const bptime::ptime& now) {
 
 void Receiver::AddMissingSequenceNumbersToNegAck(NegativeAckPacket& negative_ack) {
   uint32_t n = unread_packets_.Begin();
-  uint32_t nack_count = 0;  
+  uint32_t nack_count = 0;
   while (n != unread_packets_.End() && nack_count <= Parameters::maximum_segment_size) {
     if (unread_packets_[n].lost) {
       uint32_t begin = n;
@@ -259,7 +257,6 @@ uint32_t Receiver::AvailableBufferSize() const {
 }
 
 void Receiver::AddAckPacketSequenceNumbers(AckPacket & packet) {
-
   auto iter = received_sequences_.begin();
   auto iter_end = received_sequences_.end();
   while (iter != iter_end) {
@@ -270,7 +267,7 @@ void Receiver::AddAckPacketSequenceNumbers(AckPacket & packet) {
       last = *iter;
       ++iter;
     }
-    packet.AddSequenceNumbers(first,last);
+    packet.AddSequenceNumbers(first, last);
   }
 }
 

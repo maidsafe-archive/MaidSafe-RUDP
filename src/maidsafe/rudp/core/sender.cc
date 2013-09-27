@@ -90,9 +90,8 @@ size_t Sender::AddData(const asio::const_buffer& data, uint32_t message_number) 
 }
 
 void Sender::HandleAck(const AckPacket& packet, std::vector<uint32_t>& completed_message_numbers) {
-
   if (packet.HasOptionalFields()) {
-    congestion_control_.OnAck(1, //seqnum,
+    congestion_control_.OnAck(1,  // seqnum,
                               packet.RoundTripTime(),
                               packet.RoundTripTimeVariance(),
                               packet.AvailableBufferSize(),
