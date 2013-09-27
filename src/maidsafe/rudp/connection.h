@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
@@ -43,7 +46,6 @@ typedef int32_t DataSize;
 
 class Multiplexer;
 
-
 class Connection : public std::enable_shared_from_this<Connection> {
  public:
   enum class State {
@@ -65,9 +67,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
     kExactDuplicate
   };
 
-  Connection(const std::shared_ptr<Transport> &transport,
+  Connection(const std::shared_ptr<Transport>& transport,
              const boost::asio::io_service::strand& strand,
-             const std::shared_ptr<Multiplexer> &multiplexer);
+             std::shared_ptr<Multiplexer> multiplexer);
 
   detail::Socket& Socket();
 
@@ -80,10 +82,10 @@ class Connection : public std::enable_shared_from_this<Connection> {
                        const boost::posix_time::time_duration& connect_attempt_timeout,
                        const boost::posix_time::time_duration& lifespan,
                        const std::function<void()>& failure_functor);
-  void Ping(const NodeId& peer_node_id,
-            const boost::asio::ip::udp::endpoint& peer_endpoint,
-            const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
-  void StartSending(const std::string& data, const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
+  void Ping(const NodeId& peer_node_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+            const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
+  void StartSending(const std::string& data,
+                    const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
   State state() const;
   // Sets the state_ to kPermanent or kUnvalidated and sets the lifespan_timer_ to expire at
   // pos_infin.
@@ -106,10 +108,10 @@ class Connection : public std::enable_shared_from_this<Connection> {
     std::string encrypted_data_;
     std::function<void(int)> message_sent_functor_;  // NOLINT (Dan)
 
-    SendRequest(const std::string& encrypted_data,
-                const std::function<void(int)>& message_sent_functor)  // NOLINT (Dan)
-        : encrypted_data_(encrypted_data),
-          message_sent_functor_(message_sent_functor) {}
+    SendRequest(std::string encrypted_data,
+                std::function<void(int)> message_sent_functor)  // NOLINT (Dan)
+        : encrypted_data_(std::move(encrypted_data)),
+          message_sent_functor_(std::move(message_sent_functor)) {}
   };
 
   void DoClose(bool timed_out = false);
@@ -134,9 +136,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartConnect(const std::string& validation_data,
                     const boost::posix_time::time_duration& connect_attempt_timeout,
                     const boost::posix_time::time_duration& lifespan,
-                    const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
-  void HandleConnect(const boost::system::error_code& ec,
-                     const std::string& validation_data,
+                    const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
+  void HandleConnect(const boost::system::error_code& ec, const std::string& validation_data,
                      std::function<void(int)> ping_functor);  // NOLINT (Fraser)
 
   void StartReadSize();
@@ -145,8 +146,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartReadData();
   void HandleReadData(const boost::system::error_code& ec, size_t length);
 
-  void StartWrite(const std::function<void(int)> &message_sent_functor);  // NOLINT (Fraser)
-  void HandleWrite(std::function<void(int)> message_sent_functor);  // NOLINT (Fraser)
+  void StartWrite(const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
+  void HandleWrite(std::function<void(int)> message_sent_functor);        // NOLINT (Fraser)
 
   void StartProbing();
   void DoProbe(const boost::system::error_code& ec);
@@ -156,7 +157,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void EncodeData(const std::string& data);
 
-  void InvokeSentFunctor(const std::function<void(int)> &message_sent_functor, int result) const;  // NOLINT (Fraser)
+  void InvokeSentFunctor(const std::function<void(int)>& message_sent_functor,  // NOLINT (Fraser)
+                         int result) const;
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
@@ -170,16 +172,19 @@ class Connection : public std::enable_shared_from_this<Connection> {
   uint8_t failed_probe_count_;
   State state_;
   mutable std::mutex state_mutex_;
-  enum class TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
+  enum class TimeoutState {
+    kConnecting,
+    kConnected,
+    kClosing
+  } timeout_state_;
   bool sending_;
   std::function<void()> failure_functor_;
   std::queue<SendRequest> send_queue_;
 };
 
-
 template <typename Elem, typename Traits>
 std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
-                                             const Connection::State &state) {
+                                             const Connection::State& state) {
   std::string state_str;
   switch (state) {
     case Connection::State::kPending:

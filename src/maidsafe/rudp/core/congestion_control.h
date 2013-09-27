@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
@@ -45,11 +48,8 @@ class CongestionControl {
   void OnDataPacketReceived(uint32_t seqnum);
   void OnGenerateAck(uint32_t seqnum);
   void OnAck(uint32_t seqnum);
-  void OnAck(uint32_t seqnum,
-             uint32_t round_trip_time,
-             uint32_t round_trip_time_variance,
-             uint32_t available_buffer_size,
-             uint32_t packets_receiving_rate,
+  void OnAck(uint32_t seqnum, uint32_t round_trip_time, uint32_t round_trip_time_variance,
+             uint32_t available_buffer_size, uint32_t packets_receiving_rate,
              uint32_t estimated_link_capacity);
   void OnNegativeAck(uint32_t seqnum);
   void OnSendTimeout(uint32_t seqnum);
@@ -72,7 +72,7 @@ class CongestionControl {
   boost::posix_time::time_duration AckDelay() const;
   boost::posix_time::time_duration AckTimeout() const;
   uint32_t AckInterval() const;
-//  boost::posix_time::time_duration AckInterval() const;
+  //  boost::posix_time::time_duration AckInterval() const;
 
   // Return the best read-buffer size
   int32_t BestReadBufferSize() const;
@@ -110,10 +110,14 @@ class CongestionControl {
   size_t lost_packets_;
   size_t corrupted_packets_;
 
-  enum { kMaxArrivalTimes = 16 + 1 };
+  enum {
+    kMaxArrivalTimes = 16 + 1
+  };
   std::deque<boost::posix_time::ptime> arrival_times_;
 
-  enum { kMaxPacketPairIntervals = 16 + 1 };
+  enum {
+    kMaxPacketPairIntervals = 16 + 1
+  };
   std::deque<boost::posix_time::time_duration> packet_pair_intervals_;
 
   // The peer's connection type

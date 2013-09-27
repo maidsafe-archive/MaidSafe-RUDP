@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 #ifndef MAIDSAFE_RUDP_TESTS_TEST_UTILS_H_
 #define MAIDSAFE_RUDP_TESTS_TEST_UTILS_H_
@@ -43,13 +46,13 @@ typedef std::shared_ptr<ManagedConnections> ManagedConnectionsPtr;
 namespace test {
 
 // Workaround for VC++ marking a future as deferred despite being constructed from a std::promise.
-template<typename Future, typename Timeout>
+template <typename Future, typename Timeout>
 #ifdef _MSC_VER
 std::future_status::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future& future,
                                                                            const Timeout& timeout) {
 #else
-std::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future& future,
-                                                            const Timeout& timeout) {
+std::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future & future,
+                                                            const Timeout & timeout) {
 #endif
   auto result(future.wait_for(timeout));
   if (result != std::future_status::deferred)
@@ -62,9 +65,8 @@ std::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future& future
 class Node;
 typedef std::shared_ptr<Node> NodePtr;
 
-testing::AssertionResult SetupNetwork(std::vector<NodePtr> &nodes,
-                                      std::vector<Endpoint> &bootstrap_endpoints,
-                                      int node_count);
+testing::AssertionResult SetupNetwork(std::vector<NodePtr> & nodes,
+                                      std::vector<Endpoint> & bootstrap_endpoints, int node_count);
 
 
 class Node {
@@ -76,8 +78,7 @@ class Node {
   explicit Node(int id);
   std::vector<NodeId> connection_lost_node_ids() const;
   messages_t messages() const;
-  int Bootstrap(const std::vector<Endpoint> &bootstrap_endpoints,
-                NodeId& chosen_bootstrap_peer,
+  int Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints, NodeId& chosen_bootstrap_peer,
                 Endpoint local_endpoint = Endpoint());
   std::future<messages_t> GetFutureForMessages(uint32_t message_count);
   std::string id() const { return id_; }
@@ -85,10 +86,10 @@ class Node {
   std::string debug_node_id() const { return DebugId(node_id_); }
   std::string validation_data() const { return validation_data_.string(); }
   std::shared_ptr<asymm::PrivateKey> private_key() const {
-      return std::make_shared<asymm::PrivateKey>(key_pair_.private_key); 
+      return std::make_shared<asymm::PrivateKey>(key_pair_.private_key);
   }
   std::shared_ptr<asymm::PublicKey> public_key() const {
-      return std::make_shared<asymm::PublicKey>(key_pair_.public_key); 
+      return std::make_shared<asymm::PublicKey>(key_pair_.public_key);
   }
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
   int GetReceivedMessageCount(const std::string& message) const;

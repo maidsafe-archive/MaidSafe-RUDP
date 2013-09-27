@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
@@ -63,7 +66,6 @@ class Dispatcher;
 class HandshakePacket;
 class KeepalivePacket;
 class NegativeAckPacket;
-
 
 class Socket {
  public:
@@ -124,20 +126,13 @@ class Socket {
   // caller to set a timeout and close the socket after the timeout period
   // expires.
   template <typename ConnectHandler>
-  void AsyncConnect(const NodeId& this_node_id,
-                    std::shared_ptr<asymm::PublicKey> this_public_key,
-                    const boost::asio::ip::udp::endpoint& remote,
-                    const NodeId& peer_node_id,
-                    ConnectHandler handler,
-                    Session::Mode open_mode,
+  void AsyncConnect(const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
+                    const boost::asio::ip::udp::endpoint& remote, const NodeId& peer_node_id,
+                    ConnectHandler handler, Session::Mode open_mode,
                     Session::OnNatDetectionRequested::slot_type on_nat_detection_requested_slot) {
     ConnectOp<ConnectHandler> op(handler, waiting_connect_ec_);
     waiting_connect_.async_wait(op);
-    StartConnect(this_node_id,
-                 this_public_key,
-                 remote,
-                 peer_node_id,
-                 open_mode,
+    StartConnect(this_node_id, this_public_key, remote, peer_node_id, open_mode,
                  on_nat_detection_requested_slot);
   }
 
@@ -157,8 +152,7 @@ class Socket {
 
   // Initiate an asynchronous operation to read data.
   template <typename ReadHandler>
-  void AsyncRead(const boost::asio::mutable_buffer& data,
-                 size_t transfer_at_least,
+  void AsyncRead(const boost::asio::mutable_buffer& data, size_t transfer_at_least,
                  ReadHandler handler) {
     ReadOp<ReadHandler> op(handler, waiting_read_ec_, waiting_read_bytes_transferred_);
     waiting_read_.async_wait(op);
@@ -202,10 +196,8 @@ class Socket {
   Socket& operator=(const Socket&);
 
   void StartConnect(
-      const NodeId& this_node_id,
-      std::shared_ptr<asymm::PublicKey> this_public_key,
-      const boost::asio::ip::udp::endpoint& remote,
-      const NodeId& peer_node_id,
+      const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
+      const boost::asio::ip::udp::endpoint& remote, const NodeId& peer_node_id,
       Session::Mode open_mode,
       const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
   void StartWrite(const boost::asio::const_buffer& data,
@@ -297,7 +289,7 @@ class Socket {
   boost::system::error_code waiting_probe_ec_;
 
   // This class allows only one outstanding flush operation at a time. The
-  // following data members  store the pending flush, and the result that is
+  // following data members store the pending flush, and the result that is
   // intended for its completion handler.
   boost::asio::deadline_timer waiting_flush_;
   boost::system::error_code waiting_flush_ec_;

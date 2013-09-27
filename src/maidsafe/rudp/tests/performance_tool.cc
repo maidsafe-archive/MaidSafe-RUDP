@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 #include <chrono>
 #include <condition_variable>
@@ -26,10 +29,9 @@ License.
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 
-
 namespace {
 
-bool ParseArgs(int argc, char **argv, int& message_count, int& message_size) {
+bool ParseArgs(int argc, char** argv, int& message_count, int& message_size) {
   auto fail([]()->bool {
     std::cout << "Pass no. of messages and size of messages (in bytes) as first 2 arguments.\n";
     return false;
@@ -46,7 +48,7 @@ bool ParseArgs(int argc, char **argv, int& message_count, int& message_size) {
       return false;
     }
   }
-  catch(const std::exception&) {
+  catch (const std::exception&) {
     return fail();
   }
 
@@ -55,7 +57,7 @@ bool ParseArgs(int argc, char **argv, int& message_count, int& message_size) {
 
 }  // unnamed namespace
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   auto message_count(0), message_size(0);
   if (!ParseArgs(argc, argv, message_count, message_size))
     return -1;
@@ -104,8 +106,9 @@ int main(int argc, char **argv) {
     nodes[0]->managed_connections()->Send(nodes[1]->node_id(), messages[i], message_sent_functor);
 
   LOG(kSuccess) << "All messages enqueued.";
-  cond_var.wait(lock,
-      [message_count, &result_arrived_count] { return result_arrived_count == message_count; });  // NOLINT (Fraser)
+  cond_var.wait(lock, [message_count, &result_arrived_count] {
+    return result_arrived_count == message_count;
+  });  // NOLINT (Fraser)
 
   auto received_messages(messages_futures.get());
   if (received_messages.size() != static_cast<size_t>(message_count)) {
@@ -121,8 +124,8 @@ int main(int argc, char **argv) {
   intmax_t message_rate((message_count * 1000) / elapsed.count());
   TLOG(kDefaultColour) << "\nSent " << message_count << " messages of " << message_size
                        << " bytes in " << elapsed.count() << " milliseconds.\nTransfer rate: "
-                       << maidsafe::BytesToDecimalSiUnits(transfer_rate) << "/sec.\nMessage rate:  "
-                       << message_rate << " msg/sec.\n\n";
+                       << maidsafe::BytesToDecimalSiUnits(transfer_rate)
+                       << "/sec.\nMessage rate:  " << message_rate << " msg/sec.\n\n";
 
   return 0;
 }

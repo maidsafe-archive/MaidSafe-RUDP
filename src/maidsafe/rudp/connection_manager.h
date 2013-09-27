@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 #ifndef MAIDSAFE_RUDP_CONNECTION_MANAGER_H_
 #define MAIDSAFE_RUDP_CONNECTION_MANAGER_H_
@@ -33,7 +36,6 @@ License.
 #include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
-
 namespace maidsafe {
 
 namespace rudp {
@@ -46,20 +48,17 @@ class Multiplexer;
 class Socket;
 class HandshakePacket;
 
-
 class ConnectionManager {
  public:
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
-                    std::shared_ptr<Multiplexer> multiplexer,
-                    const NodeId& this_node_id,
+                    std::shared_ptr<Multiplexer> multiplexer, NodeId this_node_id,
                     std::shared_ptr<asymm::PublicKey> this_public_key);
   ~ConnectionManager();
 
   void Close();
 
-  void Connect(const NodeId& peer_id,
-               const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void Connect(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
                const std::string& validation_data,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan,
@@ -70,16 +69,13 @@ class ConnectionManager {
   void RemoveConnection(std::shared_ptr<Connection> connection);
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
-  void Ping(const NodeId& peer_id,
-            const boost::asio::ip::udp::endpoint& peer_endpoint,
-            const std::function<void(int)> &ping_functor);  // NOLINT (Fraser)
+  void Ping(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+            const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
-  bool Send(const NodeId& peer_id,
-            const std::string& message,
+  bool Send(const NodeId& peer_id, const std::string& message,
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
-  bool MakeConnectionPermanent(const NodeId& peer_id,
-                               bool validated,
+  bool MakeConnectionPermanent(const NodeId& peer_id, bool validated,
                                boost::asio::ip::udp::endpoint& peer_endpoint);
 
   // This node's endpoint as viewed by peer

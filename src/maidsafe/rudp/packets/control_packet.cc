@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
@@ -29,10 +32,7 @@ namespace rudp {
 namespace detail {
 
 ControlPacket::ControlPacket()
-    : type_(0),
-      additional_info_(0),
-      time_stamp_(0),
-      destination_socket_id_(0) {}
+    : type_(0), additional_info_(0), time_stamp_(0), destination_socket_id_(0) {}
 
 ControlPacket::~ControlPacket() {}
 
@@ -55,11 +55,9 @@ uint32_t ControlPacket::DestinationSocketId() const { return destination_socket_
 
 void ControlPacket::SetDestinationSocketId(uint32_t n) { destination_socket_id_ = n; }
 
-bool ControlPacket::IsValidBase(const asio::const_buffer& buffer,
-                                uint16_t expected_packet_type) {
-  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
-  return (asio::buffer_size(buffer) >= kHeaderSize) &&
-         ((p[0] & 0x80) != 0) &&
+bool ControlPacket::IsValidBase(const asio::const_buffer& buffer, uint16_t expected_packet_type) {
+  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
+  return (asio::buffer_size(buffer) >= kHeaderSize) && ((p[0] & 0x80) != 0) &&
          ((p[0] & 0x7f) == ((expected_packet_type >> 8) & 0x7f)) &&
          (p[1] == (expected_packet_type & 0xff));
 }
@@ -69,8 +67,8 @@ bool ControlPacket::DecodeBase(const asio::const_buffer& buffer, uint16_t expect
   if (!IsValidBase(buffer, expected_packet_type))
     return false;
 
-  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
-//  size_t length = asio::buffer_size(buffer);
+  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
+  //  size_t length = asio::buffer_size(buffer);
 
   type_ = (p[0] & 0x7f);
   type_ = ((type_ << 8) | p[1]);
@@ -86,7 +84,7 @@ size_t ControlPacket::EncodeBase(const asio::mutable_buffer& buffer) const {
   if (asio::buffer_size(buffer) < kHeaderSize)
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char*>(buffer);
 
   p[0] = ((type_ >> 8) & 0x7f);
   p[0] |= 0x80;

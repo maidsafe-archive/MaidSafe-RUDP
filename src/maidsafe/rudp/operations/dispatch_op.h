@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
@@ -35,14 +38,12 @@ namespace detail {
 template <typename DispatchHandler>
 class DispatchOp {
  public:
-  DispatchOp(DispatchHandler handler,
-             boost::asio::ip::udp::socket& socket,
-             const boost::asio::mutable_buffer& buffer,
-             boost::asio::ip::udp::endpoint& sender_endpoint,
+  DispatchOp(DispatchHandler handler, boost::asio::ip::udp::socket& socket,
+             boost::asio::mutable_buffer buffer, boost::asio::ip::udp::endpoint& sender_endpoint,
              Dispatcher& dispatcher)
-      : handler_(handler),
+      : handler_(std::move(handler)),
         socket_(socket),
-        buffer_(buffer),
+        buffer_(std::move(buffer)),
         mutex_(std::make_shared<std::mutex>()),
         sender_endpoint_(sender_endpoint),
         dispatcher_(dispatcher) {}
@@ -61,10 +62,8 @@ class DispatchOp {
       std::lock_guard<std::mutex> lock(*mutex_);
       dispatcher_.HandleReceiveFrom(boost::asio::buffer(buffer_, bytes_transferred),
                                     sender_endpoint_);
-      bytes_transferred = socket_.receive_from(boost::asio::buffer(buffer_),
-                                               sender_endpoint_,
-                                               0,
-                                               local_ec);
+      bytes_transferred =
+          socket_.receive_from(boost::asio::buffer(buffer_), sender_endpoint_, 0, local_ec);
     }
 
     handler_(ec);

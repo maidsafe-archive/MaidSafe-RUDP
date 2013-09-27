@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
@@ -30,24 +33,21 @@ License.
 
 namespace bptime = boost::posix_time;
 
-
 namespace maidsafe {
 
 namespace rudp {
 
 namespace detail {
 
-Session::Session(Peer& peer,
-                 TickTimer& tick_timer,
+Session::Session(Peer& peer, TickTimer& tick_timer,
                  boost::asio::ip::udp::endpoint& this_external_endpoint,
                  std::mutex& this_external_endpoint_mutex,
-                 const boost::asio::ip::udp::endpoint& this_local_endpoint,
-                 NatType& nat_type)
+                 boost::asio::ip::udp::endpoint this_local_endpoint, NatType& nat_type)
     : peer_(peer),
       tick_timer_(tick_timer),
       this_external_endpoint_(this_external_endpoint),
       this_external_endpoint_mutex_(this_external_endpoint_mutex),
-      kThisLocalEndpoint_(this_local_endpoint),
+      kThisLocalEndpoint_(std::move(this_local_endpoint)),
       nat_type_(nat_type),
       this_node_id_(),
       this_public_key_(),
@@ -62,10 +62,8 @@ Session::Session(Peer& peer,
       on_nat_detection_requested_(),
       signal_connection_() {}
 
-void Session::Open(uint32_t id,
-                   NodeId this_node_id,
-                   std::shared_ptr<asymm::PublicKey> this_public_key,
-                   uint32_t sequence_number,
+void Session::Open(uint32_t id, NodeId this_node_id,
+                   std::shared_ptr<asymm::PublicKey> this_public_key, uint32_t sequence_number,
                    Mode mode,
                    const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
   assert(id != 0);
@@ -80,25 +78,15 @@ void Session::Open(uint32_t id,
   SendConnectionRequest();
 }
 
-bool Session::IsOpen() const {
-  return state_ != kClosed;
-}
+bool Session::IsOpen() const { return state_ != kClosed; }
 
-bool Session::IsConnected() const {
-  return state_ == kConnected;
-}
+bool Session::IsConnected() const { return state_ == kConnected; }
 
-uint32_t Session::Id() const {
-  return id_;
-}
+uint32_t Session::Id() const { return id_; }
 
-uint32_t Session::ReceivingSequenceNumber() const {
-  return receiving_sequence_number_;
-}
+uint32_t Session::ReceivingSequenceNumber() const { return receiving_sequence_number_; }
 
-uint32_t Session::PeerConnectionType() const {
-  return peer_connection_type_;
-}
+uint32_t Session::PeerConnectionType() const { return peer_connection_type_; }
 
 void Session::Close() {
   signal_connection_.disconnect();
@@ -106,7 +94,7 @@ void Session::Close() {
 }
 
 void Session::HandleHandshakeWhenProbing(const HandshakePacket& packet) {
-//    if (packet.ConnectionType() == 1 && packet.SynCookie() == 0)
+  //    if (packet.ConnectionType() == 1 && packet.SynCookie() == 0)
   state_ = kHandshaking;
   peer_requested_nat_detection_port_ = packet.RequestNatDetectionPort();
   SendCookie();
@@ -119,7 +107,7 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
     return;
   }
 
-//    if (packet.SynCookie() == 1) {
+  //    if (packet.SynCookie() == 1) {
   peer_.SetThisEndpoint(packet.PeerEndpoint());
   if (!CalculateEndpoint())
     return;
@@ -135,8 +123,8 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
   receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
   peer_.SetPublicKey(packet.PublicKey());
   if (packet.NatDetectionPort() != 0) {
-    peer_nat_detection_endpoint_ = boost::asio::ip::udp::endpoint(peer_.PeerEndpoint().address(),
-                                                                  packet.NatDetectionPort());
+    peer_nat_detection_endpoint_ =
+        boost::asio::ip::udp::endpoint(peer_.PeerEndpoint().address(), packet.NatDetectionPort());
   }
 
   if (mode_ == kBootstrapAndDrop)
@@ -148,9 +136,8 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
     mode_ = kBootstrapAndDrop;
 
   SendCookie();
-//    }
+  //    }
 }
-
 
 void Session::HandleHandshake(const HandshakePacket& packet) {
   if (peer_.SocketId() == 0)
@@ -282,18 +269,13 @@ void Session::SendCookie() {
   tick_timer_.TickAfter(bptime::milliseconds(250));
 }
 
-void Session::MakeNormal() {
-  mode_ = kNormal;
-}
+void Session::MakeNormal() { mode_ = kNormal; }
 
-Session::Mode Session::mode() const {
-  return mode_;
-}
+Session::Mode Session::mode() const { return mode_; }
 
 boost::asio::ip::udp::endpoint Session::RemoteNatDetectionEndpoint() const {
   return peer_nat_detection_endpoint_;
 }
-
 
 }  // namespace detail
 

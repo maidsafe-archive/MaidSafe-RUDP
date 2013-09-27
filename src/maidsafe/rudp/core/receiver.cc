@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
@@ -43,7 +46,8 @@ namespace rudp {
 
 namespace detail {
 
-Receiver::Receiver(Peer& peer, TickTimer& tick_timer, CongestionControl& congestion_control)  // NOLINT (Fraser)
+Receiver::Receiver(Peer& peer, TickTimer& tick_timer,
+                   CongestionControl& congestion_control)  // NOLINT (Fraser)
     : peer_(peer),
       tick_timer_(tick_timer),
       congestion_control_(congestion_control),
@@ -69,12 +73,12 @@ size_t Receiver::ReadData(const boost::asio::mutable_buffer& data) {
   unsigned char* ptr = begin;
   unsigned char* end = begin + asio::buffer_size(data);
 
-  for (uint32_t n = unread_packets_.Begin();
-       (n != unread_packets_.End()) && (ptr < end);
+  for (uint32_t n = unread_packets_.Begin(); (n != unread_packets_.End()) && (ptr < end);
        n = unread_packets_.Next(n)) {
     UnreadPacket& p = unread_packets_[n];
-//    LOG(kSuccess) << p.packet.MessageNumber() << std::boolalpha << "\t"
-//                  << p.packet.FirstPacketInMessage() << "\t" << p.packet.LastPacketInMessage();
+    //    LOG(kSuccess) << p.packet.MessageNumber() << std::boolalpha << "\t"
+    //                  << p.packet.FirstPacketInMessage() << "\t"
+    //                  << p.packet.LastPacketInMessage();
     if (p.lost) {
       break;
     } else if (p.packet.Data().size() > p.bytes_read) {
@@ -190,7 +194,6 @@ void Receiver::HandleTick() {
   //}
 }
 
-
 void Receiver::AddAckToWindow(const bptime::ptime& now) {
   // mjc : arg not used ... just stick something in there for now
   congestion_control_.OnGenerateAck(1);
@@ -267,7 +270,6 @@ void Receiver::AddAckPacketSequenceNumbers(AckPacket & packet) {
       last = *iter;
       ++iter;
     }
-    //LOG(kWarning) << "Add Ack Range: " << first << " - " << last;
     packet.AddSequenceNumbers(first,last);
   }
 }

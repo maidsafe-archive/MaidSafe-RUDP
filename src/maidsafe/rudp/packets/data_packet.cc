@@ -1,18 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
 
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 // Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
 
@@ -79,7 +81,7 @@ void DataPacket::SetData(const std::string& data) { data_ = data; }
 
 bool DataPacket::IsValid(const asio::const_buffer& buffer) {
   return ((asio::buffer_size(buffer) >= 16) &&
-          ((asio::buffer_cast<const unsigned char *>(buffer)[0] & 0x80) == 0));
+          ((asio::buffer_cast<const unsigned char*>(buffer)[0] & 0x80) == 0));
 }
 
 bool DataPacket::Decode(const asio::const_buffer& buffer) {
@@ -87,7 +89,7 @@ bool DataPacket::Decode(const asio::const_buffer& buffer) {
   if (!IsValid(buffer))
     return false;
 
-  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
+  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
   size_t length = asio::buffer_size(buffer);
 
   packet_sequence_number_ = (p[0] & 0x7f);
@@ -113,7 +115,7 @@ size_t DataPacket::Encode(const asio::mutable_buffer& buffer) const {
   if (asio::buffer_size(buffer) < kHeaderSize + data_.size())
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char *>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char*>(buffer);
 
   p[0] = ((packet_sequence_number_ >> 24) & 0x7f);
   p[1] = ((packet_sequence_number_ >> 16) & 0xff);

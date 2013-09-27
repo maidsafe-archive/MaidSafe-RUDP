@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 #include "maidsafe/rudp/managed_connections.h"
 
@@ -52,15 +55,15 @@ class ManagedConnectionsFuncTest : public testing::Test {
   void RunNetworkTest(uint8_t num_messages, int messages_size) {
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
     std::vector<Node::messages_t> sent_messages;
-    std::vector<std::future<Node::messages_t>> futures;  // NOLINT (Fraser)
+    std::vector<std::future<Node::messages_t>> futures;
 
     // Generate_messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-	  sent_messages.push_back(Node::messages_t());
+      sent_messages.push_back(Node::messages_t());
       std::string message_prefix(std::string("Msg from ") + nodes_[i]->id() + " ");
       for (uint8_t j = 0; j != num_messages; ++j) {
-        sent_messages[i].push_back(
-            message_prefix + std::string(messages_size - message_prefix.size(), 'A' + j));
+        sent_messages[i].push_back(message_prefix +
+                                   std::string(messages_size - message_prefix.size(), 'A' + j));
       }
     }
 
@@ -71,22 +74,18 @@ class ManagedConnectionsFuncTest : public testing::Test {
     }
 
     // Sending messages
-    std::vector<std::vector<std::vector<int>>> send_results(                      // NOLINT (Fraser)
-        nodes_.size(),
-        std::vector<std::vector<int>>(                                            // NOLINT (Fraser)
-            nodes_.size() - 1,
-            std::vector<int>(num_messages, kReturnCodeLimit)));
+    std::vector<std::vector<std::vector<int>>> send_results(
+        nodes_.size(), std::vector<std::vector<int>>(
+                           nodes_.size() - 1, std::vector<int>(num_messages, kReturnCodeLimit)));
 
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       std::vector<NodeId> peers(nodes_.at(i)->GetConnectedNodeIds());
       ASSERT_EQ(nodes_.size() - 1, peers.size());
       for (uint16_t j = 0; j != peers.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
-          nodes_.at(i)->managed_connections()->Send(peers.at(j),
-                                                    sent_messages[i][k],
-                                                    [=, &send_results](int result_in) {
-                                                      send_results[i][j][k] = result_in;
-                                                    });
+          nodes_.at(i)->managed_connections()->Send(
+              peers.at(j), sent_messages[i][k],
+              [=, &send_results](int result_in) { send_results[i][j][k] = result_in; });
         }
       }
     }
@@ -111,8 +110,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
       for (uint16_t j = 0; j != nodes_.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
           if (j != nodes_.size() - 1) {
-            EXPECT_EQ(kSuccess, send_results[i][j][k])
-                << "send_results[" << i << "][" << j << "][" << k << "]: " << send_results[i][j][k];
+            EXPECT_EQ(kSuccess, send_results[i][j][k]) << "send_results[" << i << "][" << j << "]["
+                                                       << k << "]: " << send_results[i][j][k];
           }
           if (i != j) {
             EXPECT_EQ(1U, nodes_.at(i)->GetReceivedMessageCount(sent_messages[j][k]))

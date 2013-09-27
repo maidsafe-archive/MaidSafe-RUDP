@@ -1,21 +1,23 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 #ifndef MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
 #define MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
-
 
 #include <functional>
 #include <map>
@@ -39,12 +41,13 @@ License.
 
 #include "maidsafe/rudp/nat_type.h"
 
-
 namespace maidsafe {
 
 namespace rudp {
 
-namespace detail { class Transport; }
+namespace detail {
+class Transport;
+}
 
 typedef std::function<void(const std::string& /*message*/)> MessageReceivedFunctor;
 typedef std::function<void(const NodeId& /*peer_id*/)> ConnectionLostFunctor;
@@ -58,7 +61,6 @@ struct EndpointPair {
 // Defined as 203.0.113.14:1314 which falls in the 203.0.113.0/24 (TEST-NET-3) range as described in
 // RFC 5737 (http://tools.ietf.org/html/rfc5737).
 extern const boost::asio::ip::udp::endpoint kNonRoutable;
-
 
 class ManagedConnections {
  public:
@@ -80,11 +82,9 @@ class ManagedConnections {
   // zero-state network, pass the required local_endpoint.
   int Bootstrap(const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
                 MessageReceivedFunctor message_received_functor,
-                ConnectionLostFunctor connection_lost_functor,
-                NodeId this_node_id,
+                ConnectionLostFunctor connection_lost_functor, NodeId this_node_id,
                 std::shared_ptr<asymm::PrivateKey> private_key,
-                std::shared_ptr<asymm::PublicKey> public_key,
-                NodeId& chosen_bootstrap_peer,
+                std::shared_ptr<asymm::PublicKey> public_key, NodeId& chosen_bootstrap_peer,
                 NatType& nat_type,
                 boost::asio::ip::udp::endpoint local_endpoint = boost::asio::ip::udp::endpoint());
 
@@ -98,10 +98,8 @@ class ManagedConnections {
   // permanent connection to a successful bootstrap endpoint) it should be passed in.  If
   // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
   // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
-  int GetAvailableEndpoint(NodeId peer_id,
-                           EndpointPair peer_endpoint_pair,
-                           EndpointPair& this_endpoint_pair,
-                           NatType& this_nat_type);
+  int GetAvailableEndpoint(NodeId peer_id, EndpointPair peer_endpoint_pair,
+                           EndpointPair& this_endpoint_pair, NatType& this_nat_type);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
   // runs its message_received_functor_ with the data.  All messages sent via this connection are
@@ -125,7 +123,7 @@ class ManagedConnections {
 
   // Try to ping remote_endpoint.  If this node is already connected, ping_functor is invoked with
   // kWontPingAlreadyConnected.  Otherwise, kPingFailed or kSuccess is passed to ping_functor.
-//  void Ping(boost::asio::ip::udp::endpoint peer_endpoint, PingFunctor ping_functor);
+  //  void Ping(boost::asio::ip::udp::endpoint peer_endpoint, PingFunctor ping_functor);
 
   friend class detail::Transport;
 
@@ -135,9 +133,8 @@ class ManagedConnections {
   typedef std::shared_ptr<detail::Transport> TransportPtr;
   typedef std::map<NodeId, TransportPtr> ConnectionMap;
   struct PendingConnection {
-    PendingConnection(const NodeId& node_id_in,
-                      TransportPtr transport,
-                      boost::asio::io_service &io_service);
+    PendingConnection(NodeId node_id_in, TransportPtr transport,
+                      boost::asio::io_service& io_service);
     NodeId node_id;
     TransportPtr pending_transport;
     boost::asio::deadline_timer timer;
@@ -151,20 +148,18 @@ class ManagedConnections {
   int TryToDetermineLocalEndpoint(boost::asio::ip::udp::endpoint& local_endpoint);
   int AttemptStartNewTransport(
       const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
-      const boost::asio::ip::udp::endpoint& local_endpoint,
-      NodeId& chosen_bootstrap_peer,
+      const boost::asio::ip::udp::endpoint& local_endpoint, NodeId& chosen_bootstrap_peer,
       NatType& nat_type);
   bool StartNewTransport(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint> > bootstrap_peers,
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers,
       boost::asio::ip::udp::endpoint local_endpoint);
 
   void GetBootstrapEndpoints(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint> >& bootstrap_peers,
+      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,
       boost::asio::ip::address& this_external_address);
 
   bool ExistingConnectionAttempt(const NodeId& peer_id, EndpointPair& this_endpoint_pair) const;
-  bool ExistingConnection(const NodeId& peer_id,
-                          EndpointPair& this_endpoint_pair,
+  bool ExistingConnection(const NodeId& peer_id, EndpointPair& this_endpoint_pair,
                           int& return_code);
   bool SelectIdleTransport(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
   bool SelectAnyTransport(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
@@ -173,18 +168,15 @@ class ManagedConnections {
 
   void AddPending(std::unique_ptr<PendingConnection> connection);
   void RemovePending(const NodeId& peer_id);
-  std::vector<std::unique_ptr<PendingConnection> >::const_iterator FindPendingTransportWithNodeId(  // NOLINT (Fraser)
+  std::vector<std::unique_ptr<PendingConnection>>::const_iterator FindPendingTransportWithNodeId(
       const NodeId& peer_id) const;
-  std::vector<std::unique_ptr<PendingConnection> >::iterator FindPendingTransportWithNodeId(  // NOLINT (Fraser)
+  std::vector<std::unique_ptr<PendingConnection>>::iterator FindPendingTransportWithNodeId(
       const NodeId& peer_id);
 
   void OnMessageSlot(const std::string& message);
-  void OnConnectionAddedSlot(const NodeId& peer_id,
-                             TransportPtr transport,
-                             bool temporary_connection,
-                             bool& is_duplicate_normal_connection);
-  void OnConnectionLostSlot(const NodeId& peer_id,
-                            TransportPtr transport,
+  void OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,
+                             bool temporary_connection, bool& is_duplicate_normal_connection);
+  void OnConnectionLostSlot(const NodeId& peer_id, TransportPtr transport,
                             bool temporary_connection);
   // This signal is fired by Session when a connecting peer requests to use this peer for NAT
   // detection.  The peer will attempt to connect to another one of this node's transports using

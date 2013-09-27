@@ -1,18 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
 
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/log.h"
@@ -111,10 +113,10 @@ TEST_F(DataPacketTest, BEH_SequenceNumber) {
   EXPECT_EQ(0U, data_packet_.PacketSequenceNumber());
 #ifndef NDEBUG
   std::string assertion_message;
-#  ifdef MAIDSAFE_WIN32
+#ifdef MAIDSAFE_WIN32
   assertion_message = "Assertion failed: .* <= 0x7fffffff";
-#  endif
-  ASSERT_DEATH({ data_packet_.SetPacketSequenceNumber(0x80000000); }, assertion_message);  // NOLINT (Fraser)
+#endif
+  ASSERT_DEATH({ data_packet_.SetPacketSequenceNumber(0x80000000); }, assertion_message);  // NOLINT
 #endif
   data_packet_.SetPacketSequenceNumber(0x7fffffff);
   EXPECT_EQ(0x7fffffff, data_packet_.PacketSequenceNumber());
@@ -142,10 +144,10 @@ TEST_F(DataPacketTest, BEH_MessageNumber) {
   EXPECT_EQ(0U, data_packet_.MessageNumber());
 #ifndef NDEBUG
   std::string assertion_message;
-#  ifdef MAIDSAFE_WIN32
+#ifdef MAIDSAFE_WIN32
   assertion_message = "Assertion failed: .* <= 0x1fffffff";
-#  endif
-  ASSERT_DEATH({ data_packet_.SetMessageNumber(0x20000000); }, assertion_message);  // NOLINT (Fraser)
+#endif
+  ASSERT_DEATH({ data_packet_.SetMessageNumber(0x20000000); }, assertion_message);  // NOLINT
 #endif
   data_packet_.SetMessageNumber(0x1fffffff);
   EXPECT_EQ(0x1fffffff, data_packet_.MessageNumber());
@@ -237,9 +239,7 @@ class ControlPacketTest : public testing::Test {
     EXPECT_EQ(0xffffffff, control_packet_.AdditionalInfo());
   }
 
-  void SetType(uint16_t n) {
-    control_packet_.SetType(n);
-  }
+  void SetType(uint16_t n) { control_packet_.SetType(n); }
 
   bool IsValidBase(const boost::asio::const_buffer& buffer, uint16_t expected_packet_type) {
     return control_packet_.IsValidBase(buffer, expected_packet_type);
@@ -259,8 +259,7 @@ class ControlPacketTest : public testing::Test {
 
       char char_array[ControlPacket::kHeaderSize] = {0};
       boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
-      EXPECT_EQ(ControlPacket::kHeaderSize,
-                control_packet_.EncodeBase(dbuffer));
+      EXPECT_EQ(ControlPacket::kHeaderSize, control_packet_.EncodeBase(dbuffer));
 
       control_packet_.SetType(0);
       control_packet_.SetAdditionalInfo(0);
@@ -282,18 +281,16 @@ TEST_F(ControlPacketTest, BEH_Type) {
   EXPECT_EQ(0U, control_packet_.Type());
 #ifndef NDEBUG
   std::string assertion_message;
-#  ifdef MAIDSAFE_WIN32
+#ifdef MAIDSAFE_WIN32
   assertion_message = "Assertion failed: .* <= 0x7fff";
-#  endif
+#endif
   ASSERT_DEATH({ SetType(0x8000); }, assertion_message);  // NOLINT (Fraser)
 #endif
   SetType(0x7fff);
   EXPECT_EQ(0x7fff, control_packet_.Type());
 }
 
-TEST_F(ControlPacketTest, BEH_AdditionalInfo) {
-  TestAdditionalInfo();
-}
+TEST_F(ControlPacketTest, BEH_AdditionalInfo) { TestAdditionalInfo(); }
 
 TEST_F(ControlPacketTest, BEH_TimeStamp) {
   EXPECT_EQ(0U, control_packet_.TimeStamp());
@@ -334,10 +331,7 @@ TEST_F(ControlPacketTest, BEH_IsValidBase) {
   }
 }
 
-TEST_F(ControlPacketTest, BEH_EncodeDecode) {
-  TestEncodeDecode();
-}
-
+TEST_F(ControlPacketTest, BEH_EncodeDecode) { TestEncodeDecode(); }
 
 class AckPacketTest : public testing::Test {
  public:
@@ -509,8 +503,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetRequestNatDetectionPort(true);
     handshake_packet_.SetNatDetectionPort(9999);
     boost::asio::ip::udp::endpoint endpoint(
-        boost::asio::ip::address::from_string("2001:db8:85a3:8d3:1319:8a2e:370:7348"),
-        12345);
+        boost::asio::ip::address::from_string("2001:db8:85a3:8d3:1319:8a2e:370:7348"), 12345);
     handshake_packet_.SetPeerEndpoint(endpoint);
 
     char char_array1[HandshakePacket::kMinPacketSize] = {0};
@@ -598,7 +591,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
 #ifndef NDEBUG
     // Encode and decode with an invalid public key
     handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey()));
-    ASSERT_DEATH({ handshake_packet_.Encode(boost::asio::buffer(dbuffer)); }, "");  // NOLINT (Fraser)
+    ASSERT_DEATH({ handshake_packet_.Encode(boost::asio::buffer(dbuffer)); }, "");  // NOLINT
 #endif
   }
 }
@@ -807,10 +800,11 @@ TEST_F(NegativeAckPacketTest, BEH_EncodeDecode) {
     EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x5));
 #ifndef NDEBUG
     std::string assertion_message;
-#  ifdef MAIDSAFE_WIN32
+#ifdef MAIDSAFE_WIN32
     assertion_message = "Assertion failed: .* <= 0x7fffffff";
-#  endif
-    ASSERT_DEATH({ negative_ack_packet_.ContainsSequenceNumber(0x80000000); }, assertion_message);  // NOLINT (Fraser)
+#endif
+    ASSERT_DEATH({ negative_ack_packet_.ContainsSequenceNumber(0x80000000); },
+                 assertion_message);  // NOLINT (Fraser)
 #else
     EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x80000000));
 #endif

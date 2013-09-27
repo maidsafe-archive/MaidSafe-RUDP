@@ -1,17 +1,20 @@
-/* Copyright 2012 MaidSafe.net limited
+/*  Copyright 2012 MaidSafe.net limited
 
-This MaidSafe Software is licensed under the MaidSafe.net Commercial License, version 1.0 or later,
-and The General Public License (GPL), version 3. By contributing code to this project You agree to
-the terms laid out in the MaidSafe Contributor Agreement, version 1.0, found in the root directory
-of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also available at:
+    This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
+    version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
+    licence you accepted on initial access to the Software (the "Licences").
 
-http://www.novinet.com/license
+    By contributing code to the MaidSafe Software, or to this project generally, you agree to be
+    bound by the terms of the MaidSafe Contributor Agreement, version 1.0, found in the root
+    directory of this project at LICENSE, COPYING and CONTRIBUTOR respectively and also
+    available at: http://www.maidsafe.net/licenses
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is
-distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing permissions and limitations under the
-License.
-*/
+    Unless required by applicable law or agreed to in writing, the MaidSafe Software distributed
+    under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+    OF ANY KIND, either express or implied.
+
+    See the Licences for the specific language governing permissions and limitations relating to
+    use of the MaidSafe Software.                                                                 */
 
 /*
  * @file  rudp_node_impl.h
@@ -38,7 +41,6 @@ License.
 #include "maidsafe/rudp/utils.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 
-
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -49,29 +51,22 @@ namespace test {
 
 class RudpNode {
  public:
-  RudpNode(std::vector<maidsafe::passport::Pmid> all_pmids,
-           int identity_index,
-           int peer_identity_index,
-           const std::string& peer);
+  RudpNode(std::vector<maidsafe::passport::Pmid> all_pmids, int identity_index,
+           int peer_identity_index, const std::string& peer);
   void Run();
-  void GetPeer(const std::string &peer);
+  void GetPeer(const std::string& peer);
 
  private:
   void PrintUsage();
-  void ProcessCommand(const std::string &cmdline);
+  void ProcessCommand(const std::string& cmdline);
 
   void OnMessageSlot(const std::string& message);
-  void OnConnectionAddedSlot(const NodeId& peer_id,
-                             std::shared_ptr<detail::Transport> transport,
-                             bool temporary_connection,
-                             bool& is_duplicate_normal_connection);
-  void OnConnectionLostSlot(const NodeId& peer_id,
-                            std::shared_ptr<detail::Transport> transport,
+  void OnConnectionAddedSlot(const NodeId& peer_id, std::shared_ptr<detail::Transport> transport,
+                             bool temporary_connection, bool& is_duplicate_normal_connection);
+  void OnConnectionLostSlot(const NodeId& peer_id, std::shared_ptr<detail::Transport> transport,
                             bool temporary_connection);
-  void OnNatDetectionRequestedSlot(const Endpoint& this_local_endpoint,
-                                   const NodeId& peer_id,
-                                   const Endpoint& peer_endpoint,
-                                   uint16_t& another_external_port);
+  void OnNatDetectionRequestedSlot(const Endpoint& this_local_endpoint, const NodeId& peer_id,
+                                   const Endpoint& peer_endpoint, uint16_t& another_external_port);
 
   std::vector<maidsafe::passport::Pmid> all_pmids_;
   std::vector<NodeId> all_ids_;
@@ -83,7 +78,7 @@ class RudpNode {
   std::shared_ptr<maidsafe::rudp::detail::Transport> transport_;
   bool reply_;
   size_t data_size_;
-//  size_t data_rate_;  (dirvine) currently unused
+  //  size_t data_rate_;  (dirvine) currently unused
   bool result_arrived_, finish_;
   boost::mutex wait_mutex_;
   boost::condition_variable wait_cond_var_;
