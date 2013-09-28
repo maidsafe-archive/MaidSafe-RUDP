@@ -640,7 +640,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
     EXPECT_EQ(kMessage, peer_message);
 }
 
-TEST_F(ManagedConnectionsTest, BEH_API_ManyTimesSimpleSend) {
+TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
   int result_of_send(kSuccess);
