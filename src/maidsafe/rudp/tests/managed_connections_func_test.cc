@@ -55,7 +55,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
   void RunNetworkTest(uint8_t num_messages, int messages_size) {
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
     std::vector<Node::messages_t> sent_messages;
-    std::vector<std::future<Node::messages_t>> futures;
+    std::vector<boost::future<Node::messages_t>> futures;
 
     // Generate_messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
@@ -92,9 +92,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Waiting for all results (promises)
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      std::chrono::milliseconds timeout((num_messages * messages_size / 20) + 5000);
-      if (WaitForFutureWhichDefinitelyIsntDeferred(futures.at(i), timeout) ==
-          std::future_status::ready) {
+      boost::chrono::milliseconds timeout((num_messages * messages_size / 20) + 5000);
+      if (futures.at(i).wait_for(timeout) == boost::future_status::ready) {
         auto messages(futures.at(i).get());
         EXPECT_FALSE(messages.empty()) << "Something";
       } else {

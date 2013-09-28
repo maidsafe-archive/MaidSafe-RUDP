@@ -26,6 +26,8 @@
 #include <vector>
 
 #include "boost/asio/ip/udp.hpp"
+#include "boost/thread/future.hpp"
+
 #include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 #include "maidsafe/common/test.h"
@@ -45,23 +47,6 @@ typedef std::shared_ptr<ManagedConnections> ManagedConnectionsPtr;
 
 namespace test {
 
-// Workaround for VC++ marking a future as deferred despite being constructed from a std::promise.
-template <typename Future, typename Timeout>
-#ifdef _MSC_VER
-std::future_status::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future& future,
-                                                                           const Timeout& timeout) {
-#else
-std::future_status WaitForFutureWhichDefinitelyIsntDeferred(const Future & future,
-                                                            const Timeout & timeout) {
-#endif
-  auto result(future.wait_for(timeout));
-  if (result != std::future_status::deferred)
-    return result;
-
-  auto wrapper_future(std::async(std::launch::async, [&] { future.wait(); }));
-  return wrapper_future.wait_for(timeout);
-}
-
 class Node;
 typedef std::shared_ptr<Node> NodePtr;
 
@@ -80,7 +65,7 @@ class Node {
   messages_t messages() const;
   int Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints, NodeId& chosen_bootstrap_peer,
                 Endpoint local_endpoint = Endpoint());
-  std::future<messages_t> GetFutureForMessages(uint32_t message_count);
+  boost::future<messages_t> GetFutureForMessages(uint32_t message_count);
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
   std::string debug_node_id() const { return DebugId(node_id_); }
@@ -114,7 +99,7 @@ class Node {
   ManagedConnectionsPtr managed_connections_;
   bool promised_;
   uint32_t total_message_count_expectation_;
-  std::promise<messages_t> message_promise_;
+  boost::promise<messages_t> message_promise_;
 };
 
 

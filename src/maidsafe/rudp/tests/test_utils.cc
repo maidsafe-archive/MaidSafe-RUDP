@@ -99,12 +99,12 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   }
   nodes[1]->AddConnectedNodeId(nodes[0]->node_id());
 
-  std::chrono::milliseconds timeout(Parameters::rendezvous_connect_timeout.total_milliseconds());
-  if (WaitForFutureWhichDefinitelyIsntDeferred(futures0, timeout) != std::future_status::ready) {
+  boost::chrono::milliseconds timeout(Parameters::rendezvous_connect_timeout.total_milliseconds());
+  if (futures0.wait_for(timeout) != boost::future_status::ready) {
     return testing::AssertionFailure() << "Failed waiting for " << nodes[0]->id() << " to receive "
                                        << nodes[1]->id() << "'s validation data.";
   }
-  if (WaitForFutureWhichDefinitelyIsntDeferred(futures1, timeout) != std::future_status::ready) {
+  if (futures1.wait_for(timeout) != boost::future_status::ready) {
     return testing::AssertionFailure() << "Failed waiting for " << nodes[1]->id() << " to receive "
                                        << nodes[0]->id() << "'s validation data.";
   }
@@ -220,14 +220,14 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
 
       // Check validation data was received correctly at each peer, and if so call
       // MarkConnectionAsValid.
-      if (WaitForFutureWhichDefinitelyIsntDeferred(futures0, rendezvous_connect_timeout) !=
-          std::future_status::ready) {
+      boost::chrono::milliseconds timeout(
+          Parameters::rendezvous_connect_timeout.total_milliseconds());
+      if (futures0.wait_for(timeout) != boost::future_status::ready) {
         return testing::AssertionFailure() << "Failed waiting for " << nodes[i]->id()
                                            << " to receive " << nodes[j]->id()
                                            << "'s validation data.";
       }
-      if (WaitForFutureWhichDefinitelyIsntDeferred(futures1, rendezvous_connect_timeout) !=
-          std::future_status::ready) {
+      if (futures1.wait_for(timeout) != boost::future_status::ready) {
         return testing::AssertionFailure() << "Failed waiting for " << nodes[j]->id()
                                            << " to receive " << nodes[i]->id()
                                            << "'s validation data.";
@@ -339,11 +339,11 @@ void Node::ResetData() {
   total_message_count_expectation_ = 0;
 }
 
-std::future<Node::messages_t> Node::GetFutureForMessages(uint32_t message_count) {
+boost::future<Node::messages_t> Node::GetFutureForMessages(uint32_t message_count) {
   assert(message_count > 0);
   total_message_count_expectation_ = message_count;
   promised_ = true;
-  std::promise<messages_t> message_promise;
+  boost::promise<messages_t> message_promise;
   message_promise_.swap(message_promise);
   return message_promise_.get_future();
 }

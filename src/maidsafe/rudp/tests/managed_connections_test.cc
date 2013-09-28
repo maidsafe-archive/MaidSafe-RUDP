@@ -66,8 +66,17 @@ std::future<std::pair<int, std::string>> GetFuture(std::vector<NodePtr>& nodes, 
   });
 }
 
-std::chrono::milliseconds rendezvous_connect_timeout(
+std::chrono::milliseconds rendezvous_connect_timeout() {
+  static const std::chrono::milliseconds timeout(
     Parameters::rendezvous_connect_timeout.total_milliseconds());
+  return timeout;
+}
+
+boost::chrono::milliseconds boost_rendezvous_connect_timeout() {
+  static const boost::chrono::milliseconds timeout(
+      Parameters::rendezvous_connect_timeout.total_milliseconds());
+  return timeout;
+}
 
 }  // unnamed namespace
 
@@ -78,10 +87,7 @@ class ManagedConnectionsTest : public testing::Test {
         nodes_(),
         bootstrap_endpoints_(),
         do_nothing_on_message_([](const std::string&) {}),
-        do_nothing_on_connection_lost_([](const NodeId&) {}) {
-    rendezvous_connect_timeout =
-        std::chrono::milliseconds(Parameters::rendezvous_connect_timeout.total_milliseconds());
-  }
+        do_nothing_on_connection_lost_([](const NodeId&) {}) {}
   ~ManagedConnectionsTest() {}
 
  protected:
@@ -115,9 +121,11 @@ class ManagedConnectionsTest : public testing::Test {
                             node_.node_id(), this_endpoint_pair, nodes_[index]->validation_data()));
     EXPECT_EQ(kSuccess, node_.managed_connections()->Add(
                             nodes_[index]->node_id(), peer_endpoint_pair, node_.validation_data()));
-    ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(rendezvous_connect_timeout));
+    ASSERT_EQ(boost::future_status::ready,
+              peer_futures.wait_for(boost_rendezvous_connect_timeout()));
     auto peer_messages(peer_futures.get());
-    ASSERT_EQ(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+    ASSERT_EQ(boost::future_status::ready,
+              this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
     auto this_node_messages(this_node_futures.get());
     ASSERT_EQ(1U, peer_messages.size());
     ASSERT_EQ(1U, this_node_messages.size());
@@ -272,7 +280,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
     EXPECT_EQ(this_endpoint_pair.local, test_endpoint_pair.local);
   }
 
-  Sleep(rendezvous_connect_timeout / 2);
+  Sleep(rendezvous_connect_timeout() / 2);
 
   // Remove one from the pendings_ by calling Add to complete making the connection.
   const int kSelected((RandomUint32() % (kNodeCount - 1)) + 1);
@@ -296,7 +304,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
     }
   }
 
-  Sleep(rendezvous_connect_timeout / 2 + std::chrono::milliseconds(500));
+  Sleep(rendezvous_connect_timeout() / 2 + std::chrono::milliseconds(500));
 
   for (int i(1); i != kNodeCount; ++i) {
     EXPECT_EQ((i == kSelected ? kUnvalidatedConnectionAlreadyExists : kSuccess),
@@ -335,7 +343,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[0]->node_id(), EndpointPair(),
                                                        node_.validation_data()));
   auto this_node_futures(node_.GetFutureForMessages(1));
-  ASSERT_NE(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_NE(boost::future_status::ready,
+            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
 
   // Case: Non-existent endpoint
   EndpointPair random_peer_endpoint;
@@ -347,7 +356,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(), random_peer_endpoint,
                                                        node_.validation_data()));
   this_node_futures = node_.GetFutureForMessages(1);
-  ASSERT_NE(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_NE(boost::future_status::ready,
+            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
 
   // Case: Success
   node_.ResetData();
@@ -364,9 +374,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
                                                             nodes_[2]->validation_data()));
   EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[2]->node_id(), peer_endpoint_pair2,
                                                        node_.validation_data()));
-  ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto peer_messages(peer_futures.get());
-  ASSERT_EQ(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready,
+            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto this_node_messages(this_node_futures.get());
   EXPECT_EQ(1, peer_messages.size());
   EXPECT_EQ(1, this_node_messages.size());
@@ -414,9 +425,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
                                                             nodes_[1]->validation_data()));
   EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(), peer_endpoint_pair,
                                                        node_.validation_data()));
-  EXPECT_EQ(std::future_status::ready, peer_futures.wait_for(rendezvous_connect_timeout));
+  EXPECT_EQ(boost::future_status::ready, peer_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto peer_messages(peer_futures.get());
-  EXPECT_EQ(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+  EXPECT_EQ(boost::future_status::ready,
+            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto this_node_messages(this_node_futures.get());
   EXPECT_EQ(1, peer_messages.size());
   EXPECT_EQ(1, this_node_messages.size());
@@ -512,9 +524,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
                                                             nodes_[0]->validation_data()));
   EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[0]->node_id(), peer_endpoint_pair,
                                                        node_.validation_data()));
-  ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto peer_messages(peer_futures.get());
-  ASSERT_EQ(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready,
+            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto this_node_messages(this_node_futures.get());
   ASSERT_EQ(1, peer_messages.size());
   ASSERT_EQ(1, this_node_messages.size());
@@ -600,9 +613,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
                                                             nodes_[1]->validation_data()));
   EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(), peer_endpoint_pair,
                                                        node_.validation_data()));
-  ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto peer_messages(peer_futures.get());
-  ASSERT_EQ(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready,
+            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto this_node_messages(this_node_futures.get());
   ASSERT_EQ(1U, peer_messages.size());
   ASSERT_EQ(1U, this_node_messages.size());
@@ -619,7 +633,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
 
   ASSERT_TRUE(wait_for_result(kRepeatCount));
   EXPECT_EQ(kSuccess, result_of_send);
-  ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(std::chrono::minutes(2)));
+  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost::chrono::minutes(2)));
   peer_messages = peer_futures.get();
   ASSERT_EQ(static_cast<size_t>(kRepeatCount), peer_messages.size());
   for (auto peer_message : peer_messages)
@@ -669,9 +683,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_ManyTimesSimpleSend) {
                                                             nodes_[1]->validation_data()));
   EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(), peer_endpoint_pair,
                                                        node_.validation_data()));
-  ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto peer_messages(peer_futures.get());
-  ASSERT_EQ(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready,
+            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto this_node_messages(this_node_futures.get());
   ASSERT_EQ(1U, peer_messages.size());
   ASSERT_EQ(1U, this_node_messages.size());
@@ -688,7 +703,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_ManyTimesSimpleSend) {
 
   ASSERT_TRUE(wait_for_result(kRepeatCount)) << result_arrived_count << " - " << kRepeatCount;
   EXPECT_EQ(kSuccess, result_of_send);
-  ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(std::chrono::minutes(2)));
+  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost::chrono::minutes(2)));
   peer_messages = peer_futures.get();
   ASSERT_EQ(static_cast<size_t>(kRepeatCount), peer_messages.size());
   for (auto peer_message : peer_messages)
@@ -744,7 +759,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.managed_connections()->Send(nodes_[0]->node_id(), "message6", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kSuccess, result_of_send);
-  ASSERT_EQ(std::future_status::ready, future_messages_at_peer.wait_for(std::chrono::seconds(200)));
+  ASSERT_EQ(boost::future_status::ready,
+            future_messages_at_peer.wait_for(boost::chrono::seconds(200)));
   auto messages(future_messages_at_peer.get());
   ASSERT_EQ(2U, messages.size());
   EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message5"));
@@ -767,9 +783,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
                                                             nodes_[1]->validation_data()));
   EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(), peer_endpoint_pair,
                                                        node_.validation_data()));
-  ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto peer_messages(peer_futures.get());
-  ASSERT_EQ(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready,
+            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto this_node_messages(this_node_futures.get());
   ASSERT_EQ(1U, peer_messages.size());
   ASSERT_EQ(1U, this_node_messages.size());
@@ -796,7 +813,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.managed_connections()->Send(nodes_[1]->node_id(), "message10", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kSuccess, result_of_send);
-  ASSERT_EQ(std::future_status::ready, future_messages_at_peer.wait_for(std::chrono::seconds(200)));
+  ASSERT_EQ(boost::future_status::ready,
+            future_messages_at_peer.wait_for(boost::chrono::seconds(200)));
   messages = future_messages_at_peer.get();
   ASSERT_EQ(2U, messages.size());
   EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message9"));
@@ -812,7 +830,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   nodes_[1]->managed_connections()->Send(node_.node_id(), "message12", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kSuccess, result_of_send);
-  ASSERT_EQ(std::future_status::ready, future_messages_at_peer.wait_for(std::chrono::seconds(200)));
+  ASSERT_EQ(boost::future_status::ready,
+            future_messages_at_peer.wait_for(boost::chrono::seconds(200)));
   messages = future_messages_at_peer.get();
   ASSERT_EQ(2U, messages.size());
   EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message11"));
@@ -857,7 +876,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
     }));  // NOLINT (Fraser)
   }
   EXPECT_EQ(kSuccess, result_of_send);
-  ASSERT_EQ(std::future_status::ready, future_messages_at_peer.wait_for(std::chrono::seconds(20)));
+  ASSERT_EQ(boost::future_status::ready,
+            future_messages_at_peer.wait_for(boost::chrono::seconds(20)));
   messages = future_messages_at_peer.get();
   ASSERT_EQ(1U, messages.size());
   EXPECT_EQ(sent_message, messages[0]);
@@ -901,9 +921,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
                                                             nodes_[1]->validation_data()));
   EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(), peer_endpoint_pair,
                                                        node_.validation_data()));
-  ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto peer_messages(peer_futures.get());
-  ASSERT_EQ(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+  ASSERT_EQ(boost::future_status::ready,
+            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
   auto this_node_messages(this_node_futures.get());
   ASSERT_EQ(1U, peer_messages.size());
   ASSERT_EQ(1U, this_node_messages.size());
@@ -942,8 +963,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   }
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kSuccess, result_of_send);
-  ASSERT_EQ(std::future_status::ready,
-            future_messages_at_peer.wait_for(std::chrono::seconds(10 * kMessageCount)));
+  ASSERT_EQ(boost::future_status::ready,
+            future_messages_at_peer.wait_for(boost::chrono::seconds(10 * kMessageCount)));
   auto messages(future_messages_at_peer.get());
   ASSERT_EQ(kMessageCount, messages.size());
   for (int i(0); i != kMessageCount; ++i)
@@ -980,9 +1001,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
                                                               nodes_[i]->validation_data()));
     EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[i]->node_id(), peer_endpoint_pair,
                                                          node_.validation_data()));
-    ASSERT_EQ(std::future_status::ready, peer_futures.wait_for(rendezvous_connect_timeout));
+    ASSERT_EQ(boost::future_status::ready,
+              peer_futures.wait_for(boost_rendezvous_connect_timeout()));
     auto peer_messages(peer_futures.get());
-    ASSERT_EQ(std::future_status::ready, this_node_futures.wait_for(rendezvous_connect_timeout));
+    ASSERT_EQ(boost::future_status::ready,
+              this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
     auto this_node_messages(this_node_futures.get());
     ASSERT_EQ(1U, peer_messages.size());
     ASSERT_EQ(1U, this_node_messages.size());
@@ -1021,11 +1044,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   });
 
   // Perform sends
-  std::vector<std::thread> threads(kNetworkSize);
+  std::vector<boost::thread> threads(kNetworkSize);
   for (int i(0); i != kNetworkSize - 1; ++i) {
     threads[i] =
-        std::move(std::thread(&ManagedConnections::Send, nodes_[i]->managed_connections().get(),
-                              node_.node_id(), sent_messages[i], message_sent_functors[i]));
+        std::move(boost::thread(&ManagedConnections::Send, nodes_[i]->managed_connections().get(),
+                                node_.node_id(), sent_messages[i], message_sent_functors[i]));
   }
   for (auto& thread : threads)
     thread.join();
@@ -1036,8 +1059,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
     SCOPED_TRACE("Assessing results of sending from " + nodes_[i]->id());
     EXPECT_EQ(kSuccess, result_of_sends[i]);
   }
-  ASSERT_EQ(std::future_status::ready,
-            future_messages.wait_for(std::chrono::seconds(10 * kNetworkSize)));
+  ASSERT_EQ(boost::future_status::ready,
+            future_messages.wait_for(boost::chrono::seconds(10 * kNetworkSize)));
   auto messages(future_messages.get());
   ASSERT_EQ(kNetworkSize - 1, messages.size());
   for (int i(0); i != kNetworkSize - 1; ++i)
@@ -1066,7 +1089,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
     cond_var.notify_one();
   });
   auto wait_for_result([&] {
-    return cond_var.wait_for(lock, std::chrono::milliseconds(100),
+    return cond_var.wait_for(lock, std::chrono::milliseconds(1000),
                              [&result_arrived]() { return result_arrived; });  // NOLINT (Fraser)
   });
   node_.ResetData();
@@ -1075,8 +1098,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   node_.managed_connections()->Send(nodes_[0]->node_id(), "message01", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kSuccess, result_of_send);
-  ASSERT_EQ(std::future_status::ready,
-            future_messages_at_peer.wait_for(std::chrono::milliseconds(200)));
+  ASSERT_EQ(boost::future_status::ready,
+            future_messages_at_peer.wait_for(boost::chrono::milliseconds(200)));
   auto messages = future_messages_at_peer.get();
   ASSERT_EQ(1U, messages.size());
   EXPECT_EQ(*messages.begin(), "message01");
@@ -1095,8 +1118,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   nodes_[0]->managed_connections()->Send(node_.node_id(), "message02", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kSuccess, result_of_send);
-  ASSERT_EQ(std::future_status::ready,
-            future_messages_at_peer.wait_for(std::chrono::milliseconds(200)));
+  ASSERT_EQ(boost::future_status::ready,
+            future_messages_at_peer.wait_for(boost::chrono::milliseconds(200)));
   messages = future_messages_at_peer.get();
   ASSERT_EQ(1U, messages.size());
   EXPECT_EQ(*messages.begin(), "message02");
