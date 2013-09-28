@@ -70,8 +70,17 @@ uint32_t AckPacket::EstimatedLinkCapacity() const { return estimated_link_capaci
 void AckPacket::SetEstimatedLinkCapacity(uint32_t n) { estimated_link_capacity_ = n; }
 
 bool AckPacket::IsValid(const asio::const_buffer& buffer) {
-  // mjc : write this
-  return (IsValidBase(buffer, kPacketType));
+  auto buffer_size = asio::buffer_size(buffer);
+  if (!IsValidBase(buffer, kPacketType) || buffer_size < kPacketSize)
+    return false;
+
+  // get the number of sequence parameters
+  auto p = asio::buffer_cast<const unsigned char*>(buffer) + kHeaderSize;
+  uint32_t sequence_count = 0;
+  DecodeUint32(&sequence_count, p);
+
+  return buffer_size == kPacketSize + (sequence_count * 4) ||
+         buffer_size == kPacketSize + (sequence_count * 4) + kOptionalPacketSize;
 }
 
 void AckPacket::ClearSequenceNumbers() {
@@ -109,8 +118,6 @@ bool AckPacket::HasSequenceNumbers() const {
 std::vector<std::pair<uint32_t, uint32_t>> AckPacket::GetSequenceRanges() const {
   return sequence_numbers_;
 }
-
-
 
 bool AckPacket::Decode(const asio::const_buffer& buffer) {
   // Refuse to decode if the input buffer is not valid.
