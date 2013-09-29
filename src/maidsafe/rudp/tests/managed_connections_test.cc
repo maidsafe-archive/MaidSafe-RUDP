@@ -1026,8 +1026,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   for (int i(0); i != kNetworkSize - 1; ++i) {
     SCOPED_TRACE("Preparing to send from " + nodes_[i]->id());
     nodes_[i]->ResetData();
-    sent_messages.push_back(std::string(256 * 1024, 'A' + i));
-    message_sent_functors.push_back([&, i] (int result_in) mutable {
+    sent_messages.push_back(std::string(256 * 1024, 'A' + static_cast<int8_t>(i)));
+    message_sent_functors.push_back([&, i](int result_in) mutable {
       std::lock_guard<std::mutex> lock(mutex);
       result_of_sends[i] = result_in;
       ++results_arrived_count;
@@ -1050,8 +1050,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
         std::move(std::thread(&ManagedConnections::Send, nodes_[i]->managed_connections().get(),
                                 node_.node_id(), sent_messages[i], message_sent_functors[i]));
   }
-  for (auto& thread : threads)
-    if (thread.joinable()) thread.join();
+  for (auto& thread : threads) {
+    if (thread.joinable())
+      thread.join();
+  }
 
   // Assess results
   ASSERT_TRUE(wait_for_result());
