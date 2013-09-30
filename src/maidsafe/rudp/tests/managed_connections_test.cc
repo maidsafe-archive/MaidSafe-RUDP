@@ -1051,8 +1051,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
                                 node_.node_id(), sent_messages[i], message_sent_functors[i]));
   }
   for (auto& thread : threads) {
-    if (thread.joinable())
-      thread.join();
+    while (!thread.joinable())
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    thread.join();
   }
 
   // Assess results
