@@ -36,7 +36,7 @@ template <typename WriteHandler>
 class WriteOp {
  public:
   WriteOp(WriteHandler handler, const boost::system::error_code& ec,
-          const size_t& bytes_transferred)
+          size_t bytes_transferred)
       : handler_(std::move(handler)), ec_(ec), bytes_transferred_(bytes_transferred) {}
 
   WriteOp(const WriteOp& other)
@@ -66,7 +66,7 @@ class WriteOp {
 
   WriteHandler handler_;
   const boost::system::error_code& ec_;
-  const size_t& bytes_transferred_;
+  size_t bytes_transferred_;
 };
 
 }  // namespace detail
