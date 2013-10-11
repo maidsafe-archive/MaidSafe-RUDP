@@ -35,7 +35,7 @@ namespace detail {
 template <typename ReadHandler>
 class ReadOp {
  public:
-  ReadOp(ReadHandler handler, const boost::system::error_code& ec, size_t bytes_transferred)
+  ReadOp(ReadHandler handler, const boost::system::error_code& ec, const size_t& bytes_transferred)
       : handler_(std::move(handler)), ec_(ec), bytes_transferred_(bytes_transferred) {}
 
   ReadOp(const ReadOp& other)
@@ -65,7 +65,7 @@ class ReadOp {
 
   ReadHandler handler_;
   const boost::system::error_code& ec_;
-  size_t bytes_transferred_;
+  const size_t& bytes_transferred_;
 };
 
 }  // namespace detail
