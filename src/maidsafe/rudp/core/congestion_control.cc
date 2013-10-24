@@ -114,7 +114,7 @@ void CongestionControl::OnGenerateAck(uint32_t /*seqnum*/) {
 
   // Determine packet arrival speed only if we had more than 8 valid values.
   if ((total > 0) && (num_valid_intervals > 8)) {
-    assert(num_valid_intervals <= std::numeric_limits<uint64_t>::max() / 1000000);
+    assert(num_valid_intervals <= (std::numeric_limits<size_t>::max() / 1000000));
     assert((1000000 * num_valid_intervals) / total <= std::numeric_limits<uint32_t>::max());
     packets_receiving_rate_ = static_cast<uint32_t>(((1000000 * num_valid_intervals) / total));
   } else {
