@@ -28,10 +28,6 @@ project(rudp)
 
 include(../../cmake_modules/standard_setup.cmake)
 
-include_directories(${common_SOURCE_DIR}/include)
-include_directories(${passport_SOURCE_DIR}/include)
-include_directories(${private_SOURCE_DIR}/include)
-
 
 #==================================================================================================#
 # Set up all files as GLOBs                                                                        #
@@ -56,6 +52,7 @@ glob_dir(RudpPacketsTests ${RudpSourcesDir}/packets/tests "Packets Test")
 # Define MaidSafe libraries and executables                                                        #
 #==================================================================================================#
 ms_add_static_library(rudp ${RudpAllFiles} ${RudpCoreAllFiles} ${RudpOperationsAllFiles} ${RudpPacketsAllFiles})
+target_include_directories(maidsafe_rudp PUBLIC ${PROJECT_SOURCE_DIR}/include PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(maidsafe_rudp maidsafe_common)
 
 if(MaidsafeTesting)
@@ -63,12 +60,13 @@ if(MaidsafeTesting)
                                           ${RudpCoreTestsAllFiles}
 #                                          ${RudpOperationsTestsAllFiles}
                                           ${RudpPacketsTestsAllFiles})
-#  ms_add_executable(rudp_performance_tool "Tools" ${RudpSourcesDir}/tests/performance_tool.cc
-#                                                  ${RudpSourcesDir}/tests/test_utils.cc
-#                                                  ${RudpSourcesDir}/tests/test_utils.h)
-#  ms_add_executable(rudp_node "Tools" ${RudpSourcesDir}/tests/rudp_node.cc
-#                                      ${RudpSourcesDir}/tests/rudp_node_impl.h
-#                                      ${RudpSourcesDir}/tests/rudp_node_impl.cc)
+  target_include_directories(TESTrudp PRIVATE ${PROJECT_SOURCE_DIR}/src)
+#  ms_add_executable(rudp_performance_tool "Tools/RUDP" ${RudpSourcesDir}/tests/performance_tool.cc
+#                                                       ${RudpSourcesDir}/tests/test_utils.cc
+#                                                       ${RudpSourcesDir}/tests/test_utils.h)
+#  ms_add_executable(rudp_node "Tools/RUDP" ${RudpSourcesDir}/tests/rudp_node.cc
+#                                           ${RudpSourcesDir}/tests/rudp_node_impl.h
+#                                           ${RudpSourcesDir}/tests/rudp_node_impl.cc)
   target_link_libraries(TESTrudp maidsafe_rudp)
 #  target_link_libraries(rudp_performance_tool maidsafe_rudp)
 #  target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
