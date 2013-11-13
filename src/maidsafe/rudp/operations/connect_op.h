@@ -53,7 +53,7 @@ class ConnectOp {
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function& f, ConnectOp* op) {
+  friend void asio_handler_invoke(Function f, ConnectOp* op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }

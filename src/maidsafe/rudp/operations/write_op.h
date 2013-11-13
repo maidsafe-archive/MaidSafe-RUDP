@@ -55,7 +55,7 @@ class WriteOp {
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function& f, WriteOp* op) {
+  friend void asio_handler_invoke(Function f, WriteOp* op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }

@@ -54,7 +54,7 @@ class ReadOp {
   }
 
   template <typename Function>
-  friend void asio_handler_invoke(const Function& f, ReadOp* op) {
+  friend void asio_handler_invoke(Function f, ReadOp* op) {
     using boost::asio::asio_handler_invoke;
     asio_handler_invoke(f, &op->handler_);
   }
