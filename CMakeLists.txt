@@ -33,25 +33,25 @@ include(../../cmake_modules/standard_setup.cmake)
 # Set up all files as GLOBs                                                                        #
 #==================================================================================================#
 set(RudpSourcesDir ${PROJECT_SOURCE_DIR}/src/maidsafe/rudp)
-glob_dir(Rudp ${RudpSourcesDir} Rudp)
-glob_dir(RudpCore ${RudpSourcesDir}/core "Core\\\\")
-glob_dir(RudpOperations ${RudpSourcesDir}/operations "Operations\\\\")
-glob_dir(RudpPackets ${RudpSourcesDir}/packets "Packets\\\\")
+ms_glob_dir(Rudp ${RudpSourcesDir} Rudp)
+ms_glob_dir(RudpCore ${RudpSourcesDir}/core "Core\\\\")
+ms_glob_dir(RudpOperations ${RudpSourcesDir}/operations "Operations\\\\")
+ms_glob_dir(RudpPackets ${RudpSourcesDir}/packets "Packets\\\\")
 
-glob_dir(RudpTests ${RudpSourcesDir}/tests "Main Test")
+ms_glob_dir(RudpTests ${RudpSourcesDir}/tests "Main Test")
 list(REMOVE_ITEM RudpTestsAllFiles ${RudpSourcesDir}/tests/performance_tool.cc
                                    ${RudpSourcesDir}/tests/rudp_node.cc
                                    ${RudpSourcesDir}/tests/rudp_node_impl.h
                                    ${RudpSourcesDir}/tests/rudp_node_impl.cc)
-glob_dir(RudpCoreTests ${RudpSourcesDir}/core/tests "Core Test")
-glob_dir(RudpOperationsTests ${RudpSourcesDir}/operations/tests "Operations Test")
-glob_dir(RudpPacketsTests ${RudpSourcesDir}/packets/tests "Packets Test")
+ms_glob_dir(RudpCoreTests ${RudpSourcesDir}/core/tests "Core Test")
+ms_glob_dir(RudpOperationsTests ${RudpSourcesDir}/operations/tests "Operations Test")
+ms_glob_dir(RudpPacketsTests ${RudpSourcesDir}/packets/tests "Packets Test")
 
 
 #==================================================================================================#
 # Define MaidSafe libraries and executables                                                        #
 #==================================================================================================#
-ms_add_static_library(rudp ${RudpAllFiles} ${RudpCoreAllFiles} ${RudpOperationsAllFiles} ${RudpPacketsAllFiles})
+ms_add_static_library(maidsafe_rudp ${RudpAllFiles} ${RudpCoreAllFiles} ${RudpOperationsAllFiles} ${RudpPacketsAllFiles})
 target_include_directories(maidsafe_rudp PUBLIC ${PROJECT_SOURCE_DIR}/include PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(maidsafe_rudp maidsafe_common)
 
@@ -72,7 +72,7 @@ if(MaidsafeTesting)
 #  target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
 endif()
 
-rename_outdated_built_exes()
+ms_rename_outdated_built_exes()
 
 
 #==================================================================================================#
@@ -85,8 +85,8 @@ include(standard_flags)
 # Tests                                                                                            #
 #==================================================================================================#
 if(MaidsafeTesting)
-  add_style_test()
-  add_gtests(TESTrudp)
-  add_project_experimental()
-  test_summary_output()
+  ms_add_style_test()
+  ms_add_gtests(TESTrudp)
+  ms_add_project_experimental()
+  ms_test_summary_output()
 endif()
