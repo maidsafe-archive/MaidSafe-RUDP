@@ -136,7 +136,6 @@ int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoin
   this_node_id_ = this_node_id;
   private_key_ = private_key;
   public_key_ = public_key;
-  asio_service_.Start();
 
   result = TryToDetermineLocalEndpoint(local_endpoint);
   if (result != kSuccess)

@@ -84,7 +84,6 @@ namespace test {
 //          &on_message_connection,
 //          &on_connection_added_connection,
 //          &on_connection_lost_connection);
-//      asio_service.Start();
 //    }
 //
 //    ~TestPeer() {
