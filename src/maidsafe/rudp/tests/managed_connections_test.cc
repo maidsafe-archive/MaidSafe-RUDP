@@ -579,9 +579,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   std::mutex mutex;
   std::unique_lock<std::mutex> lock(mutex);
   MessageSentFunctor message_sent_functor([&](int result_in) {
-    std::lock_guard<std::mutex> lock(mutex);
-    result_of_send = result_in;
-    ++result_arrived_count;
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      result_of_send = result_in;
+      ++result_arrived_count;
+    }
     cond_var.notify_one();
   });
   auto wait_for_result([&](int count) {
@@ -648,9 +650,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
   std::condition_variable cond_var;
   std::mutex mutex;
   MessageSentFunctor message_sent_functor([&](int result_in) {
-    std::lock_guard<std::mutex> lock(mutex);
-    result_of_send = result_in;
-    ++result_arrived_count;
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      result_of_send = result_in;
+      ++result_arrived_count;
+    }
     cond_var.notify_one();
   });
   auto wait_for_result([&](int count)->bool {
@@ -720,9 +724,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   std::condition_variable cond_var;
   std::mutex mutex;
   MessageSentFunctor message_sent_functor([&](int result_in) {
-    std::lock_guard<std::mutex> lock(mutex);
-    result_of_send = result_in;
-    result_arrived = true;
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      result_of_send = result_in;
+      result_arrived = true;
+    }
     cond_var.notify_one();
   });
   auto wait_for_result([&]()->bool {
@@ -946,9 +952,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   std::mutex mutex;
   std::unique_lock<std::mutex> lock(mutex);
   MessageSentFunctor message_sent_functor([&](int result_in) {
-    std::lock_guard<std::mutex> lock(mutex);
-    result_of_send = result_in;
-    ++result_arrived_count;
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      result_of_send = result_in;
+      ++result_arrived_count;
+    }
     cond_var.notify_one();
   });
   auto wait_for_result([&] {
@@ -1028,9 +1036,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
     nodes_[i]->ResetData();
     sent_messages.push_back(std::string(256 * 1024, 'A' + static_cast<int8_t>(i)));
     message_sent_functors.push_back([&, i](int result_in) mutable {
-      std::lock_guard<std::mutex> lock(mutex);
-      result_of_sends[i] = result_in;
-      ++results_arrived_count;
+      {
+        std::lock_guard<std::mutex> lock(mutex);
+        result_of_sends[i] = result_in;
+        ++results_arrived_count;
+      }
       cond_var.notify_one();
     });
   }
@@ -1044,15 +1054,18 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   });
 
   // Perform sends
-  std::vector<std::thread> threads(kNetworkSize);
+  std::vector<std::thread> threads(kNetworkSize - 1);
   for (int i(0); i != kNetworkSize - 1; ++i) {
     threads[i] =
         std::move(std::thread(&ManagedConnections::Send, nodes_[i]->managed_connections().get(),
                                 node_.node_id(), sent_messages[i], message_sent_functors[i]));
   }
   for (auto& thread : threads) {
-    while (!thread.joinable())
+    while (!thread.joinable()) {
+      lock.unlock();
       std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      lock.lock();
+    }
     thread.join();
   }
 
@@ -1086,9 +1099,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   std::mutex mutex;
   std::unique_lock<std::mutex> lock(mutex);
   MessageSentFunctor message_sent_functor([&](int result_in) {
-    std::lock_guard<std::mutex> lock(mutex);
-    result_of_send = result_in;
-    result_arrived = true;
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      result_of_send = result_in;
+      result_arrived = true;
+    }
     cond_var.notify_one();
   });
   auto wait_for_result([&] {

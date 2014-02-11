@@ -92,14 +92,18 @@ namespace test {
 //    }
 //
 //    void OnMessageSlot(const std::string& message) {
-//      boost::mutex::scoped_lock lock(mutex);
-//      messages_received.push_back(message);
+//      {
+//        boost::mutex::scoped_lock lock(mutex);
+//        messages_received.push_back(message);
+//      }
 //      cond_var_msg_received.notify_one();
 //    }
 //
 //    void OnConnectionAddedSlot(const Endpoint& peer_endpoint, TransportPtr /*transport*/) {
-//      boost::mutex::scoped_lock lock(mutex);
-//      peers_added.push_back(peer_endpoint);
+//      {
+//        boost::mutex::scoped_lock lock(mutex);
+//        peers_added.push_back(peer_endpoint);
+//      }
 //      cond_var_connection_added.notify_one();
 //    }
 //
@@ -107,8 +111,10 @@ namespace test {
 //                              TransportPtr /*transport*/,
 //                              bool /*connections_empty*/,
 //                              bool /*temporary_connection*/) {
-//      boost::mutex::scoped_lock lock(mutex);
-//      peers_lost.push_back(peer_endpoint);
+//      {
+//        boost::mutex::scoped_lock lock(mutex);
+//        peers_lost.push_back(peer_endpoint);
+//      }
 //      cond_var_connection_lost.notify_one();
 //    }
 //
@@ -168,9 +174,11 @@ namespace test {
 //  boost::condition_variable send_cond_var;
 //  boost::mutex::scoped_lock send_lock(send_mutex);
 //  auto message_sent_functor([&](int result_in) {
-//    boost::mutex::scoped_lock lock(send_mutex);
-//    send_result = result_in;
-//    message_sent = true;
+//    {
+//      boost::mutex::scoped_lock lock(send_mutex);
+//      send_result = result_in;
+//      message_sent = true;
+//    }
 //    send_cond_var.notify_one();
 //  });
 //

@@ -186,9 +186,11 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           saved_on_connection_added(connected_peer_id, transport, temporary_connection,
                                     is_duplicate_normal_connection);
           assert(!slot_called);
-          std::lock_guard<std::mutex> local_lock(local_mutex);
-          slot_called = true;
-          peer_id = connected_peer_id;
+          {
+            std::lock_guard<std::mutex> local_lock(local_mutex);
+            slot_called = true;
+            peer_id = connected_peer_id;
+          }
           local_cond_var.notify_one();
         });
     LocalFunctorReplacement<OnConnectionLost> on_conn_lost_guard(
@@ -198,9 +200,11 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           saved_on_connection_lost(connected_peer_id, transport, temporary_connection, timed_out);
           std::lock_guard<std::mutex> local_lock(local_mutex);
           if (!slot_called) {
-            slot_called = true;
-            peer_id = connected_peer_id;
-            timed_out_connecting = timed_out;
+            {
+              slot_called = true;
+              peer_id = connected_peer_id;
+              timed_out_connecting = timed_out;
+            }
             local_cond_var.notify_one();
           }
         });
@@ -237,8 +241,10 @@ void Transport::DetectNatType(NodeId const& peer_id, std::unique_lock<std::mutex
     std::mutex& local_mutex = *lock.mutex();
     int result(kPendingResult);
     connection_manager_->Ping(peer_id, nat_detection_endpoint, [&](int result_in) {
-      boost::lock_guard<std::mutex> local_lock(local_mutex);
-      result = result_in;
+      {
+        boost::lock_guard<std::mutex> local_lock(local_mutex);
+        result = result_in;
+      }
       local_cond_var.notify_one();
     });
 
