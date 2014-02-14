@@ -24,6 +24,13 @@
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake_modules/standard_setup.cmake")
+  cmake_minimum_required(VERSION 2.8)  # To suppress warning cluttering error message
+  set(Msg "\nThis project can currently only be build as part of the MaidSafe super-project.  For")
+  set(Msg "${Msg} full details, see https://github.com/maidsafe/MaidSafe/wiki/Build-Instructions\n")
+  message(FATAL_ERROR "${Msg}")
+endif()
+
 project(rudp)
 
 include(../../cmake_modules/standard_setup.cmake)
