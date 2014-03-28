@@ -472,6 +472,10 @@ void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
     std::string s("\n************************\nRemoved ");
     s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
     s += ThisDebugId() + " to " + connection->PeerDebugId() + '\n';
+    // 2014-03-28 ned: There is a race here when checking on_connection_lost_ for
+    //                 validity as LocalFunctorReplacement<OnConnectionLost>::
+    //                 ~LocalFunctorReplacement() resets the slot without a mutex.
+    //                 I have suppressed this race as it is benign.
     if (managed_connections_debug_printout_ && on_connection_lost_)
       s += managed_connections_debug_printout_();
     LOG(kVerbose) << s;
