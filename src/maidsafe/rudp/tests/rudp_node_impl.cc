@@ -85,7 +85,7 @@ RudpNode::RudpNode(std::vector<maidsafe::passport::Pmid> all_pmids, int identity
           new asymm::PublicKey(all_pmids_[identity_index_].public_key())),
       local_endpoint, false, boost::bind(&RudpNode::OnMessageSlot, this, _1),
       [this](const NodeId & peer_id, std::shared_ptr<detail::Transport> transport,
-             bool temporary_connection, bool & is_duplicate_normal_connection) {
+             bool temporary_connection, std::atomic<bool> & is_duplicate_normal_connection) {
         OnConnectionAddedSlot(peer_id, transport, temporary_connection,
                               is_duplicate_normal_connection);
       },
@@ -104,7 +104,7 @@ void RudpNode::OnMessageSlot(const std::string& /*message*/) {
 void RudpNode::OnConnectionAddedSlot(const NodeId& /*peer_id*/,
                                      std::shared_ptr<detail::Transport> /*transport*/,
                                      bool /*temporary_connection*/,
-                                     bool& /*is_duplicate_normal_connection*/) {
+                                     std::atomic<bool> & /*is_duplicate_normal_connection*/) {
   std::cout << " connection added " << std::endl;
 }
 

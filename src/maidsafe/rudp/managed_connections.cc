@@ -220,7 +220,7 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
            bootstrap_off_existing_connection,
            std::bind(&ManagedConnections::OnMessageSlot, this, args::_1),
            [this](const NodeId & peer_id, TransportPtr transport, bool temporary_connection,
-                  bool & is_duplicate_normal_connection) {
+                  std::atomic<bool> & is_duplicate_normal_connection) {
              OnConnectionAddedSlot(peer_id, transport, temporary_connection,
                                    is_duplicate_normal_connection);
            },
@@ -664,7 +664,7 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
 
 void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,
                                                bool temporary_connection,
-                                               bool& is_duplicate_normal_connection) {
+                                               std::atomic<bool> & is_duplicate_normal_connection) {
   is_duplicate_normal_connection = false;
   std::lock_guard<std::mutex> lock(mutex_);
 

@@ -62,7 +62,8 @@ class RudpNode {
 
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const NodeId& peer_id, std::shared_ptr<detail::Transport> transport,
-                             bool temporary_connection, bool& is_duplicate_normal_connection);
+                             bool temporary_connection,
+                             std::atomic<bool> & is_duplicate_normal_connection);
   void OnConnectionLostSlot(const NodeId& peer_id, std::shared_ptr<detail::Transport> transport,
                             bool temporary_connection);
   void OnNatDetectionRequestedSlot(const Endpoint& this_local_endpoint, const NodeId& peer_id,

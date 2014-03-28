@@ -57,7 +57,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
  public:
   typedef std::function<void(const std::string&)> OnMessage;
 
-  typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool&)>
+  typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, std::atomic<bool> &)>
       OnConnectionAdded;
 
   typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool)>

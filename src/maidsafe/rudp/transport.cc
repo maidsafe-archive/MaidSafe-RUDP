@@ -182,7 +182,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
     LocalFunctorReplacement<OnConnectionAdded> on_conn_added_guard(
         callback_mutex_, on_connection_added_, saved_on_connection_added,
         [&](const NodeId & connected_peer_id, TransportPtr transport, bool temporary_connection,
-            bool & is_duplicate_normal_connection) {
+            std::atomic<bool> & is_duplicate_normal_connection) {
           saved_on_connection_added(connected_peer_id, transport, temporary_connection,
                                     is_duplicate_normal_connection);
           assert(!slot_called);
@@ -410,7 +410,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
   LOG(kSuccess) << "Successfully made " << connection->state() << " connection from "
                 << ThisDebugId() << " to " << connection->PeerDebugId();
 
-  bool is_duplicate_normal_connection(false);
+  std::atomic<bool> is_duplicate_normal_connection(false);
   OnConnectionAdded local_callback;
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);

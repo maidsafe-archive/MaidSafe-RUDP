@@ -175,7 +175,8 @@ class ManagedConnections {
 
   void OnMessageSlot(const std::string& message);
   void OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,
-                             bool temporary_connection, bool& is_duplicate_normal_connection);
+                             bool temporary_connection,
+                             std::atomic<bool> & is_duplicate_normal_connection);
   void OnConnectionLostSlot(const NodeId& peer_id, TransportPtr transport,
                             bool temporary_connection);
   // This signal is fired by Session when a connecting peer requests to use this peer for NAT
