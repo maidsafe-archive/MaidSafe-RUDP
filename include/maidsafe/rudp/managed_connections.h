@@ -19,6 +19,7 @@
 #ifndef MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
 #define MAIDSAFE_RUDP_MANAGED_CONNECTIONS_H_
 
+#include <atomic>
 #include <functional>
 #include <map>
 #include <memory>
