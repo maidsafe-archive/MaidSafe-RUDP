@@ -22,6 +22,7 @@
 #define MAIDSAFE_RUDP_CORE_DISPATCHER_H_
 
 #include <cstdint>
+#include <mutex>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
@@ -41,6 +42,8 @@ class Dispatcher {
 
   void SetConnectionManager(ConnectionManager* connection_manager);
 
+  size_t use_count() const { return use_count_.use_count()-1; }
+
   // Add a socket. Returns a new unique id for the socket.
   uint32_t AddSocket(Socket* socket);
 
@@ -56,6 +59,8 @@ class Dispatcher {
   Dispatcher(const Dispatcher&);
   Dispatcher& operator=(const Dispatcher&);
 
+  std::mutex mutex_;
+  std::shared_ptr<int> use_count_;
   ConnectionManager* connection_manager_;
 };
 

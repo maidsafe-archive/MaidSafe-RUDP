@@ -38,27 +38,48 @@ namespace rudp {
 
 namespace detail {
 
-Dispatcher::Dispatcher() : connection_manager_(nullptr) {}
+Dispatcher::Dispatcher() : use_count_(std::make_shared<int>()),
+  connection_manager_(nullptr) {}
 
-void Dispatcher::SetConnectionManager(ConnectionManager* connection_manager) {
-  connection_manager_ = connection_manager;
+void Dispatcher::SetConnectionManager(ConnectionManager *connection_manager) {
+  std::lock_guard<decltype(mutex_)> guard(mutex_);
+  connection_manager_ = std::move(connection_manager);
 }
 
 uint32_t Dispatcher::AddSocket(Socket* socket) {
-  return connection_manager_ ? connection_manager_->AddSocket(socket) : 0;
+  auto in_use(use_count_);
+  ConnectionManager *connection_manager;
+  {
+    std::lock_guard<decltype(mutex_)> guard(mutex_);
+    connection_manager = connection_manager_;
+  }
+  return connection_manager ? connection_manager->AddSocket(socket) : 0;
 }
 
 void Dispatcher::RemoveSocket(uint32_t id) {
-  if (connection_manager_)
-    connection_manager_->RemoveSocket(id);
+  auto in_use(use_count_);
+  ConnectionManager *connection_manager;
+  {
+    std::lock_guard<decltype(mutex_)> guard(mutex_);
+    connection_manager = connection_manager_;
+  }
+  if (connection_manager)
+    connection_manager->RemoveSocket(id);
 }
 
 void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
                                    const ip::udp::endpoint& endpoint) {
-  if (connection_manager_) {
-    Socket* socket(connection_manager_->GetSocket(data, endpoint));
-    if (socket)
+  auto in_use(use_count_);
+  ConnectionManager* connection_manager;
+  {
+    std::lock_guard<decltype(mutex_)> guard(mutex_);
+    connection_manager = connection_manager_;
+  }
+  if (connection_manager) {
+    Socket* socket(connection_manager->GetSocket(data, endpoint));
+    if (socket) {
       socket->HandleReceiveFrom(data, endpoint);
+    }
   }
 }
 
