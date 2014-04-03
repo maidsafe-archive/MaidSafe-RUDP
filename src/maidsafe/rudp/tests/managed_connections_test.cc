@@ -717,7 +717,13 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
     result_arrived = true;
     result_out.set_value(result_in);
   });
-  auto wait_for_result([&](int wait = 1000)->bool {
+  // MSVC won't accept lambdas with defaulted arguments, so long way round ...
+  auto wait_for_result([&]()->bool {
+    auto result_in = result_out.get_future();
+    return std::future_status::timeout != result_in.wait_for(std::chrono::milliseconds(1000))
+           && (result_of_send = result_in.get(), result_arrived);
+  });
+  auto wait_for_result_timed([&](int wait)->bool {
     auto result_in = result_out.get_future();
     return std::future_status::timeout != result_in.wait_for(std::chrono::milliseconds(wait))
            && (result_of_send = result_in.get(), result_arrived);
@@ -869,7 +875,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   result_arrived = false;
   result_out = std::promise<int>();
   nodes_[1]->managed_connections()->Send(node_.node_id(), sent_message, message_sent_functor);
-  ASSERT_TRUE(wait_for_result(20000));
+  ASSERT_TRUE(wait_for_result_timed(20000));
   EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_EQ(boost::future_status::ready,
             future_messages_at_peer.wait_for(boost::chrono::seconds(20)));
@@ -885,7 +891,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   result_arrived = false;
   result_out = std::promise<int>();
   nodes_[1]->managed_connections()->Send(node_.node_id(), sent_message, message_sent_functor);
-  ASSERT_TRUE(wait_for_result(10000));
+  ASSERT_TRUE(wait_for_result_timed(10000));
   EXPECT_EQ(kMessageTooLarge, result_of_send);
 }
 
