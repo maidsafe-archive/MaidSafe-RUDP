@@ -77,15 +77,18 @@ class ManagedConnectionsFuncTest : public testing::Test {
     std::vector<std::vector<std::vector<int>>> send_results(
         nodes_.size(), std::vector<std::vector<int>>(
                            nodes_.size() - 1, std::vector<int>(num_messages, kReturnCodeLimit)));
+    std::atomic<size_t> togo(0);
 
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       std::vector<NodeId> peers(nodes_.at(i)->GetConnectedNodeIds());
       ASSERT_EQ(nodes_.size() - 1, peers.size());
       for (uint16_t j = 0; j != peers.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
+          ++togo;
           nodes_.at(i)->managed_connections()->Send(
               peers.at(j), sent_messages[i][k],
-              [=, &send_results](int result_in) { send_results[i][j][k] = result_in; });
+              [=, &send_results, &togo](int result_in) {
+                send_results[i][j][k] = result_in; --togo; });
         }
       }
     }
@@ -101,8 +104,8 @@ class ManagedConnectionsFuncTest : public testing::Test {
       }
     }
 
-    // TODO(Fraser#5#): 2012-09-03 - Handle properly
-    Sleep(std::chrono::seconds(1));
+    while (togo)
+      Sleep(std::chrono::seconds(1));
 
     // Check send results
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
