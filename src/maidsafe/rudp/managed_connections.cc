@@ -204,7 +204,7 @@ int ManagedConnections::AttemptStartNewTransport(const std::vector<Endpoint>& bo
 
 bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
                                            Endpoint local_endpoint) {
-  TransportPtr transport(new detail::Transport(asio_service_, nat_type_));
+  TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, nat_type_));
   bool bootstrap_off_existing_connection(bootstrap_peers.empty());
   boost::asio::ip::address external_address;
   if (bootstrap_off_existing_connection)
