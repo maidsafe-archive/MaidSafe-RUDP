@@ -181,7 +181,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                     is_duplicate_normal_connection);
           assert(!slot_called);
           slot_called = true;
-          result_out.set_value(std::make_tuple(connected_peer_id, false));
+          result_out.set_value(std::make_tuple(NodeId(connected_peer_id), false));
         });
     LocalFunctorReplacement<OnConnectionLost> on_conn_lost_guard(
         callback_mutex_, on_connection_lost_, saved_on_connection_lost,
@@ -190,7 +190,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           saved_on_connection_lost(connected_peer_id, transport, temporary_connection, timed_out);
           if (!slot_called) {
             slot_called = true;
-            result_out.set_value(std::make_tuple(connected_peer_id, timed_out));
+            result_out.set_value(std::make_tuple(NodeId(connected_peer_id), timed_out));
           }
         });
 
