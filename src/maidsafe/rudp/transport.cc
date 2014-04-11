@@ -172,6 +172,14 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
   std::atomic<bool> slot_called(false);
   std::unique_lock<std::mutex> lock(local_mutex, std::defer_lock);
 
+  /* ned 2014-04-11: I'm not happy with the code below because I don't know why
+                     removing the unnecessary mutex causes segfaults. Clearly
+                     the mutex forces context back onto the strand so it can clean up,
+                     but I've traced the code backwards through the strand and I can see
+                     nowhere which ought to trip just because one is concurrently
+                     swapping out on_connection_added_ and on_connection_lost_.
+                     I don't like mysteries, and this is one of those.
+  */
   {
     OnConnectionAdded saved_on_connection_added;
     OnConnectionLost saved_on_connection_lost;
@@ -457,11 +465,7 @@ void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
     std::string s("\n************************\nRemoved ");
     s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
     s += ThisDebugId() + " to " + connection->PeerDebugId() + '\n';
-    // 2014-03-28 ned: There is a race here when checking on_connection_lost_ for
-    //                 validity as LocalFunctorReplacement<OnConnectionLost>::
-    //                 ~LocalFunctorReplacement() resets the slot without a mutex.
-    //                 I have suppressed this race as it is benign.
-    if (managed_connections_debug_printout_ && on_connection_lost_)
+    if (managed_connections_debug_printout_ && local_callback)
       s += managed_connections_debug_printout_();
     LOG(kVerbose) << s;
 #endif
