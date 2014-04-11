@@ -166,9 +166,12 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
   }
 
   // Temporarily connect to the signals until the connect attempt has succeeded or failed.
+  std::mutex local_mutex;
   std::promise<std::tuple<NodeId, bool>> result_out;
   auto result_in = result_out.get_future();
   std::atomic<bool> slot_called(false);
+  std::unique_lock<std::mutex> lock(local_mutex, std::defer_lock);
+
   {
     OnConnectionAdded saved_on_connection_added;
     OnConnectionLost saved_on_connection_lost;
@@ -180,6 +183,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           saved_on_connection_added(connected_peer_id, transport, temporary_connection,
                                     is_duplicate_normal_connection);
           assert(!slot_called);
+          std::lock_guard<std::mutex> local_lock(local_mutex);
           slot_called = true;
           result_out.set_value(std::make_tuple(NodeId(connected_peer_id), false));
         });
@@ -188,6 +192,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
         [&](const NodeId & connected_peer_id, TransportPtr transport, bool temporary_connection,
             bool timed_out) {
           saved_on_connection_lost(connected_peer_id, transport, temporary_connection, timed_out);
+          std::lock_guard<std::mutex> local_lock(local_mutex);
           if (!slot_called) {
             slot_called = true;
             result_out.set_value(std::make_tuple(NodeId(connected_peer_id), timed_out));
@@ -205,6 +210,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                   << "  Local endpoint: " << multiplexer_->local_endpoint();
       return NodeId();
     }
+    lock.lock();
   }
   auto result = result_in.get();
   NodeId peer_id = std::get<0>(result);
