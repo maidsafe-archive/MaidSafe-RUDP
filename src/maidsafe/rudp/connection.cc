@@ -276,7 +276,10 @@ void Connection::StartTick() {
   socket_.AsyncTick(handler);
 }
 
+static std::mutex connection_handle_tick_lock;  // stop multiple ticks being handled at once
 void Connection::HandleTick() {
+  std::lock_guard<decltype(connection_handle_tick_lock)> lock(connection_handle_tick_lock);
+
   if (!socket_.IsOpen())
     return DoClose();
 
