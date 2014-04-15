@@ -180,6 +180,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   bool sending_;
   std::function<void()> failure_functor_;
   std::queue<SendRequest> send_queue_;
+  std::mutex handle_tick_lock_;
 };
 
 template <typename Elem, typename Traits>

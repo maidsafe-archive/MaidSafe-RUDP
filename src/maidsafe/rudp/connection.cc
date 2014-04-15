@@ -276,9 +276,15 @@ void Connection::StartTick() {
   socket_.AsyncTick(handler);
 }
 
-static std::mutex connection_handle_tick_lock;  // stop multiple ticks being handled at once
 void Connection::HandleTick() {
-  std::lock_guard<decltype(connection_handle_tick_lock)> lock(connection_handle_tick_lock);
+  // 2014-04-15 ned: We had a double free induced by two ticks calling
+  //                 DoClose simultaneously which should never happen as
+  //                 HandleTick is called by strand_, so we assert under
+  //                 debug and let the mutex serialise in release.
+  bool have_lock = handle_tick_lock_.try_lock();
+  assert(have_lock);  // If this fails it's because another HandleTick is running (bad)
+  if (!have_lock) handle_tick_lock_.lock();  // For release builds
+  std::unique_lock<decltype(handle_tick_lock_)> lock(handle_tick_lock_, std::adopt_lock);
 
   if (!socket_.IsOpen())
     return DoClose();
