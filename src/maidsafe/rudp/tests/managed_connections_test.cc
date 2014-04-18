@@ -468,14 +468,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
 
 TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 4));
-  auto wait_for_signals([&](int node_index)->bool {
+  auto wait_for_signals([&](int node_index, unsigned active_connection_count)->bool {
     int count(0);
     do {
       Sleep(std::chrono::milliseconds(100));
       ++count;
     } while ((node_.connection_lost_node_ids().empty() ||
-              nodes_[node_index]->connection_lost_node_ids().empty()) &&
-             count != 10);
+              nodes_[node_index]->connection_lost_node_ids().empty() ||
+              node_.managed_connections()->GetActiveConnectionCount() !=
+              active_connection_count) && count != 10);
     return (!node_.connection_lost_node_ids().empty() &&
             !nodes_[node_index]->connection_lost_node_ids().empty());
   });
@@ -495,7 +496,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   EXPECT_EQ(nodes_[1]->managed_connections()->GetActiveConnectionCount(), 4);
 
   node_.managed_connections()->Remove(chosen_node);
-  ASSERT_TRUE(wait_for_signals(1));
+  ASSERT_TRUE(wait_for_signals(1, 3));
   ASSERT_EQ(node_.connection_lost_node_ids().size(), 1U);
   ASSERT_EQ(nodes_[1]->connection_lost_node_ids().size(), 1U);
   EXPECT_EQ(chosen_node, node_.connection_lost_node_ids()[0]);
@@ -539,7 +540,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   node_.ResetData();
   nodes_[0]->ResetData();
   node_.managed_connections()->Remove(NodeId());
-  ASSERT_FALSE(wait_for_signals(0));
+  ASSERT_FALSE(wait_for_signals(0, 4));
+  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 4);
   EXPECT_TRUE(node_.connection_lost_node_ids().empty());
   EXPECT_TRUE(nodes_[0]->connection_lost_node_ids().empty());
 
@@ -547,7 +549,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   node_.ResetData();
   nodes_[0]->ResetData();
   node_.managed_connections()->Remove(nodes_[2]->node_id());
-  ASSERT_FALSE(wait_for_signals(2));
+  ASSERT_FALSE(wait_for_signals(2, 3));
+  EXPECT_EQ(nodes_[2]->managed_connections()->GetActiveConnectionCount(), 3);
   EXPECT_TRUE(node_.connection_lost_node_ids().empty());
   EXPECT_TRUE(nodes_[2]->connection_lost_node_ids().empty());
 
@@ -555,7 +558,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   node_.ResetData();
   nodes_[0]->ResetData();
   node_.managed_connections()->Remove(nodes_[0]->node_id());
-  ASSERT_TRUE(wait_for_signals(0));
+  ASSERT_TRUE(wait_for_signals(0, 3));
+  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 3);
   ASSERT_EQ(node_.connection_lost_node_ids().size(), 1U);
   ASSERT_EQ(nodes_[0]->connection_lost_node_ids().size(), 1U);
   EXPECT_EQ(node_.connection_lost_node_ids()[0], nodes_[0]->node_id());
@@ -565,7 +569,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   node_.ResetData();
   nodes_[0]->ResetData();
   node_.managed_connections()->Remove(nodes_[0]->node_id());
-  ASSERT_FALSE(wait_for_signals(0));
+  ASSERT_FALSE(wait_for_signals(0, 3));
+  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 3);
   EXPECT_TRUE(node_.connection_lost_node_ids().empty());
   EXPECT_TRUE(nodes_[0]->connection_lost_node_ids().empty());
 }
@@ -850,8 +855,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
     Sleep(std::chrono::milliseconds(100));
     ++count;
   } while (
-      (node_.connection_lost_node_ids().empty() || nodes_[0]->connection_lost_node_ids().empty()) &&
+      (node_.connection_lost_node_ids().empty() ||
+       nodes_[0]->connection_lost_node_ids().empty() ||
+       node_.managed_connections()->GetActiveConnectionCount() != 2) &&
       count != 10);
+  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
   ASSERT_EQ(node_.connection_lost_node_ids().size(), 1U);
   ASSERT_EQ(nodes_[0]->connection_lost_node_ids().size(), 1U);
   EXPECT_EQ(node_.connection_lost_node_ids()[0], nodes_[0]->node_id());

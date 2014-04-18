@@ -129,6 +129,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void CheckTimeout(const boost::system::error_code& ec);
   void CheckLifespanTimeout(const boost::system::error_code& ec);
   bool Stopped() const;
+  bool TicksStopped() const;
 
   void StartTick();
   void HandleTick();

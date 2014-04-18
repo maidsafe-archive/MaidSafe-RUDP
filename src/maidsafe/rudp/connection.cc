@@ -85,7 +85,8 @@ Connection::Connection(const std::shared_ptr<Transport>& transport,
       timeout_state_(TimeoutState::kConnecting),
       sending_(false),
       failure_functor_(),
-      send_queue_() {
+      send_queue_(),
+      handle_tick_lock_() {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
   timer_.expires_from_now(bptime::pos_infin);
 }
@@ -269,7 +270,11 @@ void Connection::CheckTimeout(const bs::error_code& ec) {
       strand_.wrap(std::bind(&Connection::CheckTimeout, shared_from_this(), args::_1)));
 }
 
+// May return true if connection still being gracefully closed down
 bool Connection::Stopped() const { return (!transport_.lock() || !socket_.IsOpen()); }
+
+// Only returns true if connection is completely closed down and ticks stopped
+bool Connection::TicksStopped() const { return (!transport_.lock() && !socket_.IsOpen()); }
 
 void Connection::StartTick() {
   auto handler = strand_.wrap(std::bind(&Connection::HandleTick, shared_from_this()));
