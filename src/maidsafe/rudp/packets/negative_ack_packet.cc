@@ -20,6 +20,8 @@
 
 #include "maidsafe/rudp/packets/negative_ack_packet.h"
 
+#include <cassert>
+
 namespace asio = boost::asio;
 
 namespace maidsafe {

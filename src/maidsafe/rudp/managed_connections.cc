@@ -734,7 +734,7 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPt
     if ((*itr).second != transport) {
       LOG(kError) << "peer_id: " << DebugId(peer_id) << " is connected via "
                   << (*itr).second->local_endpoint() << " not " << transport->local_endpoint();
-      assert(false);
+      BOOST_ASSERT(false);
     }
     connections_.erase(itr);
     if (peer_id == chosen_bootstrap_node_id_)

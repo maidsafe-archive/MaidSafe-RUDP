@@ -20,6 +20,8 @@
 
 #include "maidsafe/rudp/packets/keepalive_packet.h"
 
+#include <cassert>
+
 namespace asio = boost::asio;
 
 namespace maidsafe {
