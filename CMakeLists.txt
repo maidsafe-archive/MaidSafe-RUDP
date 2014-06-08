@@ -103,10 +103,6 @@ endif()
 # Package                                                                                          #
 #==================================================================================================#
 set(EXPORT_NAME maidsafe_rudp)
-install(TARGETS maidsafe_rudp EXPORT ${EXPORT_NAME} ARCHIVE DESTINATION bin/lib)
+install(TARGETS maidsafe_rudp EXPORT ${EXPORT_NAME} ARCHIVE DESTINATION lib)
 
-install(FILES ${RudpApi} DESTINATION include/maidsafe/routing)
-install(FILES ${RudpHeaders} DESTINATION src/maidsafe/routing)
-install(FILES ${RudpCoreHeaders} DESTINATION src/maidsafe/routing)
-install(FILES ${RudpOperationsHeaders} DESTINATION src/maidsafe/routing)
-install(FILES ${RudpPacketsHeaders} DESTINATION src/maidsafe/routing)
+install(FILES ${RudpApi} DESTINATION include/maidsafe/rudp)
