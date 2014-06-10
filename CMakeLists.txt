@@ -105,3 +105,12 @@ if(MaidsafeTesting)
   ms_add_project_experimental()
   ms_test_summary_output()
 endif()
+
+
+#==================================================================================================#
+# Package                                                                                          #
+#==================================================================================================#
+set(EXPORT_NAME maidsafe_rudp)
+install(TARGETS maidsafe_rudp EXPORT ${EXPORT_NAME} ARCHIVE DESTINATION lib)
+
+install(FILES ${RudpApi} DESTINATION include/maidsafe/rudp)
