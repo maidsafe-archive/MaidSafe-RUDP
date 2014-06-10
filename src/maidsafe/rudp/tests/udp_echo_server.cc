@@ -34,16 +34,16 @@ class server {
   void handle_receive_from(const boost::system::error_code& error,
       size_t bytes_recvd) {
     if (!error && bytes_recvd > 0) {
-      std::string msg("reply");
+      std::string msg(data_, bytes_recvd);
+      std::cout << "bytes_recvd : " << bytes_recvd << " msg size : " << msg.size() << std::endl;
       char *reply = (char*)msg.c_str();  // NOLINT
       socket_.async_send_to(
           boost::asio::buffer(reply, msg.size()), sender_endpoint_,
           std::bind(&server::handle_send_to, this, args::_1, args::_2));
-    } else {
-      socket_.async_receive_from(
-          boost::asio::buffer(data_, kMaxLength), sender_endpoint_,
-          std::bind(&server::handle_receive_from, this, args::_1, args::_2));
     }
+    socket_.async_receive_from(
+        boost::asio::buffer(data_, kMaxLength), sender_endpoint_,
+        std::bind(&server::handle_receive_from, this, args::_1, args::_2));
   }
 
   void handle_send_to(const boost::system::error_code& /*error*/, size_t /*bytes_sent*/) {
@@ -65,6 +65,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   try {
+    std::cout << "Listening on port " << std::atoi(argv[1]) << std::endl;
     boost::asio::io_service io_service;
     server s(io_service, std::atoi(argv[1]));
     io_service.run();
