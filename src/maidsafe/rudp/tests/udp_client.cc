@@ -25,10 +25,8 @@ namespace bptime = boost::posix_time;
 
 enum { kMaxLength = 65506 };
 
-int main(int argc, char* argv[])
-{
-  if (argc != 3)
-  {
+int main(int argc, char* argv[]) {
+  if (argc != 3) {
     std::cerr << "Usage: udp_client <host> <port>\n";
     return 1;
   }

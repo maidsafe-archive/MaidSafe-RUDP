@@ -23,8 +23,7 @@ class server {
 
  public:
   server(boost::asio::io_service& io_service, unsigned short port)
-    : io_service_(io_service),
-      socket_(io_service, udp::endpoint(udp::v4(), port)),
+    : socket_(io_service, udp::endpoint(udp::v4(), port)),
       sender_endpoint_() {
     socket_.async_receive_from(
         boost::asio::buffer(data_, kMaxLength), sender_endpoint_,
@@ -53,7 +52,6 @@ class server {
   }
 
  private:
-  boost::asio::io_service& io_service_;
   udp::socket socket_;
   udp::endpoint sender_endpoint_;
   char data_[kMaxLength];
@@ -67,7 +65,7 @@ int main(int argc, char* argv[]) {
   try {
     std::cout << "Listening on port " << std::atoi(argv[1]) << std::endl;
     boost::asio::io_service io_service;
-    server s(io_service, std::atoi(argv[1]));
+    server s(io_service, static_cast<unsigned short>(std::atoi(argv[1])));  // NOLINT
     io_service.run();
   } catch(std::exception& e) {
     std::cerr << "Exception: " << e.what() << "\n";

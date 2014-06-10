@@ -79,9 +79,9 @@ if(MaidsafeTesting)
   target_link_libraries(TESTrudp maidsafe_rudp)
 #  target_link_libraries(rudp_performance_tool maidsafe_rudp)
 #  target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
-  ms_add_executable(udp_server "Tools"
+  ms_add_executable(udp_server "Tools/RUDP"
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_echo_server.cc")
-  ms_add_executable(udp_client "Tools"
+  ms_add_executable(udp_client "Tools/RUDP"
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_client.cc")
   target_link_libraries(udp_server maidsafe_rudp)
   target_link_libraries(udp_client maidsafe_rudp)
