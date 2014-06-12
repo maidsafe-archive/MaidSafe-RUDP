@@ -49,7 +49,9 @@ ms_glob_dir(RudpTests ${RudpSourcesDir}/tests "Main Test")
 list(REMOVE_ITEM RudpTestsAllFiles ${RudpSourcesDir}/tests/performance_tool.cc
                                    ${RudpSourcesDir}/tests/rudp_node.cc
                                    ${RudpSourcesDir}/tests/rudp_node_impl.h
-                                   ${RudpSourcesDir}/tests/rudp_node_impl.cc)
+                                   ${RudpSourcesDir}/tests/rudp_node_impl.cc
+                                   ${RudpSourcesDir}/tests/udp_client.cc
+                                   ${RudpSourcesDir}/tests/udp_echo_server.cc)
 ms_glob_dir(RudpCoreTests ${RudpSourcesDir}/core/tests "Core Test")
 ms_glob_dir(RudpOperationsTests ${RudpSourcesDir}/operations/tests "Operations Test")
 ms_glob_dir(RudpPacketsTests ${RudpSourcesDir}/packets/tests "Packets Test")
@@ -77,6 +79,12 @@ if(MaidsafeTesting)
   target_link_libraries(TESTrudp maidsafe_rudp)
 #  target_link_libraries(rudp_performance_tool maidsafe_rudp)
 #  target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
+  ms_add_executable(udp_server "Tools/RUDP"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_echo_server.cc")
+  ms_add_executable(udp_client "Tools/RUDP"
+                    "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_client.cc")
+  target_link_libraries(udp_server maidsafe_rudp)
+  target_link_libraries(udp_client maidsafe_rudp)
 endif()
 
 ms_rename_outdated_built_exes()
@@ -97,3 +105,12 @@ if(MaidsafeTesting)
   ms_add_project_experimental()
   ms_test_summary_output()
 endif()
+
+
+#==================================================================================================#
+# Package                                                                                          #
+#==================================================================================================#
+set(EXPORT_NAME maidsafe_rudp)
+install(TARGETS maidsafe_rudp EXPORT ${EXPORT_NAME} ARCHIVE DESTINATION lib)
+
+install(FILES ${RudpApi} DESTINATION include/maidsafe/rudp)

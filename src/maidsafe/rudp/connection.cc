@@ -52,7 +52,7 @@ namespace detail {
 
 namespace {
 
-#ifdef USE_LOGGING
+#if USE_LOGGING
 std::ostream& operator<<(std::ostream& ostream, const Multiplexer& multiplexer) {
   ostream << multiplexer.external_endpoint() << " / " << multiplexer.local_endpoint();
   return ostream;

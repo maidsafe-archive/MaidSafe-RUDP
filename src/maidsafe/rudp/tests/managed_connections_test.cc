@@ -160,6 +160,13 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                 std::vector<Endpoint>(1, Endpoint(GetLocalIp(), 10000)), do_nothing_on_message_,
                 do_nothing_on_connection_lost_, node_.node_id(), node_.private_key(),
                 node_.public_key(), chosen_bootstrap, nat_type));
+  // Unavailable bootstrap_endpoints with kLivePort
+  EXPECT_EQ(kTransportStartFailure,
+            node_.managed_connections()->Bootstrap(
+                std::vector<Endpoint>(1, Endpoint(GetLocalIp(), kLivePort)), do_nothing_on_message_,
+                do_nothing_on_connection_lost_, node_.node_id(), node_.private_key(),
+                node_.public_key(), chosen_bootstrap, nat_type));
+
   // Invalid MessageReceivedFunctor
   EXPECT_EQ(kInvalidParameter,
             node_.managed_connections()->Bootstrap(bootstrap_endpoints_, MessageReceivedFunctor(),
