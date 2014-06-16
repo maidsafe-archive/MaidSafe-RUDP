@@ -76,7 +76,7 @@ if(MaidsafeTesting)
 #  ms_add_executable(rudp_node "Tools/RUDP" ${RudpSourcesDir}/tests/rudp_node.cc
 #                                           ${RudpSourcesDir}/tests/rudp_node_impl.h
 #                                           ${RudpSourcesDir}/tests/rudp_node_impl.cc)
-  target_link_libraries(TESTrudp maidsafe_rudp)
+  target_link_libraries(TESTrudp maidsafe_rudp maidsafe_test)
 #  target_link_libraries(rudp_performance_tool maidsafe_rudp)
 #  target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
   ms_add_executable(udp_server "Tools/RUDP"
@@ -110,7 +110,12 @@ endif()
 #==================================================================================================#
 # Package                                                                                          #
 #==================================================================================================#
-set(EXPORT_NAME maidsafe_rudp)
-install(TARGETS maidsafe_rudp EXPORT ${EXPORT_NAME} ARCHIVE DESTINATION lib)
+install(TARGETS maidsafe_rudp COMPONENT Development CONFIGURATIONS Debug Release ARCHIVE DESTINATION lib)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ COMPONENT Development DESTINATION include)
 
-install(FILES ${RudpApi} DESTINATION include/maidsafe/rudp)
+if(MaidsafeTesting)
+  install(TARGETS TESTrudp COMPONENT Tests CONFIGURATIONS Debug RUNTIME DESTINATION bin/debug)
+  install(TARGETS TESTrudp COMPONENT Tests CONFIGURATIONS Release RUNTIME DESTINATION bin)
+  install(TARGETS udp_server udp_client COMPONENT Tools CONFIGURATIONS Debug RUNTIME DESTINATION bin/debug)
+  install(TARGETS udp_server udp_client COMPONENT Tools CONFIGURATIONS Release RUNTIME DESTINATION bin)
+endif()
