@@ -88,7 +88,7 @@ fs::path GetPathFromProgramOption(const std::string& option_name, po::variables_
     } else {  // Create new file
       if (option_path.has_filename()) {
         try {
-          std::ofstream ofs(option_path.c_str());
+          std::ofstream(option_path.c_str());
         }
         catch (const std::exception& e) {
           LOG(kError) << "GetPathFromProgramOption - Exception while creating new file: "

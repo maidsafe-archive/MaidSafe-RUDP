@@ -150,8 +150,6 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
     LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
 
   // Adding nodes to each other
-  std::chrono::milliseconds rendezvous_connect_timeout(
-      Parameters::rendezvous_connect_timeout.total_milliseconds());
   for (int i(2); i != node_count; ++i) {
     NodeId chosen_node_id;
     if (nodes[i]->Bootstrap(bootstrap_endpoints, chosen_node_id) != kSuccess ||
