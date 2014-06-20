@@ -220,7 +220,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
       Endpoint(ip::address::from_string("1.1.1.1"), 1025);
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                NodeId(NodeId::kRandomId), EndpointPair(), this_endpoint_pair, nat_type));
+                NodeId(NodeId::IdType::kRandomId), EndpointPair(), this_endpoint_pair, nat_type));
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
   EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
   this_endpoint_pair.external = this_endpoint_pair.local =
@@ -230,7 +230,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
       Endpoint(ip::address::from_string("1.2.3.4"), 1026);
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                NodeId(NodeId::kRandomId), endpoint_pair, this_endpoint_pair, nat_type));
+                NodeId(NodeId::IdType::kRandomId), endpoint_pair, this_endpoint_pair, nat_type));
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
   EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
 
@@ -254,7 +254,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   EndpointPair another_endpoint_pair;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->GetAvailableEndpoint(
-                NodeId(NodeId::kRandomId), EndpointPair(), another_endpoint_pair, nat_type));
+                NodeId(NodeId::IdType::kRandomId), EndpointPair(), another_endpoint_pair, nat_type));
   EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
 }
@@ -809,11 +809,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   // Unavailable node id
   node_.ResetData();
   nodes_[1]->ResetData();
-  node_.managed_connections()->Send(NodeId(NodeId::kRandomId), "message7", MessageSentFunctor());
+  node_.managed_connections()->Send(NodeId(NodeId::IdType::kRandomId), "message7", MessageSentFunctor());
   result_of_send = kSuccess;
   result_arrived = false;
   result_out = std::promise<int>();
-  node_.managed_connections()->Send(NodeId(NodeId::kRandomId), "message8", message_sent_functor);
+  node_.managed_connections()->Send(NodeId(NodeId::IdType::kRandomId), "message8", message_sent_functor);
   ASSERT_TRUE(wait_for_result());
   EXPECT_EQ(kInvalidConnection, result_of_send);
 

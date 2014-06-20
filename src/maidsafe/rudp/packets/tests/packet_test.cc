@@ -488,7 +488,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0U, handshake_packet_.Encode(boost::asio::buffer(char_array)));
   }
   {
-    NodeId node_id(NodeId::kRandomId);
+    NodeId node_id(NodeId::IdType::kRandomId);
     // Encode and Decode a Handshake Packet
     handshake_packet_.SetRudpVersion(0x11111111);
     handshake_packet_.SetSocketType(0x22222222);

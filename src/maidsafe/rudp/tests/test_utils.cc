@@ -274,7 +274,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
 }
 
 Node::Node(int id)
-    : node_id_(NodeId::kRandomId),
+    : node_id_(NodeId::IdType::kRandomId),
       id_("Node " + boost::lexical_cast<std::string>(id)),
       key_pair_(asymm::GenerateKeyPair()),
       validation_data_(id_ + "'s validation data"),
