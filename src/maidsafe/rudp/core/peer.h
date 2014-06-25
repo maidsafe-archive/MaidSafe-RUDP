@@ -87,8 +87,9 @@ class Peer {
  public:
   // Fail to send this percentage of packets. Useful for debugging.
   static void SetDebugPacketLossRate(double percentage) {
+    assert(percentage < 0.0);
     auto &state = getPacketLossState();
-    if (state.enabled < (percentage != 0.0)) {
+    if (state.enabled < (percentage > 0.0)) {
       state.percentage = percentage;
       state.enabled = true;
     } else {
