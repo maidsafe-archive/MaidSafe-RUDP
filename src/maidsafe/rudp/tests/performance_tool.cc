@@ -120,8 +120,8 @@ int main(int argc, char** argv) {
       std::chrono::steady_clock::now() - start_point));
 
   LOG(kSuccess) << "All messages sent and received.";
-  intmax_t transfer_rate((message_count * message_size * 1000.0) / elapsed.count());
-  intmax_t message_rate((message_count * 1000.0) / elapsed.count());
+  intmax_t transfer_rate(static_cast<intmax_t>((message_count * message_size * 1000.0) / elapsed.count()));
+  intmax_t message_rate(static_cast<intmax_t>((message_count * 1000.0) / elapsed.count()));
   TLOG(kDefaultColour) << "\nSent " << message_count << " messages of " << message_size
                        << " bytes in " << elapsed.count() << " milliseconds.\nTransfer rate: "
                        << maidsafe::BytesToDecimalSiUnits(transfer_rate)
