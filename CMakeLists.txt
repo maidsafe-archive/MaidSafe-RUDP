@@ -70,14 +70,15 @@ if(MaidsafeTesting)
 #                                          ${RudpOperationsTestsAllFiles}
                                           ${RudpPacketsTestsAllFiles})
   target_include_directories(TESTrudp PRIVATE ${PROJECT_SOURCE_DIR}/src)
-#  ms_add_executable(rudp_performance_tool "Tools/RUDP" ${RudpSourcesDir}/tests/performance_tool.cc
-#                                                       ${RudpSourcesDir}/tests/test_utils.cc
-#                                                       ${RudpSourcesDir}/tests/test_utils.h)
+  ms_add_executable(rudp_performance_tool "Tools/RUDP" ${RudpSourcesDir}/tests/performance_tool.cc
+                                                       ${RudpSourcesDir}/tests/test_utils.cc
+                                                       ${RudpSourcesDir}/tests/test_utils.h)
+  target_include_directories(rudp_performance_tool PRIVATE ${PROJECT_SOURCE_DIR}/src)
 #  ms_add_executable(rudp_node "Tools/RUDP" ${RudpSourcesDir}/tests/rudp_node.cc
 #                                           ${RudpSourcesDir}/tests/rudp_node_impl.h
 #                                           ${RudpSourcesDir}/tests/rudp_node_impl.cc)
   target_link_libraries(TESTrudp maidsafe_rudp maidsafe_test)
-#  target_link_libraries(rudp_performance_tool maidsafe_rudp)
+  target_link_libraries(rudp_performance_tool maidsafe_rudp maidsafe_test)
 #  target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
   ms_add_executable(udp_server "Tools/RUDP"
                     "${PROJECT_SOURCE_DIR}/src/maidsafe/rudp/tests/udp_echo_server.cc")
@@ -102,6 +103,7 @@ include(standard_flags)
 if(MaidsafeTesting)
   ms_add_style_test()
   ms_add_gtests(TESTrudp)
+  ms_add_gtests(rudp_performance_tool)
   ms_add_project_experimental()
   ms_test_summary_output()
 endif()
