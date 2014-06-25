@@ -29,11 +29,14 @@
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 
+namespace maidsafe { namespace rudp { extern void SetDebugPacketLossRate(double percentage); } }
+
 namespace {
 
-bool ParseArgs(int argc, char** argv, int& message_count, int& message_size) {
+bool ParseArgs(int argc, char** argv, int& message_count, int& message_size, double& packet_loss) {
   auto fail([]()->bool {
     std::cout << "Pass no. of messages and size of messages (in bytes) as first 2 arguments.\n";
+    std::cout << "Optionally pass in packet loss percentage as third argument.\n";
     return false;
   });
 
@@ -43,6 +46,8 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size) {
   try {
     message_count = std::stoi(argv[1]);
     message_size = std::stoi(argv[2]);
+    if (argc > 3)
+      packet_loss = std::stod(argv[3]);
     if (message_count < 1 || message_size < 12) {
       std::cout << "Message count must be >= 1 and size of messages must be >= 12.\n";
       return false;
@@ -59,13 +64,22 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size) {
 
 int main(int argc, char** argv) {
   auto message_count(0), message_size(0);
-  if (!ParseArgs(argc, argv, message_count, message_size))
+  double packet_loss(0);
+  if (!ParseArgs(argc, argv, message_count, message_size, packet_loss))
     return -1;
 
   maidsafe::log::Logging::Instance().Initialise(argc, argv);
+  if (message_size > maidsafe::rudp::ManagedConnections::kMaxMessageSize()) {
+    std::cerr << "Maximum message size is "
+              << maidsafe::rudp::ManagedConnections::kMaxMessageSize() << std::endl;
+    return -2;
+  }
   TLOG(kDefaultColour) << "Starting RUDP benchmark using " << message_count << " messages of "
-                       << message_size << " bytes.\n";
+                       << message_size << " bytes with packet loss of "
+                       << packet_loss << "%.\n";
 
+  if (packet_loss > 0)
+    maidsafe::rudp::SetDebugPacketLossRate(packet_loss);
   std::vector<maidsafe::rudp::test::NodePtr> nodes;
   std::vector<maidsafe::rudp::Endpoint> bootstrap_endpoints;
   if (!maidsafe::rudp::test::SetupNetwork(nodes, bootstrap_endpoints, 2)) {
