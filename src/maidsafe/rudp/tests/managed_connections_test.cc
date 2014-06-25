@@ -1005,8 +1005,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
                             node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
     auto peer_futures(nodes_[i]->GetFutureForMessages(1));
     auto this_node_futures(node_.GetFutureForMessages(1));
+    std::string validation_data_copy(nodes_[i]->validation_data());
+    (void) validation_data_copy[0];  // workaround tsan warning (Niall)
     EXPECT_EQ(kSuccess, nodes_[i]->managed_connections()->Add(node_.node_id(), this_endpoint_pair,
-                                                              nodes_[i]->validation_data()));
+                                                              validation_data_copy));
     EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[i]->node_id(), peer_endpoint_pair,
                                                          node_.validation_data()));
     ASSERT_EQ(boost::future_status::ready,
