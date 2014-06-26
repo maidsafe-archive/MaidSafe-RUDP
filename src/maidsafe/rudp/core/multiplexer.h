@@ -29,6 +29,7 @@
 #include "boost/asio/ip/udp.hpp"
 
 #include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/operations/dispatch_op.h"
 #include "maidsafe/rudp/core/dispatcher.h"
@@ -66,6 +67,74 @@ class Multiplexer {
     socket_.async_receive_from(boost::asio::buffer(receive_buffer_), sender_endpoint_, 0, op);
   }
 
+ private:
+  struct packet_loss_state {
+    std::mutex lock;
+    bool enabled, by_size, in_error_burst;
+    double percentage;
+    smallprng::ranctx ctx;
+    size_t count, total_byte_count, error_count;
+    packet_loss_state() : enabled(false), by_size(true), in_error_burst(false),
+                          percentage(0.0), count(0), total_byte_count(0), error_count(0) {
+      smallprng::raninit(&ctx, 0xdeadbeef);
+    }
+    bool should_drop_this_packet(size_t size) {
+      std::lock_guard<decltype(lock)> g(lock);
+      ++count;
+      total_byte_count += size;
+      if (by_size) {
+        if (in_error_burst)
+          error_count += size;
+        auto v = smallprng::ranval(&ctx);
+        if (!(v & 7)) {
+          if (in_error_burst) {
+            if (double(error_count) / total_byte_count > percentage / 100.0)
+              in_error_burst = false;
+          } else {
+            if (double(error_count) / total_byte_count <= percentage / 100.0)
+              in_error_burst = true;
+          }
+        }
+      } else {
+        // If UDP packets exceed MTU, they get chopped up into MTU sized pieces the failure
+        // any of which loses the entire packet
+        in_error_burst = false;
+        for (size_t n = 0; n < size / 1500; n++) {
+          if (double(smallprng::ranval(&ctx)) / ((smallprng::u4) -1)
+              <= percentage / 100.0) {
+            error_count += size;
+            in_error_burst = true;
+            break;
+          }
+        }
+      }
+      // if (in_error_burst) {
+      //   std::cerr << "Losing packet " << count << " sized " << size
+      //             << " total=" << total_byte_count << std::endl;
+      // }
+      return in_error_burst;
+    }
+  };
+  static packet_loss_state &getPacketLossState() {
+    static packet_loss_state state;
+    return state;
+  }
+
+ public:
+  // Fail to send this percentage of packets. Useful for debugging. by_size determines if
+  // percentage is calculated per byte transmitted or per packet.
+  static void SetDebugPacketLossRate(double percentage, bool by_size = true) {
+    auto &state = getPacketLossState();
+    std::lock_guard<decltype(state.lock)> g(state.lock);
+    if (state.enabled < (percentage > 0.0)) {
+      state.percentage = percentage;
+      state.by_size = by_size;
+      state.enabled = true;
+    } else {
+      state.enabled = false;
+    }
+  }
+
   // Called by the socket objects to send a packet. Returns kSuccess if the data was sent
   // successfully, kSendFailure otherwise.
   template <typename Packet>
@@ -74,6 +143,9 @@ class Multiplexer {
     auto buffer = boost::asio::buffer(&data[0], Parameters::max_size);
     if (size_t length = packet.Encode(buffer)) {
       boost::system::error_code ec;
+      auto &state = getPacketLossState();
+      if (state.enabled && state.should_drop_this_packet(length))
+        return kSuccess;
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
 #ifndef NDEBUG

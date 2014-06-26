@@ -27,7 +27,6 @@
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
-#include "maidsafe/common/utils.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 
 namespace maidsafe {
@@ -70,41 +69,8 @@ class Peer {
   uint16_t PeerGuessedPort() const { return peer_guessed_port_; }
   void SetPeerGuessedPort() { peer_guessed_port_ = peer_endpoint_.port(); }
 
- private:
-  struct packet_loss_state {
-    bool enabled;
-    double percentage;
-    smallprng::ranctx ctx;
-    packet_loss_state() : enabled(false), percentage(0.0) {
-      smallprng::raninit(&ctx, 0xdeadbeef);
-    }
-  };
-  static packet_loss_state &getPacketLossState() {
-    static packet_loss_state state;
-    return state;
-  }
-
- public:
-  // Fail to send this percentage of packets. Useful for debugging.
-  static void SetDebugPacketLossRate(double percentage) {
-    assert(percentage < 0.0);
-    auto &state = getPacketLossState();
-    if (state.enabled < (percentage > 0.0)) {
-      state.percentage = percentage;
-      state.enabled = true;
-    } else {
-      state.enabled = false;
-    }
-  }
-
   template <typename Packet>
   ReturnCode Send(const Packet& packet) {
-    auto &state = getPacketLossState();
-    if (state.enabled) {
-      double v = 100.0 * smallprng::ranval(&state.ctx) / ((smallprng::u4) -1);
-      if (v <= state.percentage)
-        return kSuccess;
-    }
     return multiplexer_.SendTo(packet, peer_endpoint_);
   }
 

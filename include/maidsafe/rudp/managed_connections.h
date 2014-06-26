@@ -63,8 +63,9 @@ struct EndpointPair {
 // RFC 5737 (http://tools.ietf.org/html/rfc5737).
 extern const boost::asio::ip::udp::endpoint kNonRoutable;
 
-// Fail to send this percentage of packets. Useful for debugging.
-extern void SetDebugPacketLossRate(double percentage);
+// Fail to send this percentage of packets. Useful for debugging. by_size determines if
+// percentage is calculated per byte transmitted or per packet.
+extern void SetDebugPacketLossRate(double percentage, bool by_size = true);
 
 class ManagedConnections {
  public:

@@ -41,8 +41,8 @@ namespace rudp {
 // 203.0.113.14:1314
 const boost::asio::ip::udp::endpoint kNonRoutable(boost::asio::ip::address_v4(3405803790U), 1314);
 
-void SetDebugPacketLossRate(double percentage) {
-  detail::Peer::SetDebugPacketLossRate(percentage);
+void SetDebugPacketLossRate(double percentage, bool by_size) {
+  detail::Multiplexer::SetDebugPacketLossRate(percentage, by_size);
 }
 
 namespace {

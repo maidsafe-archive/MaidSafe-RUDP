@@ -29,8 +29,6 @@
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 
-// namespace maidsafe { namespace rudp { extern void SetDebugPacketLossRate(double percentage); } }
-
 namespace {
 
 bool ParseArgs(int argc, char** argv, int& message_count, int& message_size, double& packet_loss) {
@@ -78,8 +76,8 @@ int main(int argc, char** argv) {
                        << message_size << " bytes with packet loss of "
                        << packet_loss << "%.\n";
 
-  if (packet_loss > 0)
-    maidsafe::rudp::SetDebugPacketLossRate(packet_loss);
+  if (packet_loss > 0 || packet_loss < 0)
+    maidsafe::rudp::SetDebugPacketLossRate(fabs(packet_loss), packet_loss > 0);
   std::vector<maidsafe::rudp::test::NodePtr> nodes;
   std::vector<maidsafe::rudp::Endpoint> bootstrap_endpoints;
   if (!maidsafe::rudp::test::SetupNetwork(nodes, bootstrap_endpoints, 2)) {
