@@ -22,6 +22,7 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <fstream>
 
 #include "maidsafe/common/log.h"
 
@@ -32,10 +33,11 @@
 namespace {
 
 bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
-               double& packet_loss_constant, double& packet_loss_bursty) {
+               double& packet_loss_constant, double& packet_loss_bursty, std::string& path) {
   auto fail([]()->bool {
     std::cout << "Pass no. of messages and size of messages (in bytes) as first 2 arguments.\n";
-    std::cout << "Optionally pass in packet loss percentage as third argument.\n";
+    std::cout << "Optionally pass in packet loss percentage as third argument and CSV append\n";
+    std::cout << "file path as fourth argument.\n";
     return false;
   });
 
@@ -45,6 +47,10 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
   try {
     message_count = std::stoi(argv[1]);
     message_size = std::stoi(argv[2]);
+    if (message_count < 1 || message_size < 12) {
+      std::cout << "Message count must be >= 1 and size of messages must be >= 12.\n";
+      return false;
+    }
     if (argc > 3) {
       packet_loss_constant = std::stod(argv[3]);
       const char *slash = std::strchr(argv[3], '/');
@@ -55,10 +61,8 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
       packet_loss_constant /= 100.0;
       packet_loss_bursty /= 100.0;
     }
-    if (message_count < 1 || message_size < 12) {
-      std::cout << "Message count must be >= 1 and size of messages must be >= 12.\n";
-      return false;
-    }
+    if (argc > 4)
+      path = argv[4];
   }
   catch (const std::exception&) {
     return fail();
@@ -72,8 +76,9 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
 int main(int argc, char** argv) {
   auto message_count(0), message_size(0);
   double packet_loss_constant(0), packet_loss_bursty(0);
+  std::string csv_file_path;
   if (!ParseArgs(argc, argv, message_count, message_size, packet_loss_constant,
-      packet_loss_bursty))
+      packet_loss_bursty, csv_file_path))
     return -1;
 
   maidsafe::log::Logging::Instance().Initialise(argc, argv);
@@ -150,6 +155,12 @@ int main(int argc, char** argv) {
                        << " bytes in " << elapsed.count() << " milliseconds.\nTransfer rate: "
                        << maidsafe::BytesToDecimalSiUnits(transfer_rate)
                        << "/sec.\nMessage rate:  " << message_rate << " msg/sec.\n\n";
+  if (!csv_file_path.empty()) {
+    std::ofstream out(csv_file_path, std::ios_base::app);
+    out << message_count << "," << message_size << "," << packet_loss_constant << ","
+        << packet_loss_bursty << "," << elapsed.count() << "," << transfer_rate << ","
+        << message_rate;
+  }
 
   return 0;
 }
