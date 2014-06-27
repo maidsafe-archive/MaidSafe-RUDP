@@ -31,7 +31,8 @@
 
 namespace {
 
-bool ParseArgs(int argc, char** argv, int& message_count, int& message_size, double& packet_loss) {
+bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
+               double& packet_loss_constant, double& packet_loss_bursty) {
   auto fail([]()->bool {
     std::cout << "Pass no. of messages and size of messages (in bytes) as first 2 arguments.\n";
     std::cout << "Optionally pass in packet loss percentage as third argument.\n";
@@ -44,8 +45,16 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size, dou
   try {
     message_count = std::stoi(argv[1]);
     message_size = std::stoi(argv[2]);
-    if (argc > 3)
-      packet_loss = std::stod(argv[3]);
+    if (argc > 3) {
+      packet_loss_constant = std::stod(argv[3]);
+      const char *slash = std::strchr(argv[3], '/');
+      if (slash)
+        packet_loss_bursty = std::stod(slash + 1);
+      else
+        packet_loss_constant = packet_loss_bursty = packet_loss_constant / 2;
+      packet_loss_constant /= 100.0;
+      packet_loss_bursty /= 100.0;
+    }
     if (message_count < 1 || message_size < 12) {
       std::cout << "Message count must be >= 1 and size of messages must be >= 12.\n";
       return false;
@@ -62,8 +71,9 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size, dou
 
 int main(int argc, char** argv) {
   auto message_count(0), message_size(0);
-  double packet_loss(0);
-  if (!ParseArgs(argc, argv, message_count, message_size, packet_loss))
+  double packet_loss_constant(0), packet_loss_bursty(0);
+  if (!ParseArgs(argc, argv, message_count, message_size, packet_loss_constant,
+      packet_loss_bursty))
     return -1;
 
   maidsafe::log::Logging::Instance().Initialise(argc, argv);
@@ -73,11 +83,12 @@ int main(int argc, char** argv) {
     return -2;
   }
   TLOG(kDefaultColour) << "Starting RUDP benchmark using " << message_count << " messages of "
-                       << message_size << " bytes with packet loss of "
-                       << packet_loss << "%.\n";
+                       << message_size << " bytes with a constant packet loss of "
+                       << packet_loss_constant * 100.0 << "% and a bursty packet loss of "
+                       << packet_loss_bursty * 100.0 << "%.\n";
 
-  if (packet_loss > 0 || packet_loss < 0)
-    maidsafe::rudp::SetDebugPacketLossRate(fabs(packet_loss), packet_loss > 0);
+  if (packet_loss_constant > 0 || packet_loss_bursty > 0)
+    maidsafe::rudp::SetDebugPacketLossRate(packet_loss_constant, packet_loss_bursty);
   std::vector<maidsafe::rudp::test::NodePtr> nodes;
   std::vector<maidsafe::rudp::Endpoint> bootstrap_endpoints;
   if (!maidsafe::rudp::test::SetupNetwork(nodes, bootstrap_endpoints, 2)) {

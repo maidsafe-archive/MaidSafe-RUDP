@@ -71,49 +71,49 @@ class Multiplexer {
  private:
   struct packet_loss_state {
     std::mutex lock;
-    bool enabled, by_size, in_error_burst;
-    double percentage;
+    bool enabled, in_error_burst;
+    double constant, bursty;
     smallprng::ranctx ctx;
     size_t count, total_byte_count, error_count;
-    packet_loss_state() : enabled(false), by_size(true), in_error_burst(false),
-                          percentage(0.0), count(0), total_byte_count(0), error_count(0) {
+    packet_loss_state() : enabled(false), in_error_burst(false), constant(0.0),
+                          bursty(0.0), count(0), total_byte_count(0), error_count(0) {
       smallprng::raninit(&ctx, 0xdeadbeef);
     }
     bool should_drop_this_packet(size_t size) {
+      bool ret = false;
       std::lock_guard<decltype(lock)> g(lock);
       ++count;
       total_byte_count += size;
-      if (by_size) {
+      if (bursty > 0.0) {
         if (in_error_burst)
           error_count += size;
         auto v = smallprng::ranval(&ctx);
         if (!(v & 7)) {
           if (in_error_burst) {
-            if (double(error_count) / total_byte_count > percentage / 100.0)
+            if (double(error_count) / total_byte_count > bursty)
               in_error_burst = false;
           } else {
-            if (double(error_count) / total_byte_count <= percentage / 100.0)
+            if (double(error_count) / total_byte_count <= bursty)
               in_error_burst = true;
           }
         }
-      } else {
+        ret |= in_error_burst;
+      }
+      if (constant > 0.0) {
         // If UDP packets exceed MTU, they get chopped up into MTU sized pieces the failure
         // any of which loses the entire packet
-        in_error_burst = false;
         for (size_t n = 0; n < size / 1500; n++) {
-          if (double(smallprng::ranval(&ctx)) / ((smallprng::u4) -1)
-              <= percentage / 100.0) {
-            error_count += size;
-            in_error_burst = true;
+          if (double(smallprng::ranval(&ctx)) / ((smallprng::u4) -1) <= constant) {
+            ret = true;
             break;
           }
         }
       }
-      // if (in_error_burst) {
+      // if (ret) {
       //   std::cerr << "Losing packet " << count << " sized " << size
       //             << " total=" << total_byte_count << std::endl;
       // }
-      return in_error_burst;
+      return ret;
     }
   };
   static packet_loss_state &getPacketLossState() {
@@ -122,14 +122,14 @@ class Multiplexer {
   }
 
  public:
-  // Fail to send this percentage of packets. Useful for debugging. by_size determines if
-  // percentage is calculated per byte transmitted or per packet.
-  static void SetDebugPacketLossRate(double percentage, bool by_size = true) {
+  // Fail to send a constant and bursty ratio of packets. Useful for debugging. Note that values
+  // are cumulative, so 0.1 each is 20% of packets overall.
+  static void SetDebugPacketLossRate(double constant, double bursty) {
     auto &state = getPacketLossState();
     std::lock_guard<decltype(state.lock)> g(state.lock);
-    if (state.enabled < (percentage > 0.0)) {
-      state.percentage = percentage;
-      state.by_size = by_size;
+    if (state.enabled < (constant > 0.0 || bursty > 0.0)) {
+      state.constant = constant;
+      state.bursty = bursty;
       state.enabled = true;
     } else {
       state.enabled = false;
