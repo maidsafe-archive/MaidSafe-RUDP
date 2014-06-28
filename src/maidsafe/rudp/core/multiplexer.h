@@ -64,7 +64,6 @@ class Multiplexer {
   void AsyncDispatch(DispatchHandler handler) {
     DispatchOp<DispatchHandler> op(handler, socket_, boost::asio::buffer(receive_buffer_),
                                    sender_endpoint_, dispatcher_);
-    std::lock_guard<std::mutex> lock(mutex_);
     socket_.async_receive_from(boost::asio::buffer(receive_buffer_), sender_endpoint_, 0, op);
   }
 
@@ -147,7 +146,6 @@ class Multiplexer {
       auto &state = getPacketLossState();
       if (state.enabled && state.should_drop_this_packet(length))
         return kSuccess;
-      std::lock_guard<std::mutex> lock(mutex_);
       socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
       if (ec) {
 #ifndef NDEBUG

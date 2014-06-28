@@ -46,7 +46,6 @@ Multiplexer::Multiplexer(asio::io_service& asio_service)
       mutex_() {}
 
 ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
-  std::lock_guard<std::mutex> lock(mutex_);
   if (socket_.is_open()) {
     LOG(kWarning) << "Multiplexer already open.";
     return kAlreadyStarted;
@@ -89,25 +88,21 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
   return kSuccess;
 }
 
-bool Multiplexer::IsOpen() const {
-  std::lock_guard<std::mutex> lock(mutex_);
-  return socket_.is_open();
-}
+bool Multiplexer::IsOpen() const { return socket_.is_open(); }
 
 void Multiplexer::Close() {
   bs::error_code ec;
-  std::lock_guard<std::mutex> lock(mutex_);
   socket_.close(ec);
   if (ec)
     LOG(kWarning) << "Multiplexer closing error: " << ec.message();
   assert(!IsOpen());
+  std::lock_guard<std::mutex> lock(mutex_);
   external_endpoint_ = ip::udp::endpoint();
   best_guess_external_endpoint_ = ip::udp::endpoint();
 }
 
 ip::udp::endpoint Multiplexer::local_endpoint() const {
   boost::system::error_code ec;
-  std::lock_guard<std::mutex> lock(mutex_);
   ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
   if (ec) {
     if (IsOpen())
