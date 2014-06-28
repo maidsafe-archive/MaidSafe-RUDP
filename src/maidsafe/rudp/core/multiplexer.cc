@@ -100,7 +100,7 @@ void Multiplexer::Close() {
   socket_.close(ec);
   if (ec)
     LOG(kWarning) << "Multiplexer closing error: " << ec.message();
-  assert(!IsOpen());
+  assert(!socket_.is_open());
   external_endpoint_ = ip::udp::endpoint();
   best_guess_external_endpoint_ = ip::udp::endpoint();
 }
@@ -110,7 +110,7 @@ ip::udp::endpoint Multiplexer::local_endpoint() const {
   std::lock_guard<std::mutex> lock(mutex_);
   ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
   if (ec) {
-    if (IsOpen())
+    if (socket_.is_open())
       LOG(kError) << ec.message();
     return ip::udp::endpoint();
   }

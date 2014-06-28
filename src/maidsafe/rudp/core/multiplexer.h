@@ -147,8 +147,10 @@ class Multiplexer {
       auto &state = getPacketLossState();
       if (state.enabled && state.should_drop_this_packet(length))
         return kSuccess;
-      std::lock_guard<std::mutex> lock(mutex_);
-      socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
+      }
       if (ec) {
 #ifndef NDEBUG
         if (!local_endpoint().address().is_unspecified()) {
