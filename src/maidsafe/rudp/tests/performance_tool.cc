@@ -98,6 +98,7 @@ int main(int argc, char** argv) {
   std::vector<maidsafe::rudp::Endpoint> bootstrap_endpoints;
   if (!maidsafe::rudp::test::SetupNetwork(nodes, bootstrap_endpoints, 2)) {
     LOG(kError) << "Failed to setup network.";
+    std::cerr << "Failed to setup network.";
     return -2;
   }
 
@@ -128,26 +129,30 @@ int main(int argc, char** argv) {
   });
 
   // Send and assess results
-  LOG(kSuccess) << "Starting to send.";
+  TLOG(kDefaultColour) << "Starting to send ... ";
   auto start_point(std::chrono::steady_clock::now());
   for (int i(0); i != message_count; ++i)
     nodes[0]->managed_connections()->Send(nodes[1]->node_id(), messages[i], message_sent_functor);
 
-  LOG(kSuccess) << "All messages enqueued.";
+  TLOG(kDefaultColour) << "All messages enqueued ... ";
   cond_var.wait(lock, [message_count, &result_arrived_count] {
+    std::cout << result_arrived_count << " ";
     return result_arrived_count == message_count;
   });  // NOLINT (Fraser)
+  std::cout << std::endl;
 
   auto received_messages(messages_futures.get());
   if (received_messages.size() != static_cast<size_t>(message_count)) {
     LOG(kError) << "Only received " << received_messages.size() << " of " << message_count
+                << " messages.";
+    std::cerr   << "Only received " << received_messages.size() << " of " << message_count
                 << " messages.";
     return -3;
   }
   std::chrono::milliseconds elapsed(std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now() - start_point));
 
-  LOG(kSuccess) << "All messages sent and received.";
+  TLOG(kDefaultColour) << "All messages sent and received.";
   intmax_t transfer_rate(static_cast<intmax_t>
                            ((message_count * message_size * 1000.0) / elapsed.count()));
   intmax_t message_rate(static_cast<intmax_t>((message_count * 1000.0) / elapsed.count()));
