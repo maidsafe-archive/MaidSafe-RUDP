@@ -475,8 +475,8 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
   // Allow some leeway for encryption overhead
   if (data_size_ > ManagedConnections::kMaxMessageSize() + 1024) {
     LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > "
-                << ManagedConnections::kMaxMessageSize() + 1024;
-    return DoClose();
+                << ManagedConnections::kMaxMessageSize() + 1024 << ", ignoring.";
+    return;
   }
 
   data_received_ = 0;
