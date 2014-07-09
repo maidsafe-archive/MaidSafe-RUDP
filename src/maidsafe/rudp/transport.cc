@@ -208,11 +208,12 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
         });
 
     connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
-                                 Parameters::bootstrap_connect_timeout, lifespan);
+                                 Parameters::bootstrap_connect_timeout,
+                                 Parameters::connect_retries, lifespan);
 
     if (std::future_status::timeout == result_in.wait_for(
-        BoostToChrono(Parameters::bootstrap_connect_timeout + bptime::seconds(1)))
-        || !slot_called) {
+        BoostToChrono(Parameters::bootstrap_connect_timeout * Parameters::connect_retries
+        + bptime::seconds(1))) || !slot_called) {
       LOG(kError) << "Timed out waiting for connection. External endpoint: "
                   << multiplexer_->external_endpoint()
                   << "  Local endpoint: " << multiplexer_->local_endpoint();
@@ -285,15 +286,18 @@ void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoi
         if (!multiplexer_->IsOpen())
           return;
         connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
-                                     Parameters::rendezvous_connect_timeout, bptime::pos_infin);
+                                     Parameters::rendezvous_connect_timeout,
+                                     Parameters::connect_retries, bptime::pos_infin);
       };
     }
     connection_manager_->Connect(peer_id, peer_endpoint_pair.external, validation_data,
-                                 Parameters::rendezvous_connect_timeout, bptime::pos_infin,
+                                 Parameters::rendezvous_connect_timeout,
+                                 Parameters::connect_retries, bptime::pos_infin,
                                  failure_functor);
   } else {
     connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
-                                 Parameters::rendezvous_connect_timeout, bptime::pos_infin);
+                                 Parameters::rendezvous_connect_timeout,
+                                 Parameters::connect_retries, bptime::pos_infin);
   }
 }
 

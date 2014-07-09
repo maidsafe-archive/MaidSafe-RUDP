@@ -50,6 +50,7 @@ Timeout Parameters::default_ack_timeout(bptime::seconds(1));
 Timeout Parameters::ack_interval(bptime::milliseconds(100));
 Timeout Parameters::speed_calculate_inverval(bptime::seconds(10));
 uint32_t Parameters::slow_speed_threshold(1024);
+uint32_t Parameters::connect_retries(3);
 Timeout Parameters::rendezvous_connect_timeout(bptime::seconds(5));
 Timeout Parameters::bootstrap_connect_timeout(bptime::seconds(2));
 Timeout Parameters::ping_timeout(bptime::seconds(2));
