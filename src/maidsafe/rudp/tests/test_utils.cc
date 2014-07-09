@@ -76,6 +76,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   EndpointPair endpoint_pair0, endpoint_pair1;
   NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
   endpoint_pair1 = endpoints1;
+  /* 2014-7-7 ned: Incompatible with packet loss testing
+
   Sleep(std::chrono::milliseconds(250));
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             nodes[0]->managed_connections()->GetAvailableEndpoint(
@@ -83,6 +85,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             nodes[1]->managed_connections()->GetAvailableEndpoint(
                 nodes[0]->node_id(), endpoint_pair0, endpoint_pair1, nat_type1));
+ */
 
   auto futures0(nodes[0]->GetFutureForMessages(1));
   auto futures1(nodes[1]->GetFutureForMessages(1));
