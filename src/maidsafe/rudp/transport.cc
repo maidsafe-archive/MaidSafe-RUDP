@@ -397,10 +397,9 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
                   << " to " << connection->PeerDebugId();
       return connection->Close();
     } else if (result == kConnectionAlreadyExists) {
-      LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
-                  << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
-      // assert(false);
-      return connection->MarkAsDuplicateAndClose(Connection::State::kExactDuplicate);
+      LOG(kWarning) << connection->state() << " connection from " << ThisDebugId() << " to "
+                    << connection->PeerDebugId() << " is a duplicate. Ignoring.";
+      return;
     }
   }
 

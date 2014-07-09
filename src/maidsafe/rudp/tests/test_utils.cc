@@ -73,8 +73,6 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   if (result0 != kSuccess || chosen_node_id != nodes[1]->node_id())
     return testing::AssertionFailure() << "Bootstrapping failed for Node 0.  Result using "
                                        << endpoints1.local << " was " << result0;
-  /* 2014-7-7 ned: Incompatible with packet loss testing
-
   EndpointPair endpoint_pair0, endpoint_pair1;
   NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
   endpoint_pair1 = endpoints1;
@@ -85,7 +83,6 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             nodes[1]->managed_connections()->GetAvailableEndpoint(
                 nodes[0]->node_id(), endpoint_pair0, endpoint_pair1, nat_type1));
- */
 
   auto futures0(nodes[0]->GetFutureForMessages(1));
   auto futures1(nodes[1]->GetFutureForMessages(1));
