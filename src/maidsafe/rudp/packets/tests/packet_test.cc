@@ -771,7 +771,9 @@ TEST_F(NegativeAckPacketTest, BEH_EncodeDecode) {
     EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x7fffffff));
     EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x0));
     EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x5));
+#ifdef NDEBUG
     EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x80000000));
+#endif
   }
 }
 
