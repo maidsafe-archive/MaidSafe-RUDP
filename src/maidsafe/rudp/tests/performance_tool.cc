@@ -63,7 +63,7 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
         packet_loss_bursty = std::stod(slash + 1);
       else
         packet_loss_constant = packet_loss_bursty = 100.0
-          * sqrt(packet_loss_constant / 100.0);
+          * (1 - sqrt(1 - (packet_loss_constant / 100.0)));
       packet_loss_constant /= 100.0;
       packet_loss_bursty /= 100.0;
     }
