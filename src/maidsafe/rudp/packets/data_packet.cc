@@ -134,7 +134,10 @@ size_t DataPacket::Encode(const asio::mutable_buffer& buffer) const {
   EncodeUint32(destination_socket_id_, p + 12);
   std::memcpy(p + kHeaderSize, data_.data(), data_.size());
 
-  //LOG(kVerbose) << "Sending DataPacket to " << DestinationSocketId() << " pkt seq " << packet_sequence_number_ << " msg no " << message_number_ << " length " << (kHeaderSize + data_.size());
+  // LOG(kVerbose) << "Sending DataPacket to " << DestinationSocketId()
+  //               << " pkt seq " << packet_sequence_number_ << " msg no "
+  //               << message_number_ << " length "
+  //               << (kHeaderSize + data_.size());
   return kHeaderSize + data_.size();
 }
 
