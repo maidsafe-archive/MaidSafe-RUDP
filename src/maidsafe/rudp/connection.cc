@@ -392,6 +392,11 @@ void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
 
 void Connection::HandleConnect(const bs::error_code& ec, const std::string& validation_data,
                                PingFunctor ping_functor) {
+  if (timeout_state_ == TimeoutState::kConnected) {
+    LOG(kWarning) << "Duplicate Connect received, ignoring";
+    return;
+  }
+
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
@@ -472,7 +477,7 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
       (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) | receive_buffer_.at(2))
        << 8) |
       receive_buffer_.at(3);
-  LOG(kInfo) << "Connection::HandleReadSize sees " << data_size_ << " bytes.";
+  LOG(kInfo) << "Connection::HandleReadSize to " << *multiplexer_ << " sees " << data_size_ << " bytes.";
   // Allow some leeway for encryption overhead
   if (data_size_ > ManagedConnections::kMaxMessageSize() + 1024) {
     LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > "
