@@ -268,7 +268,7 @@ void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::en
     KeepalivePacket keepalive_packet;
     if (data_packet.Decode(data)) {
       //LOG(kVerbose) << "Received DataPacket " << data_packet.PacketSequenceNumber() << ":"
-                    << data_packet.MessageNumber();
+      //              << data_packet.MessageNumber();
       HandleData(data_packet);
     } else if (ack_packet.Decode(data)) {
       //LOG(kVerbose) << "Received AckPacket";
