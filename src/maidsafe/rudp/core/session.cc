@@ -102,9 +102,7 @@ void Session::HandleHandshakeWhenProbing(const HandshakePacket& packet) {
 
 void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
   if (packet.InitialPacketSequenceNumber() == 0) {
-    LOG(kVerbose) << "Received duplicate ConnectionRequest from " << peer_.PeerEndpoint()
-                  << " Cookie will be resent by timer.";
-    return;
+    LOG(kVerbose) << "Received duplicate ConnectionRequest from " << peer_.PeerEndpoint();
   }
 
   //    if (packet.SynCookie() == 1) {

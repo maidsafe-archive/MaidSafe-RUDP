@@ -399,7 +399,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
     } else if (result == kConnectionAlreadyExists) {
       LOG(kWarning) << connection->state() << " connection from " << ThisDebugId() << " to "
                     << connection->PeerDebugId() << " is a duplicate. Ignoring.";
-      //return;
+      return;
     }
   }
 
