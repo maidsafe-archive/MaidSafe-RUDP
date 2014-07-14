@@ -77,6 +77,12 @@ class Multiplexer {
     size_t count, total_byte_count, error_count;
     packet_loss_state() : enabled(false), in_error_burst(false), constant(0.0),
                           bursty(0.0), count(0), total_byte_count(0), error_count(0) {
+      const char *constantenv = std::getenv("MAIDSAFE_RUDP_CONSTANT_PACKET_LOSS");
+      if (constantenv)
+        constant = std::strtod(constantenv, nullptr);
+      const char *burstyenv = std::getenv("MAIDSAFE_RUDP_BURSTY_PACKET_LOSS");
+      if (burstyenv)
+        bursty = std::strtod(burstyenv, nullptr);
       smallprng::raninit(&ctx, 0xdeadbeef);
     }
     bool should_drop_this_packet(size_t size) {
