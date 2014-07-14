@@ -267,18 +267,26 @@ void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::en
     ShutdownPacket shutdown_packet;
     KeepalivePacket keepalive_packet;
     if (data_packet.Decode(data)) {
+      LOG(kVerbose) << "Received DataPacket " << data_packet.PacketSequenceNumber() << ":"
+                    << data_packet.MessageNumber();
       HandleData(data_packet);
     } else if (ack_packet.Decode(data)) {
+      LOG(kVerbose) << "Received AckPacket";
       HandleAck(ack_packet);
     } else if (ack_of_ack_packet.Decode(data)) {
+      LOG(kVerbose) << "Received AckOfAckPacket";
       HandleAckOfAck(ack_of_ack_packet);
     } else if (negative_ack_packet.Decode(data)) {
+      LOG(kVerbose) << "Received NegativeAckPacket";
       HandleNegativeAck(negative_ack_packet);
     } else if (keepalive_packet.Decode(data)) {
+      LOG(kVerbose) << "Received KeepalivePacket";
       HandleKeepalive(keepalive_packet);
     } else if (handshake_packet.Decode(data)) {
+      LOG(kVerbose) << "Received HandshakePacket InitialPacketSequenceNumber=" << handshake_packet.InitialPacketSequenceNumber();
       HandleHandshake(handshake_packet);
     } else if (shutdown_packet.Decode(data)) {
+      LOG(kVerbose) << "Received ShutdownPacket";
       Close();
     } else {
       LOG(kWarning) << "Socket " << session_.Id() << " ignoring invalid packet from " << endpoint;
