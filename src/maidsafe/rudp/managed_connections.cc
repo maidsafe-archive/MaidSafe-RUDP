@@ -221,8 +221,7 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
   for (auto& element : idle_transports_) {
     auto existed(std::find_if(bootstrap_peers.begin(), bootstrap_peers.end(),
                               [element](const std::pair<NodeId, Endpoint> & entry) {
-                                  return entry.second == element->local_endpoint(); }
-    ));
+                                  return entry.second == element->local_endpoint(); }));
     if (existed != bootstrap_peers.end())
       bootstrap_peers.erase(existed);
   }
