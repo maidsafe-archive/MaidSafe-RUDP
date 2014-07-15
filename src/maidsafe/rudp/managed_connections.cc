@@ -217,6 +217,16 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
   //  bootstrap_endpoints.insert(bootstrap_endpoints.begin(),
   //                             Endpoint(local_ip_, kResiliencePort()));
 
+  // shall not bootstrap from the transport belonging to the same routing object
+  for (auto& element : idle_transports_) {
+    auto existed(std::find_if(bootstrap_peers.begin(), bootstrap_peers.end(),
+                              [element](const std::pair<NodeId, Endpoint> & entry) {
+                                  return entry.second == element->local_endpoint(); }
+    ));
+    if (existed != bootstrap_peers.end())
+      bootstrap_peers.erase(existed);
+  }
+
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });  // NOLINT
   NodeId chosen_id;
   if (!transport->Bootstrap(
