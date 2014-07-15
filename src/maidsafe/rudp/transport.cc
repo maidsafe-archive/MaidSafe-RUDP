@@ -146,7 +146,8 @@ bool Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>&
   }
 
   for (auto peer : bootstrap_peers) {
-    chosen_id = ConnectToBootstrapEndpoint(peer.first, peer.second, lifespan);
+    if (multiplexer_->local_endpoint() != peer.second)
+      chosen_id = ConnectToBootstrapEndpoint(peer.first, peer.second, lifespan);
     if (chosen_id != NodeId()) {
       LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
                     << " connected to " << DebugId(peer.first).substr(0, 7) << " - " << peer.second;
