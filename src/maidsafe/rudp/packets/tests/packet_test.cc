@@ -111,13 +111,6 @@ class DataPacketTest : public testing::Test {
 
 TEST_F(DataPacketTest, BEH_SequenceNumber) {
   EXPECT_EQ(0U, data_packet_.PacketSequenceNumber());
-#ifndef NDEBUG
-  std::string assertion_message;
-#ifdef MAIDSAFE_WIN32
-  assertion_message = "Assertion failed: .* <= 0x7fffffff";
-#endif
-  ASSERT_DEATH({ data_packet_.SetPacketSequenceNumber(0x80000000); }, assertion_message);  // NOLINT
-#endif
   data_packet_.SetPacketSequenceNumber(0x7fffffff);
   EXPECT_EQ(0x7fffffff, data_packet_.PacketSequenceNumber());
 }
@@ -142,13 +135,6 @@ TEST_F(DataPacketTest, BEH_InOrder) {
 
 TEST_F(DataPacketTest, BEH_MessageNumber) {
   EXPECT_EQ(0U, data_packet_.MessageNumber());
-#ifndef NDEBUG
-  std::string assertion_message;
-#ifdef MAIDSAFE_WIN32
-  assertion_message = "Assertion failed: .* <= 0x1fffffff";
-#endif
-  ASSERT_DEATH({ data_packet_.SetMessageNumber(0x20000000); }, assertion_message);  // NOLINT
-#endif
   data_packet_.SetMessageNumber(0x1fffffff);
   EXPECT_EQ(0x1fffffff, data_packet_.MessageNumber());
 }
@@ -279,13 +265,6 @@ class ControlPacketTest : public testing::Test {
 
 TEST_F(ControlPacketTest, BEH_Type) {
   EXPECT_EQ(0U, control_packet_.Type());
-#ifndef NDEBUG
-  std::string assertion_message;
-#ifdef MAIDSAFE_WIN32
-  assertion_message = "Assertion failed: .* <= 0x7fff";
-#endif
-  ASSERT_DEATH({ SetType(0x8000); }, assertion_message);  // NOLINT (Fraser)
-#endif
   SetType(0x7fff);
   EXPECT_EQ(0x7fff, control_packet_.Type());
 }
@@ -587,12 +566,6 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     bool public_key_not_null(handshake_packet_.PublicKey());
     ASSERT_TRUE(public_key_not_null);
     EXPECT_TRUE(asymm::MatchingKeys(keys.public_key, *handshake_packet_.PublicKey()));
-
-#ifndef NDEBUG
-    // Encode and decode with an invalid public key
-    handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey()));
-    ASSERT_DEATH({ handshake_packet_.Encode(boost::asio::buffer(dbuffer)); }, "");  // NOLINT
-#endif
   }
 }
 
@@ -798,14 +771,7 @@ TEST_F(NegativeAckPacketTest, BEH_EncodeDecode) {
     EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x7fffffff));
     EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x0));
     EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x5));
-#ifndef NDEBUG
-    std::string assertion_message;
-#ifdef MAIDSAFE_WIN32
-    assertion_message = "Assertion failed: .* <= 0x7fffffff";
-#endif
-    ASSERT_DEATH({ negative_ack_packet_.ContainsSequenceNumber(0x80000000); },
-                 assertion_message);  // NOLINT (Fraser)
-#else
+#ifdef NDEBUG
     EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x80000000));
 #endif
   }
