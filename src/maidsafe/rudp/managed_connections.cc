@@ -217,16 +217,15 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
   //  bootstrap_endpoints.insert(bootstrap_endpoints.begin(),
   //                             Endpoint(local_ip_, kResiliencePort()));
 
-  // shall not bootstrap from the transport belonging to the same routing object
-  for (auto& element : idle_transports_) {
-    auto existed(std::find_if(bootstrap_peers.begin(), bootstrap_peers.end(),
-                              [element](const std::pair<NodeId, Endpoint> & entry) {
-                                  return entry.second == element->local_endpoint(); }));
-    if (existed != bootstrap_peers.end())
-      bootstrap_peers.erase(existed);
+  // Should not bootstrap from the transport belonging to the same routing object
+  for (const auto& element : idle_transports_) {
+    bootstrap_peers.erase(std::remove_if(bootstrap_peers.begin(), bootstrap_peers.end(),
+                                         [&element](const NodeIdEndpointPairs::value_type& entry) {
+                                           return entry.second == element->local_endpoint();
+                                         }), bootstrap_peers.end());
   }
 
-  transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });  // NOLINT
+  transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
   NodeId chosen_id;
   if (!transport->Bootstrap(
            bootstrap_peers, this_node_id_, public_key_, local_endpoint,
@@ -308,7 +307,7 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id, EndpointPair peer_e
   }
 
   // Functor to handle resetting parameters in case of failure.
-  const auto kDoFail([&](const std::string & message, int result)->int {  // NOLINT (Fraser)
+  const auto kDoFail([&](const std::string & message, int result)->int {
                        this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
                        this_nat_type = NatType::kUnknown;
                        if (!message.empty())
@@ -345,7 +344,7 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id, EndpointPair peer_e
   }
 
   if (ShouldStartNewTransport(peer_endpoint_pair) &&
-      !StartNewTransport(NodeIdEndpointPairs(), Endpoint(local_ip_, 0))) {  // NOLINT (Fraser)
+      !StartNewTransport(NodeIdEndpointPairs(), Endpoint(local_ip_, 0))) {
     return kDoFail("Failed to start transport.", kTransportStartFailure);
   }
 
@@ -496,18 +495,18 @@ void ManagedConnections::RemovePending(const NodeId& peer_id) {
     pendings_.erase(itr);
 }
 
-std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::const_iterator  // NOLINT
+std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::const_iterator
     ManagedConnections::FindPendingTransportWithNodeId(const NodeId& peer_id) const {
   return std::find_if(pendings_.cbegin(), pendings_.cend(),
                       [&peer_id](const std::unique_ptr<PendingConnection> &
-                                 element) { return element->node_id == peer_id; });  // NOLINT
+                                 element) { return element->node_id == peer_id; });
 }
 
-std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator  // NOLINT
+std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator
     ManagedConnections::FindPendingTransportWithNodeId(const NodeId& peer_id) {
   return std::find_if(pendings_.begin(), pendings_.end(),
                       [&peer_id](const std::unique_ptr<PendingConnection> &
-                                 element) { return element->node_id == peer_id; });  // NOLINT
+                                 element) { return element->node_id == peer_id; });
 }
 
 int ManagedConnections::Add(NodeId peer_id, EndpointPair peer_endpoint_pair,
@@ -760,7 +759,7 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPt
 
     if (local_callback) {
       LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
-      asio_service_.service().post([=] { local_callback(peer_id); });  // NOLINT (Fraser)
+      asio_service_.service().post([=] { local_callback(peer_id); });
     }
   }
 }
