@@ -83,7 +83,7 @@ class Multiplexer {
       const char *burstyenv = std::getenv("MAIDSAFE_RUDP_BURSTY_PACKET_LOSS");
       if (burstyenv)
         bursty = std::strtod(burstyenv, nullptr);
-      smallprng::raninit(&ctx, 0xdeadbeef);
+      smallprng::raninit(&ctx, /*0xdeadbeef*/ std::time(nullptr));
     }
     bool should_drop_this_packet(size_t size) {
       bool ret = false;
