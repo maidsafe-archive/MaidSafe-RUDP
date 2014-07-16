@@ -75,6 +75,7 @@ Connection::Connection(const std::shared_ptr<Transport>& transport,
       lifespan_timer_(strand_.get_io_service()),
       peer_node_id_(),
       peer_endpoint_(),
+      connect_attempt_retries_left_(0),
       send_buffer_(),
       receive_buffer_(),
       data_size_(0),
@@ -121,34 +122,41 @@ void Connection::DoClose(bool timed_out) {
 void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                                  const std::string& validation_data,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
+                                 uint32_t connect_attempt_retries_left,
                                  const boost::posix_time::time_duration& lifespan,
                                  const std::function<void()>& failure_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
-                             peer_endpoint, validation_data, connect_attempt_timeout, lifespan,
+                             peer_endpoint, validation_data, connect_attempt_timeout,
+                             connect_attempt_retries_left, lifespan,
                              PingFunctor(), failure_functor));
 }
 
 void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                       const PingFunctor& ping_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
-                             peer_endpoint, "", Parameters::ping_timeout, bptime::time_duration(),
-                             ping_functor, std::function<void()>()));
+                             peer_endpoint, "", Parameters::ping_timeout, 0,
+                             bptime::time_duration(), ping_functor, std::function<void()>()));
 }
 
 void Connection::DoStartConnecting(const NodeId& peer_node_id,
                                    const ip::udp::endpoint& peer_endpoint,
                                    const std::string& validation_data,
                                    const boost::posix_time::time_duration& connect_attempt_timeout,
+                                   uint32_t connect_attempt_retries_left,
                                    const boost::posix_time::time_duration& lifespan,
                                    const PingFunctor& ping_functor,
                                    const std::function<void()>& failure_functor) {
   peer_node_id_ = peer_node_id;
   peer_endpoint_ = peer_endpoint;
+  connect_attempt_retries_left_ = connect_attempt_retries_left;
   failure_functor_ = failure_functor;
   StartTick();
-  StartConnect(validation_data, connect_attempt_timeout, lifespan, ping_functor);
+  std::function<void()> do_start_connect = std::bind(&Connection::StartConnect, shared_from_this(),
+                                                     validation_data, connect_attempt_timeout,
+                                                     lifespan, ping_functor);
+  do_start_connect();
   bs::error_code ignored_ec;
-  CheckTimeout(ignored_ec);
+  CheckTimeout(ignored_ec, do_start_connect);
 }
 
 Connection::State Connection::state() const {
@@ -246,7 +254,8 @@ void Connection::DoStartSending(SendRequest const& request) {
   }
 }
 
-void Connection::CheckTimeout(const bs::error_code& ec) {
+void Connection::CheckTimeout(const bs::error_code& ec,
+                              std::function<void()> do_start_connect) {
   if (ec && ec != boost::asio::error::operation_aborted) {
     LOG(kError) << "Connection check timeout error: " << ec.message();
     socket_.Close();
@@ -262,12 +271,22 @@ void Connection::CheckTimeout(const bs::error_code& ec) {
     LOG(kWarning) << "Failed to " << (timeout_state_ == TimeoutState::kClosing ? "dis" : "")
                   << "connect from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                   << " - timed out.";
-    return DoClose(true);
+    if (timeout_state_ != TimeoutState::kConnecting || 0 == connect_attempt_retries_left_)
+      return DoClose(true);
+    --connect_attempt_retries_left_;
+    LOG(kWarning) << "Resending start connection packet. " << connect_attempt_retries_left_
+                  << " retries remain.";
+    do_start_connect();
   }
+
+  // If we're not connecting, stop carrying around connect retry data
+  if (timeout_state_ != TimeoutState::kConnecting && do_start_connect)
+    do_start_connect = std::function<void()>();
 
   // Keep processing timeouts until the socket is completely closed.
   timer_.async_wait(
-      strand_.wrap(std::bind(&Connection::CheckTimeout, shared_from_this(), args::_1)));
+      strand_.wrap(std::bind(&Connection::CheckTimeout, shared_from_this(), args::_1,
+                             do_start_connect)));
 }
 
 // May return true if connection still being gracefully closed down
@@ -373,6 +392,11 @@ void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
 
 void Connection::HandleConnect(const bs::error_code& ec, const std::string& validation_data,
                                PingFunctor ping_functor) {
+  if (timeout_state_ == TimeoutState::kConnected) {
+    LOG(kWarning) << "Duplicate Connect received, ignoring";
+    return;
+  }
+
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
@@ -453,11 +477,13 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
       (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) | receive_buffer_.at(2))
        << 8) |
       receive_buffer_.at(3);
+  // LOG(kInfo) << "Connection::HandleReadSize to " << *multiplexer_ << " sees "
+  //            << data_size_ << " bytes.";
   // Allow some leeway for encryption overhead
   if (data_size_ > ManagedConnections::kMaxMessageSize() + 1024) {
     LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > "
-                << ManagedConnections::kMaxMessageSize() + 1024;
-    return DoClose();
+                << ManagedConnections::kMaxMessageSize() + 1024 << ", ignoring.";
+    return;
   }
 
   data_received_ = 0;

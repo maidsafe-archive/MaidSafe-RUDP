@@ -85,12 +85,13 @@ void ConnectionManager::Close() {
 void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                                 const std::string& validation_data,
                                 const bptime::time_duration& connect_attempt_timeout,
+                                uint32_t connect_attempt_retries_left,
                                 const bptime::time_duration& lifespan,
                                 const std::function<void()>& failure_functor) {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
     connection->StartConnecting(peer_id, peer_endpoint, validation_data, connect_attempt_timeout,
-                                lifespan, failure_functor);
+                                connect_attempt_retries_left, lifespan, failure_functor);
   }
 }
 
@@ -262,6 +263,7 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
       // Joining node is not already connected - start new bootstrap or temporary connection
       Connect(
           handshake_packet.node_id(), endpoint, "", Parameters::bootstrap_connect_timeout,
+          Parameters::connect_retries,
           bootstrap_and_drop ? bptime::time_duration() : Parameters::bootstrap_connection_lifespan);
     }
     return;
