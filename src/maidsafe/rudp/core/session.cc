@@ -160,9 +160,11 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
   // TODO(Fraser#5#): 2012-04-04 - Handle SynCookies
   if (state_ == kProbing) {
     HandleHandshakeWhenProbing(packet);
-  } else if (state_ == kHandshaking
-             && packet.ConnectionType() != 1 /* not initial handshake */) {
-    HandleHandshakeWhenHandshaking(packet);
+  } else if (state_ == kHandshaking) {
+    if (packet.ConnectionType() == 1)  // duplicate initial handshake
+      HandleHandshakeWhenProbing(packet);
+    else
+      HandleHandshakeWhenHandshaking(packet);
   }
 }
 
