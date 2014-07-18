@@ -343,6 +343,7 @@ void Connection::StartConnect(const std::string& validation_data,
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(), args::_1,
                                         validation_data, ping_functor));
   Session::Mode open_mode(Session::kNormal);
+  failed_probe_count_ = 0;  // reset failed probe count in case we are retrying
   lifespan_timer_.expires_from_now(lifespan);
   if (validation_data.empty()) {
     assert(lifespan != bptime::pos_infin);
