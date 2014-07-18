@@ -611,11 +611,11 @@ void Connection::HandleProbe(const bs::error_code& ec) {
                   << "   probe_count: " << int(failed_probe_count_);
     bs::error_code ignored_ec;
     DoProbe(ignored_ec);
-  } else {
+  }/* else {
     LOG(kWarning) << "Failed to probe from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                   << "   error - " << ec.message();
     return DoClose();
-  }
+  }*/
 }
 
 void Connection::InvokeSentFunctor(const MessageSentFunctor& message_sent_functor,
