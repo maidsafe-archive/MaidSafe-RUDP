@@ -98,9 +98,11 @@ void Connection::Close() {
 }
 
 void Connection::DoClose(bool timed_out) {
+  LOG(kVerbose) << "RUDP Connection::DoClose";
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
+    LOG(kVerbose) << "rudp connection disconnecting transport";
     // We're still connected to the transport. We need to detach and then start flushing the socket
     // to attempt a graceful closure.
     socket_.NotifyClose();
@@ -113,9 +115,11 @@ void Connection::DoClose(bool timed_out) {
     timeout_state_ = TimeoutState::kClosing;
   } else {
     // We've already had a go at graceful closure. Just tear down the socket.
+    LOG(kVerbose) << "rudp connection cleanup resource";
     socket_.Close();
     timer_.cancel();
   }
+  LOG(kInfo) << "RUDP Connection::DoClose connection closed";
 }
 
 void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
