@@ -347,7 +347,6 @@ void Connection::StartConnect(const std::string& validation_data,
   auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(), args::_1,
                                         validation_data, ping_functor));
   Session::Mode open_mode(Session::kNormal);
-  failed_probe_count_ = 0;  // reset failed probe count in case we are retrying
   lifespan_timer_.expires_from_now(lifespan);
   if (validation_data.empty()) {
     assert(lifespan != bptime::pos_infin);
@@ -588,6 +587,7 @@ void Connection::HandleWrite(MessageSentFunctor message_sent_functor) {
 }
 
 void Connection::StartProbing() {
+  failed_probe_count_ = 0;
   probe_interval_timer_.expires_from_now(Parameters::keepalive_interval);
   probe_interval_timer_.async_wait(
       strand_.wrap(std::bind(&Connection::DoProbe, shared_from_this(), args::_1)));
@@ -601,10 +601,8 @@ void Connection::DoProbe(const bs::error_code& ec) {
 }
 
 void Connection::HandleProbe(const bs::error_code& ec) {
-  if (!ec) {
-    failed_probe_count_ = 0;
+  if (!ec)
     return StartProbing();
-  }
 
   if (((asio::error::try_again == ec) || (asio::error::timed_out == ec) ||
        (asio::error::operation_aborted == ec)) &&
@@ -615,11 +613,11 @@ void Connection::HandleProbe(const bs::error_code& ec) {
                   << "   probe_count: " << int(failed_probe_count_);
     bs::error_code ignored_ec;
     DoProbe(ignored_ec);
-  }/* else {
+  } else {
     LOG(kWarning) << "Failed to probe from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                   << "   error - " << ec.message();
     return DoClose();
-  }*/
+  }
 }
 
 void Connection::InvokeSentFunctor(const MessageSentFunctor& message_sent_functor,
