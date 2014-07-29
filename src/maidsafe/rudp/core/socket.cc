@@ -158,7 +158,9 @@ void Socket::StartConnect(
 }
 
 void Socket::StartProbe() {
-  waiting_probe_ec_ = asio::error::operation_aborted;
+  // 2014-7-29 ned: I think retries are causing retried StartProbe which was
+  //                causing existing probes to always fail due to this line
+  // waiting_probe_ec_ = asio::error::operation_aborted;
   if (!session_.IsConnected()) {
     waiting_probe_ec_ = boost::asio::error::not_connected;
     waiting_probe_.cancel();
