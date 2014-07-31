@@ -163,6 +163,11 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
   } else if (state_ == kHandshaking) {
     if (packet.ConnectionType() != 1)  // not duplicate initial handshake
       HandleHandshakeWhenHandshaking(packet);
+    else
+      LOG(kWarning) << "Ignoring spurious handshake packet as received duplicate initial handshake";
+  }
+  else {
+    LOG(kWarning) << "Ignoring spurious handshake packet as not probing nor handshaking";
   }
 }
 
