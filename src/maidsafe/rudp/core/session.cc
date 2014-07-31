@@ -165,9 +165,12 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
       HandleHandshakeWhenHandshaking(packet);
     else
       LOG(kWarning) << "Ignoring spurious handshake packet as received duplicate initial handshake";
+  } else if (state_ == kConnected) {
+    LOG(kWarning) << "Received spurious handshake packet after already connected, resending cookie";
+    SendCookie();
   }
   else {
-    LOG(kWarning) << "Ignoring spurious handshake packet as not probing nor handshaking";
+    LOG(kWarning) << "Ignoring spurious handshake packet as not probing nor handshaking nor connected";
   }
 }
 
