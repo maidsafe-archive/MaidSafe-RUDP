@@ -1,0 +1,9 @@
+The following pull request increases RUDP connection bootstrap reliability by an enormous factor. It however also does at least these:
+
+1. Opens connection hijacking such that an attacker can send an arbitrary new encryption key and take over the connection.
+
+2. Enables DDoS through a packet replay attack.
+
+3. Enables a rare (4%) packet avalanche and connection hang. It *usually* times out, but occasionally doesn't.
+
+In short this code should not go anywhere near production code. Only use for testnet testing!
