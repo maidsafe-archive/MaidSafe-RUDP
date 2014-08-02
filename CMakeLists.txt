@@ -65,11 +65,11 @@ target_include_directories(maidsafe_rudp PUBLIC ${PROJECT_SOURCE_DIR}/include PR
 target_link_libraries(maidsafe_rudp maidsafe_common)
 
 if(MaidsafeTesting)
-  ms_add_executable(TESTrudp "Tests/RUDP" ${RudpTestsAllFiles}
-                                          ${RudpCoreTestsAllFiles}
-#                                          ${RudpOperationsTestsAllFiles}
-                                          ${RudpPacketsTestsAllFiles})
-  target_include_directories(TESTrudp PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  ms_add_executable(test_rudp "Tests/RUDP" ${RudpTestsAllFiles}
+                                           ${RudpCoreTestsAllFiles}
+#                                           ${RudpOperationsTestsAllFiles}
+                                           ${RudpPacketsTestsAllFiles})
+  target_include_directories(test_rudp PRIVATE ${PROJECT_SOURCE_DIR}/src)
   ms_add_executable(rudp_performance_tool "Tools/RUDP" ${RudpSourcesDir}/tests/performance_tool.cc
                                                        ${RudpSourcesDir}/tests/test_utils.cc
                                                        ${RudpSourcesDir}/tests/test_utils.h)
@@ -77,7 +77,7 @@ if(MaidsafeTesting)
 #  ms_add_executable(rudp_node "Tools/RUDP" ${RudpSourcesDir}/tests/rudp_node.cc
 #                                           ${RudpSourcesDir}/tests/rudp_node_impl.h
 #                                           ${RudpSourcesDir}/tests/rudp_node_impl.cc)
-  target_link_libraries(TESTrudp maidsafe_rudp maidsafe_test)
+  target_link_libraries(test_rudp maidsafe_rudp maidsafe_test)
   target_link_libraries(rudp_performance_tool maidsafe_rudp maidsafe_test)
 #  target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
   ms_add_executable(udp_server "Tools/RUDP"
@@ -102,7 +102,7 @@ include(standard_flags)
 #==================================================================================================#
 if(MaidsafeTesting)
   ms_add_default_tests()
-  ms_add_gtests(TESTrudp)
+  ms_add_gtests(test_rudp)
   ms_add_gtests(rudp_performance_tool)
   ms_test_summary_output()
 endif()
@@ -115,8 +115,8 @@ install(TARGETS maidsafe_rudp COMPONENT Development CONFIGURATIONS Debug Release
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ COMPONENT Development DESTINATION include)
 
 if(MaidsafeTesting)
-  install(TARGETS TESTrudp COMPONENT Tests CONFIGURATIONS Debug RUNTIME DESTINATION bin/debug)
-  install(TARGETS TESTrudp COMPONENT Tests CONFIGURATIONS Release RUNTIME DESTINATION bin)
+  install(TARGETS test_rudp COMPONENT Tests CONFIGURATIONS Debug RUNTIME DESTINATION bin/debug)
+  install(TARGETS test_rudp COMPONENT Tests CONFIGURATIONS Release RUNTIME DESTINATION bin)
   install(TARGETS udp_server udp_client COMPONENT Tools CONFIGURATIONS Debug RUNTIME DESTINATION bin/debug)
   install(TARGETS udp_server udp_client COMPONENT Tools CONFIGURATIONS Release RUNTIME DESTINATION bin)
 endif()
