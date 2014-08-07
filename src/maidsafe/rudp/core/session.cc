@@ -164,13 +164,18 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     if (packet.ConnectionType() != 1)  // not duplicate initial handshake
       HandleHandshakeWhenHandshaking(packet);
     else
-      LOG(kWarning) << "Ignoring spurious handshake packet as received duplicate initial handshake";
-  } else if (state_ == kConnected && packet.ConnectionType() == 1) {
-    LOG(kInfo) << "Received spurious initial handshake packet after already connected, resending cookie";
-    SendCookie();
-  }
-  else {
-    LOG(kWarning) << "Ignoring spurious handshake packet as not probing nor handshaking nor connected";
+      LOG(kWarning) << "Ignoring duplicate initial handshake packet";
+  } else if (state_ == kConnected) {
+    if (packet.ConnectionType() == 1) {  // duplicate initial handshake
+      LOG(kInfo) <<
+        "Received spurious initial handshake packet after already connected, resending cookie";
+      SendCookie();
+    } else {
+      LOG(kWarning) << "Ignoring spurious second stage handshake packet as already connected";
+    }
+  } else {
+    LOG(kWarning) <<
+      "Ignoring spurious handshake packet as not probing nor handshaking nor connected";
   }
 }
 
