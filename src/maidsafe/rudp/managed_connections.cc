@@ -651,9 +651,7 @@ void ManagedConnections::Send(NodeId peer_id, std::string message,
 }
 
 void ManagedConnections::OnMessageSlot(const std::string& message) {
-  auto debug_string(DebugString());
-  if (!debug_string.empty())
-    LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();
+  LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();
 
   try {
     std::string decrypted_message(
