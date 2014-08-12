@@ -89,6 +89,7 @@ uint32_t Session::ReceivingSequenceNumber() const { return receiving_sequence_nu
 uint32_t Session::PeerConnectionType() const { return peer_connection_type_; }
 
 void Session::Close() {
+  LOG(kInfo) << "Closing session to peer " << DebugId(peer_.node_id());
   signal_connection_.disconnect();
   state_ = kClosed;
 }
@@ -164,18 +165,23 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     if (packet.ConnectionType() != 1)  // not duplicate initial handshake
       HandleHandshakeWhenHandshaking(packet);
     else
-      LOG(kWarning) << "Ignoring duplicate initial handshake packet";
+      LOG(kWarning) << "Ignoring duplicate initial handshake packet from peer "
+        << DebugId(peer_.node_id());
   } else if (state_ == kConnected) {
     if (packet.ConnectionType() == 1) {  // duplicate initial handshake
       LOG(kInfo) <<
-        "Received spurious initial handshake packet after already connected, resending cookie";
+        "Received spurious initial handshake packet after already connected from "
+          << DebugId(peer_.node_id()) << ", resending cookie";
       SendCookie();
     } else {
-      LOG(kWarning) << "Ignoring spurious second stage handshake packet as already connected";
+      LOG(kWarning) << "Ignoring spurious second stage handshake packet from "
+        << DebugId(peer_.node_id()) << " as already connected";
     }
   } else {
     LOG(kWarning) <<
-      "Ignoring spurious handshake packet as not probing nor handshaking nor connected";
+      "Ignoring spurious handshake packet from " << DebugId(packet.node_id())
+        << " as not probing nor handshaking nor connected, in fact my state is "
+        << state_;
   }
 }
 
