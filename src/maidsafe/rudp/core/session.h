@@ -164,6 +164,9 @@ class Session {
     kConnected
   } state_;
 
+  // Used to detect DDoS attacks
+  uint32_t cookie_retries_sent_;
+
   OnNatDetectionRequested on_nat_detection_requested_;
   boost::signals2::connection signal_connection_;
 };

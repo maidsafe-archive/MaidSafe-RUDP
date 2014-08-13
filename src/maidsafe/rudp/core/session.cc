@@ -59,6 +59,7 @@ Session::Session(Peer& peer, TickTimer& tick_timer,
       peer_nat_detection_endpoint_(),
       mode_(kNormal),
       state_(kClosed),
+      cookie_retries_sent_(0),
       on_nat_detection_requested_(),
       signal_connection_() {}
 
@@ -74,6 +75,7 @@ void Session::Open(uint32_t id, NodeId this_node_id,
   sending_sequence_number_ = sequence_number;
   mode_ = mode;
   state_ = kProbing;
+  cookie_retries_sent_ = 0;
   signal_connection_ = on_nat_detection_requested_.connect(on_nat_detection_requested_slot);
   SendConnectionRequest();
 }
@@ -169,10 +171,19 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
         << DebugId(peer_.node_id());
   } else if (state_ == kConnected) {
     if (packet.ConnectionType() == 1) {  // duplicate initial handshake
-      LOG(kInfo) <<
-        "Received spurious initial handshake packet after already connected from "
-          << DebugId(peer_.node_id()) << ", resending cookie";
-      SendCookie();
+      if (cookie_retries_sent_++ < 10) {
+        LOG(kInfo) <<
+          "Received spurious initial handshake packet after already connected from "
+            << DebugId(peer_.node_id()) << ", resending cookie retry "
+            << cookie_retries_sent_;
+        state_ = kHandshaking;
+        SendCookie();
+      } else {
+        LOG(kWarning) << "Number of duplicate initial handshakes has exceeded 10, "
+          "closing connection in case this is a DDoS attempt.";
+        state_ = kClosed;
+        return;
+      }
     } else {
       LOG(kWarning) << "Ignoring spurious second stage handshake packet from "
         << DebugId(peer_.node_id()) << " as already connected";
@@ -231,7 +242,7 @@ bool Session::CalculateEndpoint() {
   return true;
 }
 
-void Session::HandleTick() {
+void Session::HandleTick() {  // Only called by socket if socket thinks we are not connected
   if (state_ == kProbing) {
     SendConnectionRequest();
   } else if (state_ == kHandshaking) {

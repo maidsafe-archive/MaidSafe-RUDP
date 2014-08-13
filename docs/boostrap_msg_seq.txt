@@ -56,4 +56,4 @@ callback Connection::HandleConnect
   => Connection::StartSending validation data => Connection::DoQueueSendRequest => Connection::DoStartSending
     => Connection::EncodeData, this prepends 3 bytes of data length
     => Connection::StartWrite => asio::AsyncWrite, callback Connection::HandleWrite
-  
+
