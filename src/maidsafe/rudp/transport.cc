@@ -466,8 +466,6 @@ void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
     std::string s("\n************************\nRemoved ");
     s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
     s += ThisDebugId() + " to " + connection->PeerDebugId() + '\n';
-    if (managed_connections_debug_printout_ && local_callback)
-      s += managed_connections_debug_printout_();
     LOG(kVerbose) << s;
 #endif
   }
