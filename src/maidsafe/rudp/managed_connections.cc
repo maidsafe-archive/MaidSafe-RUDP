@@ -790,16 +790,19 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
 }
 
 std::string ManagedConnections::DebugString() const {
-  std::string s = "This node's peer connections:\n";
-
   std::lock_guard<std::mutex> lock(mutex_);
+  // Not interested in the log once accumulated enough connections
+  if (connections_.size() > 8)
+    return "";
+
+//  std::string s = "This node's peer connections:\n";
   std::set<TransportPtr> transports;
   for (auto connection : connections_) {
     transports.insert(connection.second);
-    s += '\t' + DebugId(connection.first).substr(0, 7) + '\n';
+//     s += '\t' + DebugId(connection.first).substr(0, 7) + '\n';
   }
 
-  s += "\nThis node's own transports and their peer connections:\n";
+  std::string s = "This node's own transports and their peer connections:\n";
   for (auto transport : transports)
     s += transport->DebugString();
 
