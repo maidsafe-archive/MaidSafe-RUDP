@@ -164,8 +164,8 @@ class Session {
     kConnected
   } state_;
 
-  // Used to detect DDoS attacks
-  uint32_t cookie_retries_sent_;
+  // Used to retry second stage handshake packets only so many times
+  uint32_t cookie_retries_togo_;
 
   OnNatDetectionRequested on_nat_detection_requested_;
   boost::signals2::connection signal_connection_;
