@@ -159,8 +159,8 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     state_ = kClosed;
     return;
   }
-  
-  if (cookie_retries_togo_ == 0) {
+
+  if (state_ != kConnected && cookie_retries_togo_ == 0) {
     LOG(kWarning) << "Number of handshakes has exceeded 20, closing connection in "
       "case this is a DDoS attempt.";
     state_ = kClosed;
@@ -251,7 +251,7 @@ bool Session::CalculateEndpoint() {
   return true;
 }
 
-void Session::HandleTick() {  // Only called by socket if socket thinks we are not connected
+void Session::HandleTick() {
   if (state_ == kProbing) {
     SendConnectionRequest();
   } else if (state_ == kHandshaking || (state_ == kConnected && cookie_retries_togo_)) {

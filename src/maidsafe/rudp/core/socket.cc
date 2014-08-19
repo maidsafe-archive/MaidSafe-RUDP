@@ -386,14 +386,13 @@ void Socket::HandleNegativeAck(const NegativeAckPacket& packet) {
 }
 
 void Socket::HandleTick() {
+  session_.HandleTick();
   if (session_.IsConnected()) {
     sender_.HandleTick();
     receiver_.HandleTick();
     ProcessRead();
     ProcessWrite();
     ProcessFlush();
-  } else {
-    session_.HandleTick();
   }
 }
 
