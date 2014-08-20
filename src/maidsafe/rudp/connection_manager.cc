@@ -113,7 +113,10 @@ bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
 
   ConnectionPtr connection(*itr);
   lock.unlock();
-  strand_.dispatch([=] { connection->Close(); });  // NOLINT (Fraser)
+  strand_.dispatch([=] {
+      LOG(kVerbose) << "closing connection to " << DebugId(peer_id);
+      connection->Close();
+  });  // NOLINT (Fraser)
   return true;
 }
 
@@ -163,7 +166,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
     LOG(kError) << DebugId(kThisNodeId_) << " Received a non-RUDP packet from " << endpoint;
     return nullptr;
   }
-
+//  std::unique_lock<std::mutex> lock(mutex_);
   SocketMap::const_iterator socket_iter(sockets_.end());
   if (socket_id == 0) {
     HandshakePacket handshake_packet;
@@ -175,7 +178,8 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
     if (handshake_packet.ConnectionReason() == Session::kNormal) {
       // This is a handshake packet on a newly-added socket
       LOG(kVerbose) << DebugId(kThisNodeId_)
-                    << " This is a handshake packet on a newly-added socket from " << endpoint;
+                    << " This is a handshake packet on a newly-added socket from " << endpoint
+                    << " with socket id " << socket_id;
       socket_iter = std::find_if(sockets_.begin(), sockets_.end(),
                                  [endpoint](const SocketMap::value_type & socket_pair) {
         return socket_pair.second->PeerEndpoint() == endpoint && !socket_pair.second->IsConnected();
@@ -225,6 +229,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
   }
 
   if (socket_iter != sockets_.end()) {
+    LOG(kVerbose) << DebugId(kThisNodeId_) << " find socket for endpoint " << endpoint;
     return socket_iter->second;
   } else {
     const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
@@ -315,6 +320,8 @@ uint32_t ConnectionManager::AddSocket(Socket* socket) {
 }
 
 void ConnectionManager::RemoveSocket(uint32_t id) {
+//  std::unique_lock<std::mutex> lock(mutex_);
+  LOG(kVerbose) << "removing socket " << id;
   if (id)
     sockets_.erase(id);
 }

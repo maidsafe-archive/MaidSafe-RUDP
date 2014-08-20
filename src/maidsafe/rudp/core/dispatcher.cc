@@ -69,6 +69,7 @@ void Dispatcher::RemoveSocket(uint32_t id) {
 
 void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
                                    const ip::udp::endpoint& endpoint) {
+  LOG(kVerbose) << "HandleReceiveFrom " << endpoint;
   auto in_use(use_count_);
   ConnectionManager* connection_manager;
   {
@@ -76,11 +77,19 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
     connection_manager = connection_manager_;
   }
   if (connection_manager) {
+    LOG(kVerbose) << "trying to fetch socket";
     Socket* socket(connection_manager->GetSocket(data, endpoint));
     if (socket) {
+      try {
+          LOG(kVerbose) << "fetched socket : " << socket->PeerEndpoint()
+                        << " , " << DebugId(socket->PeerNodeId());
+      } catch (const std::exception& e) {
+        LOG(kError) << boost::diagnostic_information(e);
+      }
       socket->HandleReceiveFrom(data, endpoint);
     }
   }
+  LOG(kVerbose) << "returning from HandleReceiveFrom";
 }
 
 }  // namespace detail
