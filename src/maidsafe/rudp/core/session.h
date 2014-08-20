@@ -23,6 +23,7 @@
 
 #include <mutex>
 #include <cstdint>
+#include <vector>
 
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/asio/ip/udp.hpp"
@@ -166,6 +167,9 @@ class Session {
 
   // Used to retry second stage handshake packets only so many times
   uint32_t cookie_retries_togo_;
+  
+  // Used to inhibit flood and hijack attacks
+  uint32_t my_cookie_syn_, his_cookie_syn_;
 
   OnNatDetectionRequested on_nat_detection_requested_;
   boost::signals2::connection signal_connection_;
