@@ -80,7 +80,8 @@ void Session::Open(uint32_t id, NodeId this_node_id,
   state_ = kProbing;
   his_estimated_state_ = kProbing;
   cookie_retries_togo_ = Parameters::maximum_keepalive_failures / 2;
-  crypto::random_number_generator().GenerateBlock((uint8_t *) &my_cookie_syn_, sizeof(my_cookie_syn_));
+  crypto::random_number_generator().GenerateBlock(reinterpret_cast<uint8_t *>(&my_cookie_syn_),
+                                                  sizeof(my_cookie_syn_));
   if (!my_cookie_syn_) my_cookie_syn_ = 0xdeadbeef;
   his_cookie_syn_ = 0;
   signal_connection_ = on_nat_detection_requested_.connect(on_nat_detection_requested_slot);
@@ -106,10 +107,8 @@ void Session::Close() {
 void Session::HandleHandshakeWhenProbing(const HandshakePacket& packet) {
   if (packet.ConnectionType() == 2)  // is connected handshake
     return;
-  else if (packet.ConnectionType() == 1)  // is initial handshake
-  {
-    if (his_cookie_syn_)
-    {
+  else if (packet.ConnectionType() == 1) {  // is initial handshake
+    if (his_cookie_syn_) {
       if (his_cookie_syn_ != packet.SynCookie())
         LOG(kWarning) << "Received initial handshake from "
           << DebugId(peer_.node_id()) << " with unrecognised cookie syn "
@@ -130,9 +129,7 @@ void Session::HandleHandshakeWhenProbing(const HandshakePacket& packet) {
         << DebugId(peer_.node_id()) << " which did not use my cookie syn, cookie_retries="
         << cookie_retries_togo_;
       return;
-    }
-    else if(!his_cookie_syn_)
-    {
+    } else if (!his_cookie_syn_) {
       LOG(kWarning) << "Received second stage handshake from "
         << DebugId(peer_.node_id()) << " before receiving an "
         "initial handshake. As we don't have their syn cookie we cannot "
@@ -229,7 +226,7 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     HandleHandshakeWhenProbing(packet);  // starts 250ms timer which sends handshake
     return;                              // until connected
   }
-  
+
   // Ignore flood attacks or attempts to hijack the connection
   if (packet.SynCookie() != my_cookie_syn_) {
     LOG(kWarning) << "Ignoring second stage handshake packet from peer "
@@ -237,8 +234,7 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
       << cookie_retries_togo_;
     return;
   }
-  if (!his_cookie_syn_)
-  {
+  if (!his_cookie_syn_) {
     LOG(kWarning) << "Ignoring second stage handshake from "
       << DebugId(peer_.node_id()) << " as we don't have their syn cookie.";
     return;
@@ -247,17 +243,16 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
   if (packet.ConnectionType() == 2) {  // is connected handshake
     LOG(kInfo) << "Received stop handshaking message from " << DebugId(peer_.node_id());
     his_estimated_state_ = kConnected;
-  }
-  else if (state_ == kHandshaking) {
+  } else if (state_ == kHandshaking) {
     // Should be a second stage handshake packet, as if our second stage handshake
     // got lost it'll be another initial handshake packet which got filtered out above.
     // Let the timer retry the second stage packet resend for us.
     HandleHandshakeWhenHandshaking(packet);
   } else {
-      LOG(kInfo) << "Received spurious "
-        << ((packet.ConnectionType() == 1) ? "initial" : "second stage")
-        << " handshake packet when my state is " << state_ << " from "
-        << DebugId(peer_.node_id()) << ", cookie_retries=" << cookie_retries_togo_;
+    LOG(kInfo) << "Received spurious "
+      << ((packet.ConnectionType() == 1) ? "initial" : "second stage")
+      << " handshake packet when my state is " << state_ << " from "
+      << DebugId(peer_.node_id()) << ", cookie_retries=" << cookie_retries_togo_;
   }
 }
 

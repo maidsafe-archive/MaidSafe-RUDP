@@ -168,7 +168,7 @@ class Session {
 
   // Used to retry second stage handshake packets only so many times
   uint32_t cookie_retries_togo_;
-  
+
   // Used to inhibit flood and hijack attacks
   uint32_t my_cookie_syn_, his_cookie_syn_;
 
