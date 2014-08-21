@@ -327,9 +327,12 @@ uint32_t ConnectionManager::AddSocket(Socket* socket) {
 
 void ConnectionManager::RemoveSocket(uint32_t id) {
 //  std::unique_lock<std::mutex> lock(mutex_);
-  LOG(kVerbose) << "removing socket " << id;
-  if (id)
+  LOG(kVerbose) << "removing socket " << sockets_[id]->PeerEndpoint()
+                << " of peer " << sockets_[id]->PeerNodeId() << " of id " << id;
+  if (id) {
     sockets_.erase(id);
+    LOG(kVerbose) << "removed socket " << id;
+  }
 }
 
 size_t ConnectionManager::NormalConnectionsCount() const {
