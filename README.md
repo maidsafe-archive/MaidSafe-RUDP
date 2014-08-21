@@ -1,6 +1,5 @@
 For full details, see https://github.com/maidsafe/MaidSafe-RUDP/wiki
 
-
 [ ![Codeship Status for maidsafe/MaidSafe-RUDP](https://www.codeship.io/projects/04340600-0bb2-0132-82a9-6695a14f90f5/status)](https://www.codeship.io/projects/32053)
 
 
