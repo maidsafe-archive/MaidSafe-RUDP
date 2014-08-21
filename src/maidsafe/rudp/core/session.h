@@ -108,6 +108,7 @@ class Session {
   void SendPacket();
   void SendConnectionRequest();
   void SendCookie();
+  void SendConnected();
 
   void HandleHandshakeWhenProbing(const HandshakePacket& packet);
   void HandleHandshakeWhenHandshaking(const HandshakePacket& packet);
