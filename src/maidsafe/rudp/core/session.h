@@ -157,13 +157,13 @@ class Session {
   // The open mode of the session.
   Mode mode_;
 
-  // The state of the session.
+  // The state of the session from mine and what I think his is.
   enum State {
     kClosed,
     kProbing,
     kHandshaking,
     kConnected
-  } state_;
+  } state_, his_estimated_state_;
 
   // Used to retry second stage handshake packets only so many times
   uint32_t cookie_retries_togo_;

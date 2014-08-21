@@ -59,6 +59,7 @@ Session::Session(Peer& peer, TickTimer& tick_timer,
       peer_nat_detection_endpoint_(),
       mode_(kNormal),
       state_(kClosed),
+      his_estimated_state_(kClosed),
       cookie_retries_togo_(0),
       my_cookie_syn_(0),
       his_cookie_syn_(0),
@@ -77,9 +78,11 @@ void Session::Open(uint32_t id, NodeId this_node_id,
   sending_sequence_number_ = sequence_number;
   mode_ = mode;
   state_ = kProbing;
+  his_estimated_state_ = kProbing;
   cookie_retries_togo_ = Parameters::maximum_keepalive_failures / 2;
   crypto::random_number_generator().GenerateBlock((uint8_t *) &my_cookie_syn_, sizeof(my_cookie_syn_));
   if (!my_cookie_syn_) my_cookie_syn_ = 0xdeadbeef;
+  his_cookie_syn_ = 0;
   signal_connection_ = on_nat_detection_requested_.connect(on_nat_detection_requested_slot);
   SendConnectionRequest();
 }
@@ -101,34 +104,42 @@ void Session::Close() {
 }
 
 void Session::HandleHandshakeWhenProbing(const HandshakePacket& packet) {
-  if (packet.ConnectionType() == 1)
+  if (packet.ConnectionType() == 1)  // is initial handshake
   {
-    if (!his_cookie_syn_)
-      his_cookie_syn_ = packet.SynCookie();
-    // This shouldn't be possible, but just in case.
-    else if (his_cookie_syn_ != packet.SynCookie())
+    if (his_cookie_syn_)
     {
-      LOG(kWarning) << "Received duplicate initial handshake from "
-        << DebugId(peer_.node_id()) << " with a cookie syn "
-        << packet.SynCookie() << " different to previously received initial "
-        "handshake packet with cookie syn " << his_cookie_syn_ << ", closing "
-        "the connection";
-      state_ = kClosed;
+      if (his_cookie_syn_ != packet.SynCookie())
+        LOG(kWarning) << "Received initial handshake from "
+          << DebugId(peer_.node_id()) << " with unrecognised cookie syn "
+          << packet.SynCookie() << ", so ignoring the handshake.";
       return;
     }
+    if (!his_cookie_syn_) {
+      LOG(kInfo) << "Received valid and expected initial handshake from "
+        << DebugId(peer_.node_id()) << " with cookie syn " << packet.SynCookie();
+      his_cookie_syn_ = packet.SynCookie();
+    }
+    state_ = kHandshaking;
+    peer_requested_nat_detection_port_ = packet.RequestNatDetectionPort();
+    SendCookie();
+  } else {  // is not initial handshake
+    if (his_cookie_syn_ && packet.SynCookie() != my_cookie_syn_) {
+      LOG(kWarning) << "Ignoring handshake packet from peer "
+        << DebugId(peer_.node_id()) << " which did not use my cookie syn, cookie_retries="
+        << cookie_retries_togo_;
+      return;
+    }
+    else if(!his_cookie_syn_)
+    {
+      LOG(kWarning) << "Received second stage handshake from "
+        << DebugId(peer_.node_id()) << " before receiving an "
+        "initial handshake. As we don't have their syn cookie we cannot "
+        "communicate with them, so ignoring the handshake.";
+      return;
+    }
+    // Falls through if his_cookie_syn_ and packet cookie matches mine
+    HandleHandshakeWhenHandshaking(packet);
   }
-  else if(!his_cookie_syn_)
-  {
-    LOG(kWarning) << "Received second stage handshake from "
-      << DebugId(peer_.node_id()) << " without receiving an "
-      "initial handshake. As we don't have their syn cookie we cannot "
-      "communicate with them, so closing the connection";
-    state_ = kClosed;
-    return;
-  }
-  state_ = kHandshaking;
-  peer_requested_nat_detection_port_ = packet.RequestNatDetectionPort();
-  SendCookie();
 }
 
 void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
@@ -147,7 +158,10 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
     return;
   }
 
+  bool quick_cookie = (state_ != kConnected);
   state_ = kConnected;
+  if (his_estimated_state_ < kHandshaking)
+    his_estimated_state_ = kHandshaking;
   peer_connection_type_ = packet.ConnectionType();
   receiving_sequence_number_ = packet.InitialPacketSequenceNumber();
   peer_.SetPublicKey(packet.PublicKey());
@@ -164,7 +178,8 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
   if (packet.ConnectionReason() == kBootstrapAndDrop && mode_ == kBootstrapAndKeep)
     mode_ = kBootstrapAndDrop;
 
-  SendCookie();
+  if (quick_cookie)
+    SendCookie();
 }
 
 void Session::HandleHandshake(const HandshakePacket& packet) {
@@ -197,21 +212,8 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     state_ = kClosed;
     return;
   }
-  // Ignore flood attacks or attempts to hijack the connection
-  if (state_ != kProbing) {
-    if (packet.ConnectionType() == 1) {  // initial handshake
-      LOG(kWarning) << "Ignoring duplicate initial handshake packet from peer "
-        << DebugId(peer_.node_id()) << ", cookie_retries=" << cookie_retries_togo_;
-      return;
-    } else if (packet.SynCookie() != my_cookie_syn_) {
-      LOG(kWarning) << "Ignoring second stage handshake packet from peer "
-        << DebugId(peer_.node_id()) << " which did not use my cookie syn, cookie_retries="
-        << cookie_retries_togo_;
-      return;
-    }
-  }
 
-  if (state_ == kProbing) {
+  if (his_estimated_state_ == kProbing) {
     // Should be an initial handshake packet with his syn cookie. We go to kHandshaking
     // state, send out second stage handshake packet with his syn cookie and await his
     // second stage handshake packet with our syn cookie.
@@ -219,8 +221,24 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
     // Note that if it isn't an initial handshaking packet, HandleHandshakeWhenProbing
     // will kill the connection.
     HandleHandshakeWhenProbing(packet);  // starts 250ms timer which sends handshake
-                                         // until connected
-  } else if(state_ == kHandshaking) {
+    return;                              // until connected
+  }
+  
+  // Ignore flood attacks or attempts to hijack the connection
+  if (packet.SynCookie() != my_cookie_syn_) {
+    LOG(kWarning) << "Ignoring second stage handshake packet from peer "
+      << DebugId(peer_.node_id()) << " which did not use my cookie syn, cookie_retries="
+      << cookie_retries_togo_;
+    return;
+  }
+  if (!his_cookie_syn_)
+  {
+    LOG(kWarning) << "Ignoring second stage handshake from "
+      << DebugId(peer_.node_id()) << " as we don't have their syn cookie.";
+    return;
+  }
+
+  if (state_ == kHandshaking) {
     // Should be a second stage handshake packet, as if our second stage handshake
     // got lost it'll be another initial handshake packet which got filtered out above.
     // Let the timer retry the second stage packet resend for us.
@@ -280,10 +298,11 @@ bool Session::CalculateEndpoint() {
 }
 
 void Session::HandleTick() {
-  if (state_ == kProbing) {
-    SendConnectionRequest();
-  } else if (state_ == kHandshaking || (state_ == kConnected && cookie_retries_togo_)) {
-    SendCookie();
+  if (cookie_retries_togo_) {
+    if (state_ == kProbing || his_estimated_state_ == kProbing)
+      SendConnectionRequest();
+    if (state_ == kHandshaking || his_estimated_state_ == kHandshaking)
+      SendCookie();
   }
 }
 
@@ -303,6 +322,8 @@ void Session::SendConnectionRequest() {
   packet.SetRequestNatDetectionPort(nat_type_ == NatType::kUnknown &&
                                     !OnPrivateNetwork(peer_.PeerEndpoint()));
 
+  LOG(kInfo) << "I am " << DebugId(this_node_id_) << " sending initial handshake packet to "
+    << DebugId(peer_.node_id()) << " with my cookie syn " << my_cookie_syn_;
   int result(peer_.Send(packet));
   if (result != kSuccess)
     LOG(kError) << "Failed to send handshake to " << peer_.PeerEndpoint();
@@ -332,6 +353,8 @@ void Session::SendCookie() {
     on_nat_detection_requested_(kThisLocalEndpoint_, peer_.node_id(), peer_.PeerEndpoint(), port);
   packet.SetNatDetectionPort(port);
   packet.SetPublicKey(this_public_key_);
+  LOG(kInfo) << "I am " << DebugId(this_node_id_) << " sending second stage handshake packet to "
+    << DebugId(peer_.node_id()) << " with his cookie syn " << his_cookie_syn_;
 
   int result(peer_.Send(packet));
   if (result != kSuccess)
