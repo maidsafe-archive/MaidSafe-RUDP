@@ -61,7 +61,6 @@ class ConnectionManager {
   void Connect(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
                const std::string& validation_data,
                const boost::posix_time::time_duration& connect_attempt_timeout,
-               uint32_t connect_attempt_retries_left,
                const boost::posix_time::time_duration& lifespan,
                const std::function<void()>& failure_functor = nullptr);
 

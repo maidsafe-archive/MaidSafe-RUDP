@@ -84,9 +84,6 @@ struct Parameters {
   // Slow speed threshold to force the socket closed, in bits/s.
   static uint32_t slow_speed_threshold;
 
-  // Number of times to retry connection establishment.
-  static uint32_t connect_retries;
-
   // Timeout during normal peer-to-peer connection establishment.
   static Timeout rendezvous_connect_timeout;
 

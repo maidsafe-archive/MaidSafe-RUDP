@@ -80,7 +80,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
                        const boost::asio::ip::udp::endpoint& peer_endpoint,
                        const std::string& validation_data,
                        const boost::posix_time::time_duration& connect_attempt_timeout,
-                       uint32_t connect_attempt_retries_left,
                        const boost::posix_time::time_duration& lifespan,
                        const std::function<void()>& failure_functor);
   void Ping(const NodeId& peer_node_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
@@ -120,7 +119,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
                          const boost::asio::ip::udp::endpoint& peer_endpoint,
                          const std::string& validation_data,
                          const boost::posix_time::time_duration& connect_attempt_timeout,
-                         uint32_t connect_attempt_retries_left,
                          const boost::posix_time::time_duration& lifespan,
                          const std::function<void(int)>& ping_functor,  // NOLINT (Fraser)
                          const std::function<void()>& failure_functor);
@@ -128,8 +126,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void DoQueueSendRequest(SendRequest const& request);
   void FinishSendAndQueueNext();
 
-  void CheckTimeout(const boost::system::error_code& ec,
-                    std::function<void()> do_start_connect);
+  void CheckTimeout(const boost::system::error_code& ec);
   void CheckLifespanTimeout(const boost::system::error_code& ec);
   bool Stopped() const;
   bool TicksStopped() const;
@@ -171,7 +168,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
   boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
   NodeId peer_node_id_;
   boost::asio::ip::udp::endpoint peer_endpoint_;
-  uint32_t connect_attempt_retries_left_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   DataSize data_size_, data_received_;
   uint8_t failed_probe_count_;
