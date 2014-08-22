@@ -81,12 +81,14 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
     Socket* socket(connection_manager->GetSocket(data, endpoint));
     if (socket) {
       try {
-          LOG(kVerbose) << "fetched socket : " << socket->PeerEndpoint()
-                        << " , " << DebugId(socket->PeerNodeId());
+        LOG(kVerbose) << "fetched socket : " << socket->PeerEndpoint()
+                      << " , " << DebugId(socket->PeerNodeId());
+        socket->HandleReceiveFrom(data, endpoint);
       } catch (const std::exception& e) {
+        // TODO - This is only a temp fix. The socket shall be held as shared_ptr across
+        //        owners to be thread safe avoid causing bad_alloc issue
         LOG(kError) << boost::diagnostic_information(e);
       }
-      socket->HandleReceiveFrom(data, endpoint);
     }
   }
   LOG(kVerbose) << "returning from HandleReceiveFrom";
