@@ -79,7 +79,7 @@ void Session::Open(uint32_t id, NodeId this_node_id,
   mode_ = mode;
   state_ = kProbing;
   his_estimated_state_ = kProbing;
-  cookie_retries_togo_ = Parameters::maximum_keepalive_failures / 2;
+  cookie_retries_togo_ = Parameters::maximum_keepalive_failures;
   crypto::random_number_generator().GenerateBlock(reinterpret_cast<uint8_t *>(&my_cookie_syn_),
                                                   sizeof(my_cookie_syn_));
   if (!my_cookie_syn_) my_cookie_syn_ = 0xdeadbeef;
