@@ -102,6 +102,9 @@ struct Parameters {
   // Maximum sequential keepalive failures allowed before connection is closed.
   static uint32_t maximum_keepalive_failures;
 
+  // Maximum handshake failures allowed before connection bootstrap is aborted.
+  static uint32_t maximum_handshake_failures;
+
   // Maximum length of time for Bootstrapping connection to exist.
   static Timeout bootstrap_connection_lifespan;
 

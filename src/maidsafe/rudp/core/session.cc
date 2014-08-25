@@ -72,19 +72,28 @@ void Session::Open(uint32_t id, NodeId this_node_id,
                    const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
   assert(id != 0);
   assert(this_public_key);
+  if (state_ != kClosed) {
+    LOG(kError) << "FATAL EXIT: Session was opened when not closed. Something is wrong, so "
+    "terminating process in case someone is trying to hijack the connection.";
+    std::terminate();
+  }
   id_ = id;
   this_node_id_ = this_node_id;
   this_public_key_ = this_public_key;
   sending_sequence_number_ = sequence_number;
   mode_ = mode;
-  state_ = kProbing;
-  his_estimated_state_ = kProbing;
-  cookie_retries_togo_ = Parameters::maximum_keepalive_failures;
+  cookie_retries_togo_ = Parameters::maximum_handshake_failures;
   crypto::random_number_generator().GenerateBlock(reinterpret_cast<uint8_t *>(&my_cookie_syn_),
                                                   sizeof(my_cookie_syn_));
   if (!my_cookie_syn_) my_cookie_syn_ = 0xdeadbeef;
   his_cookie_syn_ = 0;
   signal_connection_ = on_nat_detection_requested_.connect(on_nat_detection_requested_slot);
+
+  // 2014-8-25 ned: This must remain below everything else, otherwise a race appears
+  //                where the other side may set a syn cookie and received an initial
+  //                handshake with the wrong syn cookie before I have set the syn cookie.
+  his_estimated_state_ = kProbing;
+  state_ = kProbing;
   SendConnectionRequest();
 }
 

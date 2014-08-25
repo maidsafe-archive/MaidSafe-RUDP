@@ -56,6 +56,7 @@ Timeout Parameters::ping_timeout(bptime::seconds(2));
 Timeout Parameters::keepalive_interval(bptime::milliseconds(500));
 Timeout Parameters::keepalive_timeout(bptime::milliseconds(400));
 uint32_t Parameters::maximum_keepalive_failures(20);
+uint32_t Parameters::maximum_handshake_failures(40);
 Timeout Parameters::bootstrap_connection_lifespan(bptime::minutes(10));
 Timeout Parameters::disconnection_timeout(bptime::milliseconds(500));
 Parameters::ConnectionType Parameters::connection_type(Parameters::kWireless);
