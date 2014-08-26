@@ -80,14 +80,17 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
 //     LOG(kVerbose) << "trying to fetch socket";
     Socket* socket(connection_manager->GetSocket(data, endpoint));
     if (socket) {
+      // TODO(Team) - This is only a temp fix. The socket shall be held as shared_ptr
+      //              among owners and connection_manager needs to be thread safe
+      //              to avoid causing bad_alloc or even certain serious system exception
       try {
 //         LOG(kVerbose) << "fetched socket : " << socket->PeerEndpoint()
 //                       << " , " << DebugId(socket->PeerNodeId());
         socket->HandleReceiveFrom(data, endpoint);
       } catch (const std::exception& e) {
-        // TODO(Team) - This is only a temp fix. The socket shall be held as shared_ptr
-        //              among owners to be thread safe avoid causing bad_alloc issue
-        LOG(kError) << boost::diagnostic_information(e);
+        LOG(kError) << "caught library exception : " << boost::diagnostic_information(e);
+      } catch (...) {
+        LOG(kError) << "caught system level exceptions";
       }
     }
   }
