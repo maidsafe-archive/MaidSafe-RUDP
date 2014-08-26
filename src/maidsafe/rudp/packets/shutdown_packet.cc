@@ -20,6 +20,8 @@
 
 #include "maidsafe/rudp/packets/shutdown_packet.h"
 
+#include <vector>
+
 namespace asio = boost::asio;
 
 namespace maidsafe {
@@ -40,8 +42,8 @@ bool ShutdownPacket::Decode(const asio::const_buffer& buffer) {
   return DecodeBase(buffer, kPacketType);
 }
 
-size_t ShutdownPacket::Encode(const asio::mutable_buffer& buffer) const {
-  return EncodeBase(buffer);
+size_t ShutdownPacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
+  return EncodeBase(buffers);
 }
 
 }  // namespace detail

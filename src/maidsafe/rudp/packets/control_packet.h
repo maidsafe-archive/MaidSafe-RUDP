@@ -22,6 +22,7 @@
 #define MAIDSAFE_RUDP_PACKETS_CONTROL_PACKET_H_
 
 #include <cstdint>
+#include <vector>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/system/error_code.hpp"
@@ -64,7 +65,7 @@ class ControlPacket : public Packet {
 
   static bool IsValidBase(const boost::asio::const_buffer& buffer, uint16_t expected_packet_type);
   bool DecodeBase(const boost::asio::const_buffer& buffer, uint16_t expected_packet_type);
-  size_t EncodeBase(const boost::asio::mutable_buffer& buffer) const;
+  size_t EncodeBase(std::vector<boost::asio::mutable_buffer>& buffers) const;
 
   // Prevent deletion through this type.
   virtual ~ControlPacket();

@@ -165,20 +165,20 @@ bool AckPacket::Decode(const asio::const_buffer& buffer) {
   return true;
 }
 
-size_t AckPacket::Encode(const asio::mutable_buffer& buffer) const {
+size_t AckPacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
   size_t required_bytes = kPacketSize +
                           (has_optional_fields_ ? kOptionalPacketSize : 0) +
                           sequence_numbers_.size()*2*4;
 
   // Refuse to encode if the output buffer is not big enough.
-  if (asio::buffer_size(buffer) < required_bytes)
+  if (asio::buffer_size(buffers[0]) < required_bytes)
     return 0;
 
   // Encode the common parts of the control packet.
-  if (EncodeBase(buffer) == 0)
+  if (EncodeBase(buffers) == 0)
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char*>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char*>(buffers[0]);
   p += kHeaderSize;
 
 
