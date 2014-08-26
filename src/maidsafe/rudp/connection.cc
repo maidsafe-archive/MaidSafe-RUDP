@@ -202,6 +202,10 @@ void Connection::StartSending(const std::string& data,
     InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
   }
   try {
+    // 2014-8-26 ned: TODO FIXME: This code is encrypting the message into
+    // a string which enters a queue. Encode() later on COPIES that string
+    // into send_buffer_ plus 3 bytes which it then hands off to be sent.
+    // This needs to go away and save another memory copy.
     strand_.post(
         std::bind(&Connection::DoQueueSendRequest, shared_from_this(),
                   SendRequest(
