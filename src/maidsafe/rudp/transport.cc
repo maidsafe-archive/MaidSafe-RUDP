@@ -259,13 +259,22 @@ void Transport::Close() {
     on_connection_added_ = nullptr;
     on_connection_lost_ = nullptr;
   }
-  if (connection_manager_)
-    connection_manager_->Close();
+  if (connection_manager_) {
+    std::promise<void> _done;
+    std::future<void> done=_done.get_future();
+    strand_.dispatch(std::bind(&Transport::DoClose, this, std::ref(_done)));
+    done.wait();
+  }
   if (multiplexer_) {
     strand_.post(std::bind(&Multiplexer::Close, multiplexer_));
     while (IsValid(multiplexer_->external_endpoint()))
       boost::this_thread::yield();
   }
+}
+
+void Transport::DoClose(std::promise<void>& done) {
+  connection_manager_->Close();
+  done.set_value();
 }
 
 void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
