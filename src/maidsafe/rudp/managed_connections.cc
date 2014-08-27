@@ -763,7 +763,7 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPt
     if (local_callback) {
       LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
       asio_service_.service().post([=] {
-//           LOG(kVerbose) << "calling back for " << DebugId(peer_id);
+          LOG(kVerbose) << "calling back for " << DebugId(peer_id);
           local_callback(peer_id);
       });
     }
