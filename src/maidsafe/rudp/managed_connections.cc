@@ -725,6 +725,8 @@ unsigned ManagedConnections::GetActiveConnectionCount() const {
 
 void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPtr transport,
                                               bool temporary_connection) {
+  LOG(kVerbose) << "ManagedConnections::OnConnectionLostSlot " << DebugId(peer_id)
+                << " is_temporary " << std::boolalpha << temporary_connection;
   std::lock_guard<std::mutex> lock(mutex_);
   if (transport->IsIdle()) {
     assert(transport->IsAvailable());
@@ -748,6 +750,7 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPt
                   << (*itr).second->local_endpoint() << " not " << transport->local_endpoint();
       BOOST_ASSERT(false);
     }
+    LOG(kVerbose) << "Erasing connection of " << (*itr).second->local_endpoint();
     connections_.erase(itr);
     if (peer_id == chosen_bootstrap_node_id_)
       chosen_bootstrap_node_id_ = NodeId();
@@ -759,7 +762,10 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPt
 
     if (local_callback) {
       LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
-      asio_service_.service().post([=] { local_callback(peer_id); });
+      asio_service_.service().post([=] {
+//           LOG(kVerbose) << "calling back for " << DebugId(peer_id);
+          local_callback(peer_id);
+      });
     }
   }
 }

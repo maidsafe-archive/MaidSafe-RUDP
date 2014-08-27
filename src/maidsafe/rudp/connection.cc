@@ -98,7 +98,8 @@ void Connection::Close() {
 }
 
 void Connection::DoClose(bool timed_out) {
-  LOG(kVerbose) << "RUDP Connection::DoClose";
+  LOG(kVerbose) << "RUDP Connection::DoClose " << DebugId(socket_.PeerNodeId())
+                << "  " << socket_.PeerEndpoint();
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
