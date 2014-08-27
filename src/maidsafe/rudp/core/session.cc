@@ -88,6 +88,9 @@ void Session::Open(uint32_t id, NodeId this_node_id,
   if (!my_cookie_syn_) my_cookie_syn_ = 0xdeadbeef;
   his_cookie_syn_ = 0;
   signal_connection_ = on_nat_detection_requested_.connect(on_nat_detection_requested_slot);
+  LOG(kInfo) << "Session::Open(" << id << ", " << DebugId(this_node_id) << ", key, "
+             << sequence_number << ", " << mode << ", slot) @ " << this << ", will "
+             "use cookie syn " << my_cookie_syn_;
 
   // 2014-8-25 ned: This must remain below everything else, otherwise a race appears
   //                where the other side may set a syn cookie and received an initial
