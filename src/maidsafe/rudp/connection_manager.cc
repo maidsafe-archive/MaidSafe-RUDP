@@ -178,7 +178,8 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
     if (handshake_packet.ConnectionReason() == Session::kNormal) {
       // This is a handshake packet on a newly-added socket
       LOG(kVerbose) << DebugId(kThisNodeId_)
-                    << " This is a handshake packet on a newly-added socket from " << endpoint;
+                    << " This is a handshake packet on a newly-added socket from " << endpoint
+                    << " with socket id " << socket_id;
       socket_iter = std::find_if(sockets_.begin(), sockets_.end(),
                                  [endpoint](const SocketMap::value_type & socket_pair) {
         return socket_pair.second->PeerEndpoint() == endpoint && !socket_pair.second->IsConnected();
@@ -186,16 +187,6 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
       // If the socket wasn't found, this could be a connect attempt from a peer using symmetric
       // NAT, so the peer's port may be different to what this node was told to expect.
       if (socket_iter == sockets_.end()) {
-        auto count(std::count_if(sockets_.begin(), sockets_.end(),
-                                 [endpoint](const SocketMap::value_type & socket_pair) {
-          return socket_pair.second->PeerEndpoint().address() == endpoint.address();
-        }));
-        if (count > 1) {
-          LOG(kWarning) << "multiple vaults running on same machine " << count;
-          // if running multiple vaults on same machine, shall not consider symmetric NAT situation
-          return nullptr;
-        }
-        LOG(kVerbose) << "updating for symmetric";
         socket_iter = std::find_if(sockets_.begin(), sockets_.end(),
                                    [endpoint](const SocketMap::value_type & socket_pair) {
           return socket_pair.second->PeerEndpoint().address() == endpoint.address() &&
@@ -206,6 +197,9 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
           LOG(kVerbose) << DebugId(kThisNodeId_) << " Updating peer's endpoint from "
                         << socket_iter->second->PeerEndpoint() << " to " << endpoint;
           socket_iter->second->UpdatePeerEndpoint(endpoint);
+          LOG(kVerbose) << DebugId(kThisNodeId_)
+                        << " Peer's endpoint now: " << socket_iter->second->PeerEndpoint()
+                        << "  and guessed port = " << socket_iter->second->PeerGuessedPort();
         }
       }
     } else {  // Session::mode_ != kNormal
