@@ -85,12 +85,13 @@ void ConnectionManager::Close() {
 void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                                 const std::string& validation_data,
                                 const bptime::time_duration& connect_attempt_timeout,
+                                uint32_t connect_attempt_retries_left,
                                 const bptime::time_duration& lifespan,
                                 const std::function<void()>& failure_functor) {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
     connection->StartConnecting(peer_id, peer_endpoint, validation_data, connect_attempt_timeout,
-                                lifespan, failure_functor);
+                                connect_attempt_retries_left, lifespan, failure_functor);
   }
 }
 
@@ -113,7 +114,10 @@ bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
 
   ConnectionPtr connection(*itr);
   lock.unlock();
-  strand_.dispatch([=] { connection->Close(); });  // NOLINT (Fraser)
+  strand_.dispatch([=] {
+//       LOG(kVerbose) << "closing connection to " << DebugId(peer_id);
+      connection->Close();
+  });  // NOLINT (Fraser)
   return true;
 }
 
@@ -163,7 +167,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
     LOG(kError) << DebugId(kThisNodeId_) << " Received a non-RUDP packet from " << endpoint;
     return nullptr;
   }
-
+//  std::unique_lock<std::mutex> lock(mutex_);
   SocketMap::const_iterator socket_iter(sockets_.end());
   if (socket_id == 0) {
     HandshakePacket handshake_packet;
@@ -183,6 +187,16 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
       // If the socket wasn't found, this could be a connect attempt from a peer using symmetric
       // NAT, so the peer's port may be different to what this node was told to expect.
       if (socket_iter == sockets_.end()) {
+        auto count(std::count_if(sockets_.begin(), sockets_.end(),
+                                 [endpoint](const SocketMap::value_type & socket_pair) {
+          return socket_pair.second->PeerEndpoint().address() == endpoint.address();
+        }));
+        if (count > 1) {
+          LOG(kWarning) << "multiple vaults running on same machine " << count;
+          // if running multiple vaults on same machine, shall not consider symmetric NAT situation
+          return nullptr;
+        }
+//         LOG(kVerbose) << "updating for symmetric";
         socket_iter = std::find_if(sockets_.begin(), sockets_.end(),
                                    [endpoint](const SocketMap::value_type & socket_pair) {
           return socket_pair.second->PeerEndpoint().address() == endpoint.address() &&
@@ -193,9 +207,6 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
           LOG(kVerbose) << DebugId(kThisNodeId_) << " Updating peer's endpoint from "
                         << socket_iter->second->PeerEndpoint() << " to " << endpoint;
           socket_iter->second->UpdatePeerEndpoint(endpoint);
-          LOG(kVerbose) << DebugId(kThisNodeId_)
-                        << " Peer's endpoint now: " << socket_iter->second->PeerEndpoint()
-                        << "  and guessed port = " << socket_iter->second->PeerGuessedPort();
         }
       }
     } else {  // Session::mode_ != kNormal
@@ -225,6 +236,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
   }
 
   if (socket_iter != sockets_.end()) {
+//     LOG(kVerbose) << DebugId(kThisNodeId_) << " find socket for endpoint " << endpoint;
     return socket_iter->second;
   } else {
     const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
@@ -262,6 +274,7 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
       // Joining node is not already connected - start new bootstrap or temporary connection
       Connect(
           handshake_packet.node_id(), endpoint, "", Parameters::bootstrap_connect_timeout,
+          Parameters::connect_retries,
           bootstrap_and_drop ? bptime::time_duration() : Parameters::bootstrap_connection_lifespan);
     }
     return;
@@ -315,8 +328,13 @@ uint32_t ConnectionManager::AddSocket(Socket* socket) {
 }
 
 void ConnectionManager::RemoveSocket(uint32_t id) {
-  if (id)
+//  std::unique_lock<std::mutex> lock(mutex_);
+  LOG(kVerbose) << "removing socket " << sockets_[id]->PeerEndpoint()
+                << " of peer " << sockets_[id]->PeerNodeId() << " of id " << id;
+  if (id) {
     sockets_.erase(id);
+//     LOG(kVerbose) << "removed socket " << id;
+  }
 }
 
 size_t ConnectionManager::NormalConnectionsCount() const {

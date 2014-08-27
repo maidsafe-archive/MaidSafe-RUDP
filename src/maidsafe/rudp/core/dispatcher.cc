@@ -69,6 +69,7 @@ void Dispatcher::RemoveSocket(uint32_t id) {
 
 void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
                                    const ip::udp::endpoint& endpoint) {
+//   LOG(kVerbose) << "HandleReceiveFrom " << endpoint;
   auto in_use(use_count_);
   ConnectionManager* connection_manager;
   {
@@ -76,11 +77,24 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
     connection_manager = connection_manager_;
   }
   if (connection_manager) {
+//     LOG(kVerbose) << "trying to fetch socket";
     Socket* socket(connection_manager->GetSocket(data, endpoint));
     if (socket) {
-      socket->HandleReceiveFrom(data, endpoint);
+      // TODO(Team) - This is only a temp fix. The socket shall be held as shared_ptr
+      //              among owners and connection_manager needs to be thread safe
+      //              to avoid causing bad_alloc or even certain serious system exception
+      try {
+//         LOG(kVerbose) << "fetched socket : " << socket->PeerEndpoint()
+//                       << " , " << DebugId(socket->PeerNodeId());
+        socket->HandleReceiveFrom(data, endpoint);
+      } catch (const std::exception& e) {
+        LOG(kError) << "caught library exception : " << boost::diagnostic_information(e);
+      } catch (...) {
+        LOG(kError) << "caught system level exceptions";
+      }
     }
   }
+//   LOG(kVerbose) << "returning from HandleReceiveFrom";
 }
 
 }  // namespace detail

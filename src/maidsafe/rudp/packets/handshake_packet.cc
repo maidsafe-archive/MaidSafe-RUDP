@@ -248,6 +248,9 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer& buffer) const {
 
   std::memcpy(p + 121, encoded_public_key.data(), encoded_public_key.size());
 
+  // LOG(kVerbose) << "Sending HandshakePacket to " << DestinationSocketId()
+  //               << " type " << connection_type_ << " reason " << connection_reason_;
+
   return kMinPacketSize + encoded_public_key.size();
 }
 

@@ -102,9 +102,8 @@ void Session::HandleHandshakeWhenProbing(const HandshakePacket& packet) {
 
 void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
   if (packet.InitialPacketSequenceNumber() == 0) {
-    LOG(kVerbose) << "Received duplicate ConnectionRequest from " << peer_.PeerEndpoint()
-                  << "  Waiting for Cookie.";
-    return;
+    LOG(kVerbose) << "Received duplicate ConnectionRequest of type "
+                  << packet.ConnectionType() << " from " << peer_.PeerEndpoint();
   }
 
   //    if (packet.SynCookie() == 1) {
@@ -160,9 +159,23 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
 
   // TODO(Fraser#5#): 2012-04-04 - Handle SynCookies
   if (state_ == kProbing) {
-    HandleHandshakeWhenProbing(packet);
+    HandleHandshakeWhenProbing(packet);  // starts 250ms timer which sends cookie
   } else if (state_ == kHandshaking) {
-    HandleHandshakeWhenHandshaking(packet);
+    if (packet.ConnectionType() != 1)  // not duplicate initial handshake
+      HandleHandshakeWhenHandshaking(packet);
+    else
+      LOG(kWarning) << "Ignoring duplicate initial handshake packet";
+  } else if (state_ == kConnected) {
+    if (packet.ConnectionType() == 1) {  // duplicate initial handshake
+      LOG(kInfo) <<
+        "Received spurious initial handshake packet after already connected, resending cookie";
+      SendCookie();
+    } else {
+      LOG(kWarning) << "Ignoring spurious second stage handshake packet as already connected";
+    }
+  } else {
+    LOG(kWarning) <<
+      "Ignoring spurious handshake packet as not probing nor handshaking nor connected";
   }
 }
 
