@@ -85,8 +85,8 @@ void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
                       << " , " << DebugId(socket->PeerNodeId());
         socket->HandleReceiveFrom(data, endpoint);
       } catch (const std::exception& e) {
-        // TODO(Team) - This is only a temp fix. The socket shall be held as shared_ptr
-        //              among owners to be thread safe avoid causing bad_alloc issue
+        // TODO - This is only a temp fix. The socket shall be held as shared_ptr across
+        //        owners to be thread safe avoid causing bad_alloc issue
         LOG(kError) << boost::diagnostic_information(e);
       }
     }
