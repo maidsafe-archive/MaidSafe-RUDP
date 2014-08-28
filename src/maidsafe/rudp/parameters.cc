@@ -24,7 +24,7 @@ namespace maidsafe {
 
 namespace rudp {
 
-uint32_t Parameters::thread_count(1);
+uint32_t Parameters::thread_count(4);
 int Parameters::max_transports(10);
 const uint32_t Parameters::maximum_segment_size(16);
 uint32_t Parameters::default_window_size(4*Parameters::maximum_segment_size);
