@@ -107,10 +107,10 @@ TEST(SocketTest, BEH_Socket) {
       const boost::asio::ip::udp::endpoint & /*peer_endpoint*/,
       uint16_t & /*another_external_port*/) {});
   client_socket.AsyncConnect(client_node_id, client_public_key, server_endpoint, server_node_id,
-                             std::bind(&handler1, args::_1, &client_ec), Session::kNormal,
+                             std::bind(&handler1, args::_1, &client_ec), Session::kNormal, 0,
                              on_nat_detection_requested_slot);
   server_socket.AsyncConnect(server_node_id, server_public_key, client_endpoint, client_node_id,
-                             std::bind(&handler1, args::_1, &server_ec), Session::kNormal,
+                             std::bind(&handler1, args::_1, &server_ec), Session::kNormal, 0,
                              on_nat_detection_requested_slot);
 
   do {
@@ -224,10 +224,10 @@ TEST(SocketTest, BEH_AsyncProbe) {
       const boost::asio::ip::udp::endpoint & /*peer_endpoint*/,
       uint16_t & /*another_external_port*/) {});
   client_socket.AsyncConnect(client_node_id, client_public_key, server_endpoint, server_node_id,
-                             std::bind(&handler1, args::_1, &client_ec), Session::kNormal,
+                             std::bind(&handler1, args::_1, &client_ec), Session::kNormal, 0,
                              on_nat_detection_requested_slot);
   server_socket.AsyncConnect(server_node_id, server_public_key, client_endpoint, client_node_id,
-                             std::bind(&handler1, args::_1, &server_ec), Session::kNormal,
+                             std::bind(&handler1, args::_1, &server_ec), Session::kNormal, 0,
                              on_nat_detection_requested_slot);
 
   do {

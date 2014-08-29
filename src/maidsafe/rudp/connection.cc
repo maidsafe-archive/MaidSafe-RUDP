@@ -70,6 +70,7 @@ Connection::Connection(const std::shared_ptr<Transport>& transport,
       strand_(strand),
       multiplexer_(std::move(multiplexer)),
       socket_(*multiplexer_, transport->nat_type_),
+      cookie_syn_(0),
       timer_(strand_.get_io_service()),
       probe_interval_timer_(strand_.get_io_service()),
       lifespan_timer_(strand_.get_io_service()),
@@ -348,8 +349,8 @@ void Connection::StartConnect(const std::string& validation_data,
     state_ = State::kUnvalidated;
   }
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    socket_.AsyncConnect(transport->node_id(), transport->public_key(), peer_endpoint_,
-                         peer_node_id_, handler, open_mode,
+    cookie_syn_ = socket_.AsyncConnect(transport->node_id(), transport->public_key(),
+                         peer_endpoint_, peer_node_id_, handler, open_mode, cookie_syn_,
                          transport->on_nat_detection_requested_slot_);
     timer_.expires_from_now(connect_attempt_timeout);
     timeout_state_ = TimeoutState::kConnecting;

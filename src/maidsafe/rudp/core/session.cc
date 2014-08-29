@@ -66,9 +66,9 @@ Session::Session(Peer& peer, TickTimer& tick_timer,
       on_nat_detection_requested_(),
       signal_connection_() {}
 
-void Session::Open(uint32_t id, NodeId this_node_id,
+uint32_t Session::Open(uint32_t id, NodeId this_node_id,
                    std::shared_ptr<asymm::PublicKey> this_public_key, uint32_t sequence_number,
-                   Mode mode,
+                   Mode mode, uint32_t cookie_syn,
                    const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
   assert(id != 0);
   assert(this_public_key);
@@ -83,13 +83,19 @@ void Session::Open(uint32_t id, NodeId this_node_id,
   sending_sequence_number_ = sequence_number;
   mode_ = mode;
   cookie_retries_togo_ = Parameters::maximum_handshake_failures;
-  crypto::random_number_generator().GenerateBlock(reinterpret_cast<uint8_t *>(&my_cookie_syn_),
-                                                  sizeof(my_cookie_syn_));
-  if (!my_cookie_syn_) my_cookie_syn_ = 0xdeadbeef;
+  // Ping requests may, rarely, connect before the main connection, thus upsetting the
+  // SYN cookie.
+  if (cookie_syn) {
+    my_cookie_syn_ = cookie_syn;
+  } else {
+    crypto::random_number_generator().GenerateBlock(reinterpret_cast<uint8_t *>(&my_cookie_syn_),
+                                                    sizeof(my_cookie_syn_));
+    if (!my_cookie_syn_) my_cookie_syn_ = 0xdeadbeef;
+  }
   his_cookie_syn_ = 0;
   signal_connection_ = on_nat_detection_requested_.connect(on_nat_detection_requested_slot);
   LOG(kInfo) << "Session::Open(" << id << ", " << DebugId(this_node_id) << ", key, "
-             << sequence_number << ", " << mode << ", " << 
+             << sequence_number << ", " << mode << ", " << cookie_syn << ", " <<
              on_nat_detection_requested_slot.slot_function() << ") @ " << this << ", will "
              "use cookie syn " << my_cookie_syn_ << " and NAT type " << nat_type_;
 
@@ -99,6 +105,7 @@ void Session::Open(uint32_t id, NodeId this_node_id,
   his_estimated_state_ = kProbing;
   state_ = kProbing;
   SendConnectionRequest();
+  return my_cookie_syn_;
 }
 
 bool Session::IsOpen() const { return state_ != kClosed; }
