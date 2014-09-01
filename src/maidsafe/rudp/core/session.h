@@ -61,10 +61,11 @@ class Session {
                    std::mutex& this_external_endpoint_mutex,
                    boost::asio::ip::udp::endpoint this_local_endpoint, NatType& nat_type);
 
-  // Open the session.
-  void Open(uint32_t id, NodeId this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
-            uint32_t sequence_number, Mode mode,
-            const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
+  // Open the session, returning the SYN cookie used.
+  uint32_t Open(uint32_t id, NodeId this_node_id,
+                std::shared_ptr<asymm::PublicKey> this_public_key,
+                uint32_t sequence_number, Mode mode, uint32_t cookie_syn,
+                const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
 
   // Get whether the session is already open. May not be connected.
   bool IsOpen() const;

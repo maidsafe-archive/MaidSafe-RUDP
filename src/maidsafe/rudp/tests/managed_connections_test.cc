@@ -464,7 +464,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
   socket.AsyncConnect(nodes_[1]->node_id(), nodes_[1]->public_key(), this_endpoint_pair.local,
                       node_.node_id(),
                       [&error_code](const boost::system::error_code & ec) { error_code = ec; },
-                      detail::Session::kBootstrapAndKeep, on_nat_detection_requested_slot);
+                      detail::Session::kBootstrapAndKeep, 0, on_nat_detection_requested_slot);
 
   auto future(std::async(std::launch::async, [&io_service]() { io_service.run_one(); }));
   Sleep(std::chrono::milliseconds(500));

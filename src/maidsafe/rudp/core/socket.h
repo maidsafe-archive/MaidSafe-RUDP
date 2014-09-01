@@ -126,14 +126,15 @@ class Socket {
   // caller to set a timeout and close the socket after the timeout period
   // expires.
   template <typename ConnectHandler>
-  void AsyncConnect(const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
+  uint32_t AsyncConnect(const NodeId& this_node_id,
+                    std::shared_ptr<asymm::PublicKey> this_public_key,
                     const boost::asio::ip::udp::endpoint& remote, const NodeId& peer_node_id,
-                    ConnectHandler handler, Session::Mode open_mode,
+                    ConnectHandler handler, Session::Mode open_mode, uint32_t cookie_syn,
                     Session::OnNatDetectionRequested::slot_type on_nat_detection_requested_slot) {
     ConnectOp<ConnectHandler> op(handler, waiting_connect_ec_);
     waiting_connect_.async_wait(op);
-    StartConnect(this_node_id, this_public_key, remote, peer_node_id, open_mode,
-                 on_nat_detection_requested_slot);
+    return StartConnect(this_node_id, this_public_key, remote, peer_node_id, open_mode, cookie_syn,
+                        on_nat_detection_requested_slot);
   }
 
   // Initiate an asynchronous operation to write data. The operation will
@@ -195,10 +196,10 @@ class Socket {
   Socket(const Socket&);
   Socket& operator=(const Socket&);
 
-  void StartConnect(
+  uint32_t StartConnect(
       const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
       const boost::asio::ip::udp::endpoint& remote, const NodeId& peer_node_id,
-      Session::Mode open_mode,
+      Session::Mode open_mode, uint32_t cookie_syn,
       const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
   void StartWrite(const boost::asio::const_buffer& data,
                   const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
