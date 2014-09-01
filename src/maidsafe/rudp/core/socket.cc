@@ -146,15 +146,17 @@ void Socket::Close() {
   waiting_probe_.cancel();
 }
 
-void Socket::StartConnect(
+uint32_t Socket::StartConnect(
     const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
     const ip::udp::endpoint& remote, const NodeId& peer_node_id, Session::Mode open_mode,
+    uint32_t cookie_syn,
     const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
   peer_.SetPeerEndpoint(remote);
   peer_.set_node_id(peer_node_id);
   peer_.SetSocketId(0);  // Assigned when handshake response is received.
-  session_.Open(dispatcher_.AddSocket(this), this_node_id, this_public_key,
-                sender_.GetNextPacketSequenceNumber(), open_mode, on_nat_detection_requested_slot);
+  return session_.Open(dispatcher_.AddSocket(this), this_node_id, this_public_key,
+                       sender_.GetNextPacketSequenceNumber(), open_mode, cookie_syn,
+                       on_nat_detection_requested_slot);
 }
 
 void Socket::StartProbe() {
@@ -267,18 +269,27 @@ void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::en
     ShutdownPacket shutdown_packet;
     KeepalivePacket keepalive_packet;
     if (data_packet.Decode(data)) {
+      // LOG(kVerbose) << "Received DataPacket " << data_packet.PacketSequenceNumber() << ":"
+      //               << data_packet.MessageNumber();
       HandleData(data_packet);
     } else if (ack_packet.Decode(data)) {
+      // LOG(kVerbose) << "Received AckPacket";
       HandleAck(ack_packet);
     } else if (ack_of_ack_packet.Decode(data)) {
+      // LOG(kVerbose) << "Received AckOfAckPacket";
       HandleAckOfAck(ack_of_ack_packet);
     } else if (negative_ack_packet.Decode(data)) {
+      // LOG(kVerbose) << "Received NegativeAckPacket";
       HandleNegativeAck(negative_ack_packet);
     } else if (keepalive_packet.Decode(data)) {
+      // LOG(kVerbose) << "Received KeepalivePacket";
       HandleKeepalive(keepalive_packet);
     } else if (handshake_packet.Decode(data)) {
+      // LOG(kVerbose) << "Received HandshakePacket InitialPacketSequenceNumber="
+      //               << handshake_packet.InitialPacketSequenceNumber();
       HandleHandshake(handshake_packet);
     } else if (shutdown_packet.Decode(data)) {
+      // LOG(kVerbose) << "Received ShutdownPacket";
       Close();
     } else {
       LOG(kWarning) << "Socket " << session_.Id() << " ignoring invalid packet from " << endpoint;
@@ -377,14 +388,13 @@ void Socket::HandleNegativeAck(const NegativeAckPacket& packet) {
 }
 
 void Socket::HandleTick() {
+  session_.HandleTick();
   if (session_.IsConnected()) {
     sender_.HandleTick();
     receiver_.HandleTick();
     ProcessRead();
     ProcessWrite();
     ProcessFlush();
-  } else {
-    session_.HandleTick();
   }
 }
 

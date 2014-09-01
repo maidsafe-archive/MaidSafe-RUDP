@@ -70,6 +70,7 @@ Connection::Connection(const std::shared_ptr<Transport>& transport,
       strand_(strand),
       multiplexer_(std::move(multiplexer)),
       socket_(*multiplexer_, transport->nat_type_),
+      cookie_syn_(0),
       timer_(strand_.get_io_service()),
       probe_interval_timer_(strand_.get_io_service()),
       lifespan_timer_(strand_.get_io_service()),
@@ -202,6 +203,10 @@ void Connection::StartSending(const std::string& data,
     InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
   }
   try {
+    // 2014-8-26 ned: TODO FIXME: This code is encrypting the message into
+    // a string which enters a queue. Encode() later on COPIES that string
+    // into send_buffer_ plus 3 bytes which it then hands off to be sent.
+    // This needs to go away and save another memory copy.
     strand_.post(
         std::bind(&Connection::DoQueueSendRequest, shared_from_this(),
                   SendRequest(
@@ -344,8 +349,8 @@ void Connection::StartConnect(const std::string& validation_data,
     state_ = State::kUnvalidated;
   }
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    socket_.AsyncConnect(transport->node_id(), transport->public_key(), peer_endpoint_,
-                         peer_node_id_, handler, open_mode,
+    cookie_syn_ = socket_.AsyncConnect(transport->node_id(), transport->public_key(),
+                         peer_endpoint_, peer_node_id_, handler, open_mode, cookie_syn_,
                          transport->on_nat_detection_requested_slot_);
     timer_.expires_from_now(connect_attempt_timeout);
     timeout_state_ = TimeoutState::kConnecting;
@@ -377,6 +382,11 @@ void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
 
 void Connection::HandleConnect(const bs::error_code& ec, const std::string& validation_data,
                                PingFunctor ping_functor) {
+  if (timeout_state_ == TimeoutState::kConnected) {
+    LOG(kWarning) << "Duplicate Connect received, ignoring";
+    return;
+  }
+
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
@@ -457,10 +467,12 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
       (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) | receive_buffer_.at(2))
        << 8) |
       receive_buffer_.at(3);
+  // LOG(kInfo) << "Connection::HandleReadSize to " << *multiplexer_ << " sees "
+  //            << data_size_ << " bytes.";
   // Allow some leeway for encryption overhead
   if (data_size_ > ManagedConnections::kMaxMessageSize() + 1024) {
     LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > "
-                << ManagedConnections::kMaxMessageSize() + 1024;
+                << ManagedConnections::kMaxMessageSize() + 1024 << ", closing.";
     return DoClose();
   }
 
@@ -561,6 +573,7 @@ void Connection::HandleWrite(MessageSentFunctor message_sent_functor) {
 }
 
 void Connection::StartProbing() {
+  failed_probe_count_ = 0;
   probe_interval_timer_.expires_from_now(Parameters::keepalive_interval);
   probe_interval_timer_.async_wait(
       strand_.wrap(std::bind(&Connection::DoProbe, shared_from_this(), args::_1)));
@@ -574,10 +587,8 @@ void Connection::DoProbe(const bs::error_code& ec) {
 }
 
 void Connection::HandleProbe(const bs::error_code& ec) {
-  if (!ec) {
-    failed_probe_count_ = 0;
+  if (!ec)
     return StartProbing();
-  }
 
   if (((asio::error::try_again == ec) || (asio::error::timed_out == ec) ||
        (asio::error::operation_aborted == ec)) &&
