@@ -20,6 +20,8 @@
 
 #include "maidsafe/rudp/packets/ack_of_ack_packet.h"
 
+#include <vector>
+
 namespace asio = boost::asio;
 
 namespace maidsafe {
@@ -42,8 +44,8 @@ bool AckOfAckPacket::Decode(const asio::const_buffer& buffer) {
   return DecodeBase(buffer, kPacketType);
 }
 
-size_t AckOfAckPacket::Encode(const asio::mutable_buffer& buffer) const {
-  return EncodeBase(buffer);
+size_t AckOfAckPacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
+  return EncodeBase(buffers);
 }
 
 }  // namespace detail

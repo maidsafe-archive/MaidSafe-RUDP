@@ -21,6 +21,8 @@
 #ifndef MAIDSAFE_RUDP_PACKETS_KEEPALIVE_PACKET_H_
 #define MAIDSAFE_RUDP_PACKETS_KEEPALIVE_PACKET_H_
 
+#include <vector>
+
 #include "boost/asio/buffer.hpp"
 #include "maidsafe/rudp/packets/control_packet.h"
 
@@ -53,7 +55,7 @@ class KeepalivePacket : public ControlPacket {
 
   static bool IsValid(const boost::asio::const_buffer& buffer);
   bool Decode(const boost::asio::const_buffer& buffer);
-  size_t Encode(const boost::asio::mutable_buffer& buffer) const;
+  size_t Encode(std::vector<boost::asio::mutable_buffer>& buffers) const;
 };
 
 }  // namespace detail

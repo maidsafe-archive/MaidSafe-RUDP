@@ -22,6 +22,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <vector>
 
 #include "maidsafe/common/log.h"
 
@@ -196,27 +197,28 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   return true;
 }
 
-size_t HandshakePacket::Encode(const asio::mutable_buffer& buffer) const {
+size_t HandshakePacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
   std::string encoded_public_key;
   if (public_key_) {
+    assert(asymm::ValidateKey(*public_key_));
+    encoded_public_key = asymm::EncodeKey(*public_key_).string();
     // Refuse to encode if the output buffer is not big enough.
-    if (asio::buffer_size(buffer) == kMinPacketSize) {
+    if (asio::buffer_size(buffers[0])
+        < kMinPacketSize + encoded_public_key.size()) {
       LOG(kError) << "Not enough space in buffer to encode public key.";
       return 0;
     }
-    assert(asymm::ValidateKey(*public_key_));
-    encoded_public_key = asymm::EncodeKey(*public_key_).string();
   } else {
     // Refuse to encode if the output buffer is not big enough.
-    if (asio::buffer_size(buffer) < kMinPacketSize)
+    if (asio::buffer_size(buffers[0]) < kMinPacketSize)
       return 0;
   }
 
   // Encode the common parts of the control packet.
-  if (EncodeBase(buffer) == 0)
+  if (EncodeBase(buffers) == 0)
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char*>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char*>(buffers[0]);
   p += kHeaderSize;
 
   EncodeUint32(rudp_version_, p + 0);
@@ -246,6 +248,7 @@ size_t HandshakePacket::Encode(const asio::mutable_buffer& buffer) const {
   p[119] = ((peer_endpoint_.port() >> 8) & 0xff);
   p[120] = (peer_endpoint_.port() & 0xff);
 
+  // As much as we'd like to do a gather write, lifetime is a problem here
   std::memcpy(p + 121, encoded_public_key.data(), encoded_public_key.size());
 
   // LOG(kVerbose) << "Sending HandshakePacket to " << DestinationSocketId()

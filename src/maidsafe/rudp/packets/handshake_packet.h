@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
@@ -98,7 +99,7 @@ class HandshakePacket : public ControlPacket {
 
   static bool IsValid(const boost::asio::const_buffer& buffer);
   bool Decode(const boost::asio::const_buffer& buffer);
-  size_t Encode(const boost::asio::mutable_buffer& buffer) const;
+  size_t Encode(std::vector<boost::asio::mutable_buffer>& buffers) const;
 
  private:
   uint32_t rudp_version_;

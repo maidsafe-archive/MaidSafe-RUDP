@@ -22,6 +22,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <vector>
 
 #include "maidsafe/common/log.h"
 
@@ -112,12 +113,12 @@ bool DataPacket::Decode(const asio::const_buffer& buffer) {
   return true;
 }
 
-size_t DataPacket::Encode(const asio::mutable_buffer& buffer) const {
+size_t DataPacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
   // Refuse to encode if the output buffer is not big enough.
-  if (asio::buffer_size(buffer) < kHeaderSize + data_.size())
+  if (asio::buffer_size(buffers[0]) < kHeaderSize + data_.size())
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char*>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char*>(buffers[0]);
 
   p[0] = ((packet_sequence_number_ >> 24) & 0x7f);
   p[1] = ((packet_sequence_number_ >> 16) & 0xff);
@@ -132,7 +133,14 @@ size_t DataPacket::Encode(const asio::mutable_buffer& buffer) const {
   p[7] = (message_number_ & 0xff);
   EncodeUint32(time_stamp_, p + 8);
   EncodeUint32(destination_socket_id_, p + 12);
-  std::memcpy(p + kHeaderSize, data_.data(), data_.size());
+  // std::memcpy(p + kHeaderSize, data_.data(), data_.size());
+  // 2014-8-25 ned: Split into a gather op
+  buffers.pop_back();
+  buffers.push_back(asio::mutable_buffer(p, kHeaderSize));
+  // Actually const safe as buffer is only used for sending
+  buffers.push_back(asio::mutable_buffer(
+    reinterpret_cast<unsigned char *>(const_cast<char *>(data_.data())),
+    data_.size()));
 
   // LOG(kVerbose) << "Sending DataPacket to " << DestinationSocketId()
   //               << " pkt seq " << packet_sequence_number_ << " msg no "

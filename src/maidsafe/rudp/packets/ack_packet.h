@@ -92,7 +92,7 @@ class AckPacket : public ControlPacket {
 
   static bool IsValid(const boost::asio::const_buffer& buffer);
   bool Decode(const boost::asio::const_buffer& buffer);
-  size_t Encode(const boost::asio::mutable_buffer& buffer) const;
+  size_t Encode(std::vector<boost::asio::mutable_buffer>& buffers) const;
 
  private:
   std::vector<std::pair<uint32_t, uint32_t>> sequence_numbers_;

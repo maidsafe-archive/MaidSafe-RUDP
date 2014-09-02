@@ -20,6 +20,12 @@
 
 #include "maidsafe/rudp/core/multiplexer.h"
 
+#ifdef MAIDSAFE_WIN32
+#define WIN32_LEAN_AND_MEAN 1
+#include <windows.h>
+#else
+#include <sys/mman.h>
+#endif
 #include <cassert>
 
 #include "maidsafe/rudp/managed_connections.h"
@@ -38,12 +44,58 @@ namespace detail {
 
 Multiplexer::Multiplexer(asio::io_service& asio_service)
     : socket_(asio_service),
-      receive_buffer_(Parameters::max_size),
       sender_endpoint_(),
       dispatcher_(),
       external_endpoint_(),
       best_guess_external_endpoint_(),
-      mutex_() {}
+      mutex_() {
+        bool bad = false;
+        for (auto &i : receive_buffers_)
+          if (!(i = allocate_dma_buffer_(Parameters::max_size)))
+            bad = true;
+        for (auto &i : send_buffers_)
+          if (!(i = allocate_dma_buffer_(Parameters::max_size)))
+            bad = true;
+        if (bad) {
+          for (auto &i : receive_buffers_)
+            if (i)
+              deallocate_dma_buffer_(i, Parameters::max_size);
+          for (auto &i : send_buffers_)
+            if (i)
+              deallocate_dma_buffer_(i, Parameters::max_size);
+          throw std::bad_alloc();
+        }
+        receive_buffer_ = receive_buffers_.begin();
+        send_buffer_ = send_buffers_.begin();
+      }
+
+Multiplexer::~Multiplexer() {
+  for (auto &i : receive_buffers_)
+    if (i)
+      deallocate_dma_buffer_(i, Parameters::max_size);
+  for (auto &i : send_buffers_)
+    if (i)
+      deallocate_dma_buffer_(i, Parameters::max_size);
+}
+
+#ifdef MAIDSAFE_WIN32
+unsigned char *Multiplexer::allocate_dma_buffer_(size_t len) {
+  void *ret = VirtualAlloc(nullptr, len, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+  return reinterpret_cast<unsigned char *>(ret);
+}
+void Multiplexer::deallocate_dma_buffer_(unsigned char *buf, size_t len) {
+  VirtualFree(buf, 0, MEM_RELEASE);
+}
+#else
+unsigned char *Multiplexer::allocate_dma_buffer_(size_t len) {
+  void *ret = mmap(nullptr, len, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_SHARED,
+                   -1, 0);
+  return reinterpret_cast<unsigned char *>(ret);
+}
+void Multiplexer::deallocate_dma_buffer_(unsigned char *buf, size_t len) {
+  munmap(buf, len);
+}
+#endif
 
 ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
   std::lock_guard<std::mutex> lock(mutex_);

@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/system/error_code.hpp"
@@ -74,7 +75,7 @@ class DataPacket : public Packet {
 
   static bool IsValid(const boost::asio::const_buffer& buffer);
   bool Decode(const boost::asio::const_buffer& buffer);
-  size_t Encode(const boost::asio::mutable_buffer& buffer) const;
+  size_t Encode(std::vector<boost::asio::mutable_buffer>& buffer) const;
 
  private:
   uint32_t packet_sequence_number_;

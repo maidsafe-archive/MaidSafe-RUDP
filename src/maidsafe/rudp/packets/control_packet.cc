@@ -22,6 +22,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <vector>
 
 namespace asio = boost::asio;
 
@@ -79,12 +80,12 @@ bool ControlPacket::DecodeBase(const asio::const_buffer& buffer, uint16_t expect
   return true;
 }
 
-size_t ControlPacket::EncodeBase(const asio::mutable_buffer& buffer) const {
+size_t ControlPacket::EncodeBase(std::vector<asio::mutable_buffer>& buffers) const {
   // Refuse to encode if the output buffer is not big enough.
-  if (asio::buffer_size(buffer) < kHeaderSize)
+  if (asio::buffer_size(buffers[0]) < kHeaderSize)
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char*>(buffer);
+  unsigned char* p = asio::buffer_cast<unsigned char*>(buffers[0]);
 
   p[0] = ((type_ >> 8) & 0x7f);
   p[0] |= 0x80;
