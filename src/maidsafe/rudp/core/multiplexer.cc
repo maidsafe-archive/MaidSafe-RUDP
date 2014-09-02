@@ -50,12 +50,16 @@ Multiplexer::Multiplexer(asio::io_service& asio_service)
       best_guess_external_endpoint_(),
       mutex_() {
         bool bad = false;
-        for (auto &i : receive_buffers_)
-          if (!(i = allocate_dma_buffer_(Parameters::max_size)))
+        for (auto &i : receive_buffers_) {
+          i = allocate_dma_buffer_(Parameters::max_size);
+          if (!(i))
             bad = true;
-        for (auto &i : send_buffers_)
-          if (!(i = allocate_dma_buffer_(Parameters::max_size)))
+        }
+        for (auto &i : send_buffers_) {
+          i = allocate_dma_buffer_(Parameters::max_size);
+          if (!(i))
             bad = true;
+        }
         if (bad) {
           for (auto &i : receive_buffers_)
             if (i)
@@ -83,7 +87,7 @@ unsigned char *Multiplexer::allocate_dma_buffer_(size_t len) {
   void *ret = VirtualAlloc(nullptr, len, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
   return reinterpret_cast<unsigned char *>(ret);
 }
-void Multiplexer::deallocate_dma_buffer_(unsigned char *buf, size_t len) {
+void Multiplexer::deallocate_dma_buffer_(unsigned char *buf, size_t /*len*/) {
   VirtualFree(buf, 0, MEM_RELEASE);
 }
 #else

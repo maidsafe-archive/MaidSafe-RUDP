@@ -93,7 +93,6 @@ class DataPacketTest : public testing::Test {
     dbuffers.push_back(boost::asio::mutable_buffer(boost::asio::buffer(&char_array[0],
                                         DataPacket::kHeaderSize + Parameters::max_size)));
     EXPECT_EQ(DataPacket::kHeaderSize + data.size(), data_packet_.Encode(dbuffers));
-    RestoreDefault();
     if (dbuffers.size() > 1) {
       memcpy(boost::asio::buffer_cast<char *>(dbuffers[0]) +
              boost::asio::buffer_size(dbuffers[0]),
@@ -103,6 +102,7 @@ class DataPacketTest : public testing::Test {
       dbuffers.push_back(boost::asio::buffer(char_array,
                                              DataPacket::kHeaderSize + data.size()));
     }
+    RestoreDefault();
     EXPECT_TRUE(data_packet_.Decode(dbuffers[0]));
 
     std::string full_data = data_packet_.Data();
