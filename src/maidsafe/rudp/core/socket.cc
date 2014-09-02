@@ -153,8 +153,13 @@ void Socket::StartConnect(
   peer_.SetPeerEndpoint(remote);
   peer_.set_node_id(peer_node_id);
   peer_.SetSocketId(0);  // Assigned when handshake response is received.
-  session_.Open(dispatcher_.AddSocket(this), this_node_id, this_public_key,
-                sender_.GetNextPacketSequenceNumber(), open_mode, on_nat_detection_requested_slot);
+  auto socket_id(dispatcher_.AddSocket(this));
+  if (socket_id == 0) {
+    LOG(kError) << "connection manager is null";
+    return;
+  }
+  session_.Open(socket_id, this_node_id, this_public_key, sender_.GetNextPacketSequenceNumber(),
+                open_mode, on_nat_detection_requested_slot);
 }
 
 void Socket::StartProbe() {
