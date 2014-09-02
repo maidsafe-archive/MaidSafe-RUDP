@@ -87,8 +87,20 @@ class ManagedConnectionsTest : public testing::Test {
         nodes_(),
         bootstrap_endpoints_(),
         do_nothing_on_message_([](const std::string&) {}),
+#ifndef MAIDSAFE_APPLE
         do_nothing_on_connection_lost_([](const NodeId&) {}) {}
-  ~ManagedConnectionsTest() {}
+#else
+        do_nothing_on_connection_lost_([](const NodeId&) {}),
+        rlimit_() {
+    SetNumberOfOpenFiles(2048);
+  }
+#endif
+
+  ~ManagedConnectionsTest() {
+#ifdef MAIDSAFE_APPLE
+    setrlimit(RLIMIT_NOFILE, &rlimit_);
+#endif
+  }
 
  protected:
   Node node_;
@@ -96,6 +108,21 @@ class ManagedConnectionsTest : public testing::Test {
   std::vector<Endpoint> bootstrap_endpoints_;
   MessageReceivedFunctor do_nothing_on_message_;
   ConnectionLostFunctor do_nothing_on_connection_lost_;
+
+#ifdef MAIDSAFE_APPLE
+  struct rlimit rlimit_;
+
+  void SetNumberOfOpenFiles(unsigned int open_files) {
+    getrlimit(RLIMIT_NOFILE, &rlimit_);
+    if (rlimit_.rlim_cur >= open_files)
+      return;
+
+    struct rlimit limit;
+    limit.rlim_cur = open_files;
+    limit.rlim_max = open_files;
+    setrlimit(RLIMIT_NOFILE, &limit);
+  }
+#endif
 
   void BootstrapAndAdd(size_t index, NodeId& chosen_node, EndpointPair& this_endpoint_pair,
                        NatType& nat_type) {
