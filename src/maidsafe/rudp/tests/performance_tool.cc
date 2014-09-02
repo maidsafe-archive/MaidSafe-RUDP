@@ -48,7 +48,12 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
     message_count = std::stoi(argv[1]);
     message_size = std::stoi(argv[2]);
     if (message_count < 1 || message_size < 12) {
-      std::cout << "Message count must be >= 1 and size of messages must be >= 12.\n";
+      std::cerr << "Message count must be >= 1 and size of messages must be >= 12.\n";
+      return false;
+    }
+    if (message_size > maidsafe::rudp::ManagedConnections::kMaxMessageSize()) {
+      std::cerr << "Maximum message size is "
+                << maidsafe::rudp::ManagedConnections::kMaxMessageSize() << std::endl;
       return false;
     }
     if (argc > 3) {
@@ -57,7 +62,8 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
       if (slash)
         packet_loss_bursty = std::stod(slash + 1);
       else
-        packet_loss_constant = packet_loss_bursty = packet_loss_constant / 2;
+        packet_loss_constant = packet_loss_bursty = 100.0
+          * (1 - sqrt(1 - (packet_loss_constant / 100.0)));
       packet_loss_constant /= 100.0;
       packet_loss_bursty /= 100.0;
     }
@@ -81,12 +87,10 @@ int main(int argc, char** argv) {
       packet_loss_bursty, csv_file_path))
     return -1;
 
+  // Patch in logging always on to a local directory
+  argv[1]=const_cast<char *>("--log_folder=./maidsafe_logs");
+  argv[2]=const_cast<char *>("--log_rudp=V");
   maidsafe::log::Logging::Instance().Initialise(argc, argv);
-  if (message_size > maidsafe::rudp::ManagedConnections::kMaxMessageSize()) {
-    std::cerr << "Maximum message size is "
-              << maidsafe::rudp::ManagedConnections::kMaxMessageSize() << std::endl;
-    return -2;
-  }
   TLOG(kDefaultColour) << "Starting RUDP benchmark using " << message_count << " messages of "
                        << message_size << " bytes with a constant packet loss of "
                        << packet_loss_constant * 100.0 << "% and a bursty packet loss of "
