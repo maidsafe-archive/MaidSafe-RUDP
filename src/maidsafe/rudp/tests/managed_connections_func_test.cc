@@ -85,6 +85,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
       for (uint16_t j = 0; j != peers.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
           ++issued;
+          Sleep(std::chrono::seconds(1));
           nodes_.at(i)->managed_connections()->Send(
               peers.at(j), sent_messages[i][k],
               [=, &send_results, &issued, &finished](int result_in) {
@@ -103,9 +104,10 @@ class ManagedConnectionsFuncTest : public testing::Test {
         EXPECT_FALSE(true) << "Timed out on " << nodes_.at(i)->id();
       }
     }
-
-    while (issued != finished)
+    uint8_t ticking(0);
+    while ((issued != finished) && (++ticking <(num_messages * nodes_.size())))
       Sleep(std::chrono::seconds(1));
+    EXPECT_EQ(issued, finished);
 
     // Check send results
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
