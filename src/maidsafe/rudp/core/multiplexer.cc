@@ -21,10 +21,13 @@
 #include "maidsafe/rudp/core/multiplexer.h"
 
 #ifdef MAIDSAFE_WIN32
-#define WIN32_LEAN_AND_MEAN 1
-#include <windows.h>
+#  define WIN32_LEAN_AND_MEAN 1
+#  include <windows.h>
 #else
-#include <sys/mman.h>
+#  include <sys/mman.h>
+#  ifndef MAP_ANONYMOUS
+#    define MAP_ANONYMOUS MAP_ANON
+#  endif
 #endif
 #include <cassert>
 
