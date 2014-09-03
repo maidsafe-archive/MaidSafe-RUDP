@@ -23,6 +23,7 @@
 
 #include <mutex>
 #include <cstdint>
+#include <vector>
 
 #include "boost/date_time/posix_time/posix_time_types.hpp"
 #include "boost/asio/ip/udp.hpp"
@@ -60,10 +61,11 @@ class Session {
                    std::mutex& this_external_endpoint_mutex,
                    boost::asio::ip::udp::endpoint this_local_endpoint, NatType& nat_type);
 
-  // Open the session.
-  void Open(uint32_t id, NodeId this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
-            uint32_t sequence_number, Mode mode,
-            const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
+  // Open the session, returning the SYN cookie used.
+  uint32_t Open(uint32_t id, NodeId this_node_id,
+                std::shared_ptr<asymm::PublicKey> this_public_key,
+                uint32_t sequence_number, Mode mode, uint32_t cookie_syn,
+                const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
 
   // Get whether the session is already open. May not be connected.
   bool IsOpen() const;
@@ -107,6 +109,7 @@ class Session {
   void SendPacket();
   void SendConnectionRequest();
   void SendCookie();
+  void SendConnected();
 
   void HandleHandshakeWhenProbing(const HandshakePacket& packet);
   void HandleHandshakeWhenHandshaking(const HandshakePacket& packet);
@@ -156,13 +159,19 @@ class Session {
   // The open mode of the session.
   Mode mode_;
 
-  // The state of the session.
+  // The state of the session from mine and what I think his is.
   enum State {
     kClosed,
     kProbing,
     kHandshaking,
     kConnected
-  } state_;
+  } state_, his_estimated_state_;
+
+  // Used to retry second stage handshake packets only so many times
+  uint32_t cookie_retries_togo_;
+
+  // Used to inhibit flood and hijack attacks
+  uint32_t my_cookie_syn_, his_cookie_syn_;
 
   OnNatDetectionRequested on_nat_detection_requested_;
   boost::signals2::connection signal_connection_;

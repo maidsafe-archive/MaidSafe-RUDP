@@ -89,11 +89,21 @@ class DataPacketTest : public testing::Test {
     data_packet_.SetDestinationSocketId(destination_socket_id);
 
     char char_array[Parameters::kUDPPayload] = {0};
-    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(&char_array[0],
-                                        DataPacket::kHeaderSize + Parameters::max_size));
-    EXPECT_EQ(DataPacket::kHeaderSize + data.size(), data_packet_.Encode(dbuffer));
+    std::vector<boost::asio::mutable_buffer> dbuffers;
+    dbuffers.push_back(boost::asio::mutable_buffer(boost::asio::buffer(&char_array[0],
+                                        DataPacket::kHeaderSize + Parameters::max_size)));
+    EXPECT_EQ(DataPacket::kHeaderSize + data.size(), data_packet_.Encode(dbuffers));
+    if (dbuffers.size() > 1) {
+      memcpy(boost::asio::buffer_cast<char *>(dbuffers[0]) +
+             boost::asio::buffer_size(dbuffers[0]),
+             boost::asio::buffer_cast<char *>(dbuffers[1]),
+             boost::asio::buffer_size(dbuffers[1]));
+      dbuffers.clear();
+      dbuffers.push_back(boost::asio::buffer(char_array,
+                                             DataPacket::kHeaderSize + data.size()));
+    }
     RestoreDefault();
-    EXPECT_TRUE(data_packet_.Decode(dbuffer));
+    EXPECT_TRUE(data_packet_.Decode(dbuffers[0]));
 
     std::string full_data = data_packet_.Data();
     std::string trimmed_data;
@@ -183,7 +193,9 @@ TEST_F(DataPacketTest, BEH_EncodeDecode) {
     std::string data("Encode Decode Test");
     data_packet_.SetData(data);
     char char_array[32] = {0};
-    EXPECT_EQ(0U, data_packet_.Encode(boost::asio::buffer(char_array)));
+    std::vector<boost::asio::mutable_buffer> buffers;
+    buffers.push_back(boost::asio::buffer(char_array));
+    EXPECT_EQ(0U, data_packet_.Encode(buffers));
   }
   RestoreDefault();
   {
@@ -235,7 +247,9 @@ class ControlPacketTest : public testing::Test {
     {
       // Pass in a buffer having the length less than required
       char char_array[15] = {0};
-      EXPECT_EQ(0U, control_packet_.EncodeBase(boost::asio::buffer(char_array)));
+      std::vector<boost::asio::mutable_buffer> buffers;
+      buffers.push_back(boost::asio::buffer(char_array));
+      EXPECT_EQ(0U, control_packet_.EncodeBase(buffers));
     }
     {
       control_packet_.SetType(0x7fff);
@@ -244,14 +258,15 @@ class ControlPacketTest : public testing::Test {
       control_packet_.SetDestinationSocketId(0xffffffff);
 
       char char_array[ControlPacket::kHeaderSize] = {0};
-      boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
-      EXPECT_EQ(ControlPacket::kHeaderSize, control_packet_.EncodeBase(dbuffer));
+      std::vector<boost::asio::mutable_buffer> dbuffers;
+      dbuffers.push_back(boost::asio::buffer(char_array));
+      EXPECT_EQ(ControlPacket::kHeaderSize, control_packet_.EncodeBase(dbuffers));
 
       control_packet_.SetType(0);
       control_packet_.SetAdditionalInfo(0);
       control_packet_.SetTimeStamp(0);
       control_packet_.SetDestinationSocketId(0);
-      EXPECT_TRUE(control_packet_.DecodeBase(dbuffer, 0x7fff));
+      EXPECT_TRUE(control_packet_.DecodeBase(dbuffers[0], 0x7fff));
 
       EXPECT_EQ(0x7fff, control_packet_.Type());
       EXPECT_EQ(0xffffffff, control_packet_.AdditionalInfo());
@@ -342,17 +357,17 @@ class AckPacketTest : public testing::Test {
 
     char char_array_optional[optional_packet_size] = {0};
     char char_array[packet_size] = {0};
-    boost::asio::mutable_buffer dbuffer;
+    std::vector<boost::asio::mutable_buffer> dbuffers;
     if (ack_packet_.HasOptionalFields()) {
-      dbuffer = boost::asio::buffer(char_array_optional);
-      EXPECT_EQ(optional_packet_size, ack_packet_.Encode(dbuffer));
+      dbuffers.push_back(boost::asio::buffer(char_array_optional));
+      EXPECT_EQ(optional_packet_size, ack_packet_.Encode(dbuffers));
     } else {
-      dbuffer = boost::asio::buffer(char_array);
-      EXPECT_EQ(packet_size, ack_packet_.Encode(dbuffer));
+      dbuffers.push_back(boost::asio::buffer(char_array));
+      EXPECT_EQ(packet_size, ack_packet_.Encode(dbuffers));
     }
     RestoreDefault();
-    EXPECT_TRUE(AckPacket::IsValid(dbuffer));
-    EXPECT_TRUE(ack_packet_.Decode(dbuffer));
+    EXPECT_TRUE(AckPacket::IsValid(dbuffers[0]));
+    EXPECT_TRUE(ack_packet_.Decode(dbuffers[0]));
 
     EXPECT_EQ(0xbabeface, ack_packet_.AckSequenceNumber());
     EXPECT_TRUE(ack_packet_.ContainsSequenceNumber(0xface));
@@ -394,7 +409,9 @@ TEST_F(AckPacketTest, BEH_EncodeDecode) {
   {
     // Pass in a buffer having the length less than required
     char char_array[AckPacket::kPacketSize - 1] = {0};
-    EXPECT_EQ(0U, ack_packet_.Encode(boost::asio::buffer(char_array)));
+    std::vector<boost::asio::mutable_buffer> buffers;
+    buffers.push_back(boost::asio::buffer(char_array));
+    EXPECT_EQ(0U, ack_packet_.Encode(buffers));
   }
   {
     // TODO(Team) There will be an error if passed in buffer has a size less
@@ -464,7 +481,9 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
   {
     // Pass in a buffer having the length less than required
     char char_array[HandshakePacket::kMinPacketSize - 1] = {0};
-    EXPECT_EQ(0U, handshake_packet_.Encode(boost::asio::buffer(char_array)));
+    std::vector<boost::asio::mutable_buffer> buffers;
+    buffers.push_back(boost::asio::buffer(char_array));
+    EXPECT_EQ(0U, handshake_packet_.Encode(buffers));
   }
   {
     NodeId node_id(NodeId::IdType::kRandomId);
@@ -486,9 +505,10 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetPeerEndpoint(endpoint);
 
     char char_array1[HandshakePacket::kMinPacketSize] = {0};
-    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array1));
+    std::vector<boost::asio::mutable_buffer> dbuffers;
+    dbuffers.push_back(boost::asio::buffer(char_array1));
     ASSERT_EQ(HandshakePacket::kMinPacketSize,
-              handshake_packet_.Encode(boost::asio::buffer(dbuffer)));
+              handshake_packet_.Encode(dbuffers));
 
     handshake_packet_.SetRudpVersion(0);
     handshake_packet_.SetSocketType(0);
@@ -505,7 +525,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetPeerEndpoint(boost::asio::ip::udp::endpoint());
     EXPECT_FALSE(handshake_packet_.PublicKey());
 
-    handshake_packet_.Decode(dbuffer);
+    handshake_packet_.Decode(dbuffers[0]);
 
     EXPECT_EQ(0x11111111, handshake_packet_.RudpVersion());
     EXPECT_EQ(0x22222222, handshake_packet_.SocketType());
@@ -528,10 +548,11 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetPublicKey(
         std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey(keys.public_key)));
     char char_array2[10000] = {0};
-    dbuffer = boost::asio::buffer(char_array2);
+    dbuffers.clear();
+    dbuffers.push_back(boost::asio::buffer(char_array2));
 
     ASSERT_EQ(HandshakePacket::kMinPacketSize + encoded_key.size(),
-              handshake_packet_.Encode(boost::asio::buffer(dbuffer)));
+              handshake_packet_.Encode(dbuffers));
 
     handshake_packet_.SetRudpVersion(0);
     handshake_packet_.SetSocketType(0);
@@ -548,7 +569,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetPeerEndpoint(boost::asio::ip::udp::endpoint());
     handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>());
 
-    handshake_packet_.Decode(dbuffer);
+    handshake_packet_.Decode(dbuffers[0]);
 
     EXPECT_EQ(0x11111111, handshake_packet_.RudpVersion());
     EXPECT_EQ(0x22222222, handshake_packet_.SocketType());
@@ -590,9 +611,10 @@ TEST(KeepalivePacketTest, BEH_All) {
   {
     // Encode then Decode
     char_array[1] = KeepalivePacket::kPacketType;
-    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
-    EXPECT_EQ(KeepalivePacket::kPacketSize, keepalive_packet.Encode(dbuffer));
-    EXPECT_TRUE(keepalive_packet.Decode(dbuffer));
+    std::vector<boost::asio::mutable_buffer> dbuffers;
+    dbuffers.push_back(boost::asio::buffer(char_array));
+    EXPECT_EQ(KeepalivePacket::kPacketSize, keepalive_packet.Encode(dbuffers));
+    EXPECT_TRUE(keepalive_packet.Decode(dbuffers[0]));
   }
 }
 
@@ -617,9 +639,10 @@ TEST(ShutdownPacketTest, BEH_All) {
   {
     // Encode then Decode
     char_array[1] = ShutdownPacket::kPacketType;
-    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
-    EXPECT_EQ(ShutdownPacket::kPacketSize, shutdown_packet.Encode(dbuffer));
-    EXPECT_TRUE(shutdown_packet.Decode(dbuffer));
+    std::vector<boost::asio::mutable_buffer> dbuffers;
+    dbuffers.push_back(boost::asio::buffer(char_array));
+    EXPECT_EQ(ShutdownPacket::kPacketSize, shutdown_packet.Encode(dbuffers));
+    EXPECT_TRUE(shutdown_packet.Decode(dbuffers[0]));
   }
 }
 
@@ -645,10 +668,11 @@ TEST(AckOfAckPacketTest, BEH_All) {
     // Encode then Decode
     ack_of_ack_packet.SetAckSequenceNumber(0xffffffff);
     char_array[1] = AckOfAckPacket::kPacketType;
-    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
-    EXPECT_EQ(AckOfAckPacket::kPacketSize, ack_of_ack_packet.Encode(dbuffer));
+    std::vector<boost::asio::mutable_buffer> dbuffers;
+    dbuffers.push_back(boost::asio::buffer(char_array));
+    EXPECT_EQ(AckOfAckPacket::kPacketSize, ack_of_ack_packet.Encode(dbuffers));
     ack_of_ack_packet.SetAckSequenceNumber(0);
-    EXPECT_TRUE(ack_of_ack_packet.Decode(dbuffer));
+    EXPECT_TRUE(ack_of_ack_packet.Decode(dbuffers[0]));
     EXPECT_EQ(0xffffffff, ack_of_ack_packet.AckSequenceNumber());
   }
 }
@@ -759,12 +783,13 @@ TEST_F(NegativeAckPacketTest, BEH_EncodeDecode) {
     negative_ack_packet_.AddSequenceNumbers(0x7fffffff, 0x5);
 
     char char_array[ControlPacket::kHeaderSize + 3 * 4] = {0};
-    boost::asio::mutable_buffer dbuffer(boost::asio::buffer(char_array));
-    negative_ack_packet_.Encode(boost::asio::buffer(dbuffer));
+    std::vector<boost::asio::mutable_buffer> dbuffers;
+    dbuffers.push_back(boost::asio::buffer(char_array));
+    negative_ack_packet_.Encode(dbuffers);
 
     negative_ack_packet_.AddSequenceNumber(0x7);
 
-    negative_ack_packet_.Decode(dbuffer);
+    negative_ack_packet_.Decode(dbuffers[0]);
 
     EXPECT_FALSE(negative_ack_packet_.ContainsSequenceNumber(0x7));
     EXPECT_TRUE(negative_ack_packet_.ContainsSequenceNumber(0x8));

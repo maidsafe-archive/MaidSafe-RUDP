@@ -49,6 +49,7 @@ class Socket;
 class Multiplexer {
  public:
   explicit Multiplexer(boost::asio::io_service& asio_service);
+  ~Multiplexer();
 
   // Open the multiplexer.  If endpoint is valid, the new socket will be bound to it.
   ReturnCode Open(const boost::asio::ip::udp::endpoint& endpoint);
@@ -62,10 +63,14 @@ class Multiplexer {
   // Asynchronously receive a single packet and dispatch it.
   template <typename DispatchHandler>
   void AsyncDispatch(DispatchHandler handler) {
-    DispatchOp<DispatchHandler> op(handler, socket_, boost::asio::buffer(receive_buffer_),
-                                   sender_endpoint_, dispatcher_);
     std::lock_guard<std::mutex> lock(mutex_);
-    socket_.async_receive_from(boost::asio::buffer(receive_buffer_), sender_endpoint_, 0, op);
+    unsigned char *data = *receive_buffer_++;
+    if (receive_buffer_ == receive_buffers_.end())
+      receive_buffer_ = receive_buffers_.begin();
+    auto buffer = boost::asio::buffer(data, Parameters::max_size);
+    DispatchOp<DispatchHandler> op(handler, socket_, buffer,
+                                   sender_endpoint_, dispatcher_);
+    socket_.async_receive_from(buffer, sender_endpoint_, 0, op);
   }
 
  private:
@@ -77,7 +82,13 @@ class Multiplexer {
     size_t count, total_byte_count, error_count;
     packet_loss_state() : enabled(false), in_error_burst(false), constant(0.0),
                           bursty(0.0), count(0), total_byte_count(0), error_count(0) {
-      smallprng::raninit(&ctx, 0xdeadbeef);
+      const char *constantenv = std::getenv("MAIDSAFE_RUDP_CONSTANT_PACKET_LOSS");
+      if (constantenv)
+        constant = std::strtod(constantenv, nullptr);
+      const char *burstyenv = std::getenv("MAIDSAFE_RUDP_BURSTY_PACKET_LOSS");
+      if (burstyenv)
+        bursty = std::strtod(burstyenv, nullptr);
+      smallprng::raninit(&ctx, /*0xdeadbeef*/ (smallprng::u4) std::time(nullptr));
     }
     bool should_drop_this_packet(size_t size) {
       bool ret = false;
@@ -140,16 +151,29 @@ class Multiplexer {
   // successfully, kSendFailure otherwise.
   template <typename Packet>
   ReturnCode SendTo(const Packet& packet, const boost::asio::ip::udp::endpoint& endpoint) {
-    std::array<unsigned char, Parameters::kUDPPayload> data;
-    auto buffer = boost::asio::buffer(&data[0], Parameters::max_size);
-    if (size_t length = packet.Encode(buffer)) {
+    unsigned char *data = *send_buffer_++;
+    if (send_buffer_ == send_buffers_.end())
+      send_buffer_ = send_buffers_.begin();
+    std::vector<boost::asio::mutable_buffer> buffers;
+    buffers.reserve(2);  // in case Encode expands for a gather send
+    buffers.push_back(boost::asio::mutable_buffer(data, Parameters::max_size));
+    if (size_t length = packet.Encode(buffers)) {
       boost::system::error_code ec;
+      if (length < boost::asio::buffer_size(buffers)) {
+        assert(buffers.size() == 1);
+        if (buffers.size() != 1)
+          abort();  // Someone messed up a gather send calculation
+        // Trim the single buffer to the output length
+        buffers[0]=boost::asio::mutable_buffer(
+          boost::asio::buffer_cast<unsigned char*>(buffers[0]),
+          length);
+      }
       auto &state = getPacketLossState();
       if (state.enabled && state.should_drop_this_packet(length))
         return kSuccess;
       {
         std::lock_guard<std::mutex> lock(mutex_);
-        socket_.send_to(boost::asio::buffer(buffer, length), endpoint, 0, ec);
+        socket_.send_to(buffers, endpoint, 0, ec);
       }
       if (ec) {
 #ifndef NDEBUG
@@ -179,11 +203,22 @@ class Multiplexer {
   Multiplexer(const Multiplexer&);
   Multiplexer& operator=(const Multiplexer&);
 
+  static unsigned char *allocate_dma_buffer_(size_t len);
+  static void deallocate_dma_buffer_(unsigned char *buf, size_t len);
+
   // The UDP socket used for all RUDP protocol communication.
   boost::asio::ip::udp::socket socket_;
 
-  // Data members used to receive information about incoming packets.
-  std::vector<unsigned char> receive_buffer_;
+  // 2014-8-26 ned:
+  // BSD and Windows can DMA UDP packets straight to/from
+  // userspace, but only iff we alternate the buffers handed off
+  // to the network stack. Read more about it at
+  // http://www.freebsd.org/cgi/man.cgi?query=zero_copy.
+  typedef std::array<unsigned char *, 2> dma_buffers_type_;
+  dma_buffers_type_ receive_buffers_, send_buffers_;
+  dma_buffers_type_::iterator receive_buffer_, send_buffer_;
+
+  // The remote UDP endpoint we are sending to.
   boost::asio::ip::udp::endpoint sender_endpoint_;
 
   // Dispatcher keeps track of the active sockets.

@@ -165,6 +165,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   boost::asio::io_service::strand strand_;
   std::shared_ptr<Multiplexer> multiplexer_;
   detail::Socket socket_;
+  uint32_t cookie_syn_;
   boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
   NodeId peer_node_id_;
   boost::asio::ip::udp::endpoint peer_endpoint_;

@@ -1,0 +1,59 @@
+UDP message sequence during connection bootstrap
+May be out of date after 2014-7-14
+
+Firstly, Socket::HandleReceiveFrom examines incoming packets for their type and dispatches appropriately. Types are:
+
+if (data_packet.Decode(data)) {
+  HandleData(data_packet);
+} else if (ack_packet.Decode(data)) {
+  HandleAck(ack_packet);
+} else if (ack_of_ack_packet.Decode(data)) {
+  HandleAckOfAck(ack_of_ack_packet);
+} else if (negative_ack_packet.Decode(data)) {
+  HandleNegativeAck(negative_ack_packet);
+} else if (keepalive_packet.Decode(data)) {
+  HandleKeepalive(keepalive_packet);
+} else if (handshake_packet.Decode(data)) {
+  HandleHandshake(handshake_packet);
+} else if (shutdown_packet.Decode(data)) {
+  Close();
+}
+
+UDP data packets look like this:
+  +0 to  +3: Packet sequence number, top bit of which determines if it's a control packet
+  +4 to  +7: Message number, top bits of which are flags:
+                Top bit: First packet in sequence
+               Next bit: Last packet in sequence
+               Next bit: In order?
+  +8 to +11: Time stamp
+ +12 to +15: Destination socket id
+ +16 onward: Data
+
+UDP control packets look like this:
+  +0 to  +1: Control packet type, top bit of which is always one and is masked out. Types are:
+             0: HandshakePacket
+             1: KeepalivePacket
+             2: AckPacket
+             3: NegativeAckPacket
+             4: 
+             5: ShutdownPacket
+             6: AckOfAckPacket
+  +4 to  +7: Additional info
+  +8 to +11: Time stamp
+ +12 to +15: Destination socket id
+
+ALICE:
+Transport::ConnectToBootstrapEndpoint => ConnectionManager::Connect => Connection::StartConnecting => Connection::DoStartConnecting => Connection::StartConnect
+  => asio::AsyncConnect, callback Connection::HandleConnect
+
+
+
+ALICE:
+callback Connection::HandleConnect
+  => Transport::AddConnection => Transport::DoAddConnection
+  => Connection::StartProbing => asio::timer => Connection::DoProbe => asio::AsyncProbe, callback Connection::HandleProbe
+  => Connection::StartReadSize => asio::AsyncRead, callback Connection::HandleReadSize
+  => Connection::StartSending validation data => Connection::DoQueueSendRequest => Connection::DoStartSending
+    => Connection::EncodeData, this prepends 3 bytes of data length
+    => Connection::StartWrite => asio::AsyncWrite, callback Connection::HandleWrite
+
