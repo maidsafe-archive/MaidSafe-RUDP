@@ -763,36 +763,51 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
     EXPECT_EQ(kMessage, peer_message);
 }
 
+struct FutureResult {
+  struct State {
+    std::promise<int> promise;
+    std::future<int>  future;
+
+    State() : future(promise.get_future()) {}
+  };
+
+  std::function<void(int /* result */)> MakeContinuation() {
+    _state = std::make_shared<State>();
+
+    auto state_copy = _state;
+    return [state_copy](int result) { // NOLINT
+      state_copy->promise.set_value(result);
+    };
+  }
+
+  bool Wait(int millis) {
+    auto duration = std::chrono::milliseconds(millis);
+
+    if (_state->future.wait_for(duration) == std::future_status::timeout) {
+      return false;
+    }
+
+    return true;
+  }
+
+  int Result() const { return _state->future.get(); }
+
+  std::shared_ptr<State> _state;
+};
+
 TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
   // Before Bootstrap
   node_.managed_connections()->Send(nodes_[0]->node_id(), "message1", MessageSentFunctor());
-  int result_of_send(kSuccess);
-  std::atomic<bool> result_arrived(false);
-  std::promise<int> result_out;
-  MessageSentFunctor message_sent_functor([&](int result_in) {
-    result_arrived = true;
-    result_out.set_value(result_in);
-  });
-  // MSVC won't accept lambdas with defaulted arguments, so long way round ...
-  auto wait_for_result([&]()->bool {
-    auto result_in = result_out.get_future();
-    return std::future_status::timeout != result_in.wait_for(std::chrono::milliseconds(1000))
-           && (result_of_send = result_in.get(), result_arrived);
-  });
-  auto wait_for_result_timed([&](int wait)->bool {
-    auto result_in = result_out.get_future();
-    return std::future_status::timeout != result_in.wait_for(std::chrono::milliseconds(wait))
-           && (result_of_send = result_in.get(), result_arrived);
-  });
+  int millis = 1000;
 
-  result_of_send = kSuccess;
-  result_arrived = false;
-  result_out = std::promise<int>();
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message2", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kInvalidConnection, result_of_send);
+  FutureResult future_result;
+
+  node_.managed_connections()->Send(nodes_[0]->node_id(), "message2",
+                                    future_result.MakeContinuation());
+  ASSERT_TRUE(future_result.Wait(millis));
+  EXPECT_EQ(kInvalidConnection, future_result.Result());
 
   // Before Add
   // Sending to bootstrap peer should succeed, sending to any other should fail.
@@ -800,24 +815,22 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
   ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
+
   // Send to non-bootstrap peer
   node_.managed_connections()->Send(nodes_[1]->node_id(), "message3", MessageSentFunctor());
-  result_of_send = kSuccess;
-  result_arrived = false;
-  result_out = std::promise<int>();
-  node_.managed_connections()->Send(nodes_[1]->node_id(), "message4", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kInvalidConnection, result_of_send);
+  node_.managed_connections()->Send(nodes_[1]->node_id(), "message4",
+                                    future_result.MakeContinuation());
+  ASSERT_TRUE(future_result.Wait(millis));
+  EXPECT_EQ(kInvalidConnection, future_result.Result());
+
   // Send to bootstrap peer
   nodes_[0]->ResetData();
   auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(2));
   node_.managed_connections()->Send(nodes_[0]->node_id(), "message5", MessageSentFunctor());
-  result_of_send = kConnectError;
-  result_arrived = false;
-  result_out = std::promise<int>();
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message6", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kSuccess, result_of_send);
+  node_.managed_connections()->Send(nodes_[0]->node_id(), "message6",
+                                    future_result.MakeContinuation());
+  ASSERT_TRUE(future_result.Wait(millis));
+  EXPECT_EQ(kSuccess, future_result.Result());
   ASSERT_EQ(boost::future_status::ready,
             future_messages_at_peer.wait_for(boost::chrono::seconds(200)));
   auto messages(future_messages_at_peer.get());
@@ -857,25 +870,20 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   nodes_[1]->ResetData();
   node_.managed_connections()->Send(NodeId(NodeId::IdType::kRandomId), "message7",
                                     MessageSentFunctor());
-  result_of_send = kSuccess;
-  result_arrived = false;
-  result_out = std::promise<int>();
   node_.managed_connections()->Send(NodeId(NodeId::IdType::kRandomId), "message8",
-                                    message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kInvalidConnection, result_of_send);
+                                    future_result.MakeContinuation());
+  ASSERT_TRUE(future_result.Wait(millis));
+  EXPECT_EQ(kInvalidConnection, future_result.Result());
 
   // Valid Send from node_ to nodes_[1]
   node_.ResetData();
   nodes_[1]->ResetData();
   future_messages_at_peer = nodes_[1]->GetFutureForMessages(2);
   node_.managed_connections()->Send(nodes_[1]->node_id(), "message9", MessageSentFunctor());
-  result_of_send = kConnectError;
-  result_arrived = false;
-  result_out = std::promise<int>();
-  node_.managed_connections()->Send(nodes_[1]->node_id(), "message10", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kSuccess, result_of_send);
+  node_.managed_connections()->Send(nodes_[1]->node_id(), "message10",
+                                    future_result.MakeContinuation());
+  ASSERT_TRUE(future_result.Wait(millis));
+  EXPECT_EQ(kSuccess, future_result.Result());
   ASSERT_EQ(boost::future_status::ready,
             future_messages_at_peer.wait_for(boost::chrono::seconds(200)));
   messages = future_messages_at_peer.get();
@@ -888,12 +896,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   nodes_[1]->ResetData();
   future_messages_at_peer = node_.GetFutureForMessages(2);
   nodes_[1]->managed_connections()->Send(node_.node_id(), "message11", MessageSentFunctor());
-  result_of_send = kConnectError;
-  result_arrived = false;
-  result_out = std::promise<int>();
-  nodes_[1]->managed_connections()->Send(node_.node_id(), "message12", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kSuccess, result_of_send);
+  nodes_[1]->managed_connections()->Send(node_.node_id(), "message12",
+                                         future_result.MakeContinuation());
+  ASSERT_TRUE(future_result.Wait(millis));
+  EXPECT_EQ(kSuccess, future_result.Result());
   ASSERT_EQ(boost::future_status::ready,
             future_messages_at_peer.wait_for(boost::chrono::seconds(200)));
   messages = future_messages_at_peer.get();
@@ -922,24 +928,20 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.ResetData();
   nodes_[0]->ResetData();
   node_.managed_connections()->Send(nodes_[0]->node_id(), "message13", MessageSentFunctor());
-  result_of_send = kSuccess;
-  result_arrived = false;
-  result_out = std::promise<int>();
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message14", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kInvalidConnection, result_of_send);
+  node_.managed_connections()->Send(nodes_[0]->node_id(), "message14",
+                                    future_result.MakeContinuation());
+  ASSERT_TRUE(future_result.Wait(millis));
+  EXPECT_EQ(kInvalidConnection, future_result.Result());
 
   // Valid large message
   node_.ResetData();
   nodes_[1]->ResetData();
   std::string sent_message(RandomString(ManagedConnections::kMaxMessageSize()));
   future_messages_at_peer = node_.GetFutureForMessages(1);
-  result_of_send = kConnectError;
-  result_arrived = false;
-  result_out = std::promise<int>();
-  nodes_[1]->managed_connections()->Send(node_.node_id(), sent_message, message_sent_functor);
-  ASSERT_TRUE(wait_for_result_timed(20000));
-  EXPECT_EQ(kSuccess, result_of_send);
+  nodes_[1]->managed_connections()->Send(node_.node_id(), sent_message,
+                                         future_result.MakeContinuation());
+  ASSERT_TRUE(future_result.Wait(20000));
+  EXPECT_EQ(kSuccess, future_result.Result());
   ASSERT_EQ(boost::future_status::ready,
             future_messages_at_peer.wait_for(boost::chrono::seconds(20)));
   messages = future_messages_at_peer.get();
@@ -950,12 +952,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.ResetData();
   nodes_[1]->ResetData();
   sent_message += "1";
-  result_of_send = kSuccess;
-  result_arrived = false;
-  result_out = std::promise<int>();
-  nodes_[1]->managed_connections()->Send(node_.node_id(), sent_message, message_sent_functor);
-  ASSERT_TRUE(wait_for_result_timed(10000));
-  EXPECT_EQ(kMessageTooLarge, result_of_send);
+  nodes_[1]->managed_connections()->Send(node_.node_id(), sent_message,
+                                         future_result.MakeContinuation());
+  ASSERT_TRUE(future_result.Wait(10000));
+  EXPECT_EQ(kMessageTooLarge, future_result.Result());
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
