@@ -83,6 +83,9 @@ uint32_t Session::Open(uint32_t id, NodeId this_node_id,
   sending_sequence_number_ = sequence_number;
   mode_ = mode;
   cookie_retries_togo_ = Parameters::maximum_handshake_failures;
+#if 1  // Workaround for MAID-172
+  my_cookie_syn_ = 0xdeadbeef;
+#else
   // Ping requests may, rarely, connect before the main connection, thus upsetting the
   // SYN cookie.
   if (cookie_syn) {
@@ -92,6 +95,7 @@ uint32_t Session::Open(uint32_t id, NodeId this_node_id,
                                                     sizeof(my_cookie_syn_));
     if (!my_cookie_syn_) my_cookie_syn_ = 0xdeadbeef;
   }
+#endif
   his_cookie_syn_ = 0;
   signal_connection_ = on_nat_detection_requested_.connect(on_nat_detection_requested_slot);
   LOG(kInfo) << "Session::Open(" << id << ", " << DebugId(this_node_id) << ", key, "
