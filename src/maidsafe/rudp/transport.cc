@@ -94,7 +94,7 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
 
 Transport::~Transport() { Close(); }
 
-bool Transport::Bootstrap(
+ReturnCode Transport::Bootstrap(
     const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers, const NodeId& this_node_id,
     std::shared_ptr<asymm::PublicKey> this_public_key, Endpoint local_endpoint,
     bool bootstrap_off_existing_connection, OnMessage on_message_slot,
@@ -108,7 +108,7 @@ bool Transport::Bootstrap(
   ReturnCode result = multiplexer_->Open(local_endpoint);
   if (result != kSuccess) {
     LOG(kError) << "Failed to open multiplexer.  Result: " << result;
-    return false;
+    return result;
   }
 
   // We want these 3 slots to be invoked before any others connected, so that if we wait elsewhere
@@ -131,8 +131,9 @@ bool Transport::Bootstrap(
   return TryBootstrapping(bootstrap_peers, bootstrap_off_existing_connection, chosen_id);
 }
 
-bool Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
-                                 bool bootstrap_off_existing_connection, NodeId& chosen_id) {
+ReturnCode
+Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
+                            bool bootstrap_off_existing_connection, NodeId& chosen_id) {
   bool try_connect(true);
   bptime::time_duration lifespan;
   if (bootstrap_off_existing_connection)
@@ -142,7 +143,7 @@ bool Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>&
 
   if (!try_connect) {
     LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint();
-    return true;
+    return kSuccess;
   }
 
   for (auto peer : bootstrap_peers) {
@@ -151,11 +152,11 @@ bool Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>&
     if (chosen_id != NodeId()) {
       LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
                     << " connected to " << DebugId(peer.first).substr(0, 7) << " - " << peer.second;
-      return true;
+      return kSuccess;
     }
   }
 
-  return false;
+  return kNotConnectable;
 }
 
 NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,

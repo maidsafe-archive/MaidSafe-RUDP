@@ -134,21 +134,24 @@ int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoin
   int result(CheckBootstrappingParameters(bootstrap_endpoints, message_received_functor,
                                           connection_lost_functor, this_node_id, private_key,
                                           public_key));
-  if (result != kSuccess)
+  if (result != kSuccess) {
     return result;
+  }
 
   this_node_id_ = this_node_id;
   private_key_ = private_key;
   public_key_ = public_key;
 
   result = TryToDetermineLocalEndpoint(local_endpoint);
-  if (result != kSuccess)
+  if (result != kSuccess) {
     return result;
+  }
 
   result = AttemptStartNewTransport(bootstrap_endpoints, local_endpoint, chosen_bootstrap_peer,
                                     nat_type);
-  if (result != kSuccess)
+  if (result != kSuccess) {
     return result;
+  }
 
   // Add callbacks now.
   {
@@ -197,17 +200,19 @@ int ManagedConnections::AttemptStartNewTransport(const std::vector<Endpoint>& bo
   NodeIdEndpointPairs bootstrap_peers;
   for (auto element : bootstrap_endpoints)
     bootstrap_peers.push_back(std::make_pair(NodeId(), element));
-  if (!StartNewTransport(bootstrap_peers, local_endpoint)) {
+
+  ReturnCode result = StartNewTransport(bootstrap_peers, local_endpoint);
+  if (result != kSuccess) {
     LOG(kError) << "Failed to bootstrap managed connections.";
-    return kTransportStartFailure;
+    return result;
   }
   chosen_bootstrap_peer = chosen_bootstrap_node_id_;
   nat_type = nat_type_;
   return kSuccess;
 }
 
-bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
-                                           Endpoint local_endpoint) {
+ReturnCode ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
+                                                 Endpoint local_endpoint) {
   TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, nat_type_));
   bool bootstrap_off_existing_connection(bootstrap_peers.empty());
   boost::asio::ip::address external_address;
@@ -227,7 +232,9 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
   NodeId chosen_id;
-  if (!transport->Bootstrap(
+
+  ReturnCode bootstrap_result
+    =  transport->Bootstrap(
            bootstrap_peers, this_node_id_, public_key_, local_endpoint,
            bootstrap_off_existing_connection,
            std::bind(&ManagedConnections::OnMessageSlot, this, args::_1),
@@ -239,11 +246,13 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
            std::bind(&ManagedConnections::OnConnectionLostSlot, this, args::_1, args::_2, args::_3),
            std::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, args::_1, args::_2,
                      args::_3, args::_4),
-           chosen_id)) {
+           chosen_id);
+
+  if (bootstrap_result != kSuccess) {
     std::lock_guard<std::mutex> lock(mutex_);
     LOG(kWarning) << "Failed to start a new Transport.";
     transport->Close();
-    return false;
+    return bootstrap_result;
   }
 
   if (chosen_bootstrap_node_id_ == NodeId())
@@ -258,7 +267,8 @@ bool ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
 
   LOG(kVerbose) << "Started a new transport on " << transport->external_endpoint() << " / "
                 << transport->local_endpoint() << " behind " << nat_type_;
-  return true;
+
+  return kSuccess;
 }
 
 void ManagedConnections::GetBootstrapEndpoints(NodeIdEndpointPairs& bootstrap_peers,
@@ -344,7 +354,7 @@ int ManagedConnections::GetAvailableEndpoint(NodeId peer_id, EndpointPair peer_e
   }
 
   if (ShouldStartNewTransport(peer_endpoint_pair) &&
-      !StartNewTransport(NodeIdEndpointPairs(), Endpoint(local_ip_, 0))) {
+      StartNewTransport(NodeIdEndpointPairs(), Endpoint(local_ip_, 0)) != kSuccess) {
     return kDoFail("Failed to start transport.", kTransportStartFailure);
   }
 
