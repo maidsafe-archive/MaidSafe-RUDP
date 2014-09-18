@@ -187,11 +187,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
     int16_t some_used_port = tmp_socket.local_endpoint().port();
 
     EXPECT_NE(kSuccess,
-             node_.managed_connections()->Bootstrap(
-                 std::vector<Endpoint>(1, Endpoint(GetLocalIp(), some_used_port)),
-                 do_nothing_on_message_, do_nothing_on_connection_lost_,
-                 node_.node_id(), node_.private_key(),
-                 node_.public_key(), chosen_bootstrap, nat_type));
+              node_.managed_connections()->Bootstrap(
+                  std::vector<Endpoint>(1, Endpoint(GetLocalIp(), some_used_port)),
+                  do_nothing_on_message_, do_nothing_on_connection_lost_,
+                  node_.node_id(), node_.private_key(),
+                  node_.public_key(), chosen_bootstrap, nat_type));
   }
   // Unavailable bootstrap_endpoints with kLivePort
   {
@@ -204,7 +204,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
     tmp_socket.bind(Endpoint(GetLocalIp(), kLivePort), ec);
 
     if (!ec) {
-      EXPECT_NE(kSuccess,
+      EXPECT_EQ(kTransportStartFailure,
                 node_.managed_connections()->Bootstrap(
                     std::vector<Endpoint>(1, Endpoint(GetLocalIp(), kLivePort)),
                     do_nothing_on_message_, do_nothing_on_connection_lost_,

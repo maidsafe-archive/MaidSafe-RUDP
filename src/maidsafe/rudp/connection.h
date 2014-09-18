@@ -100,6 +100,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   boost::posix_time::time_duration ExpiresFromNow() const;
   std::string PeerDebugId() const;
 
+  boost::asio::ip::udp::endpoint PeerEndpoint() const { return peer_endpoint_; }
+
  private:
   Connection(const Connection&);
   Connection& operator=(const Connection&);

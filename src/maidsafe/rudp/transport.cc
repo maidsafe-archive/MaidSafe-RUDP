@@ -209,6 +209,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           }
         });
 
+    LOG(kWarning) << "Transport::ConnectToBootstrapEndpoint calling ConnectiongManager::Connect";
     connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
                                  Parameters::bootstrap_connect_timeout, lifespan);
 
@@ -286,14 +287,17 @@ void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoi
       failure_functor = [=] {
         if (!multiplexer_->IsOpen())
           return;
+        LOG(kWarning) << "Transport::DoConnect 1 calling ConnectiongManager::Connect";
         connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
                                      Parameters::rendezvous_connect_timeout, bptime::pos_infin);
       };
     }
+    LOG(kWarning) << "Transport::DoConnect 2 calling ConnectiongManager::Connect";
     connection_manager_->Connect(peer_id, peer_endpoint_pair.external, validation_data,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
                                  failure_functor);
   } else {
+    LOG(kWarning) << "Transport::DoConnect 3 calling ConnectiongManager::Connect";
     connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin);
   }

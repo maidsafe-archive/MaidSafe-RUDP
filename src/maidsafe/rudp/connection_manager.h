@@ -117,6 +117,8 @@ class ConnectionManager {
                       const boost::asio::ip::udp::endpoint& endpoint);
   ConnectionGroup::iterator FindConnection(const NodeId& peer_id) const;
 
+  std::set<boost::asio::ip::udp::endpoint> being_connected_;
+
   // Because the connections can be in an idle state with no pending async operations, they are kept
   // alive with a shared_ptr in this set, as well as in the async operation handlers.
   ConnectionGroup connections_;
