@@ -128,7 +128,7 @@ void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endp
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan,
                                  const std::function<void()>& failure_functor) {
-  LOG(kWarning) << "Scheduling Connection::DoStartConnecting from Connection::StartConnecting";
+  LOG(kVerbose) << "Scheduling Connection::DoStartConnecting from Connection::StartConnecting";
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, validation_data, connect_attempt_timeout, lifespan,
                              PingFunctor(), failure_functor));
@@ -136,7 +136,7 @@ void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endp
 
 void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                       const PingFunctor& ping_functor) {
-  LOG(kWarning) << "Scheduling Connection::DoStartConnecting from Connection::Ping";
+  LOG(kVerbose) << "Scheduling Connection::DoStartConnecting from Connection::Ping";
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, "", Parameters::ping_timeout, bptime::time_duration(),
                              ping_functor, std::function<void()>()));
@@ -153,7 +153,7 @@ void Connection::DoStartConnecting(const NodeId& peer_node_id,
   peer_endpoint_ = peer_endpoint;
   failure_functor_ = failure_functor;
   StartTick();
-  LOG(kWarning) << "Connection::DoStartConnecting";
+  LOG(kVerbose) << "Connection::DoStartConnecting";
   StartConnect(validation_data, connect_attempt_timeout, lifespan, ping_functor);
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
@@ -352,7 +352,7 @@ void Connection::StartConnect(const std::string& validation_data,
     state_ = State::kUnvalidated;
   }
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    LOG(kWarning) << "Connection::StartConnect";
+    LOG(kVerbose) << "Connection::StartConnect";
     cookie_syn_ = socket_.AsyncConnect(transport->node_id(), transport->public_key(),
                          peer_endpoint_, peer_node_id_, handler, open_mode, cookie_syn_,
                          transport->on_nat_detection_requested_slot_);

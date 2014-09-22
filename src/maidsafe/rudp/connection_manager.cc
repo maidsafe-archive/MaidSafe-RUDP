@@ -95,7 +95,7 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
     being_connected_.insert(peer_endpoint);
 
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
-    LOG(kWarning) << "ConnectionManager::Connect " << peer_id << " " << peer_endpoint;
+    LOG(kVerbose) << "ConnectionManager::Connect " << peer_id << " " << peer_endpoint;
     connection->StartConnecting(peer_id, peer_endpoint, validation_data, connect_attempt_timeout,
                                 lifespan, failure_functor);
   }
@@ -268,7 +268,7 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
       joining_connection->Close();
     } else {
       // Joining node is not already connected - start new bootstrap or temporary connection
-      LOG(kWarning) << "ConnectionManager::HandlePingFrom calling ConnectiongManager::Connect";
+      LOG(kVerbose) << "ConnectionManager::HandlePingFrom calling ConnectiongManager::Connect";
       Connect(
           handshake_packet.node_id(), endpoint, "", Parameters::bootstrap_connect_timeout,
           bootstrap_and_drop ? bptime::time_duration() : Parameters::bootstrap_connection_lifespan);
