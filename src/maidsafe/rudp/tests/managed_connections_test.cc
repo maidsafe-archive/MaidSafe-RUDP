@@ -161,7 +161,7 @@ class ManagedConnectionsTest : public testing::Test {
   }
 };
 
-TEST_F(ManagedConnectionsTest, BEH_API_RandomSizeSetup) {
+TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
   int nodes(8 + RandomUint32() % 16);
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, nodes));
 }
