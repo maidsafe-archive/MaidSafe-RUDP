@@ -264,9 +264,7 @@ void Transport::Close() {
   if (connection_manager_)
     connection_manager_->Close();
   if (multiplexer_) {
-    strand_.post(std::bind(&Multiplexer::Close, multiplexer_));
-    while (IsValid(multiplexer_->external_endpoint()))
-      boost::this_thread::yield();
+    multiplexer_->Close();
   }
 }
 
