@@ -420,7 +420,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
     if (is_duplicate_normal_connection) {
       LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
                   << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
-      connection->MarkAsDuplicateAndClose(Connection::State::kDuplicate);
+      connection->MarkAsDuplicateAndClose();
     }
   }
 
@@ -440,9 +440,6 @@ void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
 }
 
 void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
-  if (connection->state() == Connection::State::kExactDuplicate)
-    return;
-
   // The call to connection_manager_->RemoveConnection must come before the invocation of
   // on_connection_lost_ so that the transport can be assessed for IsIdle properly during the
   // execution of the functor.

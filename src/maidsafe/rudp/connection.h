@@ -62,9 +62,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
     // A duplicate "normal" connection already exists on a different Transport.  Will be closed
     // without triggering callback as soon as state set to this.
     kDuplicate,
-    // A duplicate "normal" connection already exists on the same Transport.  Will be closed without
-    // triggering callback or removal from ConnectionManager as soon as state set to this.
-    kExactDuplicate
   };
 
   Connection(const std::shared_ptr<Transport>& transport,
@@ -90,8 +87,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   // Sets the state_ to kPermanent or kUnvalidated and sets the lifespan_timer_ to expire at
   // pos_infin.
   void MakePermanent(bool validated);
-  // state must be either kDuplicate or kExactDuplicate.
-  void MarkAsDuplicateAndClose(State state);
+  void MarkAsDuplicateAndClose();
   std::function<void()> GetAndClearFailureFunctor();
 
   // Get the remote endpoint offered for NAT detection.
