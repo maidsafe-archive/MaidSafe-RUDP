@@ -67,12 +67,18 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
                                   node1_chosen_bootstrap_peer, endpoints1.local));
   thread.join();
 
+  if (result0 == kBindError || result1 == kBindError) {
+    // The endpoints were taken by some other program, retry...
+    return SetupNetwork(nodes, bootstrap_endpoints, node_count);
+  }
+
   if (result1 != kSuccess || node1_chosen_bootstrap_peer != nodes[0]->node_id())
     return testing::AssertionFailure() << "Bootstrapping failed for Node 1.  Result using "
                                        << endpoints0.local << " was " << result1;
   if (result0 != kSuccess || chosen_node_id != nodes[1]->node_id())
     return testing::AssertionFailure() << "Bootstrapping failed for Node 0.  Result using "
                                        << endpoints1.local << " was " << result0;
+
   EndpointPair endpoint_pair0, endpoint_pair1;
   NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
   endpoint_pair1 = endpoints1;
