@@ -82,17 +82,41 @@ void ConnectionManager::Close() {
   multiplexer_->dispatcher_.SetConnectionManager(nullptr);
 }
 
+bool ConnectionManager::CanStartConnectingTo(NodeId peer_id, Endpoint peer_ep) const {
+  return std::find_if( being_connected_.begin()
+                     , being_connected_.end()
+                     , [&](const std::pair<NodeId, Endpoint>& pair) {
+                       if (peer_id.IsZero() || pair.first.IsZero() || peer_id == pair.first) {
+                         return pair.second == peer_ep;
+                       }
+                       return false;
+                     }) == being_connected_.end();
+}
+
+void ConnectionManager::MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep) {
+  auto j = being_connected_.begin();
+  for (auto i = being_connected_.begin(); i != being_connected_.end(); i = j) {
+    ++j;
+    if (peer_id.IsZero() || i->first.IsZero() || peer_id == i->first) {
+      if (peer_ep == i->second) {
+        being_connected_.erase(i);
+      }
+    }
+  }
+}
+
 void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                                 const std::string& validation_data,
                                 const bptime::time_duration& connect_attempt_timeout,
                                 const bptime::time_duration& lifespan,
                                 const std::function<void()>& failure_functor) {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    if (being_connected_.count(peer_endpoint)) {
+    if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
+      LOG(kVerbose) << "ConnectionManager::Connect ignoring " << peer_id << " " << peer_endpoint;
       return;
     }
 
-    being_connected_.insert(peer_endpoint);
+    being_connected_.insert(std::make_pair(peer_id, peer_endpoint));
 
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
     LOG(kVerbose) << "ConnectionManager::Connect " << peer_id << " " << peer_endpoint;
@@ -102,7 +126,10 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
 }
 
 int ConnectionManager::AddConnection(ConnectionPtr connection) {
-  being_connected_.erase(connection->PeerEndpoint());
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    MarkDoneConnecting(connection->PeerNodeId(), connection->PeerEndpoint());
+  }
   assert(connection->state() != Connection::State::kPending);
   if (!IsNormal(connection))
     return kInvalidConnection;
@@ -128,6 +155,7 @@ bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
 void ConnectionManager::RemoveConnection(ConnectionPtr connection) {
   std::lock_guard<std::mutex> lock(mutex_);
   assert(IsNormal(connection) || connection->state() == Connection::State::kDuplicate);
+  MarkDoneConnecting(connection->PeerNodeId(), connection->PeerEndpoint());
   connections_.erase(connection);
 }
 

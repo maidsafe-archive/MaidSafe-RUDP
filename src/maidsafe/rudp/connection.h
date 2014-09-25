@@ -97,6 +97,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   std::string PeerDebugId() const;
 
   boost::asio::ip::udp::endpoint PeerEndpoint() const { return peer_endpoint_; }
+  NodeId PeerNodeId() const { return peer_node_id_; }
 
  private:
   Connection(const Connection&);
