@@ -94,7 +94,7 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
 
 Transport::~Transport() { Close(); }
 
-bool Transport::Bootstrap(
+ReturnCode Transport::Bootstrap(
     const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers, const NodeId& this_node_id,
     std::shared_ptr<asymm::PublicKey> this_public_key, Endpoint local_endpoint,
     bool bootstrap_off_existing_connection, OnMessage on_message_slot,
@@ -108,7 +108,7 @@ bool Transport::Bootstrap(
   ReturnCode result = multiplexer_->Open(local_endpoint);
   if (result != kSuccess) {
     LOG(kError) << "Failed to open multiplexer.  Result: " << result;
-    return false;
+    return result;
   }
 
   // We want these 3 slots to be invoked before any others connected, so that if we wait elsewhere
@@ -131,8 +131,9 @@ bool Transport::Bootstrap(
   return TryBootstrapping(bootstrap_peers, bootstrap_off_existing_connection, chosen_id);
 }
 
-bool Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
-                                 bool bootstrap_off_existing_connection, NodeId& chosen_id) {
+ReturnCode
+Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
+                            bool bootstrap_off_existing_connection, NodeId& chosen_id) {
   bool try_connect(true);
   bptime::time_duration lifespan;
   if (bootstrap_off_existing_connection)
@@ -142,7 +143,7 @@ bool Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>&
 
   if (!try_connect) {
     LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint();
-    return true;
+    return kSuccess;
   }
 
   for (auto peer : bootstrap_peers) {
@@ -151,11 +152,11 @@ bool Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>&
     if (chosen_id != NodeId()) {
       LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
                     << " connected to " << DebugId(peer.first).substr(0, 7) << " - " << peer.second;
-      return true;
+      return kSuccess;
     }
   }
 
-  return false;
+  return kNotConnectable;
 }
 
 NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
@@ -208,6 +209,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           }
         });
 
+    LOG(kVerbose) << "Transport::ConnectToBootstrapEndpoint calling ConnectiongManager::Connect";
     connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
                                  Parameters::bootstrap_connect_timeout, lifespan);
 
@@ -283,14 +285,17 @@ void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoi
       failure_functor = [=] {
         if (!multiplexer_->IsOpen())
           return;
+        LOG(kVerbose) << "Transport::DoConnect 1 calling ConnectiongManager::Connect";
         connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
                                      Parameters::rendezvous_connect_timeout, bptime::pos_infin);
       };
     }
+    LOG(kVerbose) << "Transport::DoConnect 2 calling ConnectiongManager::Connect";
     connection_manager_->Connect(peer_id, peer_endpoint_pair.external, validation_data,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
                                  failure_functor);
   } else {
+    LOG(kVerbose) << "Transport::DoConnect 3 calling ConnectiongManager::Connect";
     connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin);
   }
@@ -415,7 +420,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
     if (is_duplicate_normal_connection) {
       LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
                   << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
-      connection->MarkAsDuplicateAndClose(Connection::State::kDuplicate);
+      connection->MarkAsDuplicateAndClose();
     }
   }
 
@@ -435,9 +440,6 @@ void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
 }
 
 void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
-  if (connection->state() == Connection::State::kExactDuplicate)
-    return;
-
   // The call to connection_manager_->RemoveConnection must come before the invocation of
   // on_connection_lost_ so that the transport can be assessed for IsIdle properly during the
   // execution of the functor.

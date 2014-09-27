@@ -27,6 +27,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <utility>
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/strand.hpp"
@@ -50,6 +51,9 @@ class HandshakePacket;
 
 class ConnectionManager {
  public:
+  using Endpoint = boost::asio::ip::udp::endpoint;
+
+ public:
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
                     std::shared_ptr<Multiplexer> multiplexer, NodeId this_node_id,
@@ -58,7 +62,7 @@ class ConnectionManager {
 
   void Close();
 
-  void Connect(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                const std::string& validation_data,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan,
@@ -69,24 +73,23 @@ class ConnectionManager {
   void RemoveConnection(std::shared_ptr<Connection> connection);
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
-  void Ping(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
   bool Send(const NodeId& peer_id, const std::string& message,
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
-  bool MakeConnectionPermanent(const NodeId& peer_id, bool validated,
-                               boost::asio::ip::udp::endpoint& peer_endpoint);
+  bool MakeConnectionPermanent(const NodeId& peer_id, bool validated, Endpoint& peer_endpoint);
 
   // This node's endpoint as viewed by peer
-  boost::asio::ip::udp::endpoint ThisEndpoint(const NodeId& peer_id);
+  Endpoint ThisEndpoint(const NodeId& peer_id);
 
   // Called by Transport when bootstrapping a new transport but when we don't create a temporary
   // connection to establish external endpoint (i.e this node's NAT is symmetric)
-  void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
+  void SetBestGuessExternalEndpoint(const Endpoint& external_endpoint);
 
   // Get the remote endpoint offered for NAT detection by peer.
-  boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint(const NodeId& peer_id);
+  Endpoint RemoteNatDetectionEndpoint(const NodeId& peer_id);
 
   // Add a socket. Returns a new unique id for the socket.
   uint32_t AddSocket(Socket* socket);
@@ -94,7 +97,7 @@ class ConnectionManager {
   // Called by the Dispatcher when a new packet arrives for a socket.  Can return nullptr if no
   // appropriate socket found.
   Socket* GetSocket(const boost::asio::const_buffer& data,
-                    const boost::asio::ip::udp::endpoint& endpoint);
+                    const Endpoint& endpoint);
 
   size_t NormalConnectionsCount() const;
 
@@ -107,15 +110,23 @@ class ConnectionManager {
   ConnectionManager(const ConnectionManager&);
   ConnectionManager& operator=(const ConnectionManager&);
 
+  bool CanStartConnectingTo(NodeId, Endpoint) const;
+  void MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep);
+
+ private:
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<Connection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionGroup;
   // Map of destination socket id to corresponding socket object.
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;
 
-  void HandlePingFrom(const HandshakePacket& handshake_packet,
-                      const boost::asio::ip::udp::endpoint& endpoint);
+  void HandlePingFrom(const HandshakePacket& handshake_packet, const Endpoint& endpoint);
   ConnectionGroup::iterator FindConnection(const NodeId& peer_id) const;
+
+  // TODO(PeterJ): Instead of using this set, it would be nicer if we
+  // added a "not yet connected connection" into the connetions_ group
+  // right a way (before it is connected).
+  std::set<std::pair<NodeId, Endpoint>> being_connected_;
 
   // Because the connections can be in an idle state with no pending async operations, they are kept
   // alive with a shared_ptr in this set, as well as in the async operation handlers.

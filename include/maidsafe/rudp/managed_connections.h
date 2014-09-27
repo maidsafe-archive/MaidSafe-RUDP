@@ -41,6 +41,7 @@
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/nat_type.h"
+#include "maidsafe/rudp/return_codes.h"
 
 namespace maidsafe {
 
@@ -155,7 +156,7 @@ class ManagedConnections {
       const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
       const boost::asio::ip::udp::endpoint& local_endpoint, NodeId& chosen_bootstrap_peer,
       NatType& nat_type);
-  bool StartNewTransport(
+  ReturnCode StartNewTransport(
       std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers,
       boost::asio::ip::udp::endpoint local_endpoint);
 

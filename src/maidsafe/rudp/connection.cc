@@ -128,6 +128,7 @@ void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endp
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan,
                                  const std::function<void()>& failure_functor) {
+  LOG(kVerbose) << "Scheduling Connection::DoStartConnecting from Connection::StartConnecting";
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, validation_data, connect_attempt_timeout, lifespan,
                              PingFunctor(), failure_functor));
@@ -135,6 +136,7 @@ void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endp
 
 void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                       const PingFunctor& ping_functor) {
+  LOG(kVerbose) << "Scheduling Connection::DoStartConnecting from Connection::Ping";
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, "", Parameters::ping_timeout, bptime::time_duration(),
                              ping_functor, std::function<void()>()));
@@ -151,6 +153,7 @@ void Connection::DoStartConnecting(const NodeId& peer_node_id,
   peer_endpoint_ = peer_endpoint;
   failure_functor_ = failure_functor;
   StartTick();
+  LOG(kVerbose) << "Connection::DoStartConnecting";
   StartConnect(validation_data, connect_attempt_timeout, lifespan, ping_functor);
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
@@ -172,11 +175,10 @@ void Connection::DoMakePermanent(bool validated) {
   state_ = (validated ? State::kPermanent : State::kUnvalidated);
 }
 
-void Connection::MarkAsDuplicateAndClose(State state) {
-  assert(state == State::kDuplicate || state == State::kExactDuplicate);
+void Connection::MarkAsDuplicateAndClose() {
   {
     std::lock_guard<std::mutex> lock(state_mutex_);
-    state_ = state;
+    state_ = State::kDuplicate;
   }
   strand_.dispatch(std::bind(&Connection::DoClose, shared_from_this(), false));
 }
@@ -349,6 +351,7 @@ void Connection::StartConnect(const std::string& validation_data,
     state_ = State::kUnvalidated;
   }
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
+    LOG(kVerbose) << "Connection::StartConnect";
     cookie_syn_ = socket_.AsyncConnect(transport->node_id(), transport->public_key(),
                          peer_endpoint_, peer_node_id_, handler, open_mode, cookie_syn_,
                          transport->on_nat_detection_requested_slot_);
@@ -595,7 +598,7 @@ void Connection::HandleProbe(const bs::error_code& ec) {
       (failed_probe_count_ < Parameters::maximum_keepalive_failures)) {
     ++failed_probe_count_;
     LOG(kWarning) << "Probe error from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
-                  << "   error - " << ec.value()
+                  << "   error - " << ec.message()
                   << "   probe_count: " << int(failed_probe_count_);
     bs::error_code ignored_ec;
     DoProbe(ignored_ec);

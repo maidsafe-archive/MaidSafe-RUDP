@@ -186,7 +186,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
     boost::asio::ip::udp::socket tmp_socket(io_service, Endpoint(GetLocalIp(), 0));
     int16_t some_used_port = tmp_socket.local_endpoint().port();
 
-    EXPECT_EQ(kTransportStartFailure,
+    EXPECT_NE(kSuccess,
               node_.managed_connections()->Bootstrap(
                   std::vector<Endpoint>(1, Endpoint(GetLocalIp(), some_used_port)),
                   do_nothing_on_message_, do_nothing_on_connection_lost_,
@@ -1235,6 +1235,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
 
       EndpointPair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
       NatType nat_type;
+
       for (int j(0); j != i; ++j) {
         EXPECT_EQ(kSuccess,
                   nodes[i]->managed_connections()->GetAvailableEndpoint(
@@ -1242,12 +1243,14 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
         EXPECT_EQ(kSuccess,
                   nodes[j]->managed_connections()->GetAvailableEndpoint(
                       nodes[i]->node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
+
         EXPECT_EQ(kSuccess,
                   nodes[j]->managed_connections()->Add(nodes[i]->node_id(), this_endpoint_pair,
                                                        nodes[j]->validation_data()));
         EXPECT_EQ(kSuccess,
                   nodes[i]->managed_connections()->Add(nodes[j]->node_id(), peer_endpoint_pair,
                                                        nodes[i]->validation_data()));
+
         get_avail_ep_futures.push_back(GetFuture(nodes, i, j));
         get_avail_ep_futures.push_back(GetFuture(nodes, j, i));
       }

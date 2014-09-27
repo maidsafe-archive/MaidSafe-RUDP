@@ -82,19 +82,54 @@ void ConnectionManager::Close() {
   multiplexer_->dispatcher_.SetConnectionManager(nullptr);
 }
 
+bool ConnectionManager::CanStartConnectingTo(NodeId peer_id, Endpoint peer_ep) const {
+  return std::find_if( being_connected_.begin()
+                     , being_connected_.end()
+                     , [&](const std::pair<NodeId, Endpoint>& pair) {
+                       if (peer_id.IsZero() || pair.first.IsZero() || peer_id == pair.first) {
+                         return pair.second == peer_ep;
+                       }
+                       return false;
+                     }) == being_connected_.end();
+}
+
+void ConnectionManager::MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep) {
+  auto j = being_connected_.begin();
+  for (auto i = being_connected_.begin(); i != being_connected_.end(); i = j) {
+    ++j;
+    if (peer_id.IsZero() || i->first.IsZero() || peer_id == i->first) {
+      if (peer_ep == i->second) {
+        being_connected_.erase(i);
+      }
+    }
+  }
+}
+
 void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                                 const std::string& validation_data,
                                 const bptime::time_duration& connect_attempt_timeout,
                                 const bptime::time_duration& lifespan,
                                 const std::function<void()>& failure_functor) {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
+    if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
+      LOG(kVerbose) << "ConnectionManager::Connect ignoring " << peer_id << " " << peer_endpoint;
+      return;
+    }
+
+    being_connected_.insert(std::make_pair(peer_id, peer_endpoint));
+
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
+    LOG(kVerbose) << "ConnectionManager::Connect " << peer_id << " " << peer_endpoint;
     connection->StartConnecting(peer_id, peer_endpoint, validation_data, connect_attempt_timeout,
                                 lifespan, failure_functor);
   }
 }
 
 int ConnectionManager::AddConnection(ConnectionPtr connection) {
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    MarkDoneConnecting(connection->PeerNodeId(), connection->PeerEndpoint());
+  }
   assert(connection->state() != Connection::State::kPending);
   if (!IsNormal(connection))
     return kInvalidConnection;
@@ -107,7 +142,7 @@ bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
   std::unique_lock<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
-    LOG(kWarning) << DebugId(kThisNodeId_) << " Not currently connected to " << DebugId(peer_id);
+    LOG(kWarning) << kThisNodeId_ << " Not currently connected to " << peer_id;
     return false;
   }
 
@@ -120,6 +155,7 @@ bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
 void ConnectionManager::RemoveConnection(ConnectionPtr connection) {
   std::lock_guard<std::mutex> lock(mutex_);
   assert(IsNormal(connection) || connection->state() == Connection::State::kDuplicate);
+  MarkDoneConnecting(connection->PeerNodeId(), connection->PeerEndpoint());
   connections_.erase(connection);
 }
 
@@ -127,7 +163,7 @@ ConnectionManager::ConnectionPtr ConnectionManager::GetConnection(const NodeId& 
   std::lock_guard<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
-    LOG(kInfo) << DebugId(kThisNodeId_) << " Not currently connected to " << DebugId(peer_id);
+    LOG(kInfo) << kThisNodeId_ << " Not currently connected to " << peer_id;
     return ConnectionPtr();
   }
   return *itr;
@@ -147,7 +183,7 @@ bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
   std::unique_lock<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
-    LOG(kWarning) << DebugId(kThisNodeId_) << " Not currently connected to " << DebugId(peer_id);
+    LOG(kWarning) << kThisNodeId_ << " Not currently connected to " << peer_id;
     return false;
   }
 
@@ -160,7 +196,7 @@ bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
 Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpoint& endpoint) {
   uint32_t socket_id(0);
   if (!Packet::DecodeDestinationSocketId(&socket_id, data)) {
-    LOG(kError) << DebugId(kThisNodeId_) << " Received a non-RUDP packet from " << endpoint;
+    LOG(kError) << kThisNodeId_ << " Received a non-RUDP packet from " << endpoint;
     return nullptr;
   }
 
@@ -168,13 +204,13 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
   if (socket_id == 0) {
     HandshakePacket handshake_packet;
     if (!handshake_packet.Decode(data)) {
-      LOG(kVerbose) << DebugId(kThisNodeId_) << " Failed to decode handshake packet from "
+      LOG(kVerbose) << kThisNodeId_ << " Failed to decode handshake packet from "
                     << endpoint;
       return nullptr;
     }
     if (handshake_packet.ConnectionReason() == Session::kNormal) {
       // This is a handshake packet on a newly-added socket
-      LOG(kVerbose) << DebugId(kThisNodeId_)
+      LOG(kVerbose) << kThisNodeId_
                     << " This is a handshake packet on a newly-added socket from " << endpoint;
       socket_iter = std::find_if(sockets_.begin(), sockets_.end(),
                                  [endpoint](const SocketMap::value_type & socket_pair) {
@@ -190,10 +226,10 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
                  !socket_pair.second->IsConnected();
         });
         if (socket_iter != sockets_.end()) {
-          LOG(kVerbose) << DebugId(kThisNodeId_) << " Updating peer's endpoint from "
+          LOG(kVerbose) << kThisNodeId_ << " Updating peer's endpoint from "
                         << socket_iter->second->PeerEndpoint() << " to " << endpoint;
           socket_iter->second->UpdatePeerEndpoint(endpoint);
-          LOG(kVerbose) << DebugId(kThisNodeId_)
+          LOG(kVerbose) << kThisNodeId_
                         << " Peer's endpoint now: " << socket_iter->second->PeerEndpoint()
                         << "  and guessed port = " << socket_iter->second->PeerGuessedPort();
         }
@@ -211,10 +247,10 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
         if (sockets_.size() == 1U) {
           // This is a handshake packet from a peer replying to this node's join attempt,
           // or from a peer starting a zero state network with this node
-          LOG(kVerbose) << DebugId(kThisNodeId_) << " This is a handshake packet from " << endpoint
+          LOG(kVerbose) << kThisNodeId_ << " This is a handshake packet from " << endpoint
                         << " which is replying to a join request, or starting a new network";
         } else {
-          LOG(kVerbose) << DebugId(kThisNodeId_) << " This is a handshake packet from " << endpoint
+          LOG(kVerbose) << kThisNodeId_ << " This is a handshake packet from " << endpoint
                         << " which is replying to a ping request";
         }
       }
@@ -228,7 +264,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
     return socket_iter->second;
   } else {
     const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
-    LOG(kVerbose) << DebugId(kThisNodeId_) << "  Received a packet \"0x" << std::hex
+    LOG(kVerbose) << kThisNodeId_ << "  Received a packet \"0x" << std::hex
                   << static_cast<int>(*p) << std::dec << "\" for unknown connection " << socket_id
                   << " from " << endpoint;
     return nullptr;
@@ -237,10 +273,10 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
 
 void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
                                        const Endpoint& endpoint) {
-  LOG(kVerbose) << DebugId(kThisNodeId_) << " This is a handshake packet from " << endpoint
+  LOG(kVerbose) << kThisNodeId_ << " This is a handshake packet from " << endpoint
                 << " which is trying to ping this node or join the network";
   if (handshake_packet.node_id() == kThisNodeId_) {
-    LOG(kWarning) << DebugId(kThisNodeId_) << " is handshaking with another local transport.";
+    LOG(kWarning) << kThisNodeId_ << " is handshaking with another local transport.";
     return;
   }
   if (IsValid(endpoint)) {
@@ -254,12 +290,13 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
         joining_connection = *itr;
     }
     if (joining_connection) {
-      LOG(kWarning) << DebugId(kThisNodeId_) << " received another bootstrap connection request "
-                    << "from currently connected peer " << DebugId(handshake_packet.node_id())
+      LOG(kWarning) << kThisNodeId_ << " received another bootstrap connection request "
+                    << "from currently connected peer " << handshake_packet.node_id()
                     << " - " << endpoint << " - closing connection.";
       joining_connection->Close();
     } else {
       // Joining node is not already connected - start new bootstrap or temporary connection
+      LOG(kVerbose) << "ConnectionManager::HandlePingFrom calling ConnectiongManager::Connect";
       Connect(
           handshake_packet.node_id(), endpoint, "", Parameters::bootstrap_connect_timeout,
           bootstrap_and_drop ? bptime::time_duration() : Parameters::bootstrap_connection_lifespan);
@@ -274,7 +311,7 @@ bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id, bool vali
   std::lock_guard<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
-    LOG(kWarning) << DebugId(kThisNodeId_) << " Not currently connected to " << DebugId(peer_id);
+    LOG(kWarning) << kThisNodeId_ << " Not currently connected to " << peer_id;
     return false;
   }
   (*itr)->MakePermanent(validated);
