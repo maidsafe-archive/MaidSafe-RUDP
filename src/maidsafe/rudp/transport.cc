@@ -162,67 +162,117 @@ Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& boot
 NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                              const Endpoint& bootstrap_endpoint,
                                              const bptime::time_duration& lifespan) {
+  using lock_guard = std::lock_guard<std::mutex>;
+
   if (!IsValid(bootstrap_endpoint)) {
     LOG(kError) << bootstrap_endpoint << " is an invalid endpoint.";
     return NodeId();
   }
 
   // Temporarily connect to the signals until the connect attempt has succeeded or failed.
-  std::mutex local_mutex;
   std::promise<std::tuple<NodeId, bool>> result_out;
   auto result_in = result_out.get_future();
-  std::atomic<bool> slot_called(false);
-  std::unique_lock<std::mutex> lock(local_mutex, std::defer_lock);
+  //std::atomic<bool> slot_called(false);
 
-  /* ned 2014-04-11: I'm not happy with the code below because I don't know why
-                     removing the unnecessary mutex causes segfaults. Clearly
-                     the mutex forces context back onto the strand so it can clean up,
-                     but I've traced the code backwards through the strand and I can see
-                     nowhere which ought to trip just because one is concurrently
-                     swapping out on_connection_added_ and on_connection_lost_.
-                     I don't like mysteries, and this is one of those.
-  */
   {
-    OnConnectionAdded saved_on_connection_added;
-    OnConnectionLost saved_on_connection_lost;
+    auto foo = this;
+    LOG(kVerbose) << "========================================= 1 " << foo;
 
-    LocalFunctorReplacement<OnConnectionAdded> on_conn_added_guard(
-        callback_mutex_, on_connection_added_, saved_on_connection_added,
-        [&](const NodeId & connected_peer_id, TransportPtr transport, bool temporary_connection,
-            std::atomic<bool> & is_duplicate_normal_connection) {
-          saved_on_connection_added(connected_peer_id, transport, temporary_connection,
-                                    is_duplicate_normal_connection);
-          assert(!slot_called);
-          std::lock_guard<std::mutex> local_lock(local_mutex);
-          slot_called = true;
+    struct State {
+      bool       timed_out;
+      bool       slot_called;
+      std::mutex mutex;
+
+      State() : timed_out(false), slot_called(false) {}
+    };
+
+    auto state = std::make_shared<State>();
+
+    OnConnectionAdded saved_on_connection_added;
+    OnConnectionLost  saved_on_connection_lost;
+
+    LocalFunctorReplacement<OnConnectionAdded> on_conn_added_guard
+       ( callback_mutex_
+       , on_connection_added_
+       , saved_on_connection_added
+       , [&, state]( const NodeId& connected_peer_id
+                   , TransportPtr transport
+                   , bool temporary_connection
+                   , std::atomic<bool> & is_duplicate_normal_connection) {
+
+          saved_on_connection_added( connected_peer_id
+                                   , transport
+                                   , temporary_connection
+                                   , is_duplicate_normal_connection);
+
+          lock_guard guard(state->mutex);
+
+          if (state->timed_out) return;
+          LOG(kVerbose) << "1 ooooooooooooooooooo " << connected_peer_id << " " << bootstrap_node_id << " " << foo;
+          //if (connected_peer_id != bootstrap_node_id) return;
+          //assert(!state->slot_called);
+          if (state->slot_called) {
+            LOG(kVerbose) << "========================================= uuu " << foo;
+          }
+
+          state->slot_called = true;
+          LOG(kVerbose) << "========================================= 1.1.0 " << foo << " " << &result_out;
           result_out.set_value(std::make_tuple(NodeId(connected_peer_id), false));
+          LOG(kVerbose) << "========================================= 1.1.1 " << foo;
         });
-    LocalFunctorReplacement<OnConnectionLost> on_conn_lost_guard(
-        callback_mutex_, on_connection_lost_, saved_on_connection_lost,
-        [&](const NodeId & connected_peer_id, TransportPtr transport, bool temporary_connection,
-            bool timed_out) {
-          saved_on_connection_lost(connected_peer_id, transport, temporary_connection, timed_out);
-          std::lock_guard<std::mutex> local_lock(local_mutex);
-          if (!slot_called) {
-            slot_called = true;
+
+    LocalFunctorReplacement<OnConnectionLost> on_conn_lost_guard
+        ( callback_mutex_
+        , on_connection_lost_
+        , saved_on_connection_lost
+        , [&, state]( const NodeId& connected_peer_id
+                    , TransportPtr transport
+                    , bool temporary_connection
+                    , bool timed_out) {
+
+          saved_on_connection_lost( connected_peer_id
+                                  , transport
+                                  , temporary_connection
+                                  , timed_out);
+
+          lock_guard guard(state->mutex);
+
+          if (state->timed_out) return;
+          LOG(kVerbose) << "2 ooooooooooooooooooo " << connected_peer_id << " " << bootstrap_node_id << " " << foo;
+          //if (connected_peer_id != bootstrap_node_id) return;
+
+          if (!state->slot_called) {
+            LOG(kVerbose) << "========================================= 1.2 " << foo;
+            state->slot_called = true;
             result_out.set_value(std::make_tuple(NodeId(connected_peer_id), timed_out));
           }
         });
 
-    LOG(kVerbose) << "Transport::ConnectToBootstrapEndpoint calling ConnectiongManager::Connect";
+    LOG(kVerbose) << "Transport::ConnectToBootstrapEndpoint calling ConnectiongManager::Connect " << foo;
     connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
                                  Parameters::bootstrap_connect_timeout, lifespan);
 
-    if (std::future_status::timeout == result_in.wait_for(
-        BoostToChrono(Parameters::bootstrap_connect_timeout + bptime::seconds(1)))
-        || !slot_called) {
-      LOG(kError) << "Timed out waiting for connection. External endpoint: "
-                  << multiplexer_->external_endpoint()
-                  << "  Local endpoint: " << multiplexer_->local_endpoint();
-      return NodeId();
+    auto time_to_wait = Parameters::bootstrap_connect_timeout + bptime::seconds(1);
+
+    if (std::future_status::timeout == result_in.wait_for(BoostToChrono(time_to_wait))) {
+      lock_guard guard(state->mutex);
+
+      state->timed_out = true;
+
+      if (!state->slot_called) {
+        LOG(kError) << "=================================== Timed out waiting for connection. External endpoint: "
+                    << multiplexer_->external_endpoint()
+                    << "  Local endpoint: " << multiplexer_->local_endpoint() << " " << foo;
+        return NodeId();
+      }
     }
-    lock.lock();
+    LOG(kVerbose) << "========================================= 2 " << foo;
+
+    // Make sure the callbacks finished, otherwise leaving the scope
+    // would destroy the result_out object.
+    { lock_guard guard(state->mutex); }
   }
+
   auto result = result_in.get();
   NodeId peer_id = std::get<0>(result);
   bool timed_out_connecting = std::get<1>(result);
@@ -382,6 +432,7 @@ void Transport::DoSignalMessageReceived(const std::string& message) {
 }
 
 void Transport::AddConnection(ConnectionPtr connection) {
+  LOG(kVerbose) << "========================================= AddConnection " << this;
   strand_.dispatch(std::bind(&Transport::DoAddConnection, shared_from_this(), connection));
 }
 
@@ -435,6 +486,7 @@ void Transport::DoAddConnection(ConnectionPtr connection) {
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
+  LOG(kVerbose) << "========================================= RemoveConnection " << this;
   strand_.dispatch(
       std::bind(&Transport::DoRemoveConnection, shared_from_this(), connection, timed_out));
 }
