@@ -424,7 +424,6 @@ void Connection::HandleConnect(const bs::error_code& ec, const std::string& vali
     auto self = shared_from_this();
 
     transport->strand_.dispatch([transport, self]() {
-        //transport->AddConnection(self);
         self->FireOnConnectFunctor(Error());
       });
   } else {
@@ -638,13 +637,6 @@ std::string Connection::PeerDebugId() const {
 }
 
 void Connection::FireOnConnectFunctor(const Error& error) {
-  if (auto t = transport_.lock()) {
-    LOG(kVerbose) << "peter " << t->node_id() << " FireOnConnectFunctor " << error.message() << " " << ((bool) on_connect_);
-  }
-  else {
-    LOG(kVerbose) << "peter FireOnConnectFunctor " << error.message() << " " << ((bool) on_connect_);
-  }
-
   if (on_connect_) {
     auto h(std::move(on_connect_));
     on_connect_ = nullptr;
