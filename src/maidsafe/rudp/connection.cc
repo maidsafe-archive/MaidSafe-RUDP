@@ -109,6 +109,8 @@ void Connection::DoClose(bool timed_out) {
     socket_.NotifyClose();
     socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose, shared_from_this(), false)));
     transport->RemoveConnection(shared_from_this(), timed_out);
+    // TODO(PeterJ): Better error codes if !timed_out.
+    FireOnConnectFunctor(timed_out ? asio::error::timed_out : asio::error::not_connected);
     transport_.reset();
     sending_ = false;
     std::queue<SendRequest>().swap(send_queue_);
@@ -423,7 +425,7 @@ void Connection::HandleConnect(const bs::error_code& ec, const std::string& vali
 
     transport->strand_.dispatch([transport, self]() {
         //transport->AddConnection(self);
-        self->FireOnConnectFunctor();
+        self->FireOnConnectFunctor(Error());
       });
   } else {
     LOG(kError) << "Pointer to Transport already destroyed.";
@@ -635,18 +637,18 @@ std::string Connection::PeerDebugId() const {
          boost::lexical_cast<std::string>(socket_.PeerEndpoint()) + "]";
 }
 
-void Connection::FireOnConnectFunctor() {
+void Connection::FireOnConnectFunctor(const Error& error) {
   if (auto t = transport_.lock()) {
-    LOG(kVerbose) << "peter " << t->node_id() << " FireOnConnectFunctor " << ((bool) on_connect_);
+    LOG(kVerbose) << "peter " << t->node_id() << " FireOnConnectFunctor " << error.message() << " " << ((bool) on_connect_);
   }
   else {
-    LOG(kVerbose) << "peter FireOnConnectFunctor " << ((bool) on_connect_);
+    LOG(kVerbose) << "peter FireOnConnectFunctor " << error.message() << " " << ((bool) on_connect_);
   }
 
   if (on_connect_) {
     auto h(std::move(on_connect_));
     on_connect_ = nullptr;
-    h(shared_from_this());
+    h(error, shared_from_this());
   }
 }
 

@@ -53,7 +53,8 @@ class ConnectionManager {
  public:
   using Endpoint      = boost::asio::ip::udp::endpoint;
   using ConnectionPtr = std::shared_ptr<Connection>;
-  using OnConnect     = std::function<void(const ConnectionPtr&)>;
+  using Error         = boost::system::error_code;
+  using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
 
  public:
   ConnectionManager(std::shared_ptr<Transport> transport,

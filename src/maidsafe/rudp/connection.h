@@ -65,7 +65,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   };
 
   using ConnectionPtr = std::shared_ptr<Connection>;
-  using OnConnect     = std::function<void(const ConnectionPtr&)>;
+  using Error         = boost::system::error_code;
+  using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
 
   Connection(const std::shared_ptr<Transport>& transport,
              const boost::asio::io_service::strand& strand,
@@ -165,7 +166,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void InvokeSentFunctor(const std::function<void(int)>& message_sent_functor,  // NOLINT (Fraser)
                          int result) const;
 
-  void FireOnConnectFunctor();
+  void FireOnConnectFunctor(const Error&);
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;

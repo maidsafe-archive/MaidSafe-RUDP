@@ -63,8 +63,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool)>
       OnConnectionLost;
 
+  using Endpoint      = boost::asio::ip::udp::endpoint;
   using ConnectionPtr = std::shared_ptr<Connection>;
-  using OnConnect     = std::function<void(const ConnectionPtr&)>;
+  using Error         = boost::system::error_code;
+  using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
 
   Transport(AsioService& asio_service, NatType& nat_type_);
 
