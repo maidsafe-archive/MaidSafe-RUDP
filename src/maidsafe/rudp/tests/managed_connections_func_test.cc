@@ -96,7 +96,9 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Waiting for all results (promises)
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      boost::chrono::milliseconds timeout((num_messages * messages_size / (1024 * 1024)) + 5000);
+      boost::chrono::seconds timeout(i > 0 ? 5 :
+          num_messages * nodes_.size() *
+              (messages_size > (256 * 1024) ? messages_size / (256 * 1024) : 1));
       if (futures.at(i).wait_for(timeout) == boost::future_status::ready) {
         auto messages(futures.at(i).get());
         EXPECT_FALSE(messages.empty()) << "Something";
@@ -106,7 +108,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
     }
     uint8_t ticking(0);
     while ((issued != finished) && (++ticking <(num_messages * nodes_.size())))
-      Sleep(std::chrono::milliseconds(500));
+      Sleep(std::chrono::milliseconds(1000));
     EXPECT_EQ(issued, finished);
 
     // Check send results
