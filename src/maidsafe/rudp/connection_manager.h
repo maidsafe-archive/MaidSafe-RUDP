@@ -51,7 +51,10 @@ class HandshakePacket;
 
 class ConnectionManager {
  public:
-  using Endpoint = boost::asio::ip::udp::endpoint;
+  using Endpoint      = boost::asio::ip::udp::endpoint;
+  using ConnectionPtr = std::shared_ptr<Connection>;
+  using Error         = boost::system::error_code;
+  using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
 
  public:
   ConnectionManager(std::shared_ptr<Transport> transport,
@@ -62,11 +65,12 @@ class ConnectionManager {
 
   void Close();
 
-  void Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
+  bool Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                const std::string& validation_data,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan,
-               const std::function<void()>& failure_functor = nullptr);
+               const OnConnect& on_connect,
+               const std::function<void()>& failure_functor);
 
   int AddConnection(std::shared_ptr<Connection> connection);
   bool CloseConnection(const NodeId& peer_id);
@@ -115,7 +119,6 @@ class ConnectionManager {
 
  private:
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
-  typedef std::shared_ptr<Connection> ConnectionPtr;
   typedef std::set<ConnectionPtr> ConnectionGroup;
   // Map of destination socket id to corresponding socket object.
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;

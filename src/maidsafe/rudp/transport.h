@@ -63,15 +63,23 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool)>
       OnConnectionLost;
 
+  using Endpoint      = boost::asio::ip::udp::endpoint;
+  using ConnectionPtr = std::shared_ptr<Connection>;
+  using Error         = boost::system::error_code;
+  using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
+
   Transport(AsioService& asio_service, NatType& nat_type_);
 
   virtual ~Transport();
 
   ReturnCode Bootstrap(
       const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,
-      const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
-      boost::asio::ip::udp::endpoint local_endpoint, bool bootstrap_off_existing_connection,
-      OnMessage on_message_slot, OnConnectionAdded on_connection_added_slot,
+      const NodeId& this_node_id,
+      std::shared_ptr<asymm::PublicKey> this_public_key,
+      boost::asio::ip::udp::endpoint local_endpoint,
+      bool bootstrap_off_existing_connection,
+      OnMessage on_message_slot,
+      OnConnectionAdded on_connection_added_slot,
       OnConnectionLost on_connection_lost_slot,
       const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
       NodeId& chosen_id);
@@ -91,7 +99,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void Ping(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
 
-  std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
+  ConnectionPtr GetConnection(const NodeId& peer_id);
 
   boost::asio::ip::udp::endpoint external_endpoint() const;
   boost::asio::ip::udp::endpoint local_endpoint() const;
@@ -112,13 +120,13 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void SetManagedConnectionsDebugPrintout(std::function<std::string()> functor);
 
   friend class Connection;
+  friend class ConnectionManager;
 
  private:
   Transport(const Transport&);
   Transport& operator=(const Transport&);
 
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
-  typedef std::shared_ptr<Connection> ConnectionPtr;
 
   ReturnCode TryBootstrapping(
       const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,
@@ -145,6 +153,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void RemoveConnection(ConnectionPtr connection, bool timed_out);
   void DoRemoveConnection(ConnectionPtr connection, bool timed_out);
 
+  OnConnect MakeDefaultOnConnectHandler();
+
+ private:
   AsioService& asio_service_;
   NatType& nat_type_;
   boost::asio::io_service::strand strand_;
