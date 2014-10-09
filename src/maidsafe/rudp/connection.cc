@@ -127,11 +127,12 @@ void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endp
                                  const std::string& validation_data,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan,
+                                 const OnConnect& on_connect,
                                  const std::function<void()>& failure_functor) {
   LOG(kVerbose) << "Scheduling Connection::DoStartConnecting from Connection::StartConnecting";
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, validation_data, connect_attempt_timeout, lifespan,
-                             PingFunctor(), failure_functor));
+                             PingFunctor(), on_connect, failure_functor));
 }
 
 void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
@@ -139,7 +140,7 @@ void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_
   LOG(kVerbose) << "Scheduling Connection::DoStartConnecting from Connection::Ping";
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, "", Parameters::ping_timeout, bptime::time_duration(),
-                             ping_functor, std::function<void()>()));
+                             ping_functor, OnConnect(), std::function<void()>()));
 }
 
 void Connection::DoStartConnecting(const NodeId& peer_node_id,
@@ -148,10 +149,13 @@ void Connection::DoStartConnecting(const NodeId& peer_node_id,
                                    const boost::posix_time::time_duration& connect_attempt_timeout,
                                    const boost::posix_time::time_duration& lifespan,
                                    const PingFunctor& ping_functor,
+                                   const OnConnect& on_connect,
                                    const std::function<void()>& failure_functor) {
-  peer_node_id_ = peer_node_id;
-  peer_endpoint_ = peer_endpoint;
+  peer_node_id_    = peer_node_id;
+  peer_endpoint_   = peer_endpoint;
+  on_connect_      = on_connect;
   failure_functor_ = failure_functor;
+
   StartTick();
   LOG(kVerbose) << "Connection::DoStartConnecting";
   StartConnect(validation_data, connect_attempt_timeout, lifespan, ping_functor);
@@ -415,7 +419,12 @@ void Connection::HandleConnect(const bs::error_code& ec, const std::string& vali
 
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     peer_node_id_ = socket_.PeerNodeId();
-    transport->AddConnection(shared_from_this());
+    auto self = shared_from_this();
+
+    transport->strand_.dispatch([transport, self]() {
+        transport->AddConnection(self);
+        self->FireOnConnectFunctor();
+      });
   } else {
     LOG(kError) << "Pointer to Transport already destroyed.";
     return DoClose();
@@ -624,6 +633,21 @@ bptime::time_duration Connection::ExpiresFromNow() const {
 std::string Connection::PeerDebugId() const {
   return std::string("[") + DebugId(socket_.PeerNodeId()).substr(0, 7) + " - " +
          boost::lexical_cast<std::string>(socket_.PeerEndpoint()) + "]";
+}
+
+void Connection::FireOnConnectFunctor() {
+  if (auto t = transport_.lock()) {
+    LOG(kVerbose) << "peter " << t->node_id() << " FireOnConnectFunctor " << ((bool) on_connect_);
+  }
+  else {
+    LOG(kVerbose) << "peter FireOnConnectFunctor " << ((bool) on_connect_);
+  }
+
+  if (on_connect_) {
+    auto h(std::move(on_connect_));
+    on_connect_ = nullptr;
+    h(shared_from_this());
+  }
 }
 
 }  // namespace detail

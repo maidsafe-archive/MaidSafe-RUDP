@@ -105,24 +105,28 @@ void ConnectionManager::MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep) {
   }
 }
 
-void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
+bool ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                                 const std::string& validation_data,
                                 const bptime::time_duration& connect_attempt_timeout,
                                 const bptime::time_duration& lifespan,
+                                const OnConnect& on_connect,
                                 const std::function<void()>& failure_functor) {
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
-      LOG(kVerbose) << "ConnectionManager::Connect ignoring " << peer_id << " " << peer_endpoint;
-      return;
+      LOG(kVerbose) << "peter " << node_id() << " ConnectionManager::Connect ignoring " << peer_id << " " << peer_endpoint;
+      return false;
     }
 
     being_connected_.insert(std::make_pair(peer_id, peer_endpoint));
 
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
-    LOG(kVerbose) << "ConnectionManager::Connect " << peer_id << " " << peer_endpoint;
+    LOG(kVerbose) << "peter " << node_id() << " ConnectionManager::Connect " << peer_id << " " << peer_endpoint << " " << ((bool) on_connect);
     connection->StartConnecting(peer_id, peer_endpoint, validation_data, connect_attempt_timeout,
-                                lifespan, failure_functor);
+                                lifespan, on_connect, failure_functor);
+    return true;
   }
+
+  return false;
 }
 
 int ConnectionManager::AddConnection(ConnectionPtr connection) {
@@ -296,10 +300,15 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
       joining_connection->Close();
     } else {
       // Joining node is not already connected - start new bootstrap or temporary connection
-      LOG(kVerbose) << "ConnectionManager::HandlePingFrom calling ConnectiongManager::Connect";
+      LOG(kVerbose) << "peter " << node_id() << " ConnectionManager::HandlePingFrom " << endpoint;
+
+      auto weak_transport = transport_;
+
       Connect(
           handshake_packet.node_id(), endpoint, "", Parameters::bootstrap_connect_timeout,
-          bootstrap_and_drop ? bptime::time_duration() : Parameters::bootstrap_connection_lifespan);
+          bootstrap_and_drop ? bptime::time_duration() : Parameters::bootstrap_connection_lifespan,
+          OnConnect(),
+          nullptr);
     }
     return;
   }

@@ -115,6 +115,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void SetManagedConnectionsDebugPrintout(std::function<std::string()> functor);
 
   friend class Connection;
+  friend class ConnectionManager;
 
  private:
   Transport(const Transport&);

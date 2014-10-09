@@ -49,7 +49,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   bootstrap_endpoints.clear();
   for (int i(0); i != node_count; ++i) {
     nodes.push_back(std::make_shared<Node>(i));
-    LOG(kInfo) << nodes[i]->id() << " has NodeId " << nodes[i]->debug_node_id();
+    LOG(kInfo) << "peter " << nodes[i]->id() << " has NodeId " << nodes[i]->debug_node_id();
   }
 
   // Setting up first two nodes
