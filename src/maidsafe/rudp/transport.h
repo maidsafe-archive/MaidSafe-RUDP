@@ -153,7 +153,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void RemoveConnection(ConnectionPtr connection, bool timed_out);
   void DoRemoveConnection(ConnectionPtr connection, bool timed_out);
 
-  OnConnect MakeOnConnectHandler();
+  OnConnect MakeDefaultOnConnectHandler();
 
  private:
   AsioService& asio_service_;
