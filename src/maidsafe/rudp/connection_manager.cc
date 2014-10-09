@@ -302,13 +302,12 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
       // Joining node is not already connected - start new bootstrap or temporary connection
       LOG(kVerbose) << "peter " << node_id() << " ConnectionManager::HandlePingFrom " << endpoint;
 
-      auto weak_transport = transport_;
-
-      Connect(
-          handshake_packet.node_id(), endpoint, "", Parameters::bootstrap_connect_timeout,
-          bootstrap_and_drop ? bptime::time_duration() : Parameters::bootstrap_connection_lifespan,
-          OnConnect(),
-          nullptr);
+      if (auto t = transport_.lock()) {
+        Connect(
+            handshake_packet.node_id(), endpoint, "", Parameters::bootstrap_connect_timeout,
+            bootstrap_and_drop ? bptime::time_duration() : Parameters::bootstrap_connection_lifespan,
+            t->MakeOnConnectHandler(), nullptr);
+      }
     }
     return;
   }

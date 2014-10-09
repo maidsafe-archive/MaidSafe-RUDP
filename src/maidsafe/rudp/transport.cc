@@ -188,38 +188,40 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
 
     auto state = std::make_shared<State>();
 
-    OnConnectionAdded saved_on_connection_added;
+    //OnConnectionAdded saved_on_connection_added;
     OnConnectionLost  saved_on_connection_lost;
 
-    LocalFunctorReplacement<OnConnectionAdded> on_conn_added_guard
-       ( callback_mutex_
-       , on_connection_added_
-       , saved_on_connection_added
-       , [&, state]( const NodeId& connected_peer_id
-                   , TransportPtr transport
-                   , bool temporary_connection
-                   , std::atomic<bool> & is_duplicate_normal_connection) {
+    //LocalFunctorReplacement<OnConnectionAdded> on_conn_added_guard
+    //   ( callback_mutex_
+    //   , on_connection_added_
+    //   , saved_on_connection_added
+    //   , [&, state]( const NodeId& connected_peer_id
+    //               , TransportPtr transport
+    //               , bool temporary_connection
+    //               , std::atomic<bool> & is_duplicate_normal_connection) {
 
-          saved_on_connection_added( connected_peer_id
-                                   , transport
-                                   , temporary_connection
-                                   , is_duplicate_normal_connection);
+    //      LOG(kVerbose) << "peter " << node_id() << " new on_connection_added handler";
 
-          lock_guard guard(state->mutex);
+    //      saved_on_connection_added( connected_peer_id
+    //                               , transport
+    //                               , temporary_connection
+    //                               , is_duplicate_normal_connection);
 
-          if (state->timed_out) return;
-          LOG(kVerbose) << "1 ooooooooooooooooooo " << connected_peer_id << " " << bootstrap_node_id << " " << foo;
-          //if (connected_peer_id != bootstrap_node_id) return;
-          //assert(!state->slot_called);
-          if (state->slot_called) {
-            LOG(kVerbose) << "========================================= uuu " << foo;
-          }
+    //      //lock_guard guard(state->mutex);
 
-          state->slot_called = true;
-          LOG(kVerbose) << "========================================= 1.1.0 " << foo << " " << &result_out;
-          result_out.set_value(std::make_tuple(NodeId(connected_peer_id), false));
-          LOG(kVerbose) << "========================================= 1.1.1 " << foo;
-        });
+    //      //if (state->timed_out) return;
+    //      //LOG(kVerbose) << "1 ooooooooooooooooooo " << connected_peer_id << " " << bootstrap_node_id << " " << foo;
+    //      ////if (connected_peer_id != bootstrap_node_id) return;
+    //      ////assert(!state->slot_called);
+    //      //if (state->slot_called) {
+    //      //  LOG(kVerbose) << "========================================= uuu " << foo;
+    //      //}
+
+    //      //state->slot_called = true;
+    //      //LOG(kVerbose) << "========================================= 1.1.0 " << foo << " " << &result_out;
+    //      //result_out.set_value(std::make_tuple(NodeId(connected_peer_id), false));
+    //      //LOG(kVerbose) << "========================================= 1.1.1 " << foo;
+    //    });
 
     LocalFunctorReplacement<OnConnectionLost> on_conn_lost_guard
         ( callback_mutex_
@@ -230,6 +232,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                     , bool temporary_connection
                     , bool timed_out) {
 
+          LOG(kVerbose) << "peter " << node_id() << " new on_connection_lost handler";
           saved_on_connection_lost( connected_peer_id
                                   , transport
                                   , temporary_connection
@@ -238,8 +241,8 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           lock_guard guard(state->mutex);
 
           if (state->timed_out) return;
-          LOG(kVerbose) << "2 ooooooooooooooooooo " << connected_peer_id << " " << bootstrap_node_id << " " << foo;
-          //if (connected_peer_id != bootstrap_node_id) return;
+          //LOG(kVerbose) << "2 ooooooooooooooooooo " << connected_peer_id << " " << bootstrap_node_id << " " << foo;
+          ////if (connected_peer_id != bootstrap_node_id) return;
 
           if (!state->slot_called) {
             LOG(kVerbose) << "========================================= 1.2 " << foo;
@@ -248,20 +251,20 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
           }
         });
 
-    auto my_id = node_id();
-    auto on_connect = [=](const ConnectionPtr& c) {
-      LOG(kVerbose) << "peter " << my_id << " on_connect " << bootstrap_node_id << " " << c->Socket().PeerNodeId() << " " << bootstrap_endpoint;
+    auto orig_on_connect = MakeOnConnectHandler();
+
+    auto on_connect = [state, orig_on_connect, &result_out](const ConnectionPtr& connection) {
+      orig_on_connect(connection);
+
+      LOG(kVerbose) << "uuuuuuuuuuuuuu 1";
+      lock_guard guard(state->mutex);
+      LOG(kVerbose) << "uuuuuuuuuuuuuu 2";
+
+      if (state->timed_out) return;
+      state->slot_called = true;
+      auto peer_id = connection->Socket().PeerNodeId(); 
+      result_out.set_value(std::make_tuple(NodeId(peer_id), false));
     };
-
-    //auto on_connect = [state, &result_out](const ConnectionPtr& connection) {
-    //  LOG(kVerbose) << "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU";
-    //  lock_guard guard(state->mutex);
-
-    //  if (state->timed_out) return;
-    //  state->slot_called = true;
-    //  auto peer_id = connection->Socket().PeerNodeId(); 
-    //  result_out.set_value(std::make_tuple(NodeId(peer_id), false));
-    //};
 
     bool started = connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
                                                 Parameters::bootstrap_connect_timeout, lifespan,
@@ -276,13 +279,13 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
       state->timed_out = true;
 
       if (!state->slot_called) {
-        LOG(kError) << "=================================== Timed out waiting for connection. External endpoint: "
+        LOG(kError) << "Timed out waiting for connection. External endpoint: "
                     << multiplexer_->external_endpoint()
                     << "  Local endpoint: " << multiplexer_->local_endpoint() << " " << foo;
+        LOG(kVerbose) << "peter fail1";
         return NodeId();
       }
     }
-    LOG(kVerbose) << "========================================= 2 " << foo;
 
     // Make sure the callbacks finished, otherwise leaving the scope
     // would destroy the result_out object.
@@ -295,10 +298,12 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
 
   if (timed_out_connecting) {
     LOG(kInfo) << "Failed to make bootstrap connection to " << bootstrap_endpoint;
+    LOG(kVerbose) << "peter fail2";
     return NodeId();
   }
 
   DetectNatType(peer_id);
+  LOG(kVerbose) << "peter " << node_id() << " success";
   return peer_id;
 }
 
@@ -340,19 +345,23 @@ void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint
                              validation_data));
 }
 
+Transport::OnConnect Transport::MakeOnConnectHandler() {
+  std::weak_ptr<Transport> weak_self = shared_from_this();
+
+  return [weak_self](const ConnectionPtr& connection) {
+    if (auto self = weak_self.lock()) {
+      self->AddConnection(connection);
+      LOG(kVerbose) << "peter " << self->node_id() << " on_connect!!! " << connection->Socket().PeerNodeId();
+    }
+  };
+}
+
 void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
                           const std::string& validation_data) {
   if (!multiplexer_->IsOpen())
     return;
 
-  std::weak_ptr<Transport> weak_self = shared_from_this();
-
-  auto on_connect = [](const ConnectionPtr&) {};
-  //auto on_connect = [weak_self](const ConnectionPtr& connection) {
-  //  if (auto self = weak_self.lock()) {
-  //    self->AddConnection(connection);
-  //  }
-  //};
+  auto on_connect = MakeOnConnectHandler();
 
   if (IsValid(peer_endpoint_pair.external)) {
     std::function<void()> failure_functor;
@@ -374,8 +383,7 @@ void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoi
     LOG(kVerbose) << "peter " << node_id() << " Transport::DoConnect 3 calling ConnectiongManager::Connect";
     connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                 on_connect,
-                                 nullptr);
+                                 on_connect, nullptr);
   }
 }
 

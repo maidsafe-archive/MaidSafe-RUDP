@@ -422,7 +422,7 @@ void Connection::HandleConnect(const bs::error_code& ec, const std::string& vali
     auto self = shared_from_this();
 
     transport->strand_.dispatch([transport, self]() {
-        transport->AddConnection(self);
+        //transport->AddConnection(self);
         self->FireOnConnectFunctor();
       });
   } else {
