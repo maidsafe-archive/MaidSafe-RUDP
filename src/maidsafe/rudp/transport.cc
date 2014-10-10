@@ -139,7 +139,6 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
     return NodeId();
   }
 
-  // Temporarily connect to the signals until the connect attempt has succeeded or failed.
   std::promise<std::tuple<NodeId, bool>> result_out;
   auto result_in = result_out.get_future();
 
@@ -370,8 +369,6 @@ void Transport::DoSignalMessageReceived(const std::string& message) {
 }
 
 void Transport::AddConnection(ConnectionPtr connection) {
-  LOG(kVerbose) << "peter " << node_id() << " AddConnection " << connection->PeerNodeId();
-
   // Discard failure_functor
   connection->GetAndClearFailureFunctor();
 
@@ -421,7 +418,6 @@ void Transport::AddConnection(ConnectionPtr connection) {
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
-  LOG(kVerbose) << "peter " << node_id() << " RemoveConnection " << connection->PeerNodeId();
   strand_.dispatch(
       std::bind(&Transport::DoRemoveConnection, shared_from_this(), connection, timed_out));
 }
