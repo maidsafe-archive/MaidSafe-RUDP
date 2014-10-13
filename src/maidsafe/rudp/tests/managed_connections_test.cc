@@ -1077,16 +1077,16 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   std::vector<int> result_of_sends(kNetworkSize, kConnectError);
   std::vector<MessageSentFunctor> message_sent_functors;
   std::atomic<int> result_arrived_count(0);
-  std::promise<void> done_out;
-  auto done_in = done_out.get_future();
+  std::shared_ptr<std::promise<void>> done_out = std::make_shared<std::promise<void>>();
+  auto done_in = done_out->get_future();
   for (int i(0); i != kNetworkSize - 1; ++i) {
     SCOPED_TRACE("Preparing to send from " + nodes_[i]->id());
     nodes_[i]->ResetData();
     sent_messages.push_back(std::string(256 * 1024, 'A' + static_cast<int8_t>(i)));
-    message_sent_functors.push_back([&, i](int result_in) mutable {
+    message_sent_functors.push_back([&, i, done_out](int result_in) mutable {
       result_of_sends[i] = result_in;
       if (kNetworkSize - 1 == ++result_arrived_count)
-        done_out.set_value();
+        done_out->set_value();
     });
   }
 
