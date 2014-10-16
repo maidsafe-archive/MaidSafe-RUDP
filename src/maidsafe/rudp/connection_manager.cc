@@ -110,6 +110,8 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
                                 const bptime::time_duration& connect_attempt_timeout,
                                 const bptime::time_duration& lifespan,
                                 const std::function<void()>& failure_functor) {
+  std::lock_guard<std::mutex> lock(mutex_);
+
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
       LOG(kVerbose) << "ConnectionManager::Connect ignoring " << peer_id << " " << peer_endpoint;
