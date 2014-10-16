@@ -111,6 +111,8 @@ bool ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
                                 const bptime::time_duration& lifespan,
                                 const OnConnect& on_connect,
                                 const std::function<void()>& failure_functor) {
+  std::lock_guard<std::mutex> lock(mutex_);
+
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
       return false;
