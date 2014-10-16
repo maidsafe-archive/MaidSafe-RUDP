@@ -335,7 +335,14 @@ bool Transport::IsAvailable() const {
 }
 
 void Transport::StartDispatch() {
-  auto handler = strand_.wrap(std::bind(&Transport::HandleDispatch, shared_from_this(), args::_1));
+  std::weak_ptr<Transport> weak_self = shared_from_this();
+
+  auto handler = strand_.wrap([weak_self](const Error& error) {
+      if (auto self = weak_self.lock()) {
+        self->HandleDispatch(error);
+      }
+      });
+
   multiplexer_->AsyncDispatch(handler);
 }
 

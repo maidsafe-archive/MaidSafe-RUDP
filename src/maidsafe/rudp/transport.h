@@ -68,6 +68,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   using Error         = boost::system::error_code;
   using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
 
+ public:
   Transport(AsioService& asio_service, NatType& nat_type_);
 
   virtual ~Transport();
