@@ -139,7 +139,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
     return NodeId();
   }
 
-  std::promise<std::tuple<NodeId, bool>> result_out;
+  std::promise<NodeId> result_out;
   auto result_in = result_out.get_future();
 
   {
@@ -168,7 +168,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
       if (state->timed_out) return;
       state->slot_called = true;
       auto peer_id = connection->Socket().PeerNodeId();
-      result_out.set_value(std::make_tuple(NodeId(peer_id), false));
+      result_out.set_value(peer_id);
     };
 
     connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
@@ -195,15 +195,7 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
     { lock_guard guard(state->mutex); }
   }
 
-  auto result = result_in.get();
-  NodeId peer_id = std::get<0>(result);
-  bool timed_out_connecting = std::get<1>(result);
-
-  if (timed_out_connecting) {
-    LOG(kInfo) << "Failed to make bootstrap connection to " << bootstrap_endpoint;
-    return NodeId();
-  }
-
+  NodeId peer_id = result_in.get();
   DetectNatType(peer_id);
   return peer_id;
 }
