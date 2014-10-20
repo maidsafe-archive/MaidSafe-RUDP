@@ -106,6 +106,7 @@ Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& boot
                             bool bootstrap_off_existing_connection, NodeId& chosen_id) {
   bool try_connect(true);
   bptime::time_duration lifespan;
+
   if (bootstrap_off_existing_connection)
     try_connect = (nat_type_ != NatType::kSymmetric);
   else
@@ -142,58 +143,31 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
   std::promise<NodeId> result_out;
   auto result_in = result_out.get_future();
 
-  {
-    // TODO(PeterJ): Use either mutexes or shared state (both seems unnecessary).
+  std::mutex mutex;
 
-    struct State {
-      bool       timed_out;
-      bool       slot_called;
-      std::mutex mutex;
+  auto orig_on_connect = MakeDefaultOnConnectHandler();
 
-      State() : timed_out(false), slot_called(false) {}
-    };
-
-    auto state = std::make_shared<State>();
-
-    auto orig_on_connect = MakeDefaultOnConnectHandler();
-
-    auto on_connect = [state, orig_on_connect, &result_out]
-                      (const Error& error, const ConnectionPtr& connection) {
-      if (!error) {
-        orig_on_connect(error, connection);
-      }
-
-      lock_guard guard(state->mutex);
-
-      if (state->timed_out) return;
-      state->slot_called = true;
-      auto peer_id = connection->Socket().PeerNodeId();
-      result_out.set_value(peer_id);
-    };
-
-    connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
-                                 Parameters::bootstrap_connect_timeout, lifespan,
-                                 on_connect, nullptr);
-
-    auto time_to_wait = Parameters::bootstrap_connect_timeout + bptime::seconds(1);
-
-    if (std::future_status::timeout == result_in.wait_for(BoostToChrono(time_to_wait))) {
-      lock_guard guard(state->mutex);
-
-      state->timed_out = true;
-
-      if (!state->slot_called) {
-        LOG(kError) << "Timed out waiting for connection. External endpoint: "
-                    << multiplexer_->external_endpoint()
-                    << "  Local endpoint: " << multiplexer_->local_endpoint();
-        return NodeId();
-      }
+  auto on_connect = [orig_on_connect, &result_out, &mutex]
+                    (const Error& error, const ConnectionPtr& connection) {
+    if (!error) {
+      orig_on_connect(error, connection);
     }
 
-    // Make sure the callback finished, otherwise leaving the scope
-    // would destroy the result_out object.
-    { lock_guard guard(state->mutex); }
-  }
+    lock_guard guard(mutex);
+
+    auto peer_id = connection->Socket().PeerNodeId();
+    result_out.set_value(peer_id);
+  };
+
+  connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
+                               Parameters::bootstrap_connect_timeout, lifespan,
+                               on_connect, nullptr);
+
+  result_in.wait();
+
+  // Make sure the callback finished, otherwise leaving the scope
+  // would destroy the result_out object.
+  { lock_guard guard(mutex); }
 
   NodeId peer_id = result_in.get();
   DetectNatType(peer_id);
