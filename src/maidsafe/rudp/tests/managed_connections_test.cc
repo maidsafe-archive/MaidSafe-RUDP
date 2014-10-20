@@ -260,25 +260,30 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
   //  Before Bootstrapping
-  EndpointPair this_endpoint_pair;
+  EndpointPair this_endpoint_pair(Endpoint(ip::address::from_string("1.1.1.1"), 1025));
   NatType nat_type;
-  this_endpoint_pair.external = this_endpoint_pair.local =
-      Endpoint(ip::address::from_string("1.1.1.1"), 1025);
+
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                NodeId(NodeId::IdType::kRandomId), EndpointPair(), this_endpoint_pair, nat_type));
+                NodeId(NodeId::IdType::kRandomId),
+                EndpointPair(),
+                this_endpoint_pair,
+                nat_type));
+
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
   EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
-  this_endpoint_pair.external = this_endpoint_pair.local =
-      Endpoint(ip::address::from_string("1.1.1.1"), 1025);
-  EndpointPair endpoint_pair;
-  endpoint_pair.local = endpoint_pair.external =
-      Endpoint(ip::address::from_string("1.2.3.4"), 1026);
+
+  this_endpoint_pair = EndpointPair(Endpoint(ip::address::from_string("1.1.1.1"), 1025));
+  EndpointPair endpoint_pair(Endpoint(ip::address::from_string("1.2.3.4"), 1026));
+
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                NodeId(NodeId::IdType::kRandomId), endpoint_pair, this_endpoint_pair, nat_type));
-  EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
-  EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
+                NodeId(NodeId::IdType::kRandomId),
+                endpoint_pair,
+                this_endpoint_pair,
+                nat_type));
+
+  EXPECT_EQ(EndpointPair(), this_endpoint_pair);
 
   //  After Bootstrapping
   NodeId chosen_node;
@@ -287,20 +292,27 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
             node_.managed_connections()->Bootstrap(
                 bootstrap_endpoints_, do_nothing_on_message_, do_nothing_on_connection_lost_,
                 node_.node_id(), node_.private_key(), node_.public_key(), chosen_node, nat_type));
+
   EXPECT_FALSE(chosen_node.IsZero());
-  //  EXPECT_NE(bootstrap_endpoints_.end(),
-  //            std::find(bootstrap_endpoints_.begin(), bootstrap_endpoints_.end(),
-  // chosen_endpoint));
 
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-            node_.managed_connections()->GetAvailableEndpoint(chosen_node, EndpointPair(),
-                                                              this_endpoint_pair, nat_type));
+            node_.managed_connections()->GetAvailableEndpoint(
+              chosen_node,
+              EndpointPair(),
+              this_endpoint_pair,
+              nat_type));
+
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
 
   EndpointPair another_endpoint_pair;
+
   EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(NodeId(NodeId::IdType::kRandomId),
-                EndpointPair(), another_endpoint_pair, nat_type));
+            node_.managed_connections()->GetAvailableEndpoint(
+              NodeId(NodeId::IdType::kRandomId),
+              EndpointPair(),
+              another_endpoint_pair,
+              nat_type));
+
   EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
 }

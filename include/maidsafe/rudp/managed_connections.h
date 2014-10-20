@@ -56,8 +56,21 @@ typedef std::function<void(const NodeId& /*peer_id*/)> ConnectionLostFunctor;
 typedef std::function<void(int /*result*/)> MessageSentFunctor;
 
 struct EndpointPair {
+  using Endpoint = boost::asio::ip::udp::endpoint;
+
+  Endpoint local, external;
+
   EndpointPair() : local(), external() {}
-  boost::asio::ip::udp::endpoint local, external;
+
+  explicit EndpointPair(const Endpoint& both)
+    : local(both), external(both) {}
+
+  EndpointPair(const Endpoint& local, const Endpoint& external)
+    : local(local), external(external) {}
+
+  bool operator==(const EndpointPair& other) const {
+    return local == other.local && external == other.external;
+  }
 };
 
 // Defined as 203.0.113.14:1314 which falls in the 203.0.113.0/24 (TEST-NET-3) range as described in

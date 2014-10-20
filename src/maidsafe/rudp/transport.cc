@@ -65,10 +65,14 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
 Transport::~Transport() { Close(); }
 
 ReturnCode Transport::Bootstrap(
-    const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers, const NodeId& this_node_id,
-    std::shared_ptr<asymm::PublicKey> this_public_key, Endpoint local_endpoint,
-    bool bootstrap_off_existing_connection, OnMessage on_message_slot,
-    OnConnectionAdded on_connection_added_slot, OnConnectionLost on_connection_lost_slot,
+    const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
+    const NodeId& this_node_id,
+    std::shared_ptr<asymm::PublicKey> this_public_key,
+    Endpoint local_endpoint,
+    bool bootstrap_off_existing_connection,
+    OnMessage on_message_slot,
+    OnConnectionAdded on_connection_added_slot,
+    OnConnectionLost on_connection_lost_slot,
     const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
     NodeId& chosen_id) {
   assert(on_nat_detection_requested_slot);
