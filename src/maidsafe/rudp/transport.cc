@@ -178,21 +178,34 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
 }
 
 void Transport::DetectNatType(NodeId const& peer_id) {
-  Endpoint nat_detection_endpoint(connection_manager_->RemoteNatDetectionEndpoint(peer_id));
-  if (IsValid(nat_detection_endpoint)) {
-    std::promise<int> result_out;
-    auto result_in = result_out.get_future();
-    connection_manager_->Ping(peer_id, nat_detection_endpoint, [&](int result_in) {
-      result_out.set_value(result_in);
-    });
+  using lock_guard = std::lock_guard<std::mutex>;
 
-    if (std::future_status::timeout == result_in.wait_for(
-        BoostToChrono(Parameters::ping_timeout + bptime::seconds(1)))
-        || result_in.get() != kSuccess) {
-      LOG(kWarning) << "Timed out waiting for NAT detection ping - setting NAT type to symmetric";
-      nat_type_ = NatType::kSymmetric;
-    }
+  Endpoint nat_detection_endpoint(connection_manager_->RemoteNatDetectionEndpoint(peer_id));
+
+  if (!IsValid(nat_detection_endpoint)) {
+    return;
   }
+
+  std::promise<int> result_out;
+  auto result_in = result_out.get_future();
+  std::mutex mutex;
+
+  connection_manager_->Ping(peer_id, nat_detection_endpoint, [&](int result_in) {
+    lock_guard guard(mutex);
+    result_out.set_value(result_in);
+  });
+
+  auto time_to_wait = BoostToChrono(Parameters::ping_timeout + bptime::seconds(1));
+
+  if (std::future_status::timeout == result_in.wait_for(time_to_wait)
+      || result_in.get() != kSuccess) {
+    LOG(kWarning) << "Timed out waiting for NAT detection ping - setting NAT type to symmetric";
+    nat_type_ = NatType::kSymmetric;
+  }
+
+  // Make sure the callback finished before the result_out future can be
+  // destroyed by leaving the scope.
+  { lock_guard guard(mutex); }
 }
 
 void Transport::Close() {
