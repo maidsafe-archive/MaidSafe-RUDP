@@ -158,9 +158,8 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
     }
 
     lock_guard guard(mutex);
-
-    auto peer_id = connection->Socket().PeerNodeId();
-    result_out.set_value(peer_id);
+    result_out.set_value(error ? NodeId()
+                               : connection->Socket().PeerNodeId());
   };
 
   connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",

@@ -118,7 +118,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
           message_sent_functor_(std::move(message_sent_functor)) {}
   };
 
-  void DoClose(bool timed_out = false);
+  void DoClose(const Error&);
+
   void DoStartConnecting(const NodeId& peer_node_id,
                          const boost::asio::ip::udp::endpoint& peer_endpoint,
                          const std::string& validation_data,
