@@ -284,8 +284,11 @@ void Connection::CheckTimeout(const bs::error_code& ec) {
   }
 
   // Keep processing timeouts until the socket is completely closed.
-  timer_.async_wait(
-      strand_.wrap(std::bind(&Connection::CheckTimeout, shared_from_this(), args::_1)));
+  auto self = shared_from_this();
+
+  timer_.async_wait(strand_.wrap([self](const Error& error) {
+        self->CheckTimeout(error);
+        }));
 }
 
 // May return true if connection still being gracefully closed down
