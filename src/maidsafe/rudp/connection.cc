@@ -339,10 +339,9 @@ void Connection::StartConnect(const std::string& validation_data,
                               const boost::posix_time::time_duration& connect_attempt_timeout,
                               const boost::posix_time::time_duration& lifespan,
                               const PingFunctor& ping_functor) {
-  auto handler = strand_.wrap(std::bind(&Connection::HandleConnect, shared_from_this(), args::_1,
-                                        validation_data, ping_functor));
   Session::Mode open_mode(Session::kNormal);
   lifespan_timer_.expires_from_now(lifespan);
+
   if (validation_data.empty()) {
     assert(lifespan != bptime::pos_infin);
     if (lifespan > bptime::time_duration()) {
@@ -357,11 +356,24 @@ void Connection::StartConnect(const std::string& validation_data,
   } else {
     state_ = State::kUnvalidated;
   }
+
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
+    auto self = shared_from_this();
+
+    auto handler = [=](const Error& error) {
+      self->HandleConnect(error, validation_data, ping_functor);
+    };
+
     LOG(kVerbose) << "Connection::StartConnect";
-    cookie_syn_ = socket_.AsyncConnect(transport->node_id(), transport->public_key(),
-                         peer_endpoint_, peer_node_id_, handler, open_mode, cookie_syn_,
-                         transport->on_nat_detection_requested_slot_);
+    cookie_syn_ = socket_.AsyncConnect(transport->node_id(),
+                                       transport->public_key(),
+                                       peer_endpoint_,
+                                       peer_node_id_,
+                                       handler,
+                                       open_mode,
+                                       cookie_syn_,
+                                       transport->on_nat_detection_requested_slot_);
+
     timer_.expires_from_now(connect_attempt_timeout);
     timeout_state_ = TimeoutState::kConnecting;
   }

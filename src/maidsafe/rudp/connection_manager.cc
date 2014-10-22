@@ -180,6 +180,9 @@ void ConnectionManager::Ping(const NodeId& peer_id, const Endpoint& peer_endpoin
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
     connection->Ping(peer_id, peer_endpoint, ping_functor);
   }
+  else {
+    assert(0 && "Transport already closed");
+  }
 }
 
 bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
