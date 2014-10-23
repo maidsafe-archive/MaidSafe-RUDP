@@ -107,7 +107,9 @@ void Connection::DoClose(const Error& error) {
     // We're still connected to the transport. We need to detach and then start flushing the socket
     // to attempt a graceful closure.
     socket_.NotifyClose();
-    socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose, shared_from_this(), asio::error::not_connected)));
+    socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose,
+                                              shared_from_this(),
+                                              asio::error::not_connected)));
     transport->RemoveConnection(shared_from_this(), error == asio::error::timed_out);
     FireOnConnectFunctor(error);
     transport_.reset();
@@ -130,7 +132,6 @@ void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endp
                                  const boost::posix_time::time_duration& lifespan,
                                  const OnConnect& on_connect,
                                  const std::function<void()>& failure_functor) {
-  LOG(kVerbose) << "Scheduling Connection::DoStartConnecting from Connection::StartConnecting " << lifespan;
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, validation_data, connect_attempt_timeout, lifespan,
                              PingFunctor(), on_connect, failure_functor));
@@ -138,7 +139,6 @@ void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endp
 
 void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                       const PingFunctor& ping_functor) {
-  LOG(kVerbose) << "Scheduling Connection::DoStartConnecting from Connection::Ping";
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, "", Parameters::ping_timeout, bptime::time_duration(),
                              ping_functor, OnConnect(), std::function<void()>()));
@@ -372,7 +372,7 @@ void Connection::StartConnect(const std::string& validation_data,
                                        transport->public_key(),
                                        peer_endpoint_,
                                        peer_node_id_,
-                                       handler,
+                                       strand_.wrap(handler),
                                        open_mode,
                                        cookie_syn_,
                                        transport->on_nat_detection_requested_slot_);

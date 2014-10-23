@@ -153,8 +153,7 @@ uint32_t Socket::StartConnect(
     const NodeId& peer_node_id,
     Session::Mode open_mode,
     uint32_t cookie_syn,
-    const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested)
-{
+    const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested) {
   peer_.SetPeerEndpoint(remote);
   peer_.set_node_id(peer_node_id);
   peer_.SetSocketId(0);  // Assigned when handshake response is received.

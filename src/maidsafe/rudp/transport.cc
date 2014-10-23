@@ -200,8 +200,7 @@ void Transport::DetectNatType(NodeId const& peer_id) {
   if (std::future_status::timeout == result_in.wait_for(time_to_wait)) {
     assert("The Ping functor was never called" && 0);
     nat_type_ = NatType::kSymmetric;
-  }
-  else if (result_in.get() != kSuccess) {
+  } else if (result_in.get() != kSuccess) {
     LOG(kWarning) << "NAT detection ping failed - setting NAT type to symmetric";
     nat_type_ = NatType::kSymmetric;
   }

@@ -224,10 +224,11 @@ ReturnCode ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_p
 
     // Should not bootstrap from the transport belonging to the same routing object
     for (const auto& element : idle_transports_) {
-      bootstrap_peers.erase(std::remove_if(bootstrap_peers.begin(), bootstrap_peers.end(),
-                                           [&element](const NodeIdEndpointPairs::value_type& entry) {
-                                             return entry.second == element->local_endpoint();
-                                           }), bootstrap_peers.end());
+      bootstrap_peers.erase(
+          std::remove_if(bootstrap_peers.begin(), bootstrap_peers.end(),
+                         [&element](const NodeIdEndpointPairs::value_type& entry) {
+                           return entry.second == element->local_endpoint();
+                         }), bootstrap_peers.end());
     }
   }
 
