@@ -151,20 +151,31 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
 
   auto orig_on_connect = MakeDefaultOnConnectHandler();
 
-  auto on_connect = [orig_on_connect, &result_out, &mutex]
+  auto on_connect = [this, orig_on_connect, &result_out, &mutex]
                     (const Error& error, const ConnectionPtr& connection) {
-    if (!error) {
-      orig_on_connect(error, connection);
+    if (error) {
+      lock_guard guard(mutex);
+      return result_out.set_value(NodeId());
     }
 
-    lock_guard guard(mutex);
-    result_out.set_value(error ? NodeId()
-                               : connection->Socket().PeerNodeId());
+    orig_on_connect(error, connection);
+
+    auto peer_id = connection->Socket().PeerNodeId();
+
+    auto on_nat_detected = [peer_id, &result_out, &mutex]() {
+      lock_guard guard(mutex);
+      result_out.set_value(peer_id);
+    };
+
+    DetectNatType(peer_id, strand_.wrap(on_nat_detected));
   };
 
-  connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
-                               Parameters::bootstrap_connect_timeout, lifespan,
-                               on_connect, nullptr);
+  connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint,
+                               "",
+                               Parameters::bootstrap_connect_timeout,
+                               lifespan,
+                               strand_.wrap(on_connect),
+                               nullptr);
 
   result_in.wait();
 
@@ -172,42 +183,27 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
   // would destroy the result_out object.
   { lock_guard guard(mutex); }
 
-  NodeId peer_id = result_in.get();
-  DetectNatType(peer_id);
-  return peer_id;
+  return result_in.get();
 }
 
-void Transport::DetectNatType(NodeId const& peer_id) {
-  using lock_guard = std::lock_guard<std::mutex>;
-
+template<class Handler>
+void Transport::DetectNatType(NodeId const& peer_id, Handler handler) {
   Endpoint nat_detection_endpoint(connection_manager_->RemoteNatDetectionEndpoint(peer_id));
 
   if (!IsValid(nat_detection_endpoint)) {
-    return;
+    return handler();
   }
 
-  std::promise<int> result_out;
-  auto result_in = result_out.get_future();
-  std::mutex mutex;
+  auto on_ping = [=](int result_in) mutable {
+    if (result_in != kSuccess) {
+      nat_type_ = NatType::kSymmetric;
+    }
+    return handler();
+  };
 
-  connection_manager_->Ping(peer_id, nat_detection_endpoint, [&](int result_in) {
-    lock_guard guard(mutex);
-    result_out.set_value(result_in);
-  });
-
-  auto time_to_wait = BoostToChrono(Parameters::ping_timeout + bptime::seconds(1));
-
-  if (std::future_status::timeout == result_in.wait_for(time_to_wait)) {
-    assert("The Ping functor was never called" && 0);
-    nat_type_ = NatType::kSymmetric;
-  } else if (result_in.get() != kSuccess) {
-    LOG(kWarning) << "NAT detection ping failed - setting NAT type to symmetric";
-    nat_type_ = NatType::kSymmetric;
-  }
-
-  // Make sure the callback finished before the result_out future can be
-  // destroyed by leaving the scope.
-  { lock_guard guard(mutex); }
+  connection_manager_->Ping(peer_id,
+                            nat_detection_endpoint,
+                            strand_.wrap(on_ping));
 }
 
 void Transport::Close() {
