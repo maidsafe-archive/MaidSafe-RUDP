@@ -218,16 +218,18 @@ ReturnCode ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_p
   boost::asio::ip::address external_address;
   if (bootstrap_off_existing_connection)
     GetBootstrapEndpoints(bootstrap_peers, external_address);
-  // else
-  //  bootstrap_endpoints.insert(bootstrap_endpoints.begin(),
-  //                             Endpoint(local_ip_, kResiliencePort()));
 
-  // Should not bootstrap from the transport belonging to the same routing object
-  for (const auto& element : idle_transports_) {
-    bootstrap_peers.erase(std::remove_if(bootstrap_peers.begin(), bootstrap_peers.end(),
-                                         [&element](const NodeIdEndpointPairs::value_type& entry) {
-                                           return entry.second == element->local_endpoint();
-                                         }), bootstrap_peers.end());
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Should not bootstrap from the transport belonging to the same routing object
+    for (const auto& element : idle_transports_) {
+      bootstrap_peers.erase(
+          std::remove_if(bootstrap_peers.begin(), bootstrap_peers.end(),
+                         [&element](const NodeIdEndpointPairs::value_type& entry) {
+                           return entry.second == element->local_endpoint();
+                         }), bootstrap_peers.end());
+    }
   }
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });

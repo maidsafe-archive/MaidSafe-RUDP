@@ -65,10 +65,14 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
 Transport::~Transport() { Close(); }
 
 ReturnCode Transport::Bootstrap(
-    const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers, const NodeId& this_node_id,
-    std::shared_ptr<asymm::PublicKey> this_public_key, Endpoint local_endpoint,
-    bool bootstrap_off_existing_connection, OnMessage on_message_slot,
-    OnConnectionAdded on_connection_added_slot, OnConnectionLost on_connection_lost_slot,
+    const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
+    const NodeId& this_node_id,
+    std::shared_ptr<asymm::PublicKey> this_public_key,
+    Endpoint local_endpoint,
+    bool bootstrap_off_existing_connection,
+    OnMessage on_message_slot,
+    OnConnectionAdded on_connection_added_slot,
+    OnConnectionLost on_connection_lost_slot,
     const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
     NodeId& chosen_id) {
   assert(on_nat_detection_requested_slot);
@@ -106,6 +110,7 @@ Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& boot
                             bool bootstrap_off_existing_connection, NodeId& chosen_id) {
   bool try_connect(true);
   bptime::time_duration lifespan;
+
   if (bootstrap_off_existing_connection)
     try_connect = (nat_type_ != NatType::kSymmetric);
   else
@@ -139,91 +144,70 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
     return NodeId();
   }
 
-  std::promise<std::tuple<NodeId, bool>> result_out;
+  std::promise<NodeId> result_out;
   auto result_in = result_out.get_future();
 
-  {
-    // TODO(PeterJ): Use either mutexes or shared state (both seems unnecessary).
+  std::mutex mutex;
 
-    struct State {
-      bool       timed_out;
-      bool       slot_called;
-      std::mutex mutex;
+  auto orig_on_connect = MakeDefaultOnConnectHandler();
 
-      State() : timed_out(false), slot_called(false) {}
-    };
-
-    auto state = std::make_shared<State>();
-
-    auto orig_on_connect = MakeDefaultOnConnectHandler();
-
-    auto on_connect = [state, orig_on_connect, &result_out]
-                      (const Error& error, const ConnectionPtr& connection) {
-      if (!error) {
-        orig_on_connect(error, connection);
-      }
-
-      lock_guard guard(state->mutex);
-
-      if (state->timed_out) return;
-      state->slot_called = true;
-      auto peer_id = connection->Socket().PeerNodeId();
-      result_out.set_value(std::make_tuple(NodeId(peer_id), false));
-    };
-
-    connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
-                                 Parameters::bootstrap_connect_timeout, lifespan,
-                                 on_connect, nullptr);
-
-    auto time_to_wait = Parameters::bootstrap_connect_timeout + bptime::seconds(1);
-
-    if (std::future_status::timeout == result_in.wait_for(BoostToChrono(time_to_wait))) {
-      lock_guard guard(state->mutex);
-
-      state->timed_out = true;
-
-      if (!state->slot_called) {
-        LOG(kError) << "Timed out waiting for connection. External endpoint: "
-                    << multiplexer_->external_endpoint()
-                    << "  Local endpoint: " << multiplexer_->local_endpoint();
-        return NodeId();
-      }
+  auto on_connect = [orig_on_connect, &result_out, &mutex]
+                    (const Error& error, const ConnectionPtr& connection) {
+    if (!error) {
+      orig_on_connect(error, connection);
     }
 
-    // Make sure the callback finished, otherwise leaving the scope
-    // would destroy the result_out object.
-    { lock_guard guard(state->mutex); }
-  }
+    lock_guard guard(mutex);
+    result_out.set_value(error ? NodeId()
+                               : connection->Socket().PeerNodeId());
+  };
 
-  auto result = result_in.get();
-  NodeId peer_id = std::get<0>(result);
-  bool timed_out_connecting = std::get<1>(result);
+  connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
+                               Parameters::bootstrap_connect_timeout, lifespan,
+                               on_connect, nullptr);
 
-  if (timed_out_connecting) {
-    LOG(kInfo) << "Failed to make bootstrap connection to " << bootstrap_endpoint;
-    return NodeId();
-  }
+  result_in.wait();
 
+  // Make sure the callback finished, otherwise leaving the scope
+  // would destroy the result_out object.
+  { lock_guard guard(mutex); }
+
+  NodeId peer_id = result_in.get();
   DetectNatType(peer_id);
   return peer_id;
 }
 
 void Transport::DetectNatType(NodeId const& peer_id) {
-  Endpoint nat_detection_endpoint(connection_manager_->RemoteNatDetectionEndpoint(peer_id));
-  if (IsValid(nat_detection_endpoint)) {
-    std::promise<int> result_out;
-    auto result_in = result_out.get_future();
-    connection_manager_->Ping(peer_id, nat_detection_endpoint, [&](int result_in) {
-      result_out.set_value(result_in);
-    });
+  using lock_guard = std::lock_guard<std::mutex>;
 
-    if (std::future_status::timeout == result_in.wait_for(
-        BoostToChrono(Parameters::ping_timeout + bptime::seconds(1)))
-        || result_in.get() != kSuccess) {
-      LOG(kWarning) << "Timed out waiting for NAT detection ping - setting NAT type to symmetric";
-      nat_type_ = NatType::kSymmetric;
-    }
+  Endpoint nat_detection_endpoint(connection_manager_->RemoteNatDetectionEndpoint(peer_id));
+
+  if (!IsValid(nat_detection_endpoint)) {
+    return;
   }
+
+  std::promise<int> result_out;
+  auto result_in = result_out.get_future();
+  std::mutex mutex;
+
+  connection_manager_->Ping(peer_id, nat_detection_endpoint, [&](int result_in) {
+    lock_guard guard(mutex);
+    result_out.set_value(result_in);
+  });
+
+  auto time_to_wait = BoostToChrono(Parameters::ping_timeout + bptime::seconds(1));
+
+  if (std::future_status::timeout == result_in.wait_for(time_to_wait)) {
+    assert("The Ping functor was never called" && 0);
+    nat_type_ = NatType::kSymmetric;
+  } else if (result_in.get() != kSuccess) {
+    LOG(kWarning) << "NAT detection ping failed - setting NAT type to symmetric";
+    nat_type_ = NatType::kSymmetric;
+  }
+
+  // Make sure the callback finished before the result_out future can be
+  // destroyed by leaving the scope.
+  { lock_guard guard(mutex); }
 }
 
 void Transport::Close() {

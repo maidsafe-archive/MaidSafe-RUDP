@@ -147,16 +147,19 @@ void Socket::Close() {
 }
 
 uint32_t Socket::StartConnect(
-    const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
-    const ip::udp::endpoint& remote, const NodeId& peer_node_id, Session::Mode open_mode,
+    const NodeId& this_node_id,
+    std::shared_ptr<asymm::PublicKey> this_public_key,
+    const ip::udp::endpoint& remote,
+    const NodeId& peer_node_id,
+    Session::Mode open_mode,
     uint32_t cookie_syn,
-    const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
+    const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested) {
   peer_.SetPeerEndpoint(remote);
   peer_.set_node_id(peer_node_id);
   peer_.SetSocketId(0);  // Assigned when handshake response is received.
   return session_.Open(dispatcher_.AddSocket(this), this_node_id, this_public_key,
                        sender_.GetNextPacketSequenceNumber(), open_mode, cookie_syn,
-                       on_nat_detection_requested_slot);
+                       on_nat_detection_requested);
 }
 
 void Socket::StartProbe() {
