@@ -106,8 +106,9 @@ ReturnCode Transport::Bootstrap(
 }
 
 ReturnCode
-Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
-                            bool bootstrap_off_existing_connection, NodeId& chosen_id) {
+Transport::TryBootstrapping(const IdEndpointPairs& bootstrap_peers,
+                            bool                   bootstrap_off_existing_connection,
+                            NodeId&                chosen_id) {
   bool try_connect(true);
   bptime::time_duration lifespan;
 
@@ -122,49 +123,87 @@ Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& boot
   }
 
   for (auto peer : bootstrap_peers) {
-    if (multiplexer_->local_endpoint() != peer.second)
-      chosen_id = ConnectToBootstrapEndpoint(peer.first, peer.second, lifespan);
-    if (chosen_id != NodeId()) {
-      LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
-                    << " connected to " << DebugId(peer.first).substr(0, 7) << " - " << peer.second;
-      return kSuccess;
-    }
+    assert(multiplexer_->local_endpoint() != peer.second);
   }
 
-  return kNotConnectable;
-}
-
-NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
-                                             const Endpoint& bootstrap_endpoint,
-                                             const bptime::time_duration& lifespan) {
   using lock_guard = std::lock_guard<std::mutex>;
 
-  if (!IsValid(bootstrap_endpoint)) {
-    LOG(kError) << bootstrap_endpoint << " is an invalid endpoint.";
-    return NodeId();
+  std::mutex mutex;
+  std::promise<NodeId> setter;
+  auto getter = setter.get_future();
+
+  auto peers_copy = std::make_shared<IdEndpointPairs>(bootstrap_peers);
+
+  auto on_bootstrap = [peers_copy, &mutex, &setter](const NodeId& peer_id) {
+    lock_guard guard(mutex);
+    setter.set_value(peer_id);
+  };
+
+  ConnectToBootstrapEndpoint( peers_copy->begin()
+                            , peers_copy->end()
+                            , lifespan
+                            , strand_.wrap(on_bootstrap));
+
+  getter.wait();
+
+  { lock_guard guard(mutex); }
+
+  chosen_id = getter.get();
+
+  return chosen_id != NodeId() ? kSuccess : kNotConnectable;
+}
+
+template<class Iterator, class Handler>
+void Transport::ConnectToBootstrapEndpoint( Iterator begin
+                                          , Iterator end
+                                          , Duration lifespan
+                                          , Handler  handler) {
+  if (begin == end) {
+    return handler(NodeId());
   }
 
-  std::promise<NodeId> result_out;
-  auto result_in = result_out.get_future();
+  ConnectToBootstrapEndpoint(
+      begin->first,
+      begin->second,
+      lifespan,
+      [this, begin, end, lifespan, handler](const NodeId& peer_id) mutable {
+        if (peer_id == NodeId()) {
+          // Retry with the next peer.
+          return ConnectToBootstrapEndpoint(std::next(begin), end, lifespan, handler);
+        }
 
-  std::mutex mutex;
+        LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
+                      << " connected to " << DebugId(begin->first).substr(0, 7)
+                      << " - " << begin->second;
 
-  auto orig_on_connect = MakeDefaultOnConnectHandler();
+        handler(peer_id);
+      });
+}
 
-  auto on_connect = [this, orig_on_connect, &result_out, &mutex]
-                    (const Error& error, const ConnectionPtr& connection) {
+template<class Handler>
+void Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
+                                           const Endpoint& bootstrap_endpoint,
+                                           const bptime::time_duration& lifespan,
+                                           Handler handler) {
+  if (!IsValid(bootstrap_endpoint)) {
+    LOG(kError) << bootstrap_endpoint << " is an invalid endpoint.";
+    return strand_.dispatch([handler]() mutable { handler(NodeId()); });
+  }
+
+  auto default_on_connect = MakeDefaultOnConnectHandler();
+
+  auto on_connect = [this, handler, default_on_connect]
+                    (const Error& error, const ConnectionPtr& connection) mutable {
     if (error) {
-      lock_guard guard(mutex);
-      return result_out.set_value(NodeId());
+      return handler(NodeId());
     }
 
-    orig_on_connect(error, connection);
+    default_on_connect(error, connection);
 
     auto peer_id = connection->Socket().PeerNodeId();
 
-    auto on_nat_detected = [peer_id, &result_out, &mutex]() {
-      lock_guard guard(mutex);
-      result_out.set_value(peer_id);
+    auto on_nat_detected = [peer_id, handler]() mutable {
+      handler(peer_id);
     };
 
     DetectNatType(peer_id, strand_.wrap(on_nat_detected));
@@ -176,14 +215,6 @@ NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                lifespan,
                                strand_.wrap(on_connect),
                                nullptr);
-
-  result_in.wait();
-
-  // Make sure the callback finished, otherwise leaving the scope
-  // would destroy the result_out object.
-  { lock_guard guard(mutex); }
-
-  return result_in.get();
 }
 
 template<class Handler>

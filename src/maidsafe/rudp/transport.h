@@ -63,10 +63,12 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool)>
       OnConnectionLost;
 
-  using Endpoint      = boost::asio::ip::udp::endpoint;
-  using ConnectionPtr = std::shared_ptr<Connection>;
-  using Error         = boost::system::error_code;
-  using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
+  using Endpoint        = boost::asio::ip::udp::endpoint;
+  using ConnectionPtr   = std::shared_ptr<Connection>;
+  using Error           = boost::system::error_code;
+  using OnConnect       = std::function<void(const Error&, const ConnectionPtr&)>;
+  using Duration        = boost::posix_time::time_duration;
+  using IdEndpointPairs = std::vector<std::pair<NodeId, Endpoint>>;
 
  public:
   Transport(AsioService& asio_service, NatType& nat_type_);
@@ -74,7 +76,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   virtual ~Transport();
 
   ReturnCode Bootstrap(
-      const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,
+      const IdEndpointPairs& bootstrap_peers,
       const NodeId& this_node_id,
       std::shared_ptr<asymm::PublicKey> this_public_key,
       boost::asio::ip::udp::endpoint local_endpoint,
@@ -133,9 +135,14 @@ class Transport : public std::enable_shared_from_this<Transport> {
       const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,
       bool bootstrap_off_existing_connection, NodeId& chosen_id);
 
-  NodeId ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
-                                    const boost::asio::ip::udp::endpoint& bootstrap_endpoint,
-                                    const boost::posix_time::time_duration& lifespan);
+  template<class Iterator, class Handler>
+  void ConnectToBootstrapEndpoint(Iterator begin, Iterator end, Duration lifespan, Handler handler);
+
+  template<class Handler>
+  void ConnectToBootstrapEndpoint(const NodeId&   bootstrap_node_id,
+                                  const Endpoint& bootstrap_endpoint,
+                                  const Duration& lifespan,
+                                  Handler);
 
   template<class Handler>
   void DetectNatType(NodeId const& peer_id, Handler);
