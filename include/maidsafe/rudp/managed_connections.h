@@ -143,9 +143,6 @@ class ManagedConnections {
   // Try to ping remote_endpoint.  If this node is already connected, ping_functor is invoked with
   // kWontPingAlreadyConnected.  Otherwise, kPingFailed or kSuccess is passed to ping_functor.
   //  void Ping(boost::asio::ip::udp::endpoint peer_endpoint, PingFunctor ping_functor);
-
-  friend class detail::Transport;
-
   unsigned GetActiveConnectionCount() const;
 
  private:
