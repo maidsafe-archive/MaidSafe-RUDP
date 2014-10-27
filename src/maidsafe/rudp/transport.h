@@ -70,23 +70,23 @@ class Transport : public std::enable_shared_from_this<Transport> {
   using Duration        = boost::posix_time::time_duration;
   using IdEndpointPairs = std::vector<std::pair<NodeId, Endpoint>>;
   using OnNatDetected   = Session::OnNatDetectionRequested::slot_function_type;
+  using OnBootstrap     = std::function<void(ReturnCode, NodeId)>;
 
  public:
   Transport(AsioService& asio_service, NatType& nat_type_);
 
   virtual ~Transport();
 
-  ReturnCode Bootstrap(
-      const IdEndpointPairs&            bootstrap_peers,
-      const NodeId&                     this_node_id,
-      std::shared_ptr<asymm::PublicKey> this_public_key,
-      boost::asio::ip::udp::endpoint    local_endpoint,
-      bool                              bootstrap_off_existing_connection,
-      OnMessage                         on_message_slot,
-      OnConnectionAdded                 on_connection_added_slot,
-      OnConnectionLost                  on_connection_lost_slot,
-      const OnNatDetected&              on_nat_detection_requested_slot,
-      NodeId&                           chosen_id);
+  void Bootstrap(const IdEndpointPairs&            bootstrap_peers,
+                 const NodeId&                     this_node_id,
+                 std::shared_ptr<asymm::PublicKey> this_public_key,
+                 boost::asio::ip::udp::endpoint    local_endpoint,
+                 bool                              bootstrap_off_existing_connection,
+                 OnMessage                         on_message_slot,
+                 OnConnectionAdded                 on_connection_added_slot,
+                 OnConnectionLost                  on_connection_lost_slot,
+                 const OnNatDetected&              on_nat_detection_requested_slot,
+                 OnBootstrap                       on_bootstrap);
 
   void Close();
 

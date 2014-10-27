@@ -214,6 +214,9 @@ int ManagedConnections::AttemptStartNewTransport(const std::vector<Endpoint>& bo
 ReturnCode ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
                                                  Endpoint local_endpoint) {
   TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, nat_type_));
+
+  transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
+
   bool bootstrap_off_existing_connection(bootstrap_peers.empty());
   boost::asio::ip::address external_address;
   if (bootstrap_off_existing_connection)
@@ -232,45 +235,57 @@ ReturnCode ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_p
     }
   }
 
-  transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
-  NodeId chosen_id;
+  using lock_guard = std::lock_guard<std::mutex>;
+  std::promise<ReturnCode> setter;
+  auto getter = setter.get_future();
 
-  ReturnCode bootstrap_result
-    =  transport->Bootstrap(
-           bootstrap_peers, this_node_id_, public_key_, local_endpoint,
-           bootstrap_off_existing_connection,
-           std::bind(&ManagedConnections::OnMessageSlot, this, args::_1),
-           [this](const NodeId & peer_id, TransportPtr transport, bool temporary_connection,
-                  std::atomic<bool> & is_duplicate_normal_connection) {
-             OnConnectionAddedSlot(peer_id, transport, temporary_connection,
-                                   is_duplicate_normal_connection);
-           },
-           std::bind(&ManagedConnections::OnConnectionLostSlot, this, args::_1, args::_2, args::_3),
-           std::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, args::_1, args::_2,
-                     args::_3, args::_4),
-           chosen_id);
+  auto on_bootstrap = [&](ReturnCode bootstrap_result, NodeId chosen_id) {
+    if (bootstrap_result != kSuccess) {
+      lock_guard lock(mutex_);
+      transport->Close();
+      return setter.set_value(bootstrap_result);
+    }
 
-  if (bootstrap_result != kSuccess) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    if (chosen_bootstrap_node_id_ == NodeId())
+      chosen_bootstrap_node_id_ = chosen_id;
+
+    if (!detail::IsValid(transport->external_endpoint()) && !external_address.is_unspecified()) {
+      // Means this node's NAT is symmetric or unknown, so guess that it will be mapped to existing
+      // external address and local port.
+      transport->SetBestGuessExternalEndpoint(
+          Endpoint(external_address, transport->local_endpoint().port()));
+    }
+
+    lock_guard guard(mutex_);
+    return setter.set_value(kSuccess);
+  };
+
+  transport->Bootstrap(
+      bootstrap_peers, this_node_id_, public_key_, local_endpoint,
+      bootstrap_off_existing_connection,
+      std::bind(&ManagedConnections::OnMessageSlot, this, args::_1),
+      [this](const NodeId & peer_id, TransportPtr transport, bool temporary_connection,
+             std::atomic<bool> & is_duplicate_normal_connection) {
+        OnConnectionAddedSlot(peer_id, transport, temporary_connection,
+                              is_duplicate_normal_connection);
+      },
+      std::bind(&ManagedConnections::OnConnectionLostSlot, this, args::_1, args::_2, args::_3),
+      std::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, args::_1, args::_2,
+                args::_3, args::_4),
+      on_bootstrap);
+
+  getter.wait();
+  { lock_guard guard(mutex_); }
+  auto result = getter.get();
+
+  if (result == kSuccess) {
+    LOG(kVerbose) << "Started a new transport on " << transport->external_endpoint() << " / "
+                  << transport->local_endpoint() << " behind " << nat_type_;
+  } else {
     LOG(kWarning) << "Failed to start a new Transport.";
-    transport->Close();
-    return bootstrap_result;
   }
 
-  if (chosen_bootstrap_node_id_ == NodeId())
-    chosen_bootstrap_node_id_ = chosen_id;
-
-  if (!detail::IsValid(transport->external_endpoint()) && !external_address.is_unspecified()) {
-    // Means this node's NAT is symmetric or unknown, so guess that it will be mapped to existing
-    // external address and local port.
-    transport->SetBestGuessExternalEndpoint(
-        Endpoint(external_address, transport->local_endpoint().port()));
-  }
-
-  LOG(kVerbose) << "Started a new transport on " << transport->external_endpoint() << " / "
-                << transport->local_endpoint() << " behind " << nat_type_;
-
-  return kSuccess;
+  return result;
 }
 
 void ManagedConnections::GetBootstrapEndpoints(NodeIdEndpointPairs& bootstrap_peers,

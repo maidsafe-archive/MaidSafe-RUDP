@@ -34,16 +34,12 @@
 #include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
-namespace args = std::placeholders;
+namespace asio   = boost::asio;
+namespace ip     = asio::ip;
+namespace args   = std::placeholders;
 namespace bptime = boost::posix_time;
 
-namespace maidsafe {
-
-namespace rudp {
-
-namespace detail {
+namespace maidsafe { namespace rudp { namespace detail {
 
 Transport::Transport(AsioService& asio_service, NatType& nat_type)
     : asio_service_(asio_service),
@@ -56,31 +52,29 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
       on_connection_added_(),
       on_connection_lost_(),
       on_nat_detection_requested_slot_(),
-      managed_connections_debug_printout_() {}
+      managed_connections_debug_printout_()
+  {}
 
 Transport::~Transport() { Close(); }
 
-ReturnCode Transport::Bootstrap(
-    const IdEndpointPairs&            bootstrap_peers,
-    const NodeId&                     this_node_id,
-    std::shared_ptr<asymm::PublicKey> this_public_key,
-    Endpoint                          local_endpoint,
-    bool                              bootstrap_off_existing_connection,
-    OnMessage                         on_message_slot,
-    OnConnectionAdded                 on_connection_added_slot,
-    OnConnectionLost                  on_connection_lost_slot,
-    const OnNatDetected&              on_nat_detection_requested_slot,
-    NodeId&                           chosen_id) {
-
+void Transport::Bootstrap(const IdEndpointPairs&            bootstrap_peers,
+                          const NodeId&                     this_node_id,
+                          std::shared_ptr<asymm::PublicKey> this_public_key,
+                          Endpoint                          local_endpoint,
+                          bool                              bootstrap_off_existing_connection,
+                          OnMessage                         on_message_slot,
+                          OnConnectionAdded                 on_connection_added_slot,
+                          OnConnectionLost                  on_connection_lost_slot,
+                          const OnNatDetected&              on_nat_detection_requested_slot,
+                          OnBootstrap                       on_bootstrap) {
   assert(on_nat_detection_requested_slot);
   assert(!multiplexer_->IsOpen());
 
-  chosen_id = NodeId();
   ReturnCode result = multiplexer_->Open(local_endpoint);
 
   if (result != kSuccess) {
     LOG(kError) << "Failed to open multiplexer.  Result: " << result;
-    return result;
+    return strand_.dispatch([on_bootstrap, result]() { on_bootstrap(result, NodeId()); });
   }
 
   // We want these 3 slots to be invoked before any others connected, so that if we wait elsewhere
@@ -100,22 +94,9 @@ ReturnCode Transport::Bootstrap(
 
   StartDispatch();
 
-  using lock_guard = std::lock_guard<std::mutex>;
-  std::mutex mutex;
-  std::promise<ReturnCode> setter;
-  auto getter = setter.get_future();
-
-  TryBootstrapping(bootstrap_peers, bootstrap_off_existing_connection,
-      [&](ReturnCode result, const NodeId& peer_id) {
-        lock_guard guard(mutex);
-        chosen_id = peer_id;
-        setter.set_value(result);
-      });
-
-  getter.wait();
-  { lock_guard guard(mutex); }
-  result = getter.get();
-  return result;
+  TryBootstrapping(bootstrap_peers,
+                   bootstrap_off_existing_connection,
+                   on_bootstrap);
 }
 
 template<class Handler /* void(ReturnCode, NodeId) */>
@@ -142,22 +123,21 @@ void Transport::TryBootstrapping(const IdEndpointPairs& bootstrap_peers,
   auto peers_copy = std::make_shared<IdEndpointPairs>(bootstrap_peers);
 
   auto on_bootstrap = [peers_copy, handler](const NodeId& peer_id) {
-    handler( peer_id != NodeId() ? kSuccess
-                                 : kNotConnectable
-           , peer_id);
+    handler(peer_id != NodeId() ? kSuccess : kNotConnectable,
+            peer_id);
   };
 
-  ConnectToBootstrapEndpoint( peers_copy->begin()
-                            , peers_copy->end()
-                            , lifespan
-                            , strand_.wrap(on_bootstrap));
+  ConnectToBootstrapEndpoint(peers_copy->begin(),
+                             peers_copy->end(),
+                             lifespan,
+                             strand_.wrap(on_bootstrap));
 }
 
 template<class Iterator, class Handler>
-void Transport::ConnectToBootstrapEndpoint( Iterator begin
-                                          , Iterator end
-                                          , Duration lifespan
-                                          , Handler  handler) {
+void Transport::ConnectToBootstrapEndpoint(Iterator begin,
+                                           Iterator end,
+                                           Duration lifespan,
+                                           Handler  handler) {
   if (begin == end) {
     return handler(NodeId());
   }
