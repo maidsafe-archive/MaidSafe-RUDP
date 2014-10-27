@@ -45,10 +45,6 @@ namespace rudp {
 
 namespace detail {
 
-std::chrono::nanoseconds BoostToChrono(bptime::time_duration const& from) {
-  return std::chrono::nanoseconds(from.total_nanoseconds());
-}
-
 Transport::Transport(AsioService& asio_service, NatType& nat_type)
     : asio_service_(asio_service),
       nat_type_(nat_type),
@@ -65,21 +61,23 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
 Transport::~Transport() { Close(); }
 
 ReturnCode Transport::Bootstrap(
-    const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
-    const NodeId& this_node_id,
+    const IdEndpointPairs&            bootstrap_peers,
+    const NodeId&                     this_node_id,
     std::shared_ptr<asymm::PublicKey> this_public_key,
-    Endpoint local_endpoint,
-    bool bootstrap_off_existing_connection,
-    OnMessage on_message_slot,
-    OnConnectionAdded on_connection_added_slot,
-    OnConnectionLost on_connection_lost_slot,
-    const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
-    NodeId& chosen_id) {
+    Endpoint                          local_endpoint,
+    bool                              bootstrap_off_existing_connection,
+    OnMessage                         on_message_slot,
+    OnConnectionAdded                 on_connection_added_slot,
+    OnConnectionLost                  on_connection_lost_slot,
+    const OnNatDetected&              on_nat_detection_requested_slot,
+    NodeId&                           chosen_id) {
+
   assert(on_nat_detection_requested_slot);
   assert(!multiplexer_->IsOpen());
 
   chosen_id = NodeId();
   ReturnCode result = multiplexer_->Open(local_endpoint);
+
   if (result != kSuccess) {
     LOG(kError) << "Failed to open multiplexer.  Result: " << result;
     return result;
@@ -102,13 +100,28 @@ ReturnCode Transport::Bootstrap(
 
   StartDispatch();
 
-  return TryBootstrapping(bootstrap_peers, bootstrap_off_existing_connection, chosen_id);
+  using lock_guard = std::lock_guard<std::mutex>;
+  std::mutex mutex;
+  std::promise<ReturnCode> setter;
+  auto getter = setter.get_future();
+
+  TryBootstrapping(bootstrap_peers, bootstrap_off_existing_connection,
+      [&](ReturnCode result, const NodeId& peer_id) {
+        lock_guard guard(mutex);
+        chosen_id = peer_id;
+        setter.set_value(result);
+      });
+
+  getter.wait();
+  { lock_guard guard(mutex); }
+  result = getter.get();
+  return result;
 }
 
-ReturnCode
-Transport::TryBootstrapping(const IdEndpointPairs& bootstrap_peers,
-                            bool                   bootstrap_off_existing_connection,
-                            NodeId&                chosen_id) {
+template<class Handler /* void(ReturnCode, NodeId) */>
+void Transport::TryBootstrapping(const IdEndpointPairs& bootstrap_peers,
+                                 bool                   bootstrap_off_existing_connection,
+                                 Handler                handler) {
   bool try_connect(true);
   bptime::time_duration lifespan;
 
@@ -119,38 +132,25 @@ Transport::TryBootstrapping(const IdEndpointPairs& bootstrap_peers,
 
   if (!try_connect) {
     LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint();
-    return kSuccess;
+    return strand_.dispatch([handler]() { handler(kSuccess, NodeId()); });
   }
 
   for (auto peer : bootstrap_peers) {
     assert(multiplexer_->local_endpoint() != peer.second);
   }
 
-  using lock_guard = std::lock_guard<std::mutex>;
-
-  std::mutex mutex;
-  std::promise<NodeId> setter;
-  auto getter = setter.get_future();
-
   auto peers_copy = std::make_shared<IdEndpointPairs>(bootstrap_peers);
 
-  auto on_bootstrap = [peers_copy, &mutex, &setter](const NodeId& peer_id) {
-    lock_guard guard(mutex);
-    setter.set_value(peer_id);
+  auto on_bootstrap = [peers_copy, handler](const NodeId& peer_id) {
+    handler( peer_id != NodeId() ? kSuccess
+                                 : kNotConnectable
+           , peer_id);
   };
 
   ConnectToBootstrapEndpoint( peers_copy->begin()
                             , peers_copy->end()
                             , lifespan
                             , strand_.wrap(on_bootstrap));
-
-  getter.wait();
-
-  { lock_guard guard(mutex); }
-
-  chosen_id = getter.get();
-
-  return chosen_id != NodeId() ? kSuccess : kNotConnectable;
 }
 
 template<class Iterator, class Handler>

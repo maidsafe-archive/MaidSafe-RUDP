@@ -69,6 +69,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   using OnConnect       = std::function<void(const Error&, const ConnectionPtr&)>;
   using Duration        = boost::posix_time::time_duration;
   using IdEndpointPairs = std::vector<std::pair<NodeId, Endpoint>>;
+  using OnNatDetected   = Session::OnNatDetectionRequested::slot_function_type;
 
  public:
   Transport(AsioService& asio_service, NatType& nat_type_);
@@ -76,16 +77,16 @@ class Transport : public std::enable_shared_from_this<Transport> {
   virtual ~Transport();
 
   ReturnCode Bootstrap(
-      const IdEndpointPairs& bootstrap_peers,
-      const NodeId& this_node_id,
+      const IdEndpointPairs&            bootstrap_peers,
+      const NodeId&                     this_node_id,
       std::shared_ptr<asymm::PublicKey> this_public_key,
-      boost::asio::ip::udp::endpoint local_endpoint,
-      bool bootstrap_off_existing_connection,
-      OnMessage on_message_slot,
-      OnConnectionAdded on_connection_added_slot,
-      OnConnectionLost on_connection_lost_slot,
-      const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
-      NodeId& chosen_id);
+      boost::asio::ip::udp::endpoint    local_endpoint,
+      bool                              bootstrap_off_existing_connection,
+      OnMessage                         on_message_slot,
+      OnConnectionAdded                 on_connection_added_slot,
+      OnConnectionLost                  on_connection_lost_slot,
+      const OnNatDetected&              on_nat_detection_requested_slot,
+      NodeId&                           chosen_id);
 
   void Close();
 
@@ -131,9 +132,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
 
-  ReturnCode TryBootstrapping(
-      const std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,
-      bool bootstrap_off_existing_connection, NodeId& chosen_id);
+  template<class Handler>
+  void TryBootstrapping( const IdEndpointPairs& bootstrap_peers
+                       , bool bootstrap_off_existing_connection
+                       , Handler);
 
   template<class Iterator, class Handler>
   void ConnectToBootstrapEndpoint(Iterator begin, Iterator end, Duration lifespan, Handler handler);
@@ -173,10 +175,11 @@ class Transport : public std::enable_shared_from_this<Transport> {
   std::unique_ptr<ConnectionManager> connection_manager_;
   std::mutex callback_mutex_;
 
-  OnMessage on_message_;
+  OnMessage         on_message_;
   OnConnectionAdded on_connection_added_;
-  OnConnectionLost on_connection_lost_;
-  Session::OnNatDetectionRequested::slot_function_type on_nat_detection_requested_slot_;
+  OnConnectionLost  on_connection_lost_;
+  OnNatDetected     on_nat_detection_requested_slot_;
+
   std::function<std::string()> managed_connections_debug_printout_;
 };
 
