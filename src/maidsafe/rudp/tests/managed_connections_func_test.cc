@@ -96,9 +96,9 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Waiting for all results (promises)
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      boost::chrono::seconds timeout(i > 0 ? 5 :
-          num_messages * nodes_.size() *
-              (messages_size > (256 * 1024) ? messages_size / (256 * 1024) : 1));
+      boost::chrono::seconds timeout(
+          (i == 0 ? num_messages * nodes_.size() : (nodes_.size() - i)) *
+          (messages_size > (256 * 1024) ? messages_size / (256 * 1024) : 1));
       if (futures.at(i).wait_for(timeout) == boost::future_status::ready) {
         auto messages(futures.at(i).get());
         EXPECT_FALSE(messages.empty()) << "Something";
