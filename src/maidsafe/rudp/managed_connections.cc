@@ -38,8 +38,10 @@ namespace maidsafe {
 
 namespace rudp {
 
+typedef ManagedConnections::Endpoint Endpoint;
+
 // 203.0.113.14:1314
-const boost::asio::ip::udp::endpoint kNonRoutable(boost::asio::ip::address_v4(3405803790U), 1314);
+const Endpoint kNonRoutable(boost::asio::ip::address_v4(3405803790U), 1314);
 
 void SetDebugPacketLossRate(double constant, double bursty) {
   detail::Multiplexer::SetDebugPacketLossRate(constant, bursty);
@@ -47,7 +49,6 @@ void SetDebugPacketLossRate(double constant, double bursty) {
 
 namespace {
 
-typedef boost::asio::ip::udp::endpoint Endpoint;
 typedef std::vector<std::pair<NodeId, Endpoint>> NodeIdEndpointPairs;
 
 int CheckBootstrappingParameters(const std::vector<Endpoint>& bootstrap_endpoints,

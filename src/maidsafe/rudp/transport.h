@@ -80,7 +80,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void Bootstrap(const IdEndpointPairs&            bootstrap_peers,
                  const NodeId&                     this_node_id,
                  std::shared_ptr<asymm::PublicKey> this_public_key,
-                 boost::asio::ip::udp::endpoint    local_endpoint,
+                 Endpoint                          local_endpoint,
                  bool                              bootstrap_off_existing_connection,
                  OnMessage                         on_message_slot,
                  OnConnectionAdded                 on_connection_added_slot,
@@ -100,18 +100,17 @@ class Transport : public std::enable_shared_from_this<Transport> {
   bool Send(const NodeId& peer_id, const std::string& message,
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
-  void Ping(const NodeId& peer_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
 
   ConnectionPtr GetConnection(const NodeId& peer_id);
 
-  boost::asio::ip::udp::endpoint external_endpoint() const;
-  boost::asio::ip::udp::endpoint local_endpoint() const;
-  boost::asio::ip::udp::endpoint ThisEndpointAsSeenByPeer(const NodeId& peer_id);
-  void SetBestGuessExternalEndpoint(const boost::asio::ip::udp::endpoint& external_endpoint);
+  Endpoint external_endpoint() const;
+  Endpoint local_endpoint() const;
+  Endpoint ThisEndpointAsSeenByPeer(const NodeId& peer_id);
+  void SetBestGuessExternalEndpoint(const Endpoint& external_endpoint);
 
-  bool MakeConnectionPermanent(const NodeId& peer_id, bool validated,
-                               boost::asio::ip::udp::endpoint& peer_endpoint);
+  bool MakeConnectionPermanent(const NodeId& peer_id, bool validated, Endpoint& peer_endpoint);
 
   size_t NormalConnectionsCount() const;
   bool IsIdle() const;
@@ -133,9 +132,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
 
   template<class Handler>
-  void TryBootstrapping( const IdEndpointPairs& bootstrap_peers
-                       , bool bootstrap_off_existing_connection
-                       , Handler);
+  void TryBootstrapping(const IdEndpointPairs& bootstrap_peers,
+                        bool bootstrap_off_existing_connection,
+                        Handler);
 
   template<class Iterator, class Handler>
   void ConnectToBootstrapEndpoint(Iterator begin, Iterator end, Duration lifespan, Handler handler);
@@ -168,12 +167,12 @@ class Transport : public std::enable_shared_from_this<Transport> {
   OnConnect MakeDefaultOnConnectHandler();
 
  private:
-  AsioService& asio_service_;
-  NatType& nat_type_;
-  boost::asio::io_service::strand strand_;
-  MultiplexerPtr multiplexer_;
+  AsioService&                       asio_service_;
+  NatType&                           nat_type_;
+  boost::asio::io_service::strand    strand_;
+  MultiplexerPtr                     multiplexer_;
   std::unique_ptr<ConnectionManager> connection_manager_;
-  std::mutex callback_mutex_;
+  std::mutex                         callback_mutex_;
 
   OnMessage         on_message_;
   OnConnectionAdded on_connection_added_;
