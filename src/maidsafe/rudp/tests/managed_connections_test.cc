@@ -1144,26 +1144,18 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
   EXPECT_FALSE(chosen_node.IsZero());
 
-  // Send within bootstrap_disconnection_timeout period from node_ to nodes_[0]
-  std::atomic<int> result_of_send(kConnectError);
-  std::atomic<bool> result_arrived(false);
-  std::promise<void> done_out;
-  MessageSentFunctor message_sent_functor([&](int result_in) {
-    result_of_send = result_in;
-    result_arrived = true;
-    done_out.set_value();
-  });
-  auto wait_for_result([&] {
-    auto done_in = done_out.get_future();
-    return std::future_status::timeout != done_in.wait_for(std::chrono::milliseconds(1000))
-           && result_arrived;
-  });
+  FutureResult future_result;
+  auto wait_millis = 1000;
+
   node_.ResetData();
   nodes_[0]->ResetData();
   auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(1));
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message01", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kSuccess, result_of_send);
+  node_.managed_connections()->Send(nodes_[0]->node_id(),
+                                    "message01",
+                                    future_result.MakeContinuation());
+
+  ASSERT_TRUE(future_result.Wait(wait_millis));
+  EXPECT_EQ(kSuccess, future_result.Result());
   ASSERT_EQ(boost::future_status::ready,
             future_messages_at_peer.wait_for(boost::chrono::milliseconds(200)));
   auto messages = future_messages_at_peer.get();
@@ -1174,17 +1166,17 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   node_.ResetData();
   nodes_[0]->ResetData();
   future_messages_at_peer = node_.GetFutureForMessages(1);
-  result_of_send = kConnectError;
-  result_arrived = false;
-  done_out = std::promise<void>();
   EndpointPair this_endpoint_pair;
   NatType nat_type;
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(), EndpointPair(),
                                                               this_endpoint_pair, nat_type));
-  nodes_[0]->managed_connections()->Send(node_.node_id(), "message02", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kSuccess, result_of_send);
+  nodes_[0]->managed_connections()->Send(node_.node_id(),
+                                         "message02",
+                                         future_result.MakeContinuation());
+
+  ASSERT_TRUE(future_result.Wait(wait_millis));
+  EXPECT_EQ(kSuccess, future_result.Result());
   ASSERT_EQ(boost::future_status::ready,
             future_messages_at_peer.wait_for(boost::chrono::milliseconds(200)));
   messages = future_messages_at_peer.get();
@@ -1209,21 +1201,21 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   // Send again in both directions - expect failure
   node_.ResetData();
   nodes_[0]->ResetData();
-  result_of_send = kSuccess;
-  result_arrived = false;
-  done_out = std::promise<void>();
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message03", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kInvalidConnection, result_of_send);
+  node_.managed_connections()->Send(nodes_[0]->node_id(),
+                                    "message03",
+                                    future_result.MakeContinuation());
+
+  ASSERT_TRUE(future_result.Wait(wait_millis));
+  EXPECT_EQ(kInvalidConnection, future_result.Result());
 
   node_.ResetData();
   nodes_[0]->ResetData();
-  result_of_send = kSuccess;
-  result_arrived = false;
-  done_out = std::promise<void>();
-  nodes_[0]->managed_connections()->Send(node_.node_id(), "message04", message_sent_functor);
-  ASSERT_TRUE(wait_for_result());
-  EXPECT_EQ(kInvalidConnection, result_of_send);
+  nodes_[0]->managed_connections()->Send(node_.node_id(),
+                                         "message04",
+                                         future_result.MakeContinuation());
+
+  ASSERT_TRUE(future_result.Wait(wait_millis));
+  EXPECT_EQ(kInvalidConnection, future_result.Result());
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
