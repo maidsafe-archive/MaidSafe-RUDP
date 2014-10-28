@@ -72,14 +72,9 @@ ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
 ConnectionManager::~ConnectionManager() { Close(); }
 
 void ConnectionManager::Close() {
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto connection : connections_)
-      strand_.post(std::bind(&Connection::Close, connection));
-  }
-  // Ugly, but we must not reset dispatcher until he's done
-  while (multiplexer_->dispatcher_.use_count()) std::this_thread::yield();
   multiplexer_->dispatcher_.SetConnectionManager(nullptr);
+  for (auto& connection : connections_)
+    strand_.post(std::bind(&Connection::Close, connection));
 }
 
 bool ConnectionManager::CanStartConnectingTo(NodeId peer_id, Endpoint peer_ep) const {

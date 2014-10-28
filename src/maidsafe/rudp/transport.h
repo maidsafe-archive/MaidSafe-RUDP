@@ -138,6 +138,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
                                     const boost::posix_time::time_duration& lifespan);
 
   void DetectNatType(NodeId const& peer_id);
+  
+  void DoClose(std::promise<void>& done);
 
   void DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
                  const std::string& validation_data);
