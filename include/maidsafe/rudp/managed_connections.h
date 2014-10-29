@@ -53,6 +53,7 @@ class Transport;
 
 typedef std::function<void(const std::string& /*message*/)> MessageReceivedFunctor;
 typedef std::function<void(const NodeId& /*peer_id*/)> ConnectionLostFunctor;
+typedef std::function<void(const NodeId& /*peer_id*/)> ConnectionAddedFunctor;
 typedef std::function<void(int /*result*/)> MessageSentFunctor;
 
 struct EndpointPair {
@@ -148,6 +149,8 @@ class ManagedConnections {
 
   unsigned GetActiveConnectionCount() const;
 
+  void SetConnectionAddedFunctor(const ConnectionAddedFunctor&);
+
  private:
   typedef std::shared_ptr<detail::Transport> TransportPtr;
   typedef std::map<NodeId, TransportPtr> ConnectionMap;
@@ -206,12 +209,16 @@ class ManagedConnections {
                                    const boost::asio::ip::udp::endpoint& peer_endpoint,
                                    uint16_t& another_external_port);
 
+  void UpdateIdleTransports(const TransportPtr&);
+
+ private:
   std::string DebugString() const;
 
   AsioService asio_service_;
   std::mutex callback_mutex_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;
+  ConnectionAddedFunctor connection_added_functor_;
   NodeId this_node_id_, chosen_bootstrap_node_id_;
   std::shared_ptr<asymm::PrivateKey> private_key_;
   std::shared_ptr<asymm::PublicKey> public_key_;

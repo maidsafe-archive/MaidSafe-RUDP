@@ -686,6 +686,11 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
   }
 }
 
+void ManagedConnections::SetConnectionAddedFunctor(const ConnectionAddedFunctor& handler) {
+  assert(!connection_added_functor_);
+  connection_added_functor_ = handler;
+}
+
 void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,
                                                bool temporary_connection,
                                                std::atomic<bool> & is_duplicate_normal_connection) {
@@ -693,28 +698,27 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id, TransportP
   std::lock_guard<std::mutex> lock(mutex_);
 
   if (temporary_connection) {
-    if (transport->IsIdle()) {
-      assert(transport->IsAvailable());
-      idle_transports_.insert(transport);
-    } else {
-      idle_transports_.erase(transport);
-    }
+    UpdateIdleTransports(transport);
   } else {
     RemovePending(peer_id);
-    auto result(connections_.insert(std::make_pair(peer_id, transport)));
-    is_duplicate_normal_connection = !result.second;
-    if (is_duplicate_normal_connection) {
-      if (transport->IsIdle()) {
-        assert(transport->IsAvailable());
-        idle_transports_.insert(transport);
-      } else {
-        idle_transports_.erase(transport);
-      }
+
+    auto result                    = connections_.insert(std::make_pair(peer_id, transport));
+    bool inserted                  = result.second;
+    is_duplicate_normal_connection = !inserted;
+
+    if (inserted) {
+      idle_transports_.erase(transport);
+    } else {
+      UpdateIdleTransports(transport);
+
       LOG(kError) << (*result.first).second->ThisDebugId() << " is already connected to "
                   << DebugId(peer_id) << ".  Won't make duplicate normal connection on "
                   << transport->ThisDebugId();
-    } else {
-      idle_transports_.erase(transport);
+    }
+
+    if (connection_added_functor_) {
+      auto f = std::move(connection_added_functor_);
+      asio_service_.service().post([f, peer_id]() { f(peer_id); });
     }
   }
 
@@ -735,15 +739,19 @@ unsigned ManagedConnections::GetActiveConnectionCount() const {
   return static_cast<unsigned>(connections_.size());
 }
 
-void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPtr transport,
-                                              bool temporary_connection) {
-  std::lock_guard<std::mutex> lock(mutex_);
+void ManagedConnections::UpdateIdleTransports(const TransportPtr& transport) {
   if (transport->IsIdle()) {
     assert(transport->IsAvailable());
     idle_transports_.insert(transport);
   } else {
     idle_transports_.erase(transport);
   }
+}
+
+void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPtr transport,
+                                              bool temporary_connection) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  UpdateIdleTransports(transport);
 
   if (temporary_connection)
     return;
@@ -760,9 +768,13 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPt
                   << (*itr).second->local_endpoint() << " not " << transport->local_endpoint();
       BOOST_ASSERT(false);
     }
+
     connections_.erase(itr);
-    if (peer_id == chosen_bootstrap_node_id_)
+
+    if (peer_id == chosen_bootstrap_node_id_) {
       chosen_bootstrap_node_id_ = NodeId();
+    }
+
     ConnectionLostFunctor local_callback;
     {
       std::lock_guard<std::mutex> guard(callback_mutex_);
@@ -770,7 +782,6 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPt
     }
 
     if (local_callback) {
-      LOG(kVerbose) << "Firing connection_lost_functor_ for " << DebugId(peer_id);
       asio_service_.service().post([=] { local_callback(peer_id); });
     }
   }
