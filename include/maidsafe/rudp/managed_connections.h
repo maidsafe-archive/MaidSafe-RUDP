@@ -83,6 +83,9 @@ extern void SetDebugPacketLossRate(double constant, double bursty);
 
 class ManagedConnections {
  public:
+  using Endpoint = boost::asio::ip::udp::endpoint;
+
+ public:
   ManagedConnections();
   ~ManagedConnections();
 
@@ -99,13 +102,13 @@ class ManagedConnections {
   // private_key before being passed up via MessageReceivedFunctor.  Before bootstrapping begins, if
   // there are any existing transports they are destroyed and all connections closed.  For
   // zero-state network, pass the required local_endpoint.
-  int Bootstrap(const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
+  int Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints,
                 MessageReceivedFunctor message_received_functor,
                 ConnectionLostFunctor connection_lost_functor, NodeId this_node_id,
                 std::shared_ptr<asymm::PrivateKey> private_key,
                 std::shared_ptr<asymm::PublicKey> public_key, NodeId& chosen_bootstrap_peer,
                 NatType& nat_type,
-                boost::asio::ip::udp::endpoint local_endpoint = boost::asio::ip::udp::endpoint());
+                Endpoint local_endpoint = Endpoint());
 
   // Returns a transport's EndpointPair and NatType.  Returns kNotBootstrapped if there are no
   // running Managed Connections.  In this case, Bootstrap must be called to start new Managed
@@ -130,7 +133,7 @@ class ManagedConnections {
   // connected, its endpoint is returned.
   // TODO(Fraser#5#): 2012-09-11 - Handle passing back peer_endpoint if it's direct-connected.
   //                  Currently returned whenever peer_endpoint is a non-private addresses.
-  int MarkConnectionAsValid(NodeId peer_id, boost::asio::ip::udp::endpoint& peer_endpoint);
+  int MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_endpoint);
 
   // Drops the connection with peer.
   void Remove(NodeId peer_id);
@@ -142,10 +145,7 @@ class ManagedConnections {
 
   // Try to ping remote_endpoint.  If this node is already connected, ping_functor is invoked with
   // kWontPingAlreadyConnected.  Otherwise, kPingFailed or kSuccess is passed to ping_functor.
-  //  void Ping(boost::asio::ip::udp::endpoint peer_endpoint, PingFunctor ping_functor);
-
-  friend class detail::Transport;
-
+  //  void Ping(Endpoint peer_endpoint, PingFunctor ping_functor);
   unsigned GetActiveConnectionCount() const;
 
  private:
@@ -164,17 +164,17 @@ class ManagedConnections {
   ManagedConnections& operator=(const ManagedConnections&);
 
   void ClearConnectionsAndIdleTransports();
-  int TryToDetermineLocalEndpoint(boost::asio::ip::udp::endpoint& local_endpoint);
+  int TryToDetermineLocalEndpoint(Endpoint& local_endpoint);
   int AttemptStartNewTransport(
-      const std::vector<boost::asio::ip::udp::endpoint>& bootstrap_endpoints,
-      const boost::asio::ip::udp::endpoint& local_endpoint, NodeId& chosen_bootstrap_peer,
+      const std::vector<Endpoint>& bootstrap_endpoints,
+      const Endpoint& local_endpoint, NodeId& chosen_bootstrap_peer,
       NatType& nat_type);
   ReturnCode StartNewTransport(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>> bootstrap_peers,
-      boost::asio::ip::udp::endpoint local_endpoint);
+      std::vector<std::pair<NodeId, Endpoint>> bootstrap_peers,
+      Endpoint local_endpoint);
 
   void GetBootstrapEndpoints(
-      std::vector<std::pair<NodeId, boost::asio::ip::udp::endpoint>>& bootstrap_peers,
+      std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
       boost::asio::ip::address& this_external_address);
 
   bool ExistingConnectionAttempt(const NodeId& peer_id, EndpointPair& this_endpoint_pair) const;
@@ -188,6 +188,7 @@ class ManagedConnections {
   void AddPending(std::unique_ptr<PendingConnection> connection);
   void RemovePending(const NodeId& peer_id);
   std::vector<std::unique_ptr<PendingConnection>>::const_iterator FindPendingTransportWithNodeId(
+
       const NodeId& peer_id) const;
   std::vector<std::unique_ptr<PendingConnection>>::iterator FindPendingTransportWithNodeId(
       const NodeId& peer_id);
@@ -201,9 +202,9 @@ class ManagedConnections {
   // This signal is fired by Session when a connecting peer requests to use this peer for NAT
   // detection.  The peer will attempt to connect to another one of this node's transports using
   // its current transport.  This node (if suitable) will begin pinging the peer.
-  void OnNatDetectionRequestedSlot(const boost::asio::ip::udp::endpoint& this_local_endpoint,
+  void OnNatDetectionRequestedSlot(const Endpoint& this_local_endpoint,
                                    const NodeId& peer_id,
-                                   const boost::asio::ip::udp::endpoint& peer_endpoint,
+                                   const Endpoint& peer_endpoint,
                                    uint16_t& another_external_port);
 
   std::string DebugString() const;

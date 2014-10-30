@@ -109,7 +109,7 @@ bool ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
                                 const std::string& validation_data,
                                 const bptime::time_duration& connect_attempt_timeout,
                                 const bptime::time_duration& lifespan,
-                                const OnConnect& on_connect,
+                                OnConnect on_connect,
                                 const std::function<void()>& failure_functor) {
   std::lock_guard<std::mutex> lock(mutex_);
 

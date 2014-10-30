@@ -130,7 +130,7 @@ void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endp
                                  const std::string& validation_data,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan,
-                                 const OnConnect& on_connect,
+                                 OnConnect on_connect,
                                  const std::function<void()>& failure_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, validation_data, connect_attempt_timeout, lifespan,

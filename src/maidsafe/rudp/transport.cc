@@ -34,20 +34,12 @@
 #include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
-namespace args = std::placeholders;
+namespace asio   = boost::asio;
+namespace ip     = asio::ip;
+namespace args   = std::placeholders;
 namespace bptime = boost::posix_time;
 
-namespace maidsafe {
-
-namespace rudp {
-
-namespace detail {
-
-std::chrono::nanoseconds BoostToChrono(bptime::time_duration const& from) {
-  return std::chrono::nanoseconds(from.total_nanoseconds());
-}
+namespace maidsafe { namespace rudp { namespace detail {
 
 Transport::Transport(AsioService& asio_service, NatType& nat_type)
     : asio_service_(asio_service),
@@ -60,29 +52,29 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
       on_connection_added_(),
       on_connection_lost_(),
       on_nat_detection_requested_slot_(),
-      managed_connections_debug_printout_() {}
+      managed_connections_debug_printout_()
+  {}
 
 Transport::~Transport() { Close(); }
 
-ReturnCode Transport::Bootstrap(
-    const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
-    const NodeId& this_node_id,
-    std::shared_ptr<asymm::PublicKey> this_public_key,
-    Endpoint local_endpoint,
-    bool bootstrap_off_existing_connection,
-    OnMessage on_message_slot,
-    OnConnectionAdded on_connection_added_slot,
-    OnConnectionLost on_connection_lost_slot,
-    const Session::OnNatDetectionRequested::slot_function_type& on_nat_detection_requested_slot,
-    NodeId& chosen_id) {
+void Transport::Bootstrap(const IdEndpointPairs&            bootstrap_peers,
+                          const NodeId&                     this_node_id,
+                          std::shared_ptr<asymm::PublicKey> this_public_key,
+                          Endpoint                          local_endpoint,
+                          bool                              bootstrap_off_existing_connection,
+                          OnMessage                         on_message_slot,
+                          OnConnectionAdded                 on_connection_added_slot,
+                          OnConnectionLost                  on_connection_lost_slot,
+                          const OnNatDetected&              on_nat_detection_requested_slot,
+                          OnBootstrap                       on_bootstrap) {
   assert(on_nat_detection_requested_slot);
   assert(!multiplexer_->IsOpen());
 
-  chosen_id = NodeId();
   ReturnCode result = multiplexer_->Open(local_endpoint);
+
   if (result != kSuccess) {
     LOG(kError) << "Failed to open multiplexer.  Result: " << result;
-    return result;
+    return strand_.dispatch([on_bootstrap, result]() { on_bootstrap(result, NodeId()); });
   }
 
   // We want these 3 slots to be invoked before any others connected, so that if we wait elsewhere
@@ -102,12 +94,15 @@ ReturnCode Transport::Bootstrap(
 
   StartDispatch();
 
-  return TryBootstrapping(bootstrap_peers, bootstrap_off_existing_connection, chosen_id);
+  TryBootstrapping(bootstrap_peers,
+                   bootstrap_off_existing_connection,
+                   on_bootstrap);
 }
 
-ReturnCode
-Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
-                            bool bootstrap_off_existing_connection, NodeId& chosen_id) {
+template<class Handler /* void(ReturnCode, NodeId) */>
+void Transport::TryBootstrapping(const IdEndpointPairs& bootstrap_peers,
+                                 bool                   bootstrap_off_existing_connection,
+                                 Handler                handler) {
   bool try_connect(true);
   bptime::time_duration lifespan;
 
@@ -118,96 +113,108 @@ Transport::TryBootstrapping(const std::vector<std::pair<NodeId, Endpoint>>& boot
 
   if (!try_connect) {
     LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint();
-    return kSuccess;
+    return strand_.dispatch([handler]() { handler(kSuccess, NodeId()); });
   }
 
   for (auto peer : bootstrap_peers) {
-    if (multiplexer_->local_endpoint() != peer.second)
-      chosen_id = ConnectToBootstrapEndpoint(peer.first, peer.second, lifespan);
-    if (chosen_id != NodeId()) {
-      LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
-                    << " connected to " << DebugId(peer.first).substr(0, 7) << " - " << peer.second;
-      return kSuccess;
-    }
+    assert(multiplexer_->local_endpoint() != peer.second);
   }
 
-  return kNotConnectable;
-}
+  auto peers_copy = std::make_shared<IdEndpointPairs>(bootstrap_peers);
 
-NodeId Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
-                                             const Endpoint& bootstrap_endpoint,
-                                             const bptime::time_duration& lifespan) {
-  using lock_guard = std::lock_guard<std::mutex>;
-
-  if (!IsValid(bootstrap_endpoint)) {
-    LOG(kError) << bootstrap_endpoint << " is an invalid endpoint.";
-    return NodeId();
-  }
-
-  std::promise<NodeId> result_out;
-  auto result_in = result_out.get_future();
-
-  std::mutex mutex;
-
-  auto orig_on_connect = MakeDefaultOnConnectHandler();
-
-  auto on_connect = [orig_on_connect, &result_out, &mutex]
-                    (const Error& error, const ConnectionPtr& connection) {
-    if (!error) {
-      orig_on_connect(error, connection);
-    }
-
-    lock_guard guard(mutex);
-    result_out.set_value(error ? NodeId()
-                               : connection->Socket().PeerNodeId());
+  auto on_bootstrap = [peers_copy, handler](const NodeId& peer_id) {
+    handler(peer_id != NodeId() ? kSuccess : kNotConnectable,
+            peer_id);
   };
 
-  connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint, "",
-                               Parameters::bootstrap_connect_timeout, lifespan,
-                               on_connect, nullptr);
-
-  result_in.wait();
-
-  // Make sure the callback finished, otherwise leaving the scope
-  // would destroy the result_out object.
-  { lock_guard guard(mutex); }
-
-  NodeId peer_id = result_in.get();
-  DetectNatType(peer_id);
-  return peer_id;
+  ConnectToBootstrapEndpoint(peers_copy->begin(),
+                             peers_copy->end(),
+                             lifespan,
+                             strand_.wrap(on_bootstrap));
 }
 
-void Transport::DetectNatType(NodeId const& peer_id) {
-  using lock_guard = std::lock_guard<std::mutex>;
+template<class Iterator, class Handler>
+void Transport::ConnectToBootstrapEndpoint(Iterator begin,
+                                           Iterator end,
+                                           Duration lifespan,
+                                           Handler  handler) {
+  if (begin == end) {
+    return handler(NodeId());
+  }
 
+  ConnectToBootstrapEndpoint(
+      begin->first,
+      begin->second,
+      lifespan,
+      [this, begin, end, lifespan, handler](const NodeId& peer_id) mutable {
+        if (peer_id == NodeId()) {
+          // Retry with the next peer.
+          return ConnectToBootstrapEndpoint(std::next(begin), end, lifespan, handler);
+        }
+
+        LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
+                      << " connected to " << DebugId(begin->first).substr(0, 7)
+                      << " - " << begin->second;
+
+        handler(peer_id);
+      });
+}
+
+template<class Handler>
+void Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
+                                           const Endpoint& bootstrap_endpoint,
+                                           const bptime::time_duration& lifespan,
+                                           Handler handler) {
+  if (!IsValid(bootstrap_endpoint)) {
+    LOG(kError) << bootstrap_endpoint << " is an invalid endpoint.";
+    return strand_.dispatch([handler]() mutable { handler(NodeId()); });
+  }
+
+  auto default_on_connect = MakeDefaultOnConnectHandler();
+
+  auto on_connect = [this, handler, default_on_connect]
+                    (const Error& error, const ConnectionPtr& connection) mutable {
+    if (error) {
+      return handler(NodeId());
+    }
+
+    default_on_connect(error, connection);
+
+    auto peer_id = connection->Socket().PeerNodeId();
+
+    auto on_nat_detected = [peer_id, handler]() mutable {
+      handler(peer_id);
+    };
+
+    DetectNatType(peer_id, strand_.wrap(on_nat_detected));
+  };
+
+  connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint,
+                               "",
+                               Parameters::bootstrap_connect_timeout,
+                               lifespan,
+                               strand_.wrap(on_connect),
+                               nullptr);
+}
+
+template<class Handler>
+void Transport::DetectNatType(NodeId const& peer_id, Handler handler) {
   Endpoint nat_detection_endpoint(connection_manager_->RemoteNatDetectionEndpoint(peer_id));
 
   if (!IsValid(nat_detection_endpoint)) {
-    return;
+    return handler();
   }
 
-  std::promise<int> result_out;
-  auto result_in = result_out.get_future();
-  std::mutex mutex;
+  auto on_ping = [=](int result_in) mutable {
+    if (result_in != kSuccess) {
+      nat_type_ = NatType::kSymmetric;
+    }
+    return handler();
+  };
 
-  connection_manager_->Ping(peer_id, nat_detection_endpoint, [&](int result_in) {
-    lock_guard guard(mutex);
-    result_out.set_value(result_in);
-  });
-
-  auto time_to_wait = BoostToChrono(Parameters::ping_timeout + bptime::seconds(1));
-
-  if (std::future_status::timeout == result_in.wait_for(time_to_wait)) {
-    assert("The Ping functor was never called" && 0);
-    nat_type_ = NatType::kSymmetric;
-  } else if (result_in.get() != kSuccess) {
-    LOG(kWarning) << "NAT detection ping failed - setting NAT type to symmetric";
-    nat_type_ = NatType::kSymmetric;
-  }
-
-  // Make sure the callback finished before the result_out future can be
-  // destroyed by leaving the scope.
-  { lock_guard guard(mutex); }
+  connection_manager_->Ping(peer_id,
+                            nat_detection_endpoint,
+                            strand_.wrap(on_ping));
 }
 
 void Transport::Close() {
