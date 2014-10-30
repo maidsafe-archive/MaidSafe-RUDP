@@ -25,6 +25,9 @@
 #include <limits>
 #include <vector>
 
+#include "boost/process.hpp"
+#include "boost/iostreams/stream.hpp"
+
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
@@ -1263,6 +1266,169 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
         GTEST_FAIL() << result.second << " returned " << result.first;
     }
   }
+}
+
+TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
+  const char *endpoints = std::getenv("MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS");
+  if (endpoints) {
+    bootstrap_endpoints_.clear();
+    for(const char *s = endpoints, *e = endpoints - 1; (s = e + 1, e = strchr(s, ';'));) {
+      const char *colon = strchr(s, ':');
+      if(!colon || colon > e) {
+        std::cout << "ERROR: Couldn't parse " << endpoints << " so exiting.\n";
+        abort();
+      }
+      bootstrap_endpoints_.push_back(boost::asio::ip::udp::endpoint(
+        boost::asio::ip::address::from_string(std::string(s, colon-s)),
+        atoi(colon+1)));
+      std::cout << "I have bootstrap endpoint " << bootstrap_endpoints_.back().address().to_string() << ":" << bootstrap_endpoints_.back().port() << std::endl;
+    }
+    std::string line;
+    do {
+      std::getline(std::cin, line);
+    } while(line.compare(0, 8, "NODE_ID:"));
+    Node node(atoi(line.substr(9).c_str()));
+    std::cout << "NODE_ID: " << node.node_id().ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
+    NodeId chosen_node_id, peer_node_id;
+    ASSERT_EQ(kSuccess, node.Bootstrap(bootstrap_endpoints_, chosen_node_id));
+
+    for(;;)
+    {
+      std::getline(std::cin, line);
+      if(!line.compare("QUIT"))
+        break;
+      if(!line.compare(0, 13, "ENDPOINT_FOR:")) {
+        peer_node_id = NodeId(line.substr(14), NodeId::EncodingType::kHex);
+        
+        EndpointPair empty_endpoint_pair, this_endpoint_pair;
+        NatType nat_type;
+
+        std::cout << "Getting available endpoint for " << peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
+        EXPECT_EQ(kSuccess,
+                  node.managed_connections()->GetAvailableEndpoint(
+                      peer_node_id, empty_endpoint_pair, this_endpoint_pair, nat_type));
+        std::cout << "ENDPOINT: "
+                  << this_endpoint_pair.local.address().to_string()+":"+std::to_string(this_endpoint_pair.local.port())+";"
+                  << this_endpoint_pair.external.address().to_string()+":"+std::to_string(this_endpoint_pair.external.port())+";"
+                  << std::endl;
+      }
+#if 0
+      else if(!line.compare(0, 8, "CONNECT:")) {
+        auto fi=node.GetFutureForMessages(1);
+        EXPECT_EQ(kSuccess,
+                  node.managed_connections()->Add(peer_node_id, this_endpoint_pair,
+                                                        node.validation_data()));
+        fi.get();
+        std::cout << "CONNECTED: " << node_id.string() << std::endl;
+      }
+#endif
+    }
+  }
+}
+TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
+  static MAIDSAFE_CONSTEXPR_OR_CONST size_t node_count = 2; //23;
+  const auto self_path = ThisExecutablePath();
+  const std::vector<std::string> args{self_path.string(), "--gtest_filter=ManagedConnectionsTest.FUNC_API_500ParallelConnectionsWorker"};
+  
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
+  std::string endpoints("MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
+  for(auto &i : bootstrap_endpoints_)
+    endpoints.append(i.address().to_string()+":"+std::to_string(i.port())+";");
+  std::vector<std::string> env{endpoints};
+
+  std::vector<boost::process::child> children;
+  std::vector<std::pair<boost::process::pipe, boost::process::pipe>> childpipes;
+  children.reserve(node_count);
+  childpipes.reserve(node_count);
+  for(size_t n = 0; n < node_count; n++) {
+    childpipes.push_back(std::make_pair(boost::process::create_pipe(), boost::process::create_pipe()));
+    boost::iostreams::file_descriptor_sink sink(childpipes.back().first.sink, boost::iostreams::close_handle);
+    boost::iostreams::file_descriptor_source source(childpipes.back().second.source, boost::iostreams::close_handle);
+    children.push_back(boost::process::execute(
+      boost::process::initializers::run_exe(self_path),
+      boost::process::initializers::set_args(args),
+      boost::process::initializers::set_env(env),
+      boost::process::initializers::bind_stdin(source),
+      boost::process::initializers::bind_stdout(sink)));
+    boost::iostreams::stream<boost::iostreams::file_descriptor_sink> os(childpipes[n].second.sink, boost::iostreams::never_close_handle); 
+    os << "NODE_ID: " << n << std::endl;
+  }
+  // Prepare to connect node_count nodes to one another, making node_count*(node_count-1) total connections
+  std::vector<NodeId> child_nodeids;
+  std::vector<EndpointPair> child_endpoints;
+  child_nodeids.reserve(node_count);
+  child_endpoints.reserve(node_count);
+  for(size_t n = 0; n < node_count; n++) {
+    {
+      boost::iostreams::stream<boost::iostreams::file_descriptor_source> is(childpipes[n].first.source, boost::iostreams::never_close_handle); 
+      std::string line; 
+      std::getline(is, line);
+      if(!line.compare(0, 6, "ERROR:")) {
+        GTEST_FAIL() << "Failed to launch child " << n << " due to " << line << ".";
+        return;
+      }
+      for(;;) {
+        std::string line; 
+        std::getline(is, line);
+        if(!line.compare(0, 8, "NODE_ID:")) {
+          std::cout << "Child " << n << " returns node id " << line.substr(9) << std::endl;
+          child_nodeids.push_back(NodeId(line.substr(9), NodeId::EncodingType::kHex));
+          break;
+        }
+        else std::cout << "Child " << n << " sends me unknown line '" << line << "'\n";
+      }
+    }
+    for(size_t i = 0; i < n; i++) {
+      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> os1(childpipes[n].second.sink, boost::iostreams::never_close_handle); 
+      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> os2(childpipes[i].second.sink, boost::iostreams::never_close_handle); 
+      os1 << "ENDPOINT_FOR: " << child_nodeids[i].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
+      os2 << "ENDPOINT_FOR: " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
+    }
+    auto drain_endpoint=[&](size_t i){
+      boost::iostreams::stream<boost::iostreams::file_descriptor_source> is(childpipes[i].first.source, boost::iostreams::never_close_handle); 
+      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> os(childpipes[i].second.sink, boost::iostreams::never_close_handle); 
+      for(;;) {
+        std::string line; 
+        std::getline(is, line);
+        if(!line.compare(0, 9, "ENDPOINT:")) {
+          EndpointPair endpoint;
+          bool first=true;
+          for(const char *s, *e = line.c_str()+9; (s = e + 1, e = strchr(s, ';'));first=false) {
+            const char *colon = strchr(s, ':');
+            if(!colon || colon > e) {
+              std::cout << "ERROR: Couldn't parse " << line << " so exiting.\n";
+              abort();
+            }
+            (first ? endpoint.local : endpoint.external).address(boost::asio::ip::address::from_string(std::string(s, colon-s)));
+            (first ? endpoint.local : endpoint.external).port(atoi(colon+1));
+          }
+          child_endpoints.push_back(std::move(endpoint));
+          std::cout << "Child " << i << " returns endpoints " << line.substr(10) << std::endl;
+          break;
+        }
+        else std::cout << "Child " << i << " sends me unknown line '" << line << "'\n";
+      }
+    };
+    for(size_t i = 0; i < n; i++) {
+      drain_endpoint(n);
+      drain_endpoint(i);
+    }
+  }
+  
+  std::cout << node_count << " nodes connected\n";
+  
+  // TODO: Send some messages
+  
+  // Shutdown children
+  for(size_t n = 0; n < node_count; n++) {
+    boost::iostreams::stream<boost::iostreams::file_descriptor_sink> os(childpipes[n].second.sink, boost::iostreams::never_close_handle); 
+    os << "QUIT" << std::endl;
+  }
+  for(size_t n = 0; n < node_count; n++) {
+    std::cout << "Waiting for child " << n << " to exit\n";
+    boost::process::wait_for_exit(children[n]);
+  }
+  
 }
 
 }  // namespace test
