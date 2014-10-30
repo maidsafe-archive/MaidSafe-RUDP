@@ -317,6 +317,25 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
 }
 
+TEST_F(ManagedConnectionsTest, BEH_API_kBootstrapConnectionAlreadyExists) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
+  NodeId chosen_node;
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
+  size_t index(1);
+
+  ASSERT_EQ(kSuccess,
+            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[index]), chosen_node));
+  LOG(kVerbose) << "-------- nodes_[index]->managed_connections()->GetAvailableEndpoint ---------";
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+            nodes_[index]->managed_connections()->GetAvailableEndpoint(
+                node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
+  LOG(kVerbose) << "-------- node_.managed_connections()->GetAvailableEndpoint ---------";
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+            node_.managed_connections()->GetAvailableEndpoint(
+                nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
+}
+
 TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
   const int kNodeCount(8);
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNodeCount));
