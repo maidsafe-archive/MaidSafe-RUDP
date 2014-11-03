@@ -312,8 +312,6 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
     joining_connection->Close();
   } else {
     // Joining node is not already connected - start new bootstrap or temporary connection
-
-    LOG(kVerbose) << "peter !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
     if (auto t = transport_.lock()) {
       Connect(
           handshake_packet.node_id(),
