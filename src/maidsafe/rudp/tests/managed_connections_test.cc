@@ -161,6 +161,41 @@ class ManagedConnectionsTest : public testing::Test {
   }
 };
 
+TEST_F(ManagedConnectionsTest, BEH_API_kBootstrapConnectionAlreadyExists) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
+  NodeId chosen_node;
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
+  size_t index(1);
+
+  using lock_guard = std::lock_guard<std::mutex>;
+  std::mutex mutex;
+  std::promise<void> promise;
+  auto future = promise.get_future();
+
+  nodes_[index]->managed_connections()->SetConnectionAddedFunctor([&](NodeId) {
+      lock_guard guard(mutex);
+      promise.set_value();
+      });
+
+  ASSERT_EQ(kSuccess,
+            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[index]), chosen_node));
+
+  // When the above bootstrap function finishes, the node 'node_' knows it is connected
+  // to node 'nodes_[index]' but not the other way around. For that we need to
+  // wait till the ConnectionAddedFunctor is executed inside node 'nodes_[index]'.
+  future.wait();
+  { lock_guard guard(mutex); }
+
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+            nodes_[index]->managed_connections()->GetAvailableEndpoint(
+               node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
+
+  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+            node_.managed_connections()->GetAvailableEndpoint(
+                  nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
+}
+
 TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
   int nodes(8 + RandomUint32() % 16);
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, nodes));
