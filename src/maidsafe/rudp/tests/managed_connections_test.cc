@@ -1298,7 +1298,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
       if(!line.compare("QUIT"))
         break;
       if(!line.compare(0, 13, "ENDPOINT_FOR:")) {
-        peer_node_id = NodeId(line.substr(14), NodeId::EncodingType::kHex);
+        NodeId peer_node_id(line.substr(14), NodeId::EncodingType::kHex);
         
         EndpointPair empty_endpoint_pair, this_endpoint_pair;
         NatType nat_type;
@@ -1312,21 +1312,43 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
                   << this_endpoint_pair.external.address().to_string()+":"+std::to_string(this_endpoint_pair.external.port())+";"
                   << std::endl;
       }
-#if 0
       else if(!line.compare(0, 8, "CONNECT:")) {
+        const char *colon1 = strchr(line.c_str(), ';');
+        if(!colon1) {
+          std::cout << "ERROR: Couldn't parse " << line << " so exiting.\n";
+          abort();
+        }
+        const char *colon2 = strchr(colon1 + 1, ':');
+        if(!colon2) {
+          std::cout << "ERROR: Couldn't parse " << line << " so exiting.\n";
+          abort();
+        }
+        const char *colon3 = strchr(colon2 + 1, ';');
+        if(!colon3) {
+          std::cout << "ERROR: Couldn't parse " << line << " so exiting.\n";
+          abort();
+        }
+        NodeId peer_node_id(std::string(line.c_str() + 9, colon1 - line.c_str() - 9), NodeId::EncodingType::kHex);        
+        EndpointPair peer_endpoint_pair;
+        peer_endpoint_pair.local = boost::asio::ip::udp::endpoint(
+          boost::asio::ip::address::from_string(std::string(colon1+1, colon2-colon1-1)),
+          atoi(colon2+1));
         auto fi=node.GetFutureForMessages(1);
+        std::cout << "Adding connection to node " << peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex)
+                  << " at endpoint " << peer_endpoint_pair.local.address().to_string()+":" << peer_endpoint_pair.local.port()
+                  << std::endl;
         EXPECT_EQ(kSuccess,
-                  node.managed_connections()->Add(peer_node_id, this_endpoint_pair,
+                  node.managed_connections()->Add(peer_node_id, peer_endpoint_pair,
                                                         node.validation_data()));
+        std::cout << "Waiting on future\n";
         fi.get();
-        std::cout << "CONNECTED: " << node_id.string() << std::endl;
+        std::cout << "CONNECTED: " << peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
       }
-#endif
     }
   }
 }
 TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
-  static MAIDSAFE_CONSTEXPR_OR_CONST size_t node_count = 2; //23;
+  static MAIDSAFE_CONSTEXPR_OR_CONST size_t node_count = 4; //23;
   const auto self_path = ThisExecutablePath();
   const std::vector<std::string> args{self_path.string(), "--gtest_filter=ManagedConnectionsTest.FUNC_API_500ParallelConnectionsWorker"};
   
@@ -1355,10 +1377,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
   }
   // Prepare to connect node_count nodes to one another, making node_count*(node_count-1) total connections
   std::vector<NodeId> child_nodeids;
-  std::vector<EndpointPair> child_endpoints;
+  std::vector<std::vector<EndpointPair>> child_endpoints;
   child_nodeids.reserve(node_count);
   child_endpoints.reserve(node_count);
   for(size_t n = 0; n < node_count; n++) {
+    child_endpoints.push_back(std::vector<EndpointPair>());
     {
       boost::iostreams::stream<boost::iostreams::file_descriptor_source> is(childpipes[n].first.source, boost::iostreams::never_close_handle); 
       std::string line; 
@@ -1402,7 +1425,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
             (first ? endpoint.local : endpoint.external).address(boost::asio::ip::address::from_string(std::string(s, colon-s)));
             (first ? endpoint.local : endpoint.external).port(atoi(colon+1));
           }
-          child_endpoints.push_back(std::move(endpoint));
+          child_endpoints.back().push_back(std::move(endpoint));
           std::cout << "Child " << i << " returns endpoints " << line.substr(10) << std::endl;
           break;
         }
@@ -1412,6 +1435,36 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
     for(size_t i = 0; i < n; i++) {
       drain_endpoint(n);
       drain_endpoint(i);
+    }
+    // child_nodeids[n] contains a map of child processes to NodeId
+    // child_endpoints[n][i*2] is the endpoint of childprocess n to childprocess i
+    // child_endpoints[n][i*2+1] is the endpoint of childprocess i to childprocess n
+    for(size_t i = 0; i < n; i++) {
+      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> os1(childpipes[n].second.sink, boost::iostreams::never_close_handle); 
+      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> os2(childpipes[i].second.sink, boost::iostreams::never_close_handle); 
+      os1 << "CONNECT: " << child_nodeids[i].ToStringEncoded(NodeId::EncodingType::kHex) << ";"
+                         << child_endpoints.back()[i*2].local.address().to_string()+":"
+                         << child_endpoints.back()[i*2].local.port() << ";" << std::endl;
+      os2 << "CONNECT: " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << ";"
+                         << child_endpoints.back()[i*2+1].local.address().to_string()+":"
+                         << child_endpoints.back()[i*2+1].local.port() << ";" << std::endl;
+    }
+    auto drain_connect=[&](size_t i){
+      boost::iostreams::stream<boost::iostreams::file_descriptor_source> is(childpipes[i].first.source, boost::iostreams::never_close_handle); 
+      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> os(childpipes[i].second.sink, boost::iostreams::never_close_handle); 
+      for(;;) {
+        std::string line; 
+        std::getline(is, line);
+        if(!line.compare(0, 10, "CONNECTED:")) {
+          std::cout << "Child " << i << " is connected to " << line.substr(11) << std::endl;
+          break;
+        }
+        else std::cout << "Child " << i << " sends me unknown line '" << line << "'\n";
+      }
+    };
+    for(size_t i = 0; i < n; i++) {
+      drain_connect(n);
+      drain_connect(i);
     }
   }
   
