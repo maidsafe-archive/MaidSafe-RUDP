@@ -1284,6 +1284,7 @@ public:
 private:
 #endif
   asio::deadline_timer _timer;
+  std::unique_ptr<asio::io_service::work> _work;
   void _init(bool doTimer) {
     _h.async_read_some(asio::null_buffers(), std::bind(&input_watcher::data_available, this, std::placeholders::_1));
     if(doTimer) {
@@ -1292,10 +1293,10 @@ private:
   }
 protected:
   virtual void data_available(const boost::system::error_code &)=0;
-  virtual void timed_out(const boost::system::error_code &) { };
-  input_watcher(asio::io_service &service, native_handle_type h) : _service(service), _h(service, h), _timer(service) { _init(false); }
-  input_watcher(asio::io_service &service, native_handle_type h, boost::posix_time::ptime timeout) : _service(service), _h(service, h), _timer(service, timeout) { _init(true); }
-  input_watcher(asio::io_service &service, native_handle_type h, boost::posix_time::time_duration timeout) : _service(service), _h(service, h), _timer(service, timeout) { _init(true); }
+  virtual void timed_out(const boost::system::error_code &) { cancel(); };
+  input_watcher(asio::io_service &service, native_handle_type h) : _service(service), _h(service, h), _timer(service), _work(maidsafe::make_unique<asio::io_service::work>(service)) { _init(false); }
+  input_watcher(asio::io_service &service, native_handle_type h, boost::posix_time::ptime timeout) : _service(service), _h(service, h), _timer(service, timeout), _work(maidsafe::make_unique<asio::io_service::work>(service)) { _init(true); }
+  input_watcher(asio::io_service &service, native_handle_type h, boost::posix_time::time_duration timeout) : _service(service), _h(service, h), _timer(service, timeout), _work(maidsafe::make_unique<asio::io_service::work>(service)) { _init(true); }
 public:
   ~input_watcher() {
     _h.release();
@@ -1303,6 +1304,11 @@ public:
   asio::io_service &service() { return _service; }
   native_handle_type handle() { return _h.native(); }
   asio::deadline_timer &timer() { return _timer; }
+  void cancel() {
+    _h.cancel();
+    _timer.cancel();
+    _work.reset();
+  }
 };
 TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
   const char *endpoints = std::getenv("MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS");
@@ -1417,7 +1423,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
           virtual void data_available(const boost::system::error_code &ec) {
             if(!ec)
               have_data=true;
-            timer().cancel();
+            cancel();
           }
         } w(service, h);
         service.run();
@@ -1467,56 +1473,119 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
     *childpipes.back().second << "NODE_ID: " << n << std::endl;
   }
   // Prepare to connect node_count nodes to one another, making node_count*(node_count-1) total connections
+  std::vector<std::pair<size_t, size_t>> execution_order;
   std::vector<NodeId> child_nodeids;
-  std::vector<std::vector<EndpointPair>> child_endpoints;
-  child_nodeids.reserve(node_count);
-  child_endpoints.reserve(node_count);
+  child_nodeids.reserve(node_count);  
   for(size_t n = 0; n < node_count; n++) {
-    child_endpoints.push_back(std::vector<EndpointPair>());
-    {
-      boost::iostreams::stream<boost::iostreams::file_descriptor_source> &is=*childpipes[n].first; 
+    boost::iostreams::stream<boost::iostreams::file_descriptor_source> &is=*childpipes[n].first; 
+    for(;;) {
       std::string line; 
-      getline(is, is->handle(), line);
+      // ASIO gets upset if the pipe isn't opened on the other side, so use getline for this round
+      if(!std::getline(is, line)) {
+        GTEST_FAIL() << "Failed to read from child " << n << ".";
+        return;
+      }
       if(!line.compare(0, 6, "ERROR:")) {
         GTEST_FAIL() << "Failed to launch child " << n << " due to " << line << ".";
         return;
       }
-      for(;;) {
-        std::string line; 
-        if(!getline(is, is->handle(), line)) {
-          GTEST_FAIL() << "Failed to read from child " << n << ".";
-          return;
-        }
-        if(!line.compare(0, 8, "NODE_ID:")) {
-          //std::cout << "Child " << n << " returns node id " << line.substr(9) << std::endl;
-          child_nodeids.push_back(NodeId(line.substr(9), NodeId::EncodingType::kHex));
-          break;
-        }
-        else if(line[0]!='[')
-          std::cout << "Child " << n << " sends me unknown line '" << line << "'" << std::endl;
+      if(!line.compare(0, 8, "NODE_ID:")) {
+        //std::cout << "Child " << n << " returns node id " << line.substr(9) << std::endl;
+        child_nodeids.push_back(NodeId(line.substr(9), NodeId::EncodingType::kHex));
+        break;
       }
+      else if(line[0]!='[')
+        std::cout << "Child " << n << " sends me unknown line '" << line << "'" << std::endl;
     }
-    //for(size_t i = 0; i <= n; i++)
-    //  std::cout << "Child " << i << " has node id " << child_nodeids[i].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
+    //  std::cout << "Child " << n << " has node id " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
     for(size_t i = 0; i < n; i++) {
-      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> &os1=*childpipes[n].second; 
-      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> &os2=*childpipes[i].second; 
-      os1 << "ENDPOINT_FOR: " << child_nodeids[i].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
-      os2 << "ENDPOINT_FOR: " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
-      //std::cout << "Asking child " << n << " for endpoint to child " << i << std::endl;
-      //std::cout << "Asking child " << i << " for endpoint to child " << n << std::endl;
+      execution_order.push_back(std::make_pair(n, i));
     }
-    auto drain_endpoint=[&](size_t i){
-      boost::iostreams::stream<boost::iostreams::file_descriptor_source> &is=*childpipes[i].first; 
-      //std::cout << "drain_endpoint(" << i << ")" << std::endl;
+  }
+  // child_nodeids[n] contains a map of child processes to NodeId
+  // child_endpoints[n][i*2] is the endpoint of childprocess n to childprocess i
+  // child_endpoints[n][i*2+1] is the endpoint of childprocess i to childprocess n
+  std::vector<std::vector<EndpointPair>> child_endpoints;
+  child_endpoints.resize(node_count);
+  for(auto &i : child_endpoints)
+    i.resize((node_count-1)*2);
+  // We need execution order to maximise distance between each x,x and y,y in each (x,y) pair
+  // such that concurrency is maximised. That is the CPU instruction scheduling problem which
+  // requires the solution of an unbalanced graph via iterating rebalancing according to longest
+  // path analysis, and it has O(N!) complexity with a non-trivial implementation. So here is a
+  // poorer quality O(N^2) complexity alternative with a much simpler implementation. It doesn't
+  // produce perfect ordering, but it's close enough and doesn't require more code than the whole
+  // of this test case.
+  {
+    std::deque<std::pair<size_t, size_t>> list(std::make_move_iterator(execution_order.begin()), std::make_move_iterator(execution_order.end())), prevline, line;
+    execution_order.clear();
+    std::reverse(list.begin(), list.end());
+    do {
+      prevline=std::move(line);
+      // Choose a starting value as far away as possible from any collision in the previous line
+      if(prevline.empty()) {
+        line.push_back(std::move(list.back()));
+        list.pop_back();
+      } else do {
+        prevline.pop_front();
+        for(auto it=list.begin(); it!=list.end(); ++it) {
+          bool bad=false;
+          for(auto &b : prevline) {
+            if(it->first==b.first || it->second==b.first || it->first==b.second || it->second==b.second) {
+              bad=true;
+              break;
+            }
+          }
+          if(!bad) {
+            line.push_back(std::move(*it));
+            list.erase(it);
+            break;
+          }
+        }
+      } while(line.empty());
+      // Append all values not colliding into this line
+      for(auto it=list.begin(); it!=list.end();) {
+        bool bad=false;
+        for(auto &b : line) {
+          if(it->first==b.first || it->second==b.first || it->first==b.second || it->second==b.second) {
+            bad=true;
+            break;
+          }
+        }
+        if(!bad) {
+          line.push_back(std::move(*it));
+          it=list.erase(it);
+        }
+        else ++it;
+      }
+      // Copy line into output
+      execution_order.insert(execution_order.end(), line.begin(), line.end());
+    } while(!list.empty());
+  }
+  std::cout << "Execution order will be: ";
+  for(auto &o : execution_order)
+    std::cout << "[" << o.first << ", " << o.second << "], ";
+  std::cout << std::endl;
+  size_t connection_count=0;
+  for(auto &o : execution_order) {
+    EndpointPair endpoint;
+    size_t n, i;
+    std::tie(n, i) = o;
+    boost::iostreams::stream<boost::iostreams::file_descriptor_sink> &os1=*childpipes[n].second; 
+    boost::iostreams::stream<boost::iostreams::file_descriptor_sink> &os2=*childpipes[i].second; 
+    os1 << "ENDPOINT_FOR: " << child_nodeids[i].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
+    os2 << "ENDPOINT_FOR: " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
+    //std::cout << "Asking child " << n << " for endpoint to child " << i << std::endl;
+    //std::cout << "Asking child " << i << " for endpoint to child " << n << std::endl;
+    auto drain_endpoint=[&](size_t a) {
+      boost::iostreams::stream<boost::iostreams::file_descriptor_source> &is=*childpipes[a].first; 
+      //std::cout << "drain_endpoint(" << a << ")" << std::endl;
       for(;;) {
         std::string line; 
         if(!getline(is, is->handle(), line)) {
-          GTEST_FAIL() << "Failed to read from child " << n << ".";
-          return;
+          return false;
         }
         if(!line.compare(0, 9, "ENDPOINT:")) {
-          EndpointPair endpoint;
           bool first=true;
           for(const char *s, *e = line.c_str()+9; (s = e + 1, e = strchr(s, ';'));first=false) {
             const char *colon = strchr(s, ':');
@@ -1527,55 +1596,60 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
             (first ? endpoint.local : endpoint.external).address(boost::asio::ip::address::from_string(std::string(s, colon-s)));
             (first ? endpoint.local : endpoint.external).port(atoi(colon+1));
           }
-          child_endpoints.back().push_back(std::move(endpoint));
-          //std::cout << "Child " << i << " returns endpoints " << line.substr(10) << std::endl;
-          break;
+          //std::cout << "Child " << a << " returns endpoints " << line.substr(10) << std::endl;
+          return true;
         }
         else if(line[0]!='[')
-          std::cout << "Child " << i << " sends me unknown line '" << line << "'\n";
+          std::cout << "Child " << a << " sends me unknown line '" << line << "'\n";
       }
+      return true;
     };
-    for(size_t i = 0; i < n; i++) {
-      drain_endpoint(n);
-      drain_endpoint(i);
+    if(!drain_endpoint(n)) {
+      GTEST_FAIL() << "Failed to read from child " << n << ".";
+      return;
     }
-    // child_nodeids[n] contains a map of child processes to NodeId
-    // child_endpoints[n][i*2] is the endpoint of childprocess n to childprocess i
-    // child_endpoints[n][i*2+1] is the endpoint of childprocess i to childprocess n
-    for(size_t i = 0; i < n; i++) {
-      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> &os1=*childpipes[n].second; 
-      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> &os2=*childpipes[i].second; 
-      os1 << "CONNECT: " << child_nodeids[i].ToStringEncoded(NodeId::EncodingType::kHex) << ";"
-                         << child_endpoints.back()[i*2+1].local.address().to_string()+":"
-                         << child_endpoints.back()[i*2+1].local.port() << ";" << std::endl;
-      os2 << "CONNECT: " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << ";"
-                         << child_endpoints.back()[i*2].local.address().to_string()+":"
-                         << child_endpoints.back()[i*2].local.port() << ";" << std::endl;
+    child_endpoints[n][i*2]=endpoint;
+    if(!drain_endpoint(i)) {
+      GTEST_FAIL() << "Failed to read from child " << i << ".";
+      return;
     }
-    auto drain_connect=[&](size_t i){
-      boost::iostreams::stream<boost::iostreams::file_descriptor_source> &is=*childpipes[i].first; 
-      //std::cout << "drain_connect(" << i << ")" << std::endl;
+    child_endpoints[n][i*2+1]=endpoint;
+
+    os1 << "CONNECT: " << child_nodeids[i].ToStringEncoded(NodeId::EncodingType::kHex) << ";"
+                        << child_endpoints[n][i*2+1].local.address().to_string()+":"
+                        << child_endpoints[n][i*2+1].local.port() << ";" << std::endl;
+    os2 << "CONNECT: " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << ";"
+                        << child_endpoints[n][i*2].local.address().to_string()+":"
+                        << child_endpoints[n][i*2].local.port() << ";" << std::endl;
+    auto drain_connect=[&](size_t a) {
+      boost::iostreams::stream<boost::iostreams::file_descriptor_source> &is=*childpipes[a].first; 
+      //std::cout << "drain_connect(" << a << ")" << std::endl;
       for(;;) {
         std::string line; 
         if(!getline(is, is->handle(), line)) {
-          GTEST_FAIL() << "Failed to read from child " << n << ".";
-          return;
+          return false;
         }
         if(!line.compare(0, 10, "CONNECTED:")) {
-          std::cout << "Child " << i << " is connected to " << line.substr(11) << std::endl;
-          break;
+          std::cout << "Child " << a << " is connected to " << line.substr(11) << std::endl;
+          ++connection_count;
+          return true;
         }
         else if(line[0]!='[')
-          std::cout << "Child " << i << " sends me unknown line '" << line << "'" << std::endl;
+          std::cout << "Child " << a << " sends me unknown line '" << line << "'" << std::endl;
       }
+      return true;
     };
-    for(size_t i = 0; i < n; i++) {
-      drain_connect(n);
-      drain_connect(i);
+    if(!drain_connect(n)) {
+      GTEST_FAIL() << "Failed to read from child " << n << ".";
+      return;
+    }
+    if(!drain_connect(i)) {
+      GTEST_FAIL() << "Failed to read from child " << i << ".";
+      return;
     }
   }
   
-  std::cout << node_count << " nodes connected" << std::endl;
+  std::cout << node_count << " nodes connected with " << connection_count << " connections." << std::endl;
   
   // TODO: Send some messages
   
