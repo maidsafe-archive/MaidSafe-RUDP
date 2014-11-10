@@ -69,6 +69,8 @@ class NegativeAckPacket;
 
 class Socket {
  public:
+  using Endpoint = boost::asio::ip::udp::endpoint;
+
   Socket(Multiplexer& multiplexer, NatType& nat_type);  // NOLINT (Fraser)
   ~Socket();
 
@@ -76,7 +78,7 @@ class Socket {
   uint32_t Id() const;
 
   // Get the remote endpoint to which the socket is connected.
-  boost::asio::ip::udp::endpoint PeerEndpoint() const;
+  Endpoint PeerEndpoint() const;
 
   // Get the remote socket identifier to which the socket is connected.
   uint32_t PeerSocketId() const;
@@ -92,14 +94,14 @@ class Socket {
 
   // This should only be called by the ConnectionManager if this node discovers that the peer has a
   // different endpoint than it predicted (i.e. the peer is behind symmetric NAT).
-  void UpdatePeerEndpoint(const boost::asio::ip::udp::endpoint& remote);
+  void UpdatePeerEndpoint(const Endpoint& remote);
 
   // If the peer endpoint was updated using UpdatePeerEndpoint, this returns the port originally
   // provided by the peer as its best guess.  Otherwise 0 is returned.
   uint16_t PeerGuessedPort() const;
 
   // Get the remote endpoint offered for NAT detection.
-  boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
+  Endpoint RemoteNatDetectionEndpoint() const;
 
   // Notify the peer that the socket is about to close.
   void NotifyClose();
@@ -127,14 +129,17 @@ class Socket {
   // expires.
   template <typename ConnectHandler>
   uint32_t AsyncConnect(const NodeId& this_node_id,
-                    std::shared_ptr<asymm::PublicKey> this_public_key,
-                    const boost::asio::ip::udp::endpoint& remote, const NodeId& peer_node_id,
-                    ConnectHandler handler, Session::Mode open_mode, uint32_t cookie_syn,
-                    Session::OnNatDetectionRequested::slot_type on_nat_detection_requested_slot) {
+                        std::shared_ptr<asymm::PublicKey> this_public_key,
+                        const Endpoint& remote,
+                        const NodeId& peer_node_id,
+                        ConnectHandler handler,
+                        Session::Mode open_mode,
+                        uint32_t cookie_syn,
+                        Session::OnNatDetectionRequested::slot_type on_nat_detection_requested) {
     ConnectOp<ConnectHandler> op(handler, waiting_connect_ec_);
     waiting_connect_.async_wait(op);
     return StartConnect(this_node_id, this_public_key, remote, peer_node_id, open_mode, cookie_syn,
-                        on_nat_detection_requested_slot);
+                        on_nat_detection_requested);
   }
 
   // Initiate an asynchronous operation to write data. The operation will
@@ -184,7 +189,7 @@ class Socket {
   void MakeNormal();
 
   // This node's endpoint as viewed by peer
-  boost::asio::ip::udp::endpoint ThisEndpoint() const;
+  Endpoint ThisEndpoint() const;
 
   // Public key of remote peer, used to encrypt all outgoing messages on this socket
   std::shared_ptr<asymm::PublicKey> PeerPublicKey() const;
@@ -196,11 +201,14 @@ class Socket {
   Socket(const Socket&);
   Socket& operator=(const Socket&);
 
-  uint32_t StartConnect(
-      const NodeId& this_node_id, std::shared_ptr<asymm::PublicKey> this_public_key,
-      const boost::asio::ip::udp::endpoint& remote, const NodeId& peer_node_id,
-      Session::Mode open_mode, uint32_t cookie_syn,
-      const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
+  uint32_t StartConnect(const NodeId& this_node_id,
+                        std::shared_ptr<asymm::PublicKey> this_public_key,
+                        const Endpoint& remote,
+                        const NodeId& peer_node_id,
+                        Session::Mode open_mode,
+                        uint32_t cookie_syn,
+                        const Session::OnNatDetectionRequested::slot_type&);
+
   void StartWrite(const boost::asio::const_buffer& data,
                   const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
   void ProcessWrite();
@@ -213,7 +221,7 @@ class Socket {
 
   // Called by the Dispatcher when a new packet arrives for the socket.
   void HandleReceiveFrom(const boost::asio::const_buffer& data,
-                         const boost::asio::ip::udp::endpoint& endpoint);
+                         const Endpoint& endpoint);
 
   // Called to process a newly received handshake packet.
   void HandleHandshake(const HandshakePacket& packet);

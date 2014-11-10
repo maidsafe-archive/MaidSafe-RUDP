@@ -105,28 +105,34 @@ void ConnectionManager::MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep) {
   }
 }
 
-bool ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
+void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                                 const std::string& validation_data,
                                 const bptime::time_duration& connect_attempt_timeout,
                                 const bptime::time_duration& lifespan,
-                                const OnConnect& on_connect,
+                                OnConnect on_connect,
                                 const std::function<void()>& failure_functor) {
   std::lock_guard<std::mutex> lock(mutex_);
 
-  if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
-      return false;
-    }
+  auto transport = transport_.lock();
 
-    being_connected_.insert(std::make_pair(peer_id, peer_endpoint));
-
-    ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
-    connection->StartConnecting(peer_id, peer_endpoint, validation_data, connect_attempt_timeout,
-                                lifespan, on_connect, failure_functor);
-    return true;
+  if (!transport) {
+    return strand_.dispatch([on_connect]() {
+        on_connect(asio::error::shut_down, nullptr);
+        });
   }
 
-  return false;
+  if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
+    return strand_.dispatch([on_connect]() {
+        on_connect(asio::error::already_started, nullptr);
+        });
+  }
+
+  being_connected_.insert(std::make_pair(peer_id, peer_endpoint));
+
+  auto connection = std::make_shared<Connection>(transport, strand_, multiplexer_);
+
+  connection->StartConnecting(peer_id, peer_endpoint, validation_data, connect_attempt_timeout,
+                              lifespan, on_connect, failure_functor);
 }
 
 int ConnectionManager::AddConnection(ConnectionPtr connection) {
@@ -179,6 +185,8 @@ void ConnectionManager::Ping(const NodeId& peer_id, const Endpoint& peer_endpoin
     assert(ping_functor);
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
     connection->Ping(peer_id, peer_endpoint, ping_functor);
+  } else {
+    assert(0 && "Transport already closed");
   }
 }
 
@@ -283,35 +291,36 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
     LOG(kWarning) << kThisNodeId_ << " is handshaking with another local transport.";
     return;
   }
-  if (IsValid(endpoint)) {
-    // Check if this joining node is already connected
-    ConnectionPtr joining_connection;
-    bool bootstrap_and_drop(handshake_packet.ConnectionReason() == Session::kBootstrapAndDrop);
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      auto itr(FindConnection(handshake_packet.node_id()));
-      if (itr != connections_.end() && !bootstrap_and_drop)
-        joining_connection = *itr;
-    }
-    if (joining_connection) {
-      LOG(kWarning) << kThisNodeId_ << " received another bootstrap connection request "
-                    << "from currently connected peer " << handshake_packet.node_id()
-                    << " - " << endpoint << " - closing connection.";
-      joining_connection->Close();
-    } else {
-      // Joining node is not already connected - start new bootstrap or temporary connection
 
-      if (auto t = transport_.lock()) {
-        Connect(
-            handshake_packet.node_id(),
-            endpoint, "", Parameters::bootstrap_connect_timeout,
-            bootstrap_and_drop ? bptime::time_duration()
-                               : Parameters::bootstrap_connection_lifespan,
-            t->MakeDefaultOnConnectHandler(),
-            nullptr);
-      }
-    }
+  if (!IsValid(endpoint)) {
     return;
+  }
+
+  // Check if this joining node is already connected
+  ConnectionPtr joining_connection;
+  bool bootstrap_and_drop(handshake_packet.ConnectionReason() == Session::kBootstrapAndDrop);
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto itr(FindConnection(handshake_packet.node_id()));
+    if (itr != connections_.end() && !bootstrap_and_drop)
+      joining_connection = *itr;
+  }
+  if (joining_connection) {
+    LOG(kWarning) << kThisNodeId_ << " received another bootstrap connection request "
+                  << "from currently connected peer " << handshake_packet.node_id()
+                  << " - " << endpoint << " - closing connection.";
+    joining_connection->Close();
+  } else {
+    // Joining node is not already connected - start new bootstrap or temporary connection
+    if (auto t = transport_.lock()) {
+      Connect(
+          handshake_packet.node_id(),
+          endpoint, "", Parameters::bootstrap_connect_timeout,
+          bootstrap_and_drop ? bptime::time_duration()
+                             : Parameters::bootstrap_connection_lifespan,
+          t->MakeDefaultOnConnectHandler(),
+          nullptr);
+    }
   }
 }
 

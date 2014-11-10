@@ -65,11 +65,11 @@ class ConnectionManager {
 
   void Close();
 
-  bool Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
+  void Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                const std::string& validation_data,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan,
-               const OnConnect& on_connect,
+               OnConnect on_connect,
                const std::function<void()>& failure_functor);
 
   int AddConnection(std::shared_ptr<Connection> connection);

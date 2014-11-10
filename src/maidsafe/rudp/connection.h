@@ -82,7 +82,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
                        const std::string& validation_data,
                        const boost::posix_time::time_duration& connect_attempt_timeout,
                        const boost::posix_time::time_duration& lifespan,
-                       const OnConnect& on_connect,
+                       OnConnect on_connect,
                        const std::function<void()>& failure_functor);
   void Ping(const NodeId& peer_node_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
@@ -118,7 +118,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
           message_sent_functor_(std::move(message_sent_functor)) {}
   };
 
-  void DoClose(bool timed_out = false);
+  void DoClose(const Error&);
+
   void DoStartConnecting(const NodeId& peer_node_id,
                          const boost::asio::ip::udp::endpoint& peer_endpoint,
                          const std::string& validation_data,
