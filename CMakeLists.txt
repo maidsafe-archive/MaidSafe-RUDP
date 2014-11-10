@@ -64,7 +64,7 @@ ms_add_static_library(maidsafe_rudp ${RudpAllFiles} ${RudpCoreAllFiles} ${RudpOp
 target_include_directories(maidsafe_rudp PUBLIC ${PROJECT_SOURCE_DIR}/include PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(maidsafe_rudp maidsafe_common)
 
-if(MaidsafeTesting)
+if(INCLUDE_TESTS)
   ms_add_executable(test_rudp "Tests/RUDP" ${RudpTestsAllFiles}
                                            ${RudpCoreTestsAllFiles}
 #                                           ${RudpOperationsTestsAllFiles}
@@ -100,7 +100,7 @@ include(standard_flags)
 #==================================================================================================#
 # Tests                                                                                            #
 #==================================================================================================#
-if(MaidsafeTesting)
+if(INCLUDE_TESTS)
   ms_add_default_tests()
   ms_add_gtests(test_rudp)
   ms_add_gtests(rudp_performance_tool)
@@ -114,7 +114,7 @@ endif()
 install(TARGETS maidsafe_rudp COMPONENT Development CONFIGURATIONS Debug Release ARCHIVE DESTINATION lib)
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ COMPONENT Development DESTINATION include)
 
-if(MaidsafeTesting)
+if(INCLUDE_TESTS)
   install(TARGETS test_rudp COMPONENT Tests CONFIGURATIONS Debug RUNTIME DESTINATION bin/debug)
   install(TARGETS test_rudp COMPONENT Tests CONFIGURATIONS Release RUNTIME DESTINATION bin)
   install(TARGETS udp_server udp_client COMPONENT Tools CONFIGURATIONS Debug RUNTIME DESTINATION bin/debug)
