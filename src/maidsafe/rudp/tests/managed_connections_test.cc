@@ -1324,39 +1324,63 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
 }
 
 struct input_watcher {
-  asio::io_service &_service;
+  asio::io_service& _service;
 #ifdef WIN32
   asio::windows::stream_handle _h;
-public:
+
+ public:
   typedef asio::windows::stream_handle::native_handle_type native_handle_type;
-private:
+
+ private:
 #else
   asio::posix::stream_descriptor _h;
-public:
+
+ public:
   typedef asio::posix::stream_descriptor::native_handle_type native_handle_type;
-private:
+
+ private:
 #endif
   asio::deadline_timer _timer;
   std::unique_ptr<asio::io_service::work> _work;
   void _init(bool doTimer) {
-    _h.async_read_some(asio::null_buffers(), std::bind(&input_watcher::data_available, this, std::placeholders::_1));
-    if(doTimer) {
+    _h.async_read_some(asio::null_buffers(),
+                       std::bind(&input_watcher::data_available, this, std::placeholders::_1));
+    if (doTimer) {
       _timer.async_wait(std::bind(&input_watcher::timed_out, this, std::placeholders::_1));
     }
   }
-protected:
-  virtual void data_available(const boost::system::error_code &)=0;
-  virtual void timed_out(const boost::system::error_code &) { cancel(); };
-  input_watcher(asio::io_service &service, native_handle_type h) : _service(service), _h(service, h), _timer(service), _work(maidsafe::make_unique<asio::io_service::work>(service)) { _init(false); }
-  input_watcher(asio::io_service &service, native_handle_type h, boost::posix_time::ptime timeout) : _service(service), _h(service, h), _timer(service, timeout), _work(maidsafe::make_unique<asio::io_service::work>(service)) { _init(true); }
-  input_watcher(asio::io_service &service, native_handle_type h, boost::posix_time::time_duration timeout) : _service(service), _h(service, h), _timer(service, timeout), _work(maidsafe::make_unique<asio::io_service::work>(service)) { _init(true); }
-public:
-  ~input_watcher() {
-    _h.release();
+
+ protected:
+  virtual void data_available(const boost::system::error_code&) = 0;
+  virtual void timed_out(const boost::system::error_code&) { cancel(); };
+  input_watcher(asio::io_service& service, native_handle_type h)
+      : _service(service),
+        _h(service, h),
+        _timer(service),
+        _work(maidsafe::make_unique<asio::io_service::work>(service)) {
+    _init(false);
   }
-  asio::io_service &service() { return _service; }
+  input_watcher(asio::io_service& service, native_handle_type h, boost::posix_time::ptime timeout)
+      : _service(service),
+        _h(service, h),
+        _timer(service, timeout),
+        _work(maidsafe::make_unique<asio::io_service::work>(service)) {
+    _init(true);
+  }
+  input_watcher(asio::io_service& service, native_handle_type h,
+                boost::posix_time::time_duration timeout)
+      : _service(service),
+        _h(service, h),
+        _timer(service, timeout),
+        _work(maidsafe::make_unique<asio::io_service::work>(service)) {
+    _init(true);
+  }
+
+ public:
+  ~input_watcher() { _h.release(); }
+  asio::io_service& service() { return _service; }
   native_handle_type handle() { return _h.native(); }
-  asio::deadline_timer &timer() { return _timer; }
+  asio::deadline_timer& timer() { return _timer; }
   void cancel() {
     _h.cancel();
     _timer.cancel();
@@ -1364,30 +1388,32 @@ public:
   }
 };
 TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
-  const char *endpoints = std::getenv("MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS");
+  const char* endpoints = std::getenv("MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS");
   if (endpoints) {
     bootstrap_endpoints_.clear();
-    for(const char *s = endpoints, *e = endpoints - 1; (s = e + 1, e = strchr(s, ';'));) {
-      const char *colon = strchr(s, ':');
-      if(!colon || colon > e) {
+    for (const char* s = endpoints, *e = endpoints - 1; (s = e + 1, e = strchr(s, ';'));) {
+      const char* colon = strchr(s, ':');
+      if (!colon || colon > e) {
         std::cout << "ERROR: Couldn't parse " << endpoints << " so exiting." << std::endl;
         abort();
       }
       bootstrap_endpoints_.push_back(boost::asio::ip::udp::endpoint(
-        boost::asio::ip::address::from_string(std::string(s, colon-s)),
-        atoi(colon+1)));
-      //std::cerr << "I have bootstrap endpoint " << bootstrap_endpoints_.back().address().to_string() << ":" << bootstrap_endpoints_.back().port() << std::endl;
+          boost::asio::ip::address::from_string(std::string(s, colon - s)), atoi(colon + 1)));
+      // std::cerr << "I have bootstrap endpoint " <<
+      // bootstrap_endpoints_.back().address().to_string() << ":" <<
+      // bootstrap_endpoints_.back().port() << std::endl;
     }
     std::string line;
     do {
-      if(!std::getline(std::cin, line)) {
+      if (!std::getline(std::cin, line)) {
         std::cout << "ERROR: Couldn't read from parent so exiting." << std::endl;
         abort();
       }
-    } while(line.compare(0, 8, "NODE_ID:"));
-    const size_t my_id=atoi(line.substr(9).c_str());
+    } while (line.compare(0, 8, "NODE_ID:"));
+    const size_t my_id = atoi(line.substr(9).c_str());
     Node node(my_id);
-    std::cout << "NODE_ID: " << node.node_id().ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
+    std::cout << "NODE_ID: " << node.node_id().ToStringEncoded(NodeId::EncodingType::kHex)
+              << std::endl;
     NodeId chosen_node_id, peer_node_id;
     ASSERT_EQ(kSuccess, node.Bootstrap(bootstrap_endpoints_, chosen_node_id));
 
@@ -1395,132 +1421,137 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
     std::mutex lock;
     asio::io_service service;
     std::vector<NodeId> peer_node_ids;
-    size_t peer_node_ids_idx=0, messages_sent=0;
-    std::thread sender_thread([&]{
+    size_t peer_node_ids_idx = 0, messages_sent = 0;
+    std::thread sender_thread([&] {
       static std::string bleh(1500, 'n');
-      while(!sender_thread_done) {
+      while (!sender_thread_done) {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
         std::lock_guard<decltype(lock)> g(lock);
-        if(peer_node_ids_idx<peer_node_ids.size()) {
-          node.managed_connections()->Send(peer_node_ids[peer_node_ids_idx],
-                                          bleh, [&](int){
-                                            std::lock_guard<decltype(lock)> g(lock);
-                                            ++messages_sent;
-                                          });
+        if (peer_node_ids_idx < peer_node_ids.size()) {
+          node.managed_connections()->Send(peer_node_ids[peer_node_ids_idx], bleh, [&](int) {  // NOLINT (Niall)
+            std::lock_guard<decltype(lock)> g(lock);
+            ++messages_sent;
+          });
         }
-        if(++peer_node_ids_idx>=peer_node_ids.size())
-          peer_node_ids_idx=0;
+        if (++peer_node_ids_idx >= peer_node_ids.size())
+          peer_node_ids_idx = 0;
       }
     });
-    try
-    {
-      for(;;)
-      {
-        if(!std::getline(std::cin, line)) {
-          std::cout << "ERROR: Couldn't read from parent due to state=" << std::cin.rdstate() << " so exiting." << std::endl;
+    try {
+      for (;;) {
+        if (!std::getline(std::cin, line)) {
+          std::cout << "ERROR: Couldn't read from parent due to state=" << std::cin.rdstate()
+                    << " so exiting." << std::endl;
           abort();
         }
-        if(!line.compare("QUIT"))
+        if (!line.compare("QUIT"))
           break;
-        if(!line.compare(0, 13, "ENDPOINT_FOR:")) {
+        if (!line.compare(0, 13, "ENDPOINT_FOR:")) {
           NodeId peer_node_id(line.substr(14), NodeId::EncodingType::kHex);
-          
+
           EndpointPair empty_endpoint_pair, this_endpoint_pair;
           NatType nat_type;
 
-          //std::cerr << my_id << ": Getting available endpoint for " << peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
-          EXPECT_EQ(kSuccess,
-                    node.managed_connections()->GetAvailableEndpoint(
-                        peer_node_id, empty_endpoint_pair, this_endpoint_pair, nat_type));
+          // std::cerr << my_id << ": Getting available endpoint for " <<
+          // peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
+          EXPECT_EQ(kSuccess, node.managed_connections()->GetAvailableEndpoint(
+                                  peer_node_id, empty_endpoint_pair, this_endpoint_pair, nat_type));
           std::cout << "ENDPOINT: "
-                    << this_endpoint_pair.local.address().to_string()+":"+std::to_string(this_endpoint_pair.local.port())+";"
-                    << this_endpoint_pair.external.address().to_string()+":"+std::to_string(this_endpoint_pair.external.port())+";"
-                    << std::endl;
-          //std::cerr << my_id << ": Endpoint obtained (" << this_endpoint_pair.local.port() << ")" << std::endl;
-        }
-        else if(!line.compare(0, 8, "CONNECT:")) {
-          const char *colon1 = strchr(line.c_str(), ';');
-          if(!colon1) {
+                    << this_endpoint_pair.local.address().to_string() + ":" +
+                           std::to_string(this_endpoint_pair.local.port()) + ";"
+                    << this_endpoint_pair.external.address().to_string() + ":" +
+                           std::to_string(this_endpoint_pair.external.port()) + ";" << std::endl;
+          // std::cerr << my_id << ": Endpoint obtained (" << this_endpoint_pair.local.port() << ")"
+          // << std::endl;
+        } else if (!line.compare(0, 8, "CONNECT:")) {
+          const char* colon1 = strchr(line.c_str(), ';');
+          if (!colon1) {
             std::cout << "ERROR: Couldn't parse " << line << " so exiting." << std::endl;
             abort();
           }
-          const char *colon2 = strchr(colon1 + 1, ':');
-          if(!colon2) {
+          const char* colon2 = strchr(colon1 + 1, ':');
+          if (!colon2) {
             std::cout << "ERROR: Couldn't parse " << line << " so exiting." << std::endl;
             abort();
           }
-          const char *colon3 = strchr(colon2 + 1, ';');
-          if(!colon3) {
+          const char* colon3 = strchr(colon2 + 1, ';');
+          if (!colon3) {
             std::cout << "ERROR: Couldn't parse " << line << " so exiting." << std::endl;
             abort();
           }
-          NodeId peer_node_id(std::string(line.c_str() + 9, colon1 - line.c_str() - 9), NodeId::EncodingType::kHex);        
+          NodeId peer_node_id(std::string(line.c_str() + 9, colon1 - line.c_str() - 9),
+                              NodeId::EncodingType::kHex);
           EndpointPair peer_endpoint_pair;
           peer_endpoint_pair.local = boost::asio::ip::udp::endpoint(
-            boost::asio::ip::address::from_string(std::string(colon1+1, colon2-colon1-1)),
-            atoi(colon2+1));
-          auto fi=node.GetFutureForMessages(1);
-          //std::cerr << my_id << ": Adding connection to node " << peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex)
-          //          << " at endpoint " << peer_endpoint_pair.local.address().to_string()+":" << peer_endpoint_pair.local.port()
+              boost::asio::ip::address::from_string(std::string(colon1 + 1, colon2 - colon1 - 1)),
+              atoi(colon2 + 1));
+          auto fi = node.GetFutureForMessages(1);
+          // std::cerr << my_id << ": Adding connection to node " <<
+          // peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex)
+          //          << " at endpoint " << peer_endpoint_pair.local.address().to_string()+":" <<
+          //          peer_endpoint_pair.local.port()
           //          << std::endl;
-          EXPECT_EQ(kSuccess,
-                    node.managed_connections()->Add(peer_node_id, peer_endpoint_pair,
-                                                          node.validation_data()));
-          //std::cerr << my_id << ": Waiting on future" << std::endl;
+          EXPECT_EQ(kSuccess, node.managed_connections()->Add(peer_node_id, peer_endpoint_pair,
+                                                              node.validation_data()));
+          // std::cerr << my_id << ": Waiting on future" << std::endl;
           fi.get();
-          //std::cerr << my_id << ": Connected" << std::endl;
-          std::cout << "CONNECTED: " << peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
+          // std::cerr << my_id << ": Connected" << std::endl;
+          std::cout << "CONNECTED: " << peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex)
+                    << std::endl;
           std::lock_guard<decltype(lock)> g(lock);
           peer_node_ids.push_back(peer_node_id);
-        }
-        else if(!line.compare(0, 5, "STATS")) {
+        } else if (!line.compare(0, 5, "STATS")) {
           std::lock_guard<decltype(lock)> g(lock);
           std::cout << "STATS: " << messages_sent << std::endl;
         }
       }
-    } catch(const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "ERROR: Saw exception '" << e.what() << "' so exiting." << std::endl;
     }
-    sender_thread_done=true;
+    sender_thread_done = true;
     sender_thread.join();
   }
 }
 TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
   static MAIDSAFE_CONSTEXPR_OR_CONST size_t node_count = 23;
   const auto self_path = ThisExecutablePath();
-  const std::vector<std::string> args{self_path.string(), "--gtest_filter=ManagedConnectionsTest.FUNC_API_500ParallelConnectionsWorker"};
-  
+  const std::vector<std::string> args{
+      self_path.string(),
+      "--gtest_filter=ManagedConnectionsTest.FUNC_API_500ParallelConnectionsWorker"};
+
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
   std::string endpoints("MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
-  for(auto &i : bootstrap_endpoints_)
-    endpoints.append(i.address().to_string()+":"+std::to_string(i.port())+";");
+  for (auto& i : bootstrap_endpoints_)
+    endpoints.append(i.address().to_string() + ":" + std::to_string(i.port()) + ";");
   std::vector<std::string> env{endpoints};
-  auto getline=[](std::istream &is, input_watcher::native_handle_type h, std::string &str) -> std::istream & {
+  auto getline = [](std::istream & is, input_watcher::native_handle_type h, std::string & str)
+      -> std::istream & {
     asio::io_service service;
     str.clear();
-    for(;;) {
+    for (;;) {
       char c;
-      if(is.rdbuf()->in_avail())
+      if (is.rdbuf()->in_avail()) {
         is.get(c);
-      else {
+      } else {
         // Wait no more than ten seconds for something to turn up
         struct watcher : input_watcher {
           bool have_data;
-          watcher(asio::io_service &service, input_watcher::native_handle_type h) : input_watcher(service, h, boost::posix_time::seconds(10)), have_data(false) { }
-          virtual void data_available(const boost::system::error_code &ec) {
-            if(!ec)
-              have_data=true;
+          watcher(asio::io_service& service, input_watcher::native_handle_type h)
+              : input_watcher(service, h, boost::posix_time::seconds(10)), have_data(false) {}
+          virtual void data_available(const boost::system::error_code& ec) {
+            if (!ec)
+              have_data = true;
             cancel();
           }
         } w(service, h);
         service.run();
-        if(!w.have_data) {
+        if (!w.have_data) {
           is.setstate(std::ios::badbit);
           return is;
         }
         is.get(c);
       }
-      if(c==10)
+      if (c == 10)
         break;
       else
         str.push_back(c);
@@ -1531,63 +1562,70 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
   std::vector<boost::process::child> children;
   // Try to make sure that we don't ever leave zombie child processes around
   struct child_deleter {
-    void operator()(boost::iostreams::stream<boost::iostreams::file_descriptor_sink> *c) const {
+    void operator()(boost::iostreams::stream<boost::iostreams::file_descriptor_sink>* c) const {
       *c << "QUIT" << std::endl;
       delete c;
     }
   };
-  std::vector<std::pair<
-    std::unique_ptr<boost::iostreams::stream<boost::iostreams::file_descriptor_source>>,
-    std::unique_ptr<boost::iostreams::stream<boost::iostreams::file_descriptor_sink>, child_deleter>
-    >> childpipes;
+  std::vector<
+      std::pair<std::unique_ptr<boost::iostreams::stream<boost::iostreams::file_descriptor_source>>,
+                std::unique_ptr<boost::iostreams::stream<boost::iostreams::file_descriptor_sink>,
+                                child_deleter>>> childpipes;
   children.reserve(node_count);
   childpipes.reserve(node_count);
-  try
-  {
-    for(size_t n = 0; n < node_count; n++) {
-      auto childin=boost::process::create_pipe(), childout=boost::process::create_pipe();
+  try {
+    for (size_t n = 0; n < node_count; n++) {
+      auto childin = boost::process::create_pipe(), childout = boost::process::create_pipe();
       boost::iostreams::file_descriptor_sink sink(childin.sink, boost::iostreams::close_handle);
-      boost::iostreams::file_descriptor_source source(childout.source, boost::iostreams::close_handle);
-      children.push_back(boost::process::execute(
-        boost::process::initializers::run_exe(self_path),
-        boost::process::initializers::set_args(args),
-        boost::process::initializers::set_env(env),
-        boost::process::initializers::bind_stdin(source),
-        boost::process::initializers::bind_stdout(sink)));
+      boost::iostreams::file_descriptor_source source(childout.source,
+                                                      boost::iostreams::close_handle);
+      children.push_back(boost::process::execute(boost::process::initializers::run_exe(self_path),
+                                                 boost::process::initializers::set_args(args),
+                                                 boost::process::initializers::set_env(env),
+                                                 boost::process::initializers::bind_stdin(source),
+                                                 boost::process::initializers::bind_stdout(sink)));
       childpipes.push_back(std::make_pair(
-        maidsafe::make_unique<boost::iostreams::stream<boost::iostreams::file_descriptor_source>>(childin.source, boost::iostreams::never_close_handle),
-        std::unique_ptr<boost::iostreams::stream<boost::iostreams::file_descriptor_sink>, child_deleter>(
-          new boost::iostreams::stream<boost::iostreams::file_descriptor_sink>(childout.sink, boost::iostreams::never_close_handle))  // libstdc++ hasn't implemented the custom deleter implicit conversions for some weird reason
-      ));
+          maidsafe::make_unique<boost::iostreams::stream<boost::iostreams::file_descriptor_source>>(
+              childin.source, boost::iostreams::never_close_handle),
+          std::unique_ptr<boost::iostreams::stream<boost::iostreams::file_descriptor_sink>,
+                          child_deleter>(
+              new boost::iostreams::stream<boost::iostreams::file_descriptor_sink>(
+                  childout.sink,
+                  boost::iostreams::never_close_handle))  // libstdc++ hasn't implemented the custom
+                                                          // deleter implicit conversions for some
+                                                          // weird reason
+          ));  // NOLINT (Niall)
       *childpipes.back().second << "NODE_ID: " << n << std::endl;
     }
-    // Prepare to connect node_count nodes to one another, making node_count*(node_count-1) total connections
+    // Prepare to connect node_count nodes to one another, making node_count*(node_count-1) total
+    // connections
     std::vector<std::pair<size_t, size_t>> execution_order;
     std::vector<NodeId> child_nodeids;
-    child_nodeids.reserve(node_count);  
-    for(size_t n = 0; n < node_count; n++) {
-      boost::iostreams::stream<boost::iostreams::file_descriptor_source> &is=*childpipes[n].first; 
-      for(;;) {
-        std::string line; 
+    child_nodeids.reserve(node_count);
+    for (size_t n = 0; n < node_count; n++) {
+      boost::iostreams::stream<boost::iostreams::file_descriptor_source>& is = *childpipes[n].first;
+      for (;;) {
+        std::string line;
         // ASIO gets upset if the pipe isn't opened on the other side, so use getline for this round
-        if(!std::getline(is, line)) {
+        if (!std::getline(is, line)) {
           GTEST_FAIL() << "Failed to read from child " << n << ".";
           return;
         }
-        if(!line.compare(0, 6, "ERROR:")) {
+        if (!line.compare(0, 6, "ERROR:")) {
           GTEST_FAIL() << "Failed to launch child " << n << " due to " << line << ".";
           return;
         }
-        if(!line.compare(0, 8, "NODE_ID:")) {
-          //std::cout << "Child " << n << " returns node id " << line.substr(9) << std::endl;
+        if (!line.compare(0, 8, "NODE_ID:")) {
+          // std::cout << "Child " << n << " returns node id " << line.substr(9) << std::endl;
           child_nodeids.push_back(NodeId(line.substr(9), NodeId::EncodingType::kHex));
           break;
-        }
-        else if(line[0]!='[')
+        } else if (line[0] != '[' && !strstr(line.c_str(), "Google Test filter")) {
           std::cout << "Child " << n << " sends me unknown line '" << line << "'" << std::endl;
+        }
       }
-      //  std::cout << "Child " << n << " has node id " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
-      for(size_t i = 0; i < n; i++) {
+      //  std::cout << "Child " << n << " has node id " <<
+      //  child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
+      for (size_t i = 0; i < n; i++) {
         execution_order.push_back(std::make_pair(n, i));
       }
     }
@@ -1596,8 +1634,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
     // child_endpoints[n][i*2+1] is the endpoint of childprocess i to childprocess n
     std::vector<std::vector<EndpointPair>> child_endpoints;
     child_endpoints.resize(node_count);
-    for(auto &i : child_endpoints)
-      i.resize((node_count-1)*2);
+    for (auto& i : child_endpoints)
+      i.resize((node_count - 1) * 2);
     // We need execution order to maximise distance between each x,x and y,y in each (x,y) pair
     // such that concurrency is maximised. That is the CPU instruction scheduling problem which
     // requires the solution of an unbalanced graph via iterating rebalancing according to longest
@@ -1606,180 +1644,192 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
     // produce perfect ordering, but it's close enough and doesn't require more code than the whole
     // of this test case.
     {
-      std::deque<std::pair<size_t, size_t>> list(std::make_move_iterator(execution_order.begin()), std::make_move_iterator(execution_order.end())), prevline, line;
+      std::deque<std::pair<size_t, size_t>> list(std::make_move_iterator(execution_order.begin()),
+                                                 std::make_move_iterator(execution_order.end())),
+          prevline, line;
       execution_order.clear();
       std::reverse(list.begin(), list.end());
       do {
-        prevline=std::move(line);
+        prevline = std::move(line);
         // Choose a starting value as far away as possible from any collision in the previous line
-        if(prevline.empty()) {
+        if (prevline.empty()) {
           line.push_back(std::move(list.back()));
           list.pop_back();
-        } else do {
-          prevline.pop_front();
-          for(auto it=list.begin(); it!=list.end(); ++it) {
-            bool bad=false;
-            for(auto &b : prevline) {
-              if(it->first==b.first || it->second==b.first || it->first==b.second || it->second==b.second) {
-                bad=true;
+        } else {
+          do {
+            prevline.pop_front();
+            for (auto it = list.begin(); it != list.end(); ++it) {
+              bool bad = false;
+              for (auto& b : prevline) {
+                if (it->first == b.first || it->second == b.first || it->first == b.second ||
+                    it->second == b.second) {
+                  bad = true;
+                  break;
+                }
+              }
+              if (!bad) {
+                line.push_back(std::move(*it));
+                list.erase(it);
                 break;
               }
             }
-            if(!bad) {
-              line.push_back(std::move(*it));
-              list.erase(it);
-              break;
-            }
-          }
-        } while(line.empty());
+          } while (line.empty());
+        }
         // Append all values not colliding into this line
-        for(auto it=list.begin(); it!=list.end();) {
-          bool bad=false;
-          for(auto &b : line) {
-            if(it->first==b.first || it->second==b.first || it->first==b.second || it->second==b.second) {
-              bad=true;
+        for (auto it = list.begin(); it != list.end();) {
+          bool bad = false;
+          for (auto& b : line) {
+            if (it->first == b.first || it->second == b.first || it->first == b.second ||
+                it->second == b.second) {
+              bad = true;
               break;
             }
           }
-          if(!bad) {
+          if (!bad) {
             line.push_back(std::move(*it));
-            it=list.erase(it);
+            it = list.erase(it);
+          } else {
+            ++it;
           }
-          else ++it;
         }
         // Copy line into output
         execution_order.insert(execution_order.end(), line.begin(), line.end());
-      } while(!list.empty());
+      } while (!list.empty());
     }
-    std::cout << "Execution order will be: ";
-    for(auto &o : execution_order)
-      std::cout << "[" << o.first << ", " << o.second << "], ";
-    std::cout << std::endl;
-    size_t connection_count=0;
-    for(auto &o : execution_order) {
+    // std::cout << "Execution order will be: ";
+    // for (auto& o : execution_order)
+    //   std::cout << "[" << o.first << ", " << o.second << "], ";
+    // std::cout << std::endl;
+    size_t connection_count = 0;
+    for (auto& o : execution_order) {
       EndpointPair endpoint;
       size_t n, i;
       std::tie(n, i) = o;
-      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> &os1=*childpipes[n].second; 
-      boost::iostreams::stream<boost::iostreams::file_descriptor_sink> &os2=*childpipes[i].second; 
-      os1 << "ENDPOINT_FOR: " << child_nodeids[i].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
-      os2 << "ENDPOINT_FOR: " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
-      //std::cout << "Asking child " << n << " for endpoint to child " << i << std::endl;
-      //std::cout << "Asking child " << i << " for endpoint to child " << n << std::endl;
-      auto drain_endpoint=[&](size_t a) {
-        boost::iostreams::stream<boost::iostreams::file_descriptor_source> &is=*childpipes[a].first; 
-        //std::cout << "drain_endpoint(" << a << ")" << std::endl;
-        for(;;) {
-          std::string line; 
-          if(!getline(is, is->handle(), line)) {
+      boost::iostreams::stream<boost::iostreams::file_descriptor_sink>& os1 = *childpipes[n].second;
+      boost::iostreams::stream<boost::iostreams::file_descriptor_sink>& os2 = *childpipes[i].second;
+      os1 << "ENDPOINT_FOR: " << child_nodeids[i].ToStringEncoded(NodeId::EncodingType::kHex)
+          << std::endl;
+      os2 << "ENDPOINT_FOR: " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex)
+          << std::endl;
+      // std::cout << "Asking child " << n << " for endpoint to child " << i << std::endl;
+      // std::cout << "Asking child " << i << " for endpoint to child " << n << std::endl;
+      auto drain_endpoint = [&](size_t a) {
+        boost::iostreams::stream<boost::iostreams::file_descriptor_source>& is =
+            *childpipes[a].first;
+        // std::cout << "drain_endpoint(" << a << ")" << std::endl;
+        for (;;) {
+          std::string line;
+          if (!getline(is, is->handle(), line)) {
             return false;
           }
-          if(!line.compare(0, 9, "ENDPOINT:")) {
-            bool first=true;
-            for(const char *s, *e = line.c_str()+9; (s = e + 1, e = strchr(s, ';'));first=false) {
-              const char *colon = strchr(s, ':');
-              if(!colon || colon > e) {
+          if (!line.compare(0, 9, "ENDPOINT:")) {
+            bool first = true;
+            for (const char* s, *e = line.c_str() + 9; (s = e + 1, e = strchr(s, ';'));
+                 first = false) {
+              const char* colon = strchr(s, ':');
+              if (!colon || colon > e) {
                 std::cout << "ERROR: Couldn't parse " << line << " so exiting." << std::endl;
                 abort();
               }
-              (first ? endpoint.local : endpoint.external).address(boost::asio::ip::address::from_string(std::string(s, colon-s)));
-              (first ? endpoint.local : endpoint.external).port(atoi(colon+1));
+              (first ? endpoint.local : endpoint.external)
+                  .address(boost::asio::ip::address::from_string(std::string(s, colon - s)));
+              (first ? endpoint.local : endpoint.external).port(atoi(colon + 1));
             }
-            //std::cout << "Child " << a << " returns endpoints " << line.substr(10) << std::endl;
+            // std::cout << "Child " << a << " returns endpoints " << line.substr(10) << std::endl;
             return true;
-          }
-          else if(line[0]!='[')
+          } else if (line[0] != '[') {
             std::cout << "Child " << a << " sends me unknown line '" << line << "'\n";
+          }
         }
         return true;
       };
-      if(!drain_endpoint(n)) {
+      if (!drain_endpoint(n)) {
         GTEST_FAIL() << "Failed to read from child " << n << ".";
         return;
       }
-      child_endpoints[n][i*2]=endpoint;
-      if(!drain_endpoint(i)) {
+      child_endpoints[n][i * 2] = endpoint;
+      if (!drain_endpoint(i)) {
         GTEST_FAIL() << "Failed to read from child " << i << ".";
         return;
       }
-      child_endpoints[n][i*2+1]=endpoint;
+      child_endpoints[n][i * 2 + 1] = endpoint;
 
       os1 << "CONNECT: " << child_nodeids[i].ToStringEncoded(NodeId::EncodingType::kHex) << ";"
-                          << child_endpoints[n][i*2+1].local.address().to_string()+":"
-                          << child_endpoints[n][i*2+1].local.port() << ";" << std::endl;
+          << child_endpoints[n][i * 2 + 1].local.address().to_string() + ":"
+          << child_endpoints[n][i * 2 + 1].local.port() << ";" << std::endl;
       os2 << "CONNECT: " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << ";"
-                          << child_endpoints[n][i*2].local.address().to_string()+":"
-                          << child_endpoints[n][i*2].local.port() << ";" << std::endl;
-      auto drain_connect=[&](size_t a) {
-        boost::iostreams::stream<boost::iostreams::file_descriptor_source> &is=*childpipes[a].first; 
-        //std::cout << "drain_connect(" << a << ")" << std::endl;
-        for(;;) {
-          std::string line; 
-          if(!getline(is, is->handle(), line)) {
+          << child_endpoints[n][i * 2].local.address().to_string() + ":"
+          << child_endpoints[n][i * 2].local.port() << ";" << std::endl;
+      auto drain_connect = [&](size_t a) {
+        boost::iostreams::stream<boost::iostreams::file_descriptor_source>& is =
+            *childpipes[a].first;
+        // std::cout << "drain_connect(" << a << ")" << std::endl;
+        for (;;) {
+          std::string line;
+          if (!getline(is, is->handle(), line)) {
             return false;
           }
-          if(!line.compare(0, 10, "CONNECTED:")) {
-            std::cout << "Child " << a << " is connected to " << line.substr(11) << std::endl;
+          if (!line.compare(0, 10, "CONNECTED:")) {
+            // std::cout << "Child " << a << " is connected to " << line.substr(11) << std::endl;
             ++connection_count;
             return true;
-          }
-          else if(line[0]!='[')
+          } else if (line[0] != '[') {
             std::cout << "Child " << a << " sends me unknown line '" << line << "'" << std::endl;
+          }
         }
         return true;
       };
-      if(!drain_connect(n)) {
+      if (!drain_connect(n)) {
         GTEST_FAIL() << "Failed to read from child " << n << ".";
         return;
       }
-      if(!drain_connect(i)) {
+      if (!drain_connect(i)) {
         GTEST_FAIL() << "Failed to read from child " << i << ".";
         return;
       }
     }
-    
-    std::cout << node_count << " nodes connected with " << connection_count << " connections." << std::endl;
-    
-    size_t messages_sent=0;
+
+    std::cout << node_count << " nodes connected with " << connection_count << " connections."
+              << std::endl;
+
+    size_t messages_sent = 0;
     do {
       std::this_thread::sleep_for(std::chrono::seconds(5));
-      for(auto &childpipe : childpipes) {
-        boost::iostreams::stream<boost::iostreams::file_descriptor_sink> &os=*childpipe.second; 
+      for (auto& childpipe : childpipes) {
+        boost::iostreams::stream<boost::iostreams::file_descriptor_sink>& os = *childpipe.second;
         os << "STATS" << std::endl;
       }
-      messages_sent=0;
-      size_t n=0;
-      for(auto &childpipe : childpipes) {
-        boost::iostreams::stream<boost::iostreams::file_descriptor_source> &is=*childpipe.first; 
-        for(;;) {
-          std::string line; 
-          if(!getline(is, is->handle(), line)) {
+      messages_sent = 0;
+      size_t n = 0;
+      for (auto& childpipe : childpipes) {
+        boost::iostreams::stream<boost::iostreams::file_descriptor_source>& is = *childpipe.first;
+        for (;;) {
+          std::string line;
+          if (!getline(is, is->handle(), line)) {
             GTEST_FAIL() << "Failed to read from child " << n << ".";
             return;
           }
-          if(!line.compare(0, 6, "STATS:")) {
-            messages_sent+=atoi(line.substr(7).c_str());
+          if (!line.compare(0, 6, "STATS:")) {
+            messages_sent += atoi(line.substr(7).c_str());
             break;
-          }
-          else if(line[0]!='[')
+          } else if (line[0] != '[') {
             std::cout << "Child " << n << " sends me unknown line '" << line << "'" << std::endl;
+          }
         }
         ++n;
       }
       std::cout << "Children have now sent " << messages_sent << " messages." << std::endl;
-    } while(messages_sent<100000);
-  }
-  catch(const std::exception &e) {
+    } while (messages_sent < 100000);
+  } catch (const std::exception& e) {
     GTEST_FAIL() << "Exception thrown '" << e.what() << "'.";
   }
-  
+
   // Shutdown children
   childpipes.clear();
-  for(size_t n = 0; n < node_count; n++) {
-    std::cout << "Waiting for child " << n << " to exit" << std::endl;
+  for (size_t n = 0; n < node_count; n++) {
+    // std::cout << "Waiting for child " << n << " to exit" << std::endl;
     boost::process::wait_for_exit(children[n]);
   }
-  
 }
 
 }  // namespace test
