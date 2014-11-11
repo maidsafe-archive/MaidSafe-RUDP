@@ -705,7 +705,12 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   std::atomic<int> result_of_send(kSuccess);
   std::promise<void> done_out;
   auto done_in = done_out.get_future();
+
+  using lock_guard = std::lock_guard<std::mutex>;
+  std::mutex mutex;
+
   MessageSentFunctor message_sent_functor([&](int result_in) {
+    lock_guard guard(mutex);
     if (result_in != kSuccess)
       result_of_send = result_in;
     if (kRepeatCount == ++result_arrived_count)
@@ -717,6 +722,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
     node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, message_sent_functor);
 
   ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(60)));
+  { lock_guard guard(mutex); }
+
   EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost::chrono::minutes(2)));
   peer_messages = peer_futures.get();
@@ -1035,8 +1042,13 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   std::atomic<int> result_arrived_count(0);
   std::atomic<int> result_of_send(kSuccess);
   std::promise<void> done_out;
+
+  using lock_guard = std::lock_guard<std::mutex>;
+  std::mutex mutex;
+
   auto done_in = done_out.get_future();
   MessageSentFunctor message_sent_functor([&](int result_in) {
+    lock_guard guard(mutex);
     if (result_in != kSuccess)
       result_of_send = result_in;
     if (kMessageCount == ++result_arrived_count)
@@ -1048,6 +1060,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
     node_.managed_connections()->Send(nodes_[1]->node_id(), sent_messages[i], message_sent_functor);
   }
   ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(60)));
+  { lock_guard guard(mutex); }
+
   EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_EQ(boost::future_status::ready,
             future_messages_at_peer.wait_for(boost::chrono::seconds(10 * kMessageCount)));
