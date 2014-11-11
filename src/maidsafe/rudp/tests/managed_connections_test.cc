@@ -27,7 +27,11 @@
 
 #include "boost/process.hpp"
 #include "boost/iostreams/stream.hpp"
-#include "boost/asio/posix/stream_descriptor.hpp"
+#ifdef WIN32
+# include "boost/asio/windows/stream_handle.hpp"
+#else
+# include "boost/asio/posix/stream_descriptor.hpp"
+#endif
 
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/test.h"
@@ -1513,7 +1517,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
   }
 }
 TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
-  static MAIDSAFE_CONSTEXPR_OR_CONST size_t node_count = 23;
+  size_t node_count = 23;
+  const char *node_count_env = std::getenv("MAIDSAFE_RUDP_500PARALLEL_CONNECTIONS_NODE_COUNT");
+  if (node_count_env)
+    node_count = std::strtod(node_count_env, nullptr);
   const auto self_path = ThisExecutablePath();
   const std::vector<std::string> args{
       self_path.string(),
