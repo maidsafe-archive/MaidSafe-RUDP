@@ -18,6 +18,7 @@
 
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/log.h"
+#include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/packets/data_packet.h"
@@ -486,7 +487,7 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_EQ(0U, handshake_packet_.Encode(buffers));
   }
   {
-    NodeId node_id(NodeId::IdType::kRandomId);
+    NodeId node_id(RandomString(NodeId::kSize));
     // Encode and Decode a Handshake Packet
     handshake_packet_.SetRudpVersion(0x11111111);
     handshake_packet_.SetSocketType(0x22222222);
