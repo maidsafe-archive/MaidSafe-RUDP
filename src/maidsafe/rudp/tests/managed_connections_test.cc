@@ -25,6 +25,10 @@
 #include <limits>
 #include <vector>
 
+#ifdef MAIDSAFE_BSD
+extern "C" char **environ;
+#endif
+
 #include "boost/process.hpp"
 #include "boost/iostreams/stream.hpp"
 #ifdef WIN32
@@ -1381,7 +1385,11 @@ struct input_watcher {
   }
 
  public:
-  ~input_watcher() { _h.release(); }
+  ~input_watcher() {
+#ifndef WIN32
+    _h.release();
+#endif
+  }
   asio::io_service& service() { return _service; }
   native_handle_type handle() { return _h.native(); }
   asio::deadline_timer& timer() { return _timer; }
@@ -1402,7 +1410,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
         abort();
       }
       bootstrap_endpoints_.push_back(boost::asio::ip::udp::endpoint(
-          boost::asio::ip::address::from_string(std::string(s, colon - s)), atoi(colon + 1)));
+          boost::asio::ip::address::from_string(std::string(s, colon - s)),
+          (uint16_t) atoi(colon + 1)));
       // std::cerr << "I have bootstrap endpoint " <<
       // bootstrap_endpoints_.back().address().to_string() << ":" <<
       // bootstrap_endpoints_.back().port() << std::endl;
@@ -1488,7 +1497,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
           EndpointPair peer_endpoint_pair;
           peer_endpoint_pair.local = boost::asio::ip::udp::endpoint(
               boost::asio::ip::address::from_string(std::string(colon1 + 1, colon2 - colon1 - 1)),
-              atoi(colon2 + 1));
+              (uint16_t) atoi(colon2 + 1));
           auto fi = node.GetFutureForMessages(1);
           // std::cerr << my_id << ": Adding connection to node " <<
           // peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex)
@@ -1517,10 +1526,14 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
   }
 }
 TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
-  size_t node_count = 23;
+  size_t node_count = 23, messages_sent_count = 100000;
   const char *node_count_env = std::getenv("MAIDSAFE_RUDP_500PARALLEL_CONNECTIONS_NODE_COUNT");
   if (node_count_env)
-    node_count = std::strtod(node_count_env, nullptr);
+    node_count = atoi(node_count_env);
+  const char *messages_sent_count_env =
+    std::getenv("MAIDSAFE_RUDP_500PARALLEL_CONNECTIONS_MESSAGE_COUNT");
+  if (messages_sent_count_env)
+    messages_sent_count = atoi(messages_sent_count_env);
   const auto self_path = ThisExecutablePath();
   const std::vector<std::string> args{
       self_path.string(),
@@ -1826,7 +1839,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
         ++n;
       }
       std::cout << "Children have now sent " << messages_sent << " messages." << std::endl;
-    } while (messages_sent < 100000);
+    } while (messages_sent < messages_sent_count);
   } catch (const std::exception& e) {
     GTEST_FAIL() << "Exception thrown '" << e.what() << "'.";
   }
