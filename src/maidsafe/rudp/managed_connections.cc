@@ -52,25 +52,13 @@ namespace {
 typedef std::vector<std::pair<NodeId, Endpoint>> NodeIdEndpointPairs;
 
 int CheckBootstrappingParameters(const std::vector<Endpoint>& bootstrap_endpoints,
-                                 MessageReceivedFunctor message_received_functor,
-                                 ConnectionLostFunctor connection_lost_functor, NodeId this_node_id,
-                                 std::shared_ptr<asymm::PrivateKey> private_key,
-                                 std::shared_ptr<asymm::PublicKey> public_key) {
-  if (!message_received_functor) {
-    LOG(kError) << "You must provide a valid MessageReceivedFunctor.";
-    return kInvalidParameter;
-  }
-  if (!connection_lost_functor) {
-    LOG(kError) << "You must provide a valid ConnectionLostFunctor.";
+                                 ManagedConnections::Listener* listener, NodeId this_node_id) {
+  if (!listener) {
+    LOG(kError) << "You must provide a non-null Listener.";
     return kInvalidParameter;
   }
   if (this_node_id == NodeId()) {
     LOG(kError) << "You must provide a valid NodeId.";
-    return kInvalidParameter;
-  }
-  if (!private_key || !asymm::ValidateKey(*private_key) || !public_key ||
-      !asymm::ValidateKey(*public_key)) {
-    LOG(kError) << "You must provide a valid private and public key.";
     return kInvalidParameter;
   }
   if (bootstrap_endpoints.empty()) {
@@ -93,13 +81,10 @@ ManagedConnections::PendingConnection::PendingConnection(NodeId node_id_in, Tran
 
 ManagedConnections::ManagedConnections()
     : asio_service_(Parameters::thread_count),
-      callback_mutex_(),
-      message_received_functor_(),
-      connection_lost_functor_(),
+      listener_(),
       this_node_id_(),
       chosen_bootstrap_node_id_(),
-      private_key_(),
-      public_key_(),
+      keys_(),
       connections_(),
       pendings_(),
       idle_transports_(),
@@ -124,24 +109,17 @@ ManagedConnections::~ManagedConnections() {
 }
 
 int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints,
-                                  MessageReceivedFunctor message_received_functor,
-                                  ConnectionLostFunctor connection_lost_functor,
-                                  NodeId this_node_id,
-                                  std::shared_ptr<asymm::PrivateKey> private_key,
-                                  std::shared_ptr<asymm::PublicKey> public_key,
+                                  Listener* listener, NodeId this_node_id, asymm::Keys keys,
                                   NodeId& chosen_bootstrap_peer, NatType& nat_type,
                                   Endpoint local_endpoint) {
   ClearConnectionsAndIdleTransports();
-  int result(CheckBootstrappingParameters(bootstrap_endpoints, message_received_functor,
-                                          connection_lost_functor, this_node_id, private_key,
-                                          public_key));
+  int result(CheckBootstrappingParameters(bootstrap_endpoints, listener, this_node_id));
   if (result != kSuccess) {
     return result;
   }
 
   this_node_id_ = this_node_id;
-  private_key_ = private_key;
-  public_key_ = public_key;
+  keys_ = keys;
 
   result = TryToDetermineLocalEndpoint(local_endpoint);
   if (result != kSuccess) {
@@ -154,13 +132,7 @@ int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoin
     return result;
   }
 
-  // Add callbacks now.
-  {
-    std::lock_guard<std::mutex> guard(callback_mutex_);
-    message_received_functor_ = message_received_functor;
-    connection_lost_functor_ = connection_lost_functor;
-  }
-
+  listener_ = listener;
   return kSuccess;
 }
 
@@ -262,7 +234,7 @@ ReturnCode ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_p
   };
 
   transport->Bootstrap(
-      bootstrap_peers, this_node_id_, public_key_, local_endpoint,
+      bootstrap_peers, this_node_id_, keys_.public_key, local_endpoint,
       bootstrap_off_existing_connection,
       std::bind(&ManagedConnections::OnMessageSlot, this, args::_1),
       [this](const NodeId & peer_id, TransportPtr transport, bool temporary_connection,
@@ -679,32 +651,17 @@ void ManagedConnections::Send(NodeId peer_id, std::string message,
 }
 
 void ManagedConnections::OnMessageSlot(const std::string& message) {
-  LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();
-
   try {
     std::string decrypted_message(
 #ifdef TESTING
         !Parameters::rudp_encrypt ? message :
 #endif
-            asymm::Decrypt(asymm::CipherText(message), *private_key_).string());
-    MessageReceivedFunctor local_callback;
-    {
-      std::lock_guard<std::mutex> guard(callback_mutex_);
-      local_callback = message_received_functor_;
-    }
-
-    if (local_callback) {
-      asio_service_.service().post([=] { local_callback(decrypted_message); });
-    }
+            asymm::Decrypt(asymm::CipherText(message), keys_.private_key).string());
+    listener_->MessageReceived(std::vector<unsigned char>(std::begin(message), std::end(message)));
   }
   catch (const std::exception& e) {
     LOG(kError) << "Failed to decrypt message: " << e.what();
   }
-}
-
-void ManagedConnections::SetConnectionAddedFunctor(const ConnectionAddedFunctor& handler) {
-  assert(!connection_added_functor_);
-  connection_added_functor_ = handler;
 }
 
 void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,
@@ -732,10 +689,7 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id, TransportP
                   << transport->ThisDebugId();
     }
 
-    if (connection_added_functor_) {
-      auto f = std::move(connection_added_functor_);
-      asio_service_.service().post([f, peer_id]() { f(peer_id); });
-    }
+    listener_->ConnectionAdded(peer_id);
   }
 
 #ifndef NDEBUG
@@ -791,15 +745,7 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPt
       chosen_bootstrap_node_id_ = NodeId();
     }
 
-    ConnectionLostFunctor local_callback;
-    {
-      std::lock_guard<std::mutex> guard(callback_mutex_);
-      local_callback = connection_lost_functor_;
-    }
-
-    if (local_callback) {
-      asio_service_.service().post([=] { local_callback(peer_id); });
-    }
+    listener_->ConnectionLost(peer_id);
   }
 }
 

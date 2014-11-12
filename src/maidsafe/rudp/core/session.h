@@ -63,7 +63,7 @@ class Session {
 
   // Open the session, returning the SYN cookie used.
   uint32_t Open(uint32_t id, NodeId this_node_id,
-                std::shared_ptr<asymm::PublicKey> this_public_key,
+                const asymm::PublicKey& this_public_key,
                 uint32_t sequence_number, Mode mode, uint32_t cookie_syn,
                 const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
 
@@ -136,7 +136,7 @@ class Session {
   NodeId this_node_id_;
 
   // This node's public key
-  std::shared_ptr<asymm::PublicKey> this_public_key_;
+  asymm::PublicKey this_public_key_;
 
   // The local socket id.
   uint32_t id_;

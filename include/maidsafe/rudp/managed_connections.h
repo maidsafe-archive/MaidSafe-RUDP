@@ -86,6 +86,14 @@ class ManagedConnections {
  public:
   using Endpoint = boost::asio::ip::udp::endpoint;
 
+  class Listener {
+   public:
+    virtual ~Listener() {}
+    virtual void MessageReceived(std::vector<unsigned char>&& message) = 0;
+    virtual void ConnectionLost(const NodeId& peer_id) = 0;
+    virtual void ConnectionAdded(const NodeId& peer_id) { static_cast<void>(peer_id); }
+  };
+
  public:
   ManagedConnections();
   ~ManagedConnections();
@@ -104,10 +112,8 @@ class ManagedConnections {
   // there are any existing transports they are destroyed and all connections closed.  For
   // zero-state network, pass the required local_endpoint.
   int Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints,
-                MessageReceivedFunctor message_received_functor,
-                ConnectionLostFunctor connection_lost_functor, NodeId this_node_id,
-                std::shared_ptr<asymm::PrivateKey> private_key,
-                std::shared_ptr<asymm::PublicKey> public_key, NodeId& chosen_bootstrap_peer,
+                Listener* listener, NodeId this_node_id,
+                asymm::Keys keys, NodeId& chosen_bootstrap_peer,
                 NatType& nat_type,
                 Endpoint local_endpoint = Endpoint());
 
@@ -148,8 +154,6 @@ class ManagedConnections {
   // kWontPingAlreadyConnected.  Otherwise, kPingFailed or kSuccess is passed to ping_functor.
   //  void Ping(Endpoint peer_endpoint, PingFunctor ping_functor);
   unsigned GetActiveConnectionCount() const;
-
-  void SetConnectionAddedFunctor(const ConnectionAddedFunctor&);
 
  private:
   typedef std::shared_ptr<detail::Transport> TransportPtr;
@@ -216,13 +220,9 @@ class ManagedConnections {
   std::string DebugString() const;
 
   AsioService asio_service_;
-  std::mutex callback_mutex_;
-  MessageReceivedFunctor message_received_functor_;
-  ConnectionLostFunctor connection_lost_functor_;
-  ConnectionAddedFunctor connection_added_functor_;
+  Listener* listener_;
   NodeId this_node_id_, chosen_bootstrap_node_id_;
-  std::shared_ptr<asymm::PrivateKey> private_key_;
-  std::shared_ptr<asymm::PublicKey> public_key_;
+  asymm::Keys keys_;
   ConnectionMap connections_;
   std::vector<std::unique_ptr<PendingConnection>> pendings_;
   std::set<TransportPtr> idle_transports_;

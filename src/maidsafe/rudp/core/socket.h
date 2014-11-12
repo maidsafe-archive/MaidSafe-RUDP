@@ -129,7 +129,7 @@ class Socket {
   // expires.
   template <typename ConnectHandler>
   uint32_t AsyncConnect(const NodeId& this_node_id,
-                        std::shared_ptr<asymm::PublicKey> this_public_key,
+                        const asymm::PublicKey& this_public_key,
                         const Endpoint& remote,
                         const NodeId& peer_node_id,
                         ConnectHandler handler,
@@ -192,7 +192,7 @@ class Socket {
   Endpoint ThisEndpoint() const;
 
   // Public key of remote peer, used to encrypt all outgoing messages on this socket
-  std::shared_ptr<asymm::PublicKey> PeerPublicKey() const;
+  const asymm::PublicKey& PeerPublicKey() const;
 
   friend class Dispatcher;
 
@@ -202,7 +202,7 @@ class Socket {
   Socket& operator=(const Socket&);
 
   uint32_t StartConnect(const NodeId& this_node_id,
-                        std::shared_ptr<asymm::PublicKey> this_public_key,
+                        const asymm::PublicKey& this_public_key,
                         const Endpoint& remote,
                         const NodeId& peer_node_id,
                         Session::Mode open_mode,

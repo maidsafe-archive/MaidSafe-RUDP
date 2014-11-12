@@ -67,11 +67,10 @@ Session::Session(Peer& peer, TickTimer& tick_timer,
       signal_connection_() {}
 
 uint32_t Session::Open(uint32_t id, NodeId this_node_id,
-                   std::shared_ptr<asymm::PublicKey> this_public_key, uint32_t sequence_number,
+                   const asymm::PublicKey& this_public_key, uint32_t sequence_number,
                    Mode mode, uint32_t cookie_syn,
                    const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
   assert(id != 0);
-  assert(this_public_key);
   if (state_ != kClosed) {
     LOG(kError) << "FATAL EXIT: Session was opened when not closed. Something is wrong, so "
     "terminating process in case someone is trying to hijack the connection.";
@@ -175,7 +174,7 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
   if (!CalculateEndpoint())
     return;
 
-  if (!packet.PublicKey()) {
+  if (!asymm::ValidateKey(packet.PublicKey())) {
     LOG(kError) << DebugId(this_node_id_) << " Handshake packet is missing peer's public key";
     state_ = kClosed;
     return;

@@ -59,7 +59,7 @@ Transport::~Transport() { Close(); }
 
 void Transport::Bootstrap(const IdEndpointPairs&            bootstrap_peers,
                           const NodeId&                     this_node_id,
-                          std::shared_ptr<asymm::PublicKey> this_public_key,
+                          const asymm::PublicKey&           this_public_key,
                           Endpoint                          local_endpoint,
                           bool                              bootstrap_off_existing_connection,
                           OnMessage                         on_message_slot,
@@ -90,7 +90,7 @@ void Transport::Bootstrap(const IdEndpointPairs&            bootstrap_peers,
   on_nat_detection_requested_slot_ = on_nat_detection_requested_slot;
 
   connection_manager_.reset(new ConnectionManager(shared_from_this(), strand_, multiplexer_,
-                                                  this_node_id, this_public_key));
+                                                  this_node_id, std::move(this_public_key)));
 
   StartDispatch();
 
@@ -346,7 +346,7 @@ void Transport::HandleDispatch(const boost::system::error_code& /*ec*/) {
 
 NodeId Transport::node_id() const { return connection_manager_->node_id(); }
 
-std::shared_ptr<asymm::PublicKey> Transport::public_key() const {
+const asymm::PublicKey& Transport::public_key() const {
   return connection_manager_->public_key();
 }
 

@@ -60,7 +60,7 @@ class ConnectionManager {
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
                     std::shared_ptr<Multiplexer> multiplexer, NodeId this_node_id,
-                    std::shared_ptr<asymm::PublicKey> this_public_key);
+                    asymm::PublicKey this_public_key);
   ~ConnectionManager();
 
   void Close();
@@ -106,7 +106,7 @@ class ConnectionManager {
   size_t NormalConnectionsCount() const;
 
   NodeId node_id() const;
-  std::shared_ptr<asymm::PublicKey> public_key() const;
+  const asymm::PublicKey& public_key() const;
 
   std::string DebugString();
 
@@ -139,7 +139,7 @@ class ConnectionManager {
   boost::asio::io_service::strand strand_;
   std::shared_ptr<Multiplexer> multiplexer_;
   const NodeId kThisNodeId_;
-  std::shared_ptr<asymm::PublicKey> this_public_key_;
+  asymm::PublicKey this_public_key_;
   SocketMap sockets_;
 };
 

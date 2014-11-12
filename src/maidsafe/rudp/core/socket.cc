@@ -148,7 +148,7 @@ void Socket::Close() {
 
 uint32_t Socket::StartConnect(
     const NodeId& this_node_id,
-    std::shared_ptr<asymm::PublicKey> this_public_key,
+    const asymm::PublicKey& this_public_key,
     const ip::udp::endpoint& remote,
     const NodeId& peer_node_id,
     Session::Mode open_mode,
@@ -405,7 +405,7 @@ void Socket::MakeNormal() { session_.MakeNormal(); }
 
 ip::udp::endpoint Socket::ThisEndpoint() const { return peer_.ThisEndpoint(); }
 
-std::shared_ptr<asymm::PublicKey> Socket::PeerPublicKey() const { return peer_.public_key(); }
+const asymm::PublicKey& Socket::PeerPublicKey() const { return peer_.public_key(); }
 
 }  // namespace detail
 

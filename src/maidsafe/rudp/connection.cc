@@ -222,7 +222,7 @@ void Connection::StartSending(const std::string& data,
 #ifdef TESTING
                       !Parameters::rudp_encrypt ? data :
 #endif
-                          asymm::Encrypt(asymm::PlainText(data), *socket_.PeerPublicKey()).string(),
+                          asymm::Encrypt(asymm::PlainText(data), socket_.PeerPublicKey()).string(),
                       message_sent_functor)));
   }
   catch (const std::exception& e) {

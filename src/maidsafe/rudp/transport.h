@@ -79,7 +79,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   void Bootstrap(const IdEndpointPairs&            bootstrap_peers,
                  const NodeId&                     this_node_id,
-                 std::shared_ptr<asymm::PublicKey> this_public_key,
+                 const asymm::PublicKey&           this_public_key,
                  Endpoint                          local_endpoint,
                  bool                              bootstrap_off_existing_connection,
                  OnMessage                         on_message_slot,
@@ -155,7 +155,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void HandleDispatch(const boost::system::error_code& ec);
 
   NodeId node_id() const;
-  std::shared_ptr<asymm::PublicKey> public_key() const;
+  const asymm::PublicKey& public_key() const;
 
   void SignalMessageReceived(const std::string& message);
   void DoSignalMessageReceived(const std::string& message);

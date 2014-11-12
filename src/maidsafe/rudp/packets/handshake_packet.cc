@@ -123,9 +123,9 @@ void HandshakePacket::SetPeerEndpoint(const asio::ip::udp::endpoint& endpoint) {
   peer_endpoint_ = endpoint;
 }
 
-std::shared_ptr<asymm::PublicKey> HandshakePacket::PublicKey() const { return public_key_; }
+asymm::PublicKey HandshakePacket::PublicKey() const { return public_key_; }
 
-void HandshakePacket::SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key) {
+void HandshakePacket::SetPublicKey(const asymm::PublicKey& public_key) {
   public_key_ = public_key;
 }
 
@@ -182,8 +182,8 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   if (asio::buffer_size(buffer) != kMinPacketSize) {
     asymm::EncodedPublicKey encoded_public_key(std::string(p + 121, p + length));
     try {
-      public_key_ = std::make_shared<asymm::PublicKey>(asymm::DecodeKey(encoded_public_key));
-      if (!asymm::ValidateKey(*public_key_)) {
+      public_key_ = asymm::DecodeKey(encoded_public_key);
+      if (!asymm::ValidateKey(public_key_)) {
         LOG(kError) << "Failed to validate peer's public key.";
         return false;
       }
@@ -199,9 +199,8 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
 
 size_t HandshakePacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
   std::string encoded_public_key;
-  if (public_key_) {
-    assert(asymm::ValidateKey(*public_key_));
-    encoded_public_key = asymm::EncodeKey(*public_key_).string();
+  if (asymm::ValidateKey(public_key_)) {
+    encoded_public_key = asymm::EncodeKey(public_key_).string();
     // Refuse to encode if the output buffer is not big enough.
     if (asio::buffer_size(buffers[0])
         < kMinPacketSize + encoded_public_key.size()) {
