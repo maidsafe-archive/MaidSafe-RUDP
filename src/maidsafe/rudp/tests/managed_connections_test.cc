@@ -1582,7 +1582,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
       e++;
   }
 #else
-  for (const char **e = environ; *e; ++e)
+  for (char **e = environ; *e; ++e)
     env.push_back(*e);
 #endif
   auto getline = [](std::istream & is, input_watcher::native_handle_type h, std::string & str)
