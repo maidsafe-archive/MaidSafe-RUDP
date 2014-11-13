@@ -76,6 +76,7 @@ Connection::Connection(const std::shared_ptr<Transport>& transport,
       lifespan_timer_(strand_.get_io_service()),
       peer_node_id_(),
       peer_endpoint_(),
+      connection_added_functor_(),
       send_buffer_(),
       receive_buffer_(),
       data_size_(0),
@@ -127,39 +128,44 @@ void Connection::DoClose(const Error& error) {
 }
 
 void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
-                                 const std::string& validation_data,
+                                 const asymm::PublicKey& peer_public_key,
+                                 ConnectionAddedFunctor connection_added_functor,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan,
                                  OnConnect on_connect,
                                  const std::function<void()>& failure_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
-                             peer_endpoint, validation_data, connect_attempt_timeout, lifespan,
-                             PingFunctor(), on_connect, failure_functor));
+                             peer_endpoint, peer_public_key, connection_added_functor,
+                             connect_attempt_timeout, lifespan, PingFunctor(), on_connect,
+                             failure_functor));
 }
 
 void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                       const PingFunctor& ping_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
-                             peer_endpoint, "", Parameters::ping_timeout, bptime::time_duration(),
-                             ping_functor, OnConnect(), std::function<void()>()));
+                             peer_endpoint, asymm::PublicKey(), ConnectionAddedFunctor(),
+                             Parameters::ping_timeout, bptime::time_duration(), ping_functor,
+                             OnConnect(), std::function<void()>()));
 }
 
 void Connection::DoStartConnecting(const NodeId& peer_node_id,
                                    const ip::udp::endpoint& peer_endpoint,
-                                   const std::string& validation_data,
+                                   const asymm::PublicKey& peer_public_key,
+                                   ConnectionAddedFunctor connection_added_functor,
                                    const boost::posix_time::time_duration& connect_attempt_timeout,
                                    const boost::posix_time::time_duration& lifespan,
                                    const PingFunctor& ping_functor,
                                    const OnConnect& on_connect,
                                    const std::function<void()>& failure_functor) {
-  peer_node_id_    = peer_node_id;
-  peer_endpoint_   = peer_endpoint;
-  on_connect_      = on_connect;
+  peer_node_id_ = peer_node_id;
+  peer_endpoint_ = peer_endpoint;
+  connection_added_functor_ = connection_added_functor;
+  on_connect_ = on_connect;
   failure_functor_ = failure_functor;
 
   StartTick();
   LOG(kVerbose) << "Connection::DoStartConnecting";
-  StartConnect(validation_data, connect_attempt_timeout, lifespan, ping_functor);
+  StartConnect(peer_public_key, connect_attempt_timeout, lifespan, ping_functor);
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
 }
@@ -338,7 +344,7 @@ void Connection::HandleTick() {
   StartTick();
 }
 
-void Connection::StartConnect(const std::string& validation_data,
+void Connection::StartConnect(const asymm:PublicKey& peer_public_key,
                               const boost::posix_time::time_duration& connect_attempt_timeout,
                               const boost::posix_time::time_duration& lifespan,
                               const PingFunctor& ping_functor) {

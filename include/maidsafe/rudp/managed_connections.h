@@ -53,7 +53,7 @@ class Transport;
 
 typedef std::function<void(const std::string& /*message*/)> MessageReceivedFunctor;
 typedef std::function<void(const NodeId& /*peer_id*/)> ConnectionLostFunctor;
-typedef std::function<void(const NodeId& /*peer_id*/)> ConnectionAddedFunctor;
+typedef std::function<void(const NodeId& /*peer_id*/, int /*result*/)> ConnectionAddedFunctor;
 typedef std::function<void(int /*result*/)> MessageSentFunctor;
 
 struct EndpointPair {
@@ -91,7 +91,6 @@ class ManagedConnections {
     virtual ~Listener() {}
     virtual void MessageReceived(std::vector<unsigned char>&& message) = 0;
     virtual void ConnectionLost(const NodeId& peer_id) = 0;
-    virtual void ConnectionAdded(const NodeId& peer_id) { static_cast<void>(peer_id); }
   };
 
  public:
@@ -133,7 +132,8 @@ class ManagedConnections {
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
   // runs its message_received_functor_ with the data.  All messages sent via this connection are
   // encrypted for the peer.
-  int Add(NodeId peer_id, EndpointPair peer_endpoint_pair, std::string validation_data);
+  void Add(NodeId peer_id, EndpointPair peer_endpoint_pair, asymm::PublicKey peer_public_key,
+           ConnectionAddedFunctor connection_added_functor);
 
   // Marks the connection to peer_endpoint as valid.  If it exists and is already permanent, or
   // is successfully upgraded to permanent, then the function is successful.  If the peer is direct-

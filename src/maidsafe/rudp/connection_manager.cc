@@ -106,22 +106,24 @@ void ConnectionManager::MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep) {
 }
 
 void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
-                                const std::string& validation_data,
+                                const asymm::PublicKey& peer_public_key,
+                                ConnectionAddedFunctor connection_added_functor,
                                 const bptime::time_duration& connect_attempt_timeout,
-                                const bptime::time_duration& lifespan,
-                                OnConnect on_connect,
+                                const bptime::time_duration& lifespan, OnConnect on_connect,
                                 const std::function<void()>& failure_functor) {
   std::lock_guard<std::mutex> lock(mutex_);
 
   auto transport = transport_.lock();
 
   if (!transport) {
+    strand_dispatch([&] { connection_added_functor(peer_id, kConnectError); });
     return strand_.dispatch([on_connect]() {
         on_connect(asio::error::shut_down, nullptr);
         });
   }
 
   if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
+    strand_dispatch([&] { connection_added_functor(peer_id, kConnectError); });
     return strand_.dispatch([on_connect]() {
         on_connect(asio::error::already_started, nullptr);
         });
@@ -131,8 +133,8 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
 
   auto connection = std::make_shared<Connection>(transport, strand_, multiplexer_);
 
-  connection->StartConnecting(peer_id, peer_endpoint, validation_data, connect_attempt_timeout,
-                              lifespan, on_connect, failure_functor);
+  connection->StartConnecting(peer_id, peer_endpoint, peer_public_key, connection_added_functor,
+                              connect_attempt_timeout, lifespan, on_connect, failure_functor);
 }
 
 int ConnectionManager::AddConnection(ConnectionPtr connection) {

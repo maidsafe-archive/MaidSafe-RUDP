@@ -232,9 +232,10 @@ void Transport::Close() {
 }
 
 void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
-                        const std::string& validation_data) {
+                        asymm::PublicKey peer_public_key,
+                        ConnectionAddedFunctor connection_added_functor) {
   strand_.dispatch(std::bind(&Transport::DoConnect, shared_from_this(), peer_id, peer_endpoint_pair,
-                             validation_data));
+                             peer_public_key, connection_added_functor));
 }
 
 Transport::OnConnect Transport::MakeDefaultOnConnectHandler() {
@@ -250,9 +251,10 @@ Transport::OnConnect Transport::MakeDefaultOnConnectHandler() {
 }
 
 void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
-                          const std::string& validation_data) {
+                          const asymm::PublicKey& peer_public_key,
+                          ConnectionAddedFunctor connection_added_functor) {
   if (!multiplexer_->IsOpen())
-    return;
+    return connection_added_functor(peer_id, kConnectError);
 
   auto on_connect = MakeDefaultOnConnectHandler();
 
@@ -261,19 +263,19 @@ void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoi
     if (peer_endpoint_pair.local != peer_endpoint_pair.external) {
       failure_functor = [=] {
         if (!multiplexer_->IsOpen())
-          return;
-        connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
-                                     Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                     on_connect, nullptr);
+          return connection_added_functor(peer_id, kConnectError);
+        connection_manager_->Connect(
+            peer_id, peer_endpoint_pair.local, peer_public_key, connection_added_functor,
+            Parameters::rendezvous_connect_timeout, bptime::pos_infin, on_connect, nullptr);
       };
     }
-    connection_manager_->Connect(peer_id, peer_endpoint_pair.external, validation_data,
-                                 Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                 on_connect, failure_functor);
+    connection_manager_->Connect(peer_id, peer_endpoint_pair.external, peer_public_key,
+                                 connection_added_functor, Parameters::rendezvous_connect_timeout,
+                                 bptime::pos_infin, on_connect, failure_functor);
   } else {
-    connection_manager_->Connect(peer_id, peer_endpoint_pair.local, validation_data,
-                                 Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                 on_connect, nullptr);
+    connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key,
+                                 connection_added_functor, Parameters::rendezvous_connect_timeout,
+                                 bptime::pos_infin, on_connect, nullptr);
   }
 }
 

@@ -509,11 +509,12 @@ std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator
                                  element) { return element->node_id == peer_id; });
 }
 
-int ManagedConnections::Add(NodeId peer_id, EndpointPair peer_endpoint_pair,
-                            std::string validation_data) {
+void ManagedConnections::Add(NodeId peer_id, EndpointPair peer_endpoint_pair,
+                             asymm::PublicKey peer_public_key,
+                             ConnectionAddedFunctor connection_added_functor) {
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
-    return kOwnId;
+    return asio_service_.service().post([=] { connection_added_functor(peer_id, kOwnId); });
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
@@ -524,27 +525,24 @@ int ManagedConnections::Add(NodeId peer_id, EndpointPair peer_endpoint_pair,
       LOG(kWarning) << "A managed connection from " << DebugId(this_node_id_) << " to "
                     << DebugId(peer_id) << " already exists, and this node's chosen BootstrapID is "
                     << DebugId(chosen_bootstrap_node_id_);
-      return kConnectionAlreadyExists;
+      return asio_service_.service().post(
+          [=] { connection_added_functor(peer_id, kConnectionAlreadyExists); });
     }
     LOG(kError) << "No connection attempt from " << DebugId(this_node_id_) << " to "
                 << DebugId(peer_id) << " - ensure GetAvailableEndpoint has been called first.";
-    return kNoPendingConnectAttempt;
+    return asio_service_.service().post(
+        [=] { connection_added_functor(peer_id, kNoPendingConnectAttempt); });
   }
 
   if ((*itr)->connecting) {
     LOG(kWarning) << "A connection attempt from " << DebugId(this_node_id_) << " to "
                   << DebugId(peer_id) << " is already happening";
-    return kConnectAttemptAlreadyRunning;
+    return asio_service_.service().post(
+        [=] { connection_added_functor(peer_id, kConnectAttemptAlreadyRunning); });
   }
 
   TransportPtr selected_transport((*itr)->pending_transport);
   (*itr)->connecting = true;
-
-  if (validation_data.empty()) {
-    LOG(kError) << "Invalid validation_data passed.";
-    pendings_.erase(itr);
-    return kEmptyValidationData;
-  }
 
   std::shared_ptr<detail::Connection> connection(selected_transport->GetConnection(peer_id));
   if (connection) {
@@ -554,32 +552,33 @@ int ManagedConnections::Add(NodeId peer_id, EndpointPair peer_endpoint_pair,
     // caused the MarkConnectionAsValid to have already been called.  In this case only, the
     // connection will be kPermanent.
     if (connection->state() == detail::Connection::State::kBootstrapping ||
-        (chosen_bootstrap_node_id_ == peer_id &&
-         connection->state() == detail::Connection::State::kPermanent)) {
+      (chosen_bootstrap_node_id_ == peer_id &&
+      connection->state() == detail::Connection::State::kPermanent)) {
       connection->StartSending(validation_data, [](int result) {
         if (result != kSuccess) {
           LOG(kWarning) << "Failed to send validation data on bootstrap "
-                        << "connection.  Result: " << result;
+            << "connection.  Result: " << result;
         }
       });
       if (connection->state() == detail::Connection::State::kBootstrapping) {
         Endpoint peer_endpoint;
         selected_transport->MakeConnectionPermanent(peer_id, false, peer_endpoint);
         assert(detail::IsValid(peer_endpoint) ? peer_endpoint == connection->Socket().PeerEndpoint()
-                                              : true);
+          : true);
       }
-      return kSuccess;
+      return asio_service_.service().post([=] { connection_added_functor(peer_id, kSuccess) });
     } else {
       LOG(kError) << "A managed connection from " << DebugId(this_node_id_) << " to "
                   << DebugId(peer_id) << " already exists, and this node's chosen bootstrap ID is "
                   << DebugId(chosen_bootstrap_node_id_);
       pendings_.erase(itr);
-      return kConnectionAlreadyExists;
+      return asio_service_.service().post(
+          [=] { connection_added_functor(peer_id, kConnectionAlreadyExists); });
     }
   }
 
-  selected_transport->Connect(peer_id, peer_endpoint_pair, validation_data);
-  return kSuccess;
+  selected_transport->Connect(peer_id, peer_endpoint_pair, std::move(peer_public_key),
+                              connection_added_functor);
 }
 
 int ManagedConnections::MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_endpoint) {

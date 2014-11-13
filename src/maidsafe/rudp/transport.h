@@ -91,7 +91,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void Close();
 
   void Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
-               const std::string& validation_data);
+               asymm::PublicKey peer_public_key, ConnectionAddedFunctor connection_added_functor);
 
   // If this causes the size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
@@ -149,7 +149,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void DetectNatType(NodeId const& peer_id, Handler);
 
   void DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
-                 const std::string& validation_data);
+                 const asymm::PublicKey& peer_public_key,
+                 ConnectionAddedFunctor connection_added_functor);
 
   void StartDispatch();
   void HandleDispatch(const boost::system::error_code& ec);
