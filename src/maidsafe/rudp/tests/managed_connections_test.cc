@@ -1428,7 +1428,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
         abort();
       }
     } while (line.compare(0, 8, "NODE_ID:"));
-    if(line[line.size() - 1] == 13)
+    if (line[line.size() - 1] == 13)
       line.resize(line.size() - 1);
     const size_t my_id = atoi(line.substr(9).c_str());
     Node node(my_id);
@@ -1464,9 +1464,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
                     << " so exiting." << std::endl;
           abort();
         }
-        if(line[line.size() - 1] == 13)
+        if (line[line.size() - 1] == 13)
           line.resize(line.size() - 1);
-        if(!line.compare("QUIT"))
+        if (!line.compare("QUIT"))
           break;
         if (!line.compare(0, 13, "ENDPOINT_FOR:")) {
           NodeId peer_node_id(line.substr(14), NodeId::EncodingType::kHex);
@@ -1557,31 +1557,32 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
   native_string endpoints(
 #ifdef WIN32
-    L"MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS="
+    L"MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
 #else
-    "MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS="
+    "MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
 #endif
-    );
-  for(auto& i : bootstrap_endpoints_) {
+  for (auto& i : bootstrap_endpoints_) {
     auto temp = i.address().to_string();
 #ifdef WIN32
-    endpoints.append(native_string(temp.begin(), temp.end()) + L":" + std::to_wstring(i.port()) + L";");
+    endpoints.append(native_string(temp.begin(), temp.end()) + L":"
+      + std::to_wstring(i.port()) + L";");
 #else
     endpoints.append(temp + ":" + std::to_string(i.port()) + ";");
 #endif
   }
   std::vector<native_string> env{endpoints};
-  // Boost.Process won't inherit environment at the same time as do custom env, so manually propagate
-  // our current environment into the custom environment. Failure to propagate environment causes
-  // child processes to fail due to CryptoPP refusing to initialise.
+  // Boost.Process won't inherit environment at the same time as do custom env,
+  // so manually propagate our current environment into the custom environment.
+  // Failure to propagate environment causes child processes to fail due to CryptoPP
+  // refusing to initialise.
 #ifdef WIN32
-  for(const TCHAR *e=GetEnvironmentStrings(); *e; e++) {
+  for (const TCHAR *e = GetEnvironmentStrings(); *e; e++) {
     env.push_back(e);
-    while(*e != 0)
+    while (*e != 0)
       e++;
   }
 #else
-  for(const char **e = environ; *e; ++e)
+  for (const char **e = environ; *e; ++e)
     env.push_back(*e);
 #endif
   auto getline = [](std::istream & is, input_watcher::native_handle_type h, std::string & str)
@@ -1594,19 +1595,18 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
     // So here I'm simply going to wait on the handle with timeout. I've wasted two days on
     // debugging this already, sometimes the easy hack way is better than the right way ...
     str.clear();
-    for(;;) {
+    for (;;) {
       char c;
-      if(is.rdbuf()->in_avail()) {
+      if (is.rdbuf()->in_avail()) {
         is.get(c);
-      }
-      else {
-        if(WAIT_TIMEOUT==WaitForSingleObject(h, 10000)) {
+      } else {
+        if (WAIT_TIMEOUT == WaitForSingleObject(h, 10000)) {
           is.setstate(std::ios::badbit);
           return is;
         }
         is.get(c);
       }
-      if(c == 10)
+      if (c == 10)
         break;
       else
         str.push_back(c);
@@ -1675,7 +1675,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
                                                  boost::process::initializers::bind_stdin(source),
                                                  boost::process::initializers::bind_stdout(sink),
                                                  boost::process::initializers::set_on_error(ec)));
-      if(ec) {
+      if (ec) {
         GTEST_FAIL() << "Failed to launch child " << n << " due to error code " << ec << ".";
         return;
       }
