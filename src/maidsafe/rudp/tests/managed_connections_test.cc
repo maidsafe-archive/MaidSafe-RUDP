@@ -25,15 +25,21 @@
 #include <limits>
 #include <vector>
 
-#ifdef MAIDSAFE_BSD
+#ifndef WIN32
 extern "C" char **environ;
 #endif
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4127)  // conditional expression is constant
+#pragma warning(disable:4702)  // unreachable code
+#endif
 #include "boost/process.hpp"
 #include "boost/iostreams/stream.hpp"
-#ifdef WIN32
-# include "boost/asio/windows/stream_handle.hpp"
-#else
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+#ifndef WIN32
 # include "boost/asio/posix/stream_descriptor.hpp"
 #endif
 
@@ -1331,23 +1337,19 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
   }
 }
 
+// Unfortunately disabled on Windows as ASIO and NT refuses to work well with anonymous pipe handles
+// (think win32 exception throws in the kernel, you are about right)
+#ifdef WIN32
+struct input_watcher { typedef HANDLE native_handle_type; };
+#else
 struct input_watcher {
   asio::io_service& _service;
-#ifdef WIN32
-  asio::windows::stream_handle _h;
-
- public:
-  typedef asio::windows::stream_handle::native_handle_type native_handle_type;
-
- private:
-#else
   asio::posix::stream_descriptor _h;
 
  public:
   typedef asio::posix::stream_descriptor::native_handle_type native_handle_type;
 
  private:
-#endif
   asio::deadline_timer _timer;
   std::unique_ptr<asio::io_service::work> _work;
   void _init(bool doTimer) {
@@ -1386,9 +1388,7 @@ struct input_watcher {
 
  public:
   ~input_watcher() {
-#ifndef WIN32
     _h.release();
-#endif
   }
   asio::io_service& service() { return _service; }
   native_handle_type handle() { return _h.native(); }
@@ -1399,6 +1399,11 @@ struct input_watcher {
     _work.reset();
   }
 };
+#endif
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4706)  // assignment within conditional expression
+#endif
 TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
   const char* endpoints = std::getenv("MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS");
   if (endpoints) {
@@ -1423,6 +1428,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
         abort();
       }
     } while (line.compare(0, 8, "NODE_ID:"));
+    if(line[line.size() - 1] == 13)
+      line.resize(line.size() - 1);
     const size_t my_id = atoi(line.substr(9).c_str());
     Node node(my_id);
     std::cout << "NODE_ID: " << node.node_id().ToStringEncoded(NodeId::EncodingType::kHex)
@@ -1457,7 +1464,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
                     << " so exiting." << std::endl;
           abort();
         }
-        if (!line.compare("QUIT"))
+        if(line[line.size() - 1] == 13)
+          line.resize(line.size() - 1);
+        if(!line.compare("QUIT"))
           break;
         if (!line.compare(0, 13, "ENDPOINT_FOR:")) {
           NodeId peer_node_id(line.substr(14), NodeId::EncodingType::kHex);
@@ -1527,25 +1536,82 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
 }
 TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
   size_t node_count = 23, messages_sent_count = 100000;
-  const char *node_count_env = std::getenv("MAIDSAFE_RUDP_500PARALLEL_CONNECTIONS_NODE_COUNT");
+  const char *node_count_env = std::getenv("MAIDSAFE_RUDP_TEST_PARALLEL_CONNECTIONS_NODE_COUNT");
   if (node_count_env)
     node_count = atoi(node_count_env);
   const char *messages_sent_count_env =
-    std::getenv("MAIDSAFE_RUDP_500PARALLEL_CONNECTIONS_MESSAGE_COUNT");
+    std::getenv("MAIDSAFE_RUDP_TEST_PARALLEL_CONNECTIONS_MESSAGE_COUNT");
   if (messages_sent_count_env)
     messages_sent_count = atoi(messages_sent_count_env);
   const auto self_path = ThisExecutablePath();
-  const std::vector<std::string> args{
-      self_path.string(),
-      "--gtest_filter=ManagedConnectionsTest.FUNC_API_500ParallelConnectionsWorker"};
+  typedef boost::filesystem::path::string_type native_string;
+  const std::vector<native_string> args{
+      self_path.native(),
+#ifdef WIN32
+      L"--gtest_filter=ManagedConnectionsTest.FUNC_API_500ParallelConnectionsWorker"
+#else
+      "--gtest_filter=ManagedConnectionsTest.FUNC_API_500ParallelConnectionsWorker"
+#endif
+      };
 
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
-  std::string endpoints("MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
-  for (auto& i : bootstrap_endpoints_)
-    endpoints.append(i.address().to_string() + ":" + std::to_string(i.port()) + ";");
-  std::vector<std::string> env{endpoints};
+  native_string endpoints(
+#ifdef WIN32
+    L"MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS="
+#else
+    "MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS="
+#endif
+    );
+  for(auto& i : bootstrap_endpoints_) {
+    auto temp = i.address().to_string();
+#ifdef WIN32
+    endpoints.append(native_string(temp.begin(), temp.end()) + L":" + std::to_wstring(i.port()) + L";");
+#else
+    endpoints.append(temp + ":" + std::to_string(i.port()) + ";");
+#endif
+  }
+  std::vector<native_string> env{endpoints};
+  // Boost.Process won't inherit environment at the same time as do custom env, so manually propagate
+  // our current environment into the custom environment. Failure to propagate environment causes
+  // child processes to fail due to CryptoPP refusing to initialise.
+#ifdef WIN32
+  for(const TCHAR *e=GetEnvironmentStrings(); *e; e++) {
+    env.push_back(e);
+    while(*e != 0)
+      e++;
+  }
+#else
+  for(const char **e = environ; *e; ++e)
+    env.push_back(*e);
+#endif
   auto getline = [](std::istream & is, input_watcher::native_handle_type h, std::string & str)
       -> std::istream & {
+#ifdef WIN32
+    // Unfortunately Win32 anonymous pipe handles are a very special not-entirely-working
+    // form of HANDLE, indeed I personally never ever use them as named pipe handles work
+    // better, albeit not without their quirks/bugs either.
+    //
+    // So here I'm simply going to wait on the handle with timeout. I've wasted two days on
+    // debugging this already, sometimes the easy hack way is better than the right way ...
+    str.clear();
+    for(;;) {
+      char c;
+      if(is.rdbuf()->in_avail()) {
+        is.get(c);
+      }
+      else {
+        if(WAIT_TIMEOUT==WaitForSingleObject(h, 10000)) {
+          is.setstate(std::ios::badbit);
+          return is;
+        }
+        is.get(c);
+      }
+      if(c == 10)
+        break;
+      else
+        str.push_back(c);
+    }
+#else
     asio::io_service service;
     str.clear();
     for (;;) {
@@ -1576,6 +1642,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
       else
         str.push_back(c);
     }
+#endif
+    if (str[str.size() - 1] == 13)
+      str.resize(str.size() - 1);
     return is;
   };
 
@@ -1595,6 +1664,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
   childpipes.reserve(node_count);
   try {
     for (size_t n = 0; n < node_count; n++) {
+      boost::system::error_code ec;
       auto childin = boost::process::create_pipe(), childout = boost::process::create_pipe();
       boost::iostreams::file_descriptor_sink sink(childin.sink, boost::iostreams::close_handle);
       boost::iostreams::file_descriptor_source source(childout.source,
@@ -1603,7 +1673,12 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
                                                  boost::process::initializers::set_args(args),
                                                  boost::process::initializers::set_env(env),
                                                  boost::process::initializers::bind_stdin(source),
-                                                 boost::process::initializers::bind_stdout(sink)));
+                                                 boost::process::initializers::bind_stdout(sink),
+                                                 boost::process::initializers::set_on_error(ec)));
+      if(ec) {
+        GTEST_FAIL() << "Failed to launch child " << n << " due to error code " << ec << ".";
+        return;
+      }
       childpipes.push_back(std::make_pair(
           maidsafe::make_unique<boost::iostreams::stream<boost::iostreams::file_descriptor_source>>(
               childin.source, boost::iostreams::never_close_handle),
@@ -1631,6 +1706,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
           GTEST_FAIL() << "Failed to read from child " << n << ".";
           return;
         }
+        if (line[line.size() - 1] == 13)
+          line.resize(line.size() - 1);
         if (!line.compare(0, 6, "ERROR:")) {
           GTEST_FAIL() << "Failed to launch child " << n << " due to " << line << ".";
           return;
@@ -1643,7 +1720,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
           std::cout << "Child " << n << " sends me unknown line '" << line << "'" << std::endl;
         }
       }
-      //  std::cout << "Child " << n << " has node id " <<
+      // std::cout << "Child " << n << " has node id " <<
       //  child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
       for (size_t i = 0; i < n; i++) {
         execution_order.push_back(std::make_pair(n, i));
@@ -1753,7 +1830,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
               }
               (first ? endpoint.local : endpoint.external)
                   .address(boost::asio::ip::address::from_string(std::string(s, colon - s)));
-              (first ? endpoint.local : endpoint.external).port(atoi(colon + 1));
+              (first ? endpoint.local : endpoint.external).port((uint16_t) atoi(colon + 1));
             }
             // std::cout << "Child " << a << " returns endpoints " << line.substr(10) << std::endl;
             return true;
@@ -1761,7 +1838,6 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
             std::cout << "Child " << a << " sends me unknown line '" << line << "'\n";
           }
         }
-        return true;
       };
       if (!drain_endpoint(n)) {
         GTEST_FAIL() << "Failed to read from child " << n << ".";
@@ -1797,7 +1873,6 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
             std::cout << "Child " << a << " sends me unknown line '" << line << "'" << std::endl;
           }
         }
-        return true;
       };
       if (!drain_connect(n)) {
         GTEST_FAIL() << "Failed to read from child " << n << ".";
@@ -1851,6 +1926,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
     boost::process::wait_for_exit(children[n]);
   }
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 }  // namespace test
 
