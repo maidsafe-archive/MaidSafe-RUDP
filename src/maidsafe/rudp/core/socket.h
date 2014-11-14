@@ -132,14 +132,15 @@ class Socket {
                         const asymm::PublicKey& this_public_key,
                         const Endpoint& remote,
                         const NodeId& peer_node_id,
+                        const asymm::PublicKey& peer_public_key,
                         ConnectHandler handler,
                         Session::Mode open_mode,
                         uint32_t cookie_syn,
                         Session::OnNatDetectionRequested::slot_type on_nat_detection_requested) {
     ConnectOp<ConnectHandler> op(handler, waiting_connect_ec_);
     waiting_connect_.async_wait(op);
-    return StartConnect(this_node_id, this_public_key, remote, peer_node_id, open_mode, cookie_syn,
-                        on_nat_detection_requested);
+    return StartConnect(this_node_id, this_public_key, remote, peer_node_id, peer_public_key,
+                        open_mode, cookie_syn, on_nat_detection_requested);
   }
 
   // Initiate an asynchronous operation to write data. The operation will
@@ -205,6 +206,7 @@ class Socket {
                         const asymm::PublicKey& this_public_key,
                         const Endpoint& remote,
                         const NodeId& peer_node_id,
+                        const asymm::PublicKey& peer_public_key,
                         Session::Mode open_mode,
                         uint32_t cookie_syn,
                         const Session::OnNatDetectionRequested::slot_type&);

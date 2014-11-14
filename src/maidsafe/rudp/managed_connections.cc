@@ -554,19 +554,13 @@ void ManagedConnections::Add(NodeId peer_id, EndpointPair peer_endpoint_pair,
     if (connection->state() == detail::Connection::State::kBootstrapping ||
       (chosen_bootstrap_node_id_ == peer_id &&
       connection->state() == detail::Connection::State::kPermanent)) {
-      connection->StartSending(validation_data, [](int result) {
-        if (result != kSuccess) {
-          LOG(kWarning) << "Failed to send validation data on bootstrap "
-            << "connection.  Result: " << result;
-        }
-      });
       if (connection->state() == detail::Connection::State::kBootstrapping) {
         Endpoint peer_endpoint;
         selected_transport->MakeConnectionPermanent(peer_id, false, peer_endpoint);
         assert(detail::IsValid(peer_endpoint) ? peer_endpoint == connection->Socket().PeerEndpoint()
           : true);
       }
-      return asio_service_.service().post([=] { connection_added_functor(peer_id, kSuccess) });
+      return asio_service_.service().post([=] { connection_added_functor(peer_id, kSuccess); });
     } else {
       LOG(kError) << "A managed connection from " << DebugId(this_node_id_) << " to "
                   << DebugId(peer_id) << " already exists, and this node's chosen bootstrap ID is "
@@ -687,8 +681,6 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id, TransportP
                   << DebugId(peer_id) << ".  Won't make duplicate normal connection on "
                   << transport->ThisDebugId();
     }
-
-    listener_->ConnectionAdded(peer_id);
   }
 
 #ifndef NDEBUG

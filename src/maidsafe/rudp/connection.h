@@ -142,7 +142,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartTick();
   void HandleTick();
 
-  void StartConnect(const asymm : PublicKey& peer_public_key,
+  void StartConnect(const asymm::PublicKey& peer_public_key,
                     const boost::posix_time::time_duration& connect_attempt_timeout,
                     const boost::posix_time::time_duration& lifespan,
                     const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
@@ -170,6 +170,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
                          int result) const;
 
   void FireOnConnectFunctor(const Error&);
+  void FireConnectionAddedFunctor(int result);
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;

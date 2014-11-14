@@ -113,6 +113,7 @@ void Connection::DoClose(const Error& error) {
                                               asio::error::not_connected)));
     transport->RemoveConnection(shared_from_this(), error == asio::error::timed_out);
     FireOnConnectFunctor(error);
+    FireConnectionAddedFunctor(kConnectionClosed);
     transport_.reset();
     sending_ = false;
     std::queue<SendRequest>().swap(send_queue_);
@@ -344,15 +345,14 @@ void Connection::HandleTick() {
   StartTick();
 }
 
-void Connection::StartConnect(const asymm:PublicKey& peer_public_key,
+void Connection::StartConnect(const asymm::PublicKey& peer_public_key,
                               const boost::posix_time::time_duration& connect_attempt_timeout,
                               const boost::posix_time::time_duration& lifespan,
                               const PingFunctor& ping_functor) {
   Session::Mode open_mode(Session::kNormal);
   lifespan_timer_.expires_from_now(lifespan);
 
-  if (validation_data.empty()) {
-    assert(lifespan != bptime::pos_infin);
+  if (lifespan != bptime::pos_infin) {
     if (lifespan > bptime::time_duration()) {
       open_mode = Session::kBootstrapAndKeep;
       state_ = State::kBootstrapping;
@@ -363,7 +363,7 @@ void Connection::StartConnect(const asymm:PublicKey& peer_public_key,
       state_ = State::kTemporary;
     }
   } else {
-    state_ = State::kUnvalidated;
+    state_ = State::kPermanent;
   }
 
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
@@ -445,9 +445,9 @@ void Connection::HandleConnect(const bs::error_code& ec, const std::string& vali
     peer_node_id_ = socket_.PeerNodeId();
     auto self = shared_from_this();
 
-    transport->strand_.dispatch([transport, self]() {
-        self->FireOnConnectFunctor(Error());
-      });
+    transport->strand_.dispatch([transport, self]() { self->FireOnConnectFunctor(Error()); });
+    transport->strand_.dispatch(
+        [transport, self]() { self->FireConnectionAddedFunctor(kSuccess); });
   } else {
     LOG(kError) << "Pointer to Transport already destroyed.";
     return DoClose(asio::error::not_connected);
@@ -663,6 +663,14 @@ void Connection::FireOnConnectFunctor(const Error& error) {
     auto h(std::move(on_connect_));
     on_connect_ = nullptr;
     h(error, shared_from_this());
+  }
+}
+
+void FireConnectionAddedFunctor(int result) {
+  if (connection_added_functor_) {
+    auto temp_functor(std::move(connection_added_functor_));
+    connection_added_functor_ = nullptr;
+    temp_functor(peer_node_id_, result);
   }
 }
 
