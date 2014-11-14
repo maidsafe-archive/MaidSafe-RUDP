@@ -163,6 +163,7 @@ void Transport::ConnectToBootstrapEndpoint(Iterator begin,
 template<class Handler>
 void Transport::ConnectToBootstrapEndpoint(const NodeId& bootstrap_node_id,
                                            const Endpoint& bootstrap_endpoint,
+                                           const asymm::PublicKey& bootstrap_public_key,
                                            const bptime::time_duration& lifespan,
                                            Handler handler) {
   if (!IsValid(bootstrap_endpoint)) {

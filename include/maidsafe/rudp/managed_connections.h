@@ -74,6 +74,15 @@ struct EndpointPair {
   }
 };
 
+struct BootstrapContact {
+  using Endpoint = boost::asio::ip::udp::endpoint;
+  NodeId node_id;
+  Endpoint endpoint;
+  asymm::PublicKey public_key;
+};
+
+using BootstrapList = std::vector<BootstrapContact>;
+
 // Defined as 203.0.113.14:1314 which falls in the 203.0.113.0/24 (TEST-NET-3) range as described in
 // RFC 5737 (http://tools.ietf.org/html/rfc5737).
 extern const boost::asio::ip::udp::endpoint kNonRoutable;
@@ -100,7 +109,7 @@ class ManagedConnections {
   static int32_t kMaxMessageSize() { return 2097152; }
   static unsigned short kResiliencePort() { return kLivePort; }  // NOLINT (Fraser)
 
-  // Creates a new transport object and bootstraps it to one of the provided bootstrap_endpoints.
+  // Creates a new transport object and bootstraps it to one of the provided bootstrap_contacts.
   // It first tries bootstrapping to "own_local_address:kLivePort".  Bootstrapping involves
   // connecting to the peer, then connecting again to another endpoint (provided by the same
   // bootstrap peer) to establish the local NAT type, which is returned in the nat_type parameter.
@@ -110,7 +119,7 @@ class ManagedConnections {
   // private_key before being passed up via MessageReceivedFunctor.  Before bootstrapping begins, if
   // there are any existing transports they are destroyed and all connections closed.  For
   // zero-state network, pass the required local_endpoint.
-  int Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints,
+  int Bootstrap(const BootstrapList& bootstrap_list,
                 Listener* listener, NodeId this_node_id,
                 asymm::Keys keys, NodeId& chosen_bootstrap_peer,
                 NatType& nat_type,
@@ -173,16 +182,13 @@ class ManagedConnections {
   void ClearConnectionsAndIdleTransports();
   int TryToDetermineLocalEndpoint(Endpoint& local_endpoint);
   int AttemptStartNewTransport(
-      const std::vector<Endpoint>& bootstrap_endpoints,
+      const BootstrapList& bootstrap_list,
       const Endpoint& local_endpoint, NodeId& chosen_bootstrap_peer,
       NatType& nat_type);
-  ReturnCode StartNewTransport(
-      std::vector<std::pair<NodeId, Endpoint>> bootstrap_peers,
-      Endpoint local_endpoint);
+  ReturnCode StartNewTransport(BootstrapList bootstrap_list, Endpoint local_endpoint);
 
-  void GetBootstrapEndpoints(
-      std::vector<std::pair<NodeId, Endpoint>>& bootstrap_peers,
-      boost::asio::ip::address& this_external_address);
+  void GetBootstrapEndpoints(BootstrapList& bootstrap_list,
+                             boost::asio::ip::address& this_external_address);
 
   bool ExistingConnectionAttempt(const NodeId& peer_id, EndpointPair& this_endpoint_pair) const;
   bool ExistingConnection(const NodeId& peer_id, EndpointPair& this_endpoint_pair,
@@ -221,7 +227,8 @@ class ManagedConnections {
 
   AsioService asio_service_;
   Listener* listener_;
-  NodeId this_node_id_, chosen_bootstrap_node_id_;
+  NodeId this_node_id_;
+  BootstrapContact chosen_bootstrap_contact_;
   asymm::Keys keys_;
   ConnectionMap connections_;
   std::vector<std::unique_ptr<PendingConnection>> pendings_;

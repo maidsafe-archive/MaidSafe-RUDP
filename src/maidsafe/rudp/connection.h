@@ -146,7 +146,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
                     const boost::posix_time::time_duration& connect_attempt_timeout,
                     const boost::posix_time::time_duration& lifespan,
                     const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
-  void HandleConnect(const boost::system::error_code& ec, const std::string& validation_data,
+  void HandleConnect(const boost::system::error_code& ec,
                      std::function<void(int)> ping_functor);  // NOLINT (Fraser)
 
   void StartReadSize();

@@ -49,9 +49,7 @@ void SetDebugPacketLossRate(double constant, double bursty) {
 
 namespace {
 
-typedef std::vector<std::pair<NodeId, Endpoint>> NodeIdEndpointPairs;
-
-int CheckBootstrappingParameters(const std::vector<Endpoint>& bootstrap_endpoints,
+int CheckBootstrappingParameters(const BootstrapList& bootstrap_list,
                                  ManagedConnections::Listener* listener, NodeId this_node_id) {
   if (!listener) {
     LOG(kError) << "You must provide a non-null Listener.";
@@ -61,8 +59,8 @@ int CheckBootstrappingParameters(const std::vector<Endpoint>& bootstrap_endpoint
     LOG(kError) << "You must provide a valid NodeId.";
     return kInvalidParameter;
   }
-  if (bootstrap_endpoints.empty()) {
-    LOG(kError) << "You must provide at least one Bootstrap endpoint.";
+  if (bootstrap_list.empty()) {
+    LOG(kError) << "You must provide at least one Bootstrap contact.";
     return kNoBootstrapEndpoints;
   }
 
@@ -108,12 +106,12 @@ ManagedConnections::~ManagedConnections() {
   asio_service_.Stop();
 }
 
-int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints,
+int ManagedConnections::Bootstrap(const BootstrapList& bootstrap_list,
                                   Listener* listener, NodeId this_node_id, asymm::Keys keys,
                                   NodeId& chosen_bootstrap_peer, NatType& nat_type,
                                   Endpoint local_endpoint) {
   ClearConnectionsAndIdleTransports();
-  int result(CheckBootstrappingParameters(bootstrap_endpoints, listener, this_node_id));
+  int result(CheckBootstrappingParameters(bootstrap_list, listener, this_node_id));
   if (result != kSuccess) {
     return result;
   }
@@ -126,8 +124,8 @@ int ManagedConnections::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoin
     return result;
   }
 
-  result = AttemptStartNewTransport(bootstrap_endpoints, local_endpoint, chosen_bootstrap_peer,
-                                    nat_type);
+  result =
+      AttemptStartNewTransport(bootstrap_list, local_endpoint, chosen_bootstrap_peer, nat_type);
   if (result != kSuccess) {
     return result;
   }
@@ -167,30 +165,26 @@ int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
   return kSuccess;
 }
 
-int ManagedConnections::AttemptStartNewTransport(const std::vector<Endpoint>& bootstrap_endpoints,
-                                                 const Endpoint& local_endpoint,
-                                                 NodeId& chosen_bootstrap_peer, NatType& nat_type) {
-  NodeIdEndpointPairs bootstrap_peers;
-  for (auto element : bootstrap_endpoints)
-    bootstrap_peers.push_back(std::make_pair(NodeId(), element));
-
-  ReturnCode result = StartNewTransport(bootstrap_peers, local_endpoint);
+int ManagedConnections::AttemptStartNewTransport(
+    const BootstrapList& bootstrap_list, const Endpoint& local_endpoint,
+    NodeId& chosen_bootstrap_peer, NatType& nat_type) {
+  ReturnCode result = StartNewTransport(bootstrap_list, local_endpoint);
   if (result != kSuccess) {
     LOG(kError) << "Failed to bootstrap managed connections.";
     return result;
   }
-  chosen_bootstrap_peer = chosen_bootstrap_node_id_;
+  chosen_bootstrap_peer = chosen_bootstrap_contact_;
   nat_type = nat_type_;
   return kSuccess;
 }
 
-ReturnCode ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_peers,
+ReturnCode ManagedConnections::StartNewTransport(BootstrapList bootstrap_list,
                                                  Endpoint local_endpoint) {
   TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, nat_type_));
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
 
-  bool bootstrap_off_existing_connection(bootstrap_peers.empty());
+  bool bootstrap_off_existing_connection(bootstrap_list.empty());
   boost::asio::ip::address external_address;
   if (bootstrap_off_existing_connection)
     GetBootstrapEndpoints(bootstrap_peers, external_address);
@@ -261,7 +255,7 @@ ReturnCode ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_p
   return result;
 }
 
-void ManagedConnections::GetBootstrapEndpoints(NodeIdEndpointPairs& bootstrap_peers,
+void ManagedConnections::GetBootstrapEndpoints(BootstrapList& bootstrap_list,
                                                boost::asio::ip::address& this_external_address) {
   bool external_address_consistent(true);
   // Favour connections which are on a different network to this to allow calculation of the new
@@ -276,7 +270,7 @@ void ManagedConnections::GetBootstrapEndpoints(NodeIdEndpointPairs& bootstrap_pe
     if (!connection)
       continue;
     if (!non_duplicates.insert(connection->Socket().PeerEndpoint()).second)
-      continue;  // Already have this endpoint added to bootstrap_endpoints or secondary_endpoints.
+      continue;  // Already have this endpoint added to bootstrap_contacts or secondary_endpoints.
     std::pair<NodeId, Endpoint> peer(connection->Socket().PeerNodeId(),
                                      connection->Socket().PeerEndpoint());
     if (detail::OnPrivateNetwork(connection->Socket().PeerEndpoint())) {

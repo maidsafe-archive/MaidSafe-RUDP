@@ -25,7 +25,7 @@ namespace maidsafe {
 
 namespace rudp {
 
-enum class NatType {
+enum class NatType : char {
   kSymmetric,
   kOther,
   kUnknown

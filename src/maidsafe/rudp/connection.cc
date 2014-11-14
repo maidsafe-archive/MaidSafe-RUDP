@@ -370,7 +370,7 @@ void Connection::StartConnect(const asymm::PublicKey& peer_public_key,
     auto self = shared_from_this();
 
     auto handler = [=](const Error& error) {
-      self->HandleConnect(error, validation_data, ping_functor);
+      self->HandleConnect(error, ping_functor);
     };
 
     LOG(kVerbose) << "Connection::StartConnect";
@@ -378,6 +378,7 @@ void Connection::StartConnect(const asymm::PublicKey& peer_public_key,
                                        transport->public_key(),
                                        peer_endpoint_,
                                        peer_node_id_,
+                                       peer_public_key,
                                        strand_.wrap(handler),
                                        open_mode,
                                        cookie_syn_,
@@ -411,8 +412,7 @@ void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
   }
 }
 
-void Connection::HandleConnect(const bs::error_code& ec, const std::string& validation_data,
-                               PingFunctor ping_functor) {
+void Connection::HandleConnect(const bs::error_code& ec, PingFunctor ping_functor) {
   if (timeout_state_ == TimeoutState::kConnected) {
     LOG(kWarning) << "Duplicate Connect received, ignoring";
     return;
@@ -458,14 +458,6 @@ void Connection::HandleConnect(const bs::error_code& ec, const std::string& vali
 
   StartProbing();
   StartReadSize();
-  if (!validation_data.empty()) {
-    StartSending(validation_data, [this](int result) {
-      if (result != kSuccess) {
-        LOG(kWarning) << "Failed to send validation data from " << *multiplexer_ << " to "
-                      << socket_.PeerEndpoint() << "  Result: " << result;
-      }
-    });
-  }
 }
 
 void Connection::StartReadSize() {
@@ -666,7 +658,7 @@ void Connection::FireOnConnectFunctor(const Error& error) {
   }
 }
 
-void FireConnectionAddedFunctor(int result) {
+void Connection::FireConnectionAddedFunctor(int result) {
   if (connection_added_functor_) {
     auto temp_functor(std::move(connection_added_functor_));
     connection_added_functor_ = nullptr;
