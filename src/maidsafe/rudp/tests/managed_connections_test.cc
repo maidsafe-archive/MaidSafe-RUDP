@@ -1431,7 +1431,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
     if (line[line.size() - 1] == 13)
       line.resize(line.size() - 1);
     const size_t my_id = atoi(line.substr(9).c_str());
-    Node node(my_id);
+    Node node(static_cast<int>(my_id));
     std::cout << "NODE_ID: " << node.node_id().ToStringEncoded(NodeId::EncodingType::kHex)
               << std::endl;
     NodeId chosen_node_id, peer_node_id;
