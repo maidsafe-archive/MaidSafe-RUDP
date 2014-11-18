@@ -55,7 +55,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   EndpointPair endpoints0, endpoints1;
   endpoints0.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   endpoints1.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
-  NodeId chosen_node_id, node1_chosen_bootstrap_peer;
+  NodeId chosen_node_id, node1_chosen_bootstrap_contact;
   int result0(0);
 
   boost::thread thread([&] {
@@ -63,7 +63,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
                                   endpoints0.local);
   });
   int result1(nodes[1]->Bootstrap(std::vector<Endpoint>(1, endpoints0.local),
-                                  node1_chosen_bootstrap_peer, endpoints1.local));
+                                  node1_chosen_bootstrap_contact, endpoints1.local));
   thread.join();
 
   if (result0 == kBindError || result1 == kBindError) {
@@ -71,7 +71,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
     return SetupNetwork(nodes, bootstrap_endpoints, node_count);
   }
 
-  if (result1 != kSuccess || node1_chosen_bootstrap_peer != nodes[0]->node_id())
+  if (result1 != kSuccess || node1_chosen_bootstrap_contact != nodes[0]->node_id())
     return testing::AssertionFailure() << "Bootstrapping failed for Node 1.  Result using "
                                        << endpoints0.local << " was " << result1;
   if (result0 != kSuccess || chosen_node_id != nodes[1]->node_id())
@@ -300,7 +300,7 @@ std::vector<std::string> Node::messages() const {
   return messages_;
 }
 
-int Node::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints, NodeId& chosen_bootstrap_peer,
+int Node::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints, NodeId& chosen_bootstrap_contact,
                     Endpoint local_endpoint) {
   NatType nat_type(NatType::kUnknown);
   return managed_connections_->Bootstrap(
@@ -327,7 +327,7 @@ int Node::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints, NodeId& ch
             std::remove(connected_node_ids_.begin(), connected_node_ids_.end(), peer_id),
             connected_node_ids_.end());
       },
-      node_id_, private_key(), public_key(), chosen_bootstrap_peer, nat_type, local_endpoint);
+      node_id_, private_key(), public_key(), chosen_bootstrap_contact, nat_type, local_endpoint);
 }
 
 int Node::GetReceivedMessageCount(const std::string& message) const {

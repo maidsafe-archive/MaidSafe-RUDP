@@ -33,6 +33,7 @@
 #include "boost/asio/ip/udp.hpp"
 #include "boost/asio/deadline_timer.hpp"
 #include "boost/date_time/posix_time/ptime.hpp"
+#include "boost/optional.hpp"
 #include "boost/signals2/connection.hpp"
 
 #include "maidsafe/common/asio_service.h"
@@ -40,7 +41,7 @@
 #include "maidsafe/common/rsa.h"
 #include "maidsafe/common/utils.h"
 
-#include "maidsafe/rudp/nat_type.h"
+#include "maidsafe/rudp/contact.h"
 #include "maidsafe/rudp/return_codes.h"
 
 namespace maidsafe {
@@ -51,50 +52,27 @@ namespace detail {
 class Transport;
 }
 
-typedef std::function<void(const std::string& /*message*/)> MessageReceivedFunctor;
-typedef std::function<void(const NodeId& /*peer_id*/)> ConnectionLostFunctor;
-typedef std::function<void(const NodeId& /*peer_id*/, int /*result*/)> ConnectionAddedFunctor;
-typedef std::function<void(int /*result*/)> MessageSentFunctor;
+enum class NatType : char;
 
-struct EndpointPair {
-  using Endpoint = boost::asio::ip::udp::endpoint;
-
-  Endpoint local, external;
-
-  EndpointPair() : local(), external() {}
-
-  explicit EndpointPair(const Endpoint& both)
-    : local(both), external(both) {}
-
-  EndpointPair(const Endpoint& local, const Endpoint& external)
-    : local(local), external(external) {}
-
-  bool operator==(const EndpointPair& other) const {
-    return local == other.local && external == other.external;
-  }
-};
-
-struct BootstrapContact {
-  using Endpoint = boost::asio::ip::udp::endpoint;
-  NodeId node_id;
-  Endpoint endpoint;
-  asymm::PublicKey public_key;
-};
-
-using BootstrapList = std::vector<BootstrapContact>;
+using MessageReceivedFunctor = std::function<void(const std::string& /*message*/)>;
+using ConnectionLostFunctor = std::function<void(const NodeId& /*peer_id*/)>;
+using ConnectionAddedFunctor =
+    std::function<void(const NodeId& /*peer_id*/, int /*result*/)>;  // need to handle if this is suitable for inclusion as bootstrap contact
+using MessageSentFunctor = std::function<void(int /*result*/)>;
+using BootstrapList = std::vector<Contact>;
 
 // Defined as 203.0.113.14:1314 which falls in the 203.0.113.0/24 (TEST-NET-3) range as described in
 // RFC 5737 (http://tools.ietf.org/html/rfc5737).
-extern const boost::asio::ip::udp::endpoint kNonRoutable;
+extern const Endpoint kNonRoutable;
 
+#ifdef TESTING
 // Fail to send a constant and bursty ratio of packets. Useful for debugging. Note that values
 // are cumulative, so 0.1 each is 20% of packets overall.
 extern void SetDebugPacketLossRate(double constant, double bursty);
+#endif
 
 class ManagedConnections {
  public:
-  using Endpoint = boost::asio::ip::udp::endpoint;
-
   class Listener {
    public:
     virtual ~Listener() {}
@@ -102,9 +80,12 @@ class ManagedConnections {
     virtual void ConnectionLost(const NodeId& peer_id) = 0;
   };
 
- public:
   ManagedConnections();
+  ManagedConnections(const ManagedConnections&) = delete;
+  ManagedConnections(ManagedConnections&&) = delete;
   ~ManagedConnections();
+  ManagedConnections& operator=(const ManagedConnections&) = delete;
+  ManagedConnections& operator=(ManagedConnections&&) = delete;
 
   static int32_t kMaxMessageSize() { return 2097152; }
   static unsigned short kResiliencePort() { return kLivePort; }  // NOLINT (Fraser)
@@ -119,10 +100,8 @@ class ManagedConnections {
   // private_key before being passed up via MessageReceivedFunctor.  Before bootstrapping begins, if
   // there are any existing transports they are destroyed and all connections closed.  For
   // zero-state network, pass the required local_endpoint.
-  int Bootstrap(const BootstrapList& bootstrap_list,
-                Listener* listener, NodeId this_node_id,
-                asymm::Keys keys, NodeId& chosen_bootstrap_peer,
-                NatType& nat_type,
+  int Bootstrap(const BootstrapList& bootstrap_list, std::shared_ptr<Listener> listener,
+                NodeId this_node_id, asymm::Keys keys, Contact& chosen_bootstrap_contact,
                 Endpoint local_endpoint = Endpoint());
 
   // Returns a transport's EndpointPair and NatType.  Returns kNotBootstrapped if there are no
@@ -135,34 +114,21 @@ class ManagedConnections {
   // permanent connection to a successful bootstrap endpoint) it should be passed in.  If
   // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
   // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
-  int GetAvailableEndpoint(NodeId peer_id, EndpointPair peer_endpoint_pair,
-                           EndpointPair& this_endpoint_pair, NatType& this_nat_type);
+  int GetAvailableEndpoint(const Contact& peer, EndpointPair& this_endpoint_pair);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
   // runs its message_received_functor_ with the data.  All messages sent via this connection are
   // encrypted for the peer.
-  void Add(NodeId peer_id, EndpointPair peer_endpoint_pair, asymm::PublicKey peer_public_key,
-           ConnectionAddedFunctor connection_added_functor);
-
-  // Marks the connection to peer_endpoint as valid.  If it exists and is already permanent, or
-  // is successfully upgraded to permanent, then the function is successful.  If the peer is direct-
-  // connected, its endpoint is returned.
-  // TODO(Fraser#5#): 2012-09-11 - Handle passing back peer_endpoint if it's direct-connected.
-  //                  Currently returned whenever peer_endpoint is a non-private addresses.
-  int MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_endpoint);
+  void Add(const Contact& peer, ConnectionAddedFunctor connection_added_functor);
 
   // Drops the connection with peer.
-  void Remove(NodeId peer_id);
+  void Remove(const NodeId& peer_id);
 
   // Sends the message to the peer.  If the message is sent successfully, the message_sent_functor
   // is executed with input of kSuccess.  If there is no existing connection to peer_id,
   // kInvalidConnection is used.
-  void Send(NodeId peer_id, std::string message, MessageSentFunctor message_sent_functor);
-
-  // Try to ping remote_endpoint.  If this node is already connected, ping_functor is invoked with
-  // kWontPingAlreadyConnected.  Otherwise, kPingFailed or kSuccess is passed to ping_functor.
-  //  void Ping(Endpoint peer_endpoint, PingFunctor ping_functor);
-  unsigned GetActiveConnectionCount() const;
+  void Send(const NodeId& peer_id, std::vector<unsigned char>&& message,
+            MessageSentFunctor message_sent_functor);
 
  private:
   typedef std::shared_ptr<detail::Transport> TransportPtr;
@@ -176,15 +142,10 @@ class ManagedConnections {
     bool connecting;
   };
 
-  ManagedConnections(const ManagedConnections&);
-  ManagedConnections& operator=(const ManagedConnections&);
-
   void ClearConnectionsAndIdleTransports();
   int TryToDetermineLocalEndpoint(Endpoint& local_endpoint);
-  int AttemptStartNewTransport(
-      const BootstrapList& bootstrap_list,
-      const Endpoint& local_endpoint, NodeId& chosen_bootstrap_peer,
-      NatType& nat_type);
+  int AttemptStartNewTransport(const BootstrapList& bootstrap_list, const Endpoint& local_endpoint,
+                               Contact& chosen_bootstrap_contact);
   ReturnCode StartNewTransport(BootstrapList bootstrap_list, Endpoint local_endpoint);
 
   void GetBootstrapEndpoints(BootstrapList& bootstrap_list,
@@ -222,20 +183,19 @@ class ManagedConnections {
 
   void UpdateIdleTransports(const TransportPtr&);
 
- private:
   std::string DebugString() const;
 
   AsioService asio_service_;
-  Listener* listener_;
+  std::weak_ptr<Listener> listener_;
   NodeId this_node_id_;
-  BootstrapContact chosen_bootstrap_contact_;
+  Contact chosen_bootstrap_contact_;
   asymm::Keys keys_;
   ConnectionMap connections_;
   std::vector<std::unique_ptr<PendingConnection>> pendings_;
   std::set<TransportPtr> idle_transports_;
   mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
-  NatType nat_type_;
+  std::unique_ptr<NatType> nat_type_;
 };
 
 }  // namespace rudp

@@ -145,9 +145,11 @@ int ConnectionManager::AddConnection(ConnectionPtr connection) {
   assert(connection->state() != Connection::State::kPending);
   if (!IsNormal(connection))
     return kInvalidConnection;
+
+  connection->MakePermanent(true);
+
   std::lock_guard<std::mutex> lock(mutex_);
-  auto result(connections_.insert(connection));
-  return result.second ? kSuccess : kConnectionAlreadyExists;
+  return connections_.insert(connection).second ? kSuccess : kConnectionAlreadyExists;
 }
 
 bool ConnectionManager::CloseConnection(const NodeId& peer_id) {
@@ -315,31 +317,13 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
   } else {
     // Joining node is not already connected - start new bootstrap or temporary connection
     if (auto t = transport_.lock()) {
-      Connect(
-          handshake_packet.node_id(),
-          endpoint, "", Parameters::bootstrap_connect_timeout,
-          bootstrap_and_drop ? bptime::time_duration()
-                             : Parameters::bootstrap_connection_lifespan,
-          t->MakeDefaultOnConnectHandler(),
-          nullptr);
+      Connect(handshake_packet.node_id(), endpoint, handshake_packet.PublicKey(), nullptr,
+              Parameters::bootstrap_connect_timeout,
+              bootstrap_and_drop ? bptime::time_duration() :
+                                   Parameters::bootstrap_connection_lifespan,
+              t->MakeDefaultOnConnectHandler(), nullptr);
     }
   }
-}
-
-bool ConnectionManager::MakeConnectionPermanent(const NodeId& peer_id, bool validated,
-                                                Endpoint& peer_endpoint) {
-  peer_endpoint = Endpoint();
-  std::lock_guard<std::mutex> lock(mutex_);
-  auto itr(FindConnection(peer_id));
-  if (itr == connections_.end()) {
-    LOG(kWarning) << kThisNodeId_ << " Not currently connected to " << peer_id;
-    return false;
-  }
-  (*itr)->MakePermanent(validated);
-  // TODO(Fraser#5#): 2012-09-11 - Handle passing back peer_endpoint iff it's direct-connected.
-  if (!OnPrivateNetwork((*itr)->Socket().PeerEndpoint()))
-    peer_endpoint = (*itr)->Socket().PeerEndpoint();
-  return true;
 }
 
 Endpoint ConnectionManager::ThisEndpoint(const NodeId& peer_id) {

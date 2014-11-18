@@ -83,8 +83,6 @@ class ConnectionManager {
   bool Send(const NodeId& peer_id, const std::string& message,
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
-  bool MakeConnectionPermanent(const NodeId& peer_id, bool validated, Endpoint& peer_endpoint);
-
   // This node's endpoint as viewed by peer
   Endpoint ThisEndpoint(const NodeId& peer_id);
 

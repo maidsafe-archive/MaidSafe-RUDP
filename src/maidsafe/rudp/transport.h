@@ -68,16 +68,17 @@ class Transport : public std::enable_shared_from_this<Transport> {
   using Error           = boost::system::error_code;
   using OnConnect       = std::function<void(const Error&, const ConnectionPtr&)>;
   using Duration        = boost::posix_time::time_duration;
-  using IdEndpointPairs = std::vector<std::pair<NodeId, Endpoint>>;
   using OnNatDetected   = Session::OnNatDetectionRequested::slot_function_type;
-  using OnBootstrap     = std::function<void(ReturnCode, NodeId)>;
+  using OnBootstrap     = std::function<void(ReturnCode, Contact)>;
+  using BootstrapList   = std::vector<Contact>;
+
 
  public:
   Transport(AsioService& asio_service, NatType& nat_type_);
 
   virtual ~Transport();
 
-  void Bootstrap(const IdEndpointPairs&            bootstrap_peers,
+  void Bootstrap(const BootstrapList&              bootstrap_list,
                  const NodeId&                     this_node_id,
                  const asymm::PublicKey&           this_public_key,
                  Endpoint                          local_endpoint,
@@ -110,8 +111,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
   Endpoint ThisEndpointAsSeenByPeer(const NodeId& peer_id);
   void SetBestGuessExternalEndpoint(const Endpoint& external_endpoint);
 
-  bool MakeConnectionPermanent(const NodeId& peer_id, bool validated, Endpoint& peer_endpoint);
-
   size_t NormalConnectionsCount() const;
   bool IsIdle() const;
   bool IsAvailable() const;
@@ -132,7 +131,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
 
   template<class Handler>
-  void TryBootstrapping(const IdEndpointPairs& bootstrap_peers,
+  void TryBootstrapping(const BootstrapList& bootstrap_list,
                         bool bootstrap_off_existing_connection,
                         Handler);
 
@@ -140,10 +139,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void ConnectToBootstrapEndpoint(Iterator begin, Iterator end, Duration lifespan, Handler handler);
 
   template<class Handler>
-  void ConnectToBootstrapEndpoint(const NodeId&   bootstrap_node_id,
-                                  const Endpoint& bootstrap_endpoint,
-                                  const Duration& lifespan,
-                                  Handler);
+  void ConnectToBootstrapEndpoint(const Contact& contact, const Duration& lifespan, Handler);
 
   template<class Handler>
   void DetectNatType(NodeId const& peer_id, Handler);
