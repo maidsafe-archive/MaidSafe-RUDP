@@ -69,22 +69,22 @@ class NegativeAckPacket;
 
 class Socket {
  public:
-  using Endpoint = boost::asio::ip::udp::endpoint;
+  using endpoint = boost::asio::ip::udp::endpoint;
 
-  Socket(Multiplexer& multiplexer, NatType& nat_type);  // NOLINT (Fraser)
+  Socket(Multiplexer& multiplexer, nat_type& nat_type);  // NOLINT (Fraser)
   ~Socket();
 
   // Get the unique identifier that has been assigned to the socket.
   uint32_t Id() const;
 
   // Get the remote endpoint to which the socket is connected.
-  Endpoint PeerEndpoint() const;
+  endpoint PeerEndpoint() const;
 
   // Get the remote socket identifier to which the socket is connected.
   uint32_t PeerSocketId() const;
 
   // Get the remote socket identifier to which the socket is connected.
-  NodeId PeerNodeId() const;
+  connection_id PeerNodeId() const;
 
   // Returns whether the connection is open.
   bool IsOpen() const;
@@ -94,14 +94,14 @@ class Socket {
 
   // This should only be called by the ConnectionManager if this node discovers that the peer has a
   // different endpoint than it predicted (i.e. the peer is behind symmetric NAT).
-  void UpdatePeerEndpoint(const Endpoint& remote);
+  void UpdatePeerEndpoint(const endpoint& remote);
 
   // If the peer endpoint was updated using UpdatePeerEndpoint, this returns the port originally
   // provided by the peer as its best guess.  Otherwise 0 is returned.
   uint16_t PeerGuessedPort() const;
 
   // Get the remote endpoint offered for NAT detection.
-  Endpoint RemoteNatDetectionEndpoint() const;
+  endpoint RemoteNatDetectionEndpoint() const;
 
   // Notify the peer that the socket is about to close.
   void NotifyClose();
@@ -128,10 +128,10 @@ class Socket {
   // caller to set a timeout and close the socket after the timeout period
   // expires.
   template <typename ConnectHandler>
-  uint32_t AsyncConnect(const NodeId& this_node_id,
+  uint32_t AsyncConnect(const connection_id& this_node_id,
                         const asymm::PublicKey& this_public_key,
-                        const Endpoint& remote,
-                        const NodeId& peer_node_id,
+                        const endpoint& remote,
+                        const connection_id& peer_node_id,
                         const asymm::PublicKey& peer_public_key,
                         ConnectHandler handler,
                         Session::Mode open_mode,
@@ -190,7 +190,7 @@ class Socket {
   void MakeNormal();
 
   // This node's endpoint as viewed by peer
-  Endpoint ThisEndpoint() const;
+  endpoint ThisEndpoint() const;
 
   // Public key of remote peer, used to encrypt all outgoing messages on this socket
   const asymm::PublicKey& PeerPublicKey() const;
@@ -202,10 +202,10 @@ class Socket {
   Socket(const Socket&);
   Socket& operator=(const Socket&);
 
-  uint32_t StartConnect(const NodeId& this_node_id,
+  uint32_t StartConnect(const connection_id& this_node_id,
                         const asymm::PublicKey& this_public_key,
-                        const Endpoint& remote,
-                        const NodeId& peer_node_id,
+                        const endpoint& remote,
+                        const connection_id& peer_node_id,
                         const asymm::PublicKey& peer_public_key,
                         Session::Mode open_mode,
                         uint32_t cookie_syn,
@@ -223,7 +223,7 @@ class Socket {
 
   // Called by the Dispatcher when a new packet arrives for the socket.
   void HandleReceiveFrom(const boost::asio::const_buffer& data,
-                         const Endpoint& endpoint);
+                         const endpoint& endpoint);
 
   // Called to process a newly received handshake packet.
   void HandleHandshake(const HandshakePacket& packet);

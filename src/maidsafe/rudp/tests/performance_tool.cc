@@ -51,9 +51,9 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
       std::cerr << "Message count must be >= 1 and size of messages must be >= 12.\n";
       return false;
     }
-    if (message_size > maidsafe::rudp::ManagedConnections::kMaxMessageSize()) {
+    if (message_size > maidsafe::rudp::managed_connections::max_message_size()) {
       std::cerr << "Maximum message size is "
-                << maidsafe::rudp::ManagedConnections::kMaxMessageSize() << std::endl;
+                << maidsafe::rudp::managed_connections::max_message_size() << std::endl;
       return false;
     }
     if (argc > 3) {
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
                        << packet_loss_bursty * 100.0 << "%.\n";
 
   if (packet_loss_constant > 0 || packet_loss_bursty > 0)
-    maidsafe::rudp::SetDebugPacketLossRate(packet_loss_constant, packet_loss_bursty);
+    maidsafe::rudp::set_debug_packet_loss_rate(packet_loss_constant, packet_loss_bursty);
   std::vector<maidsafe::rudp::test::NodePtr> nodes;
   std::vector<maidsafe::rudp::Endpoint> bootstrap_endpoints;
   if (!maidsafe::rudp::test::SetupNetwork(nodes, bootstrap_endpoints, 2)) {

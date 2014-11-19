@@ -77,7 +77,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void Close();
   // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
   // after lifespan has passed.
-  void StartConnecting(const NodeId& peer_node_id,
+  void StartConnecting(const connection_id& peer_node_id,
                        const boost::asio::ip::udp::endpoint& peer_endpoint,
                        const asymm::PublicKey& peer_public_key,
                        ConnectionAddedFunctor connection_added_functor,
@@ -85,7 +85,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
                        const boost::posix_time::time_duration& lifespan,
                        OnConnect on_connect,
                        const std::function<void()>& failure_functor);
-  void Ping(const NodeId& peer_node_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void Ping(const connection_id& peer_node_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   void StartSending(const std::string& data,
                     const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
@@ -103,7 +103,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   std::string PeerDebugId() const;
 
   boost::asio::ip::udp::endpoint PeerEndpoint() const { return peer_endpoint_; }
-  NodeId PeerNodeId() const { return peer_node_id_; }
+  connection_id PeerNodeId() const { return peer_node_id_; }
 
  private:
   Connection(const Connection&);
@@ -121,7 +121,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void DoClose(const Error&);
 
-  void DoStartConnecting(const NodeId& peer_node_id,
+  void DoStartConnecting(const connection_id& peer_node_id,
                          const boost::asio::ip::udp::endpoint& peer_endpoint,
                          const asymm::PublicKey& peer_public_key,
                          ConnectionAddedFunctor connection_added_functor,
@@ -178,7 +178,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   detail::Socket socket_;
   uint32_t cookie_syn_;
   boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
-  NodeId peer_node_id_;
+  connection_id peer_node_id_;
   boost::asio::ip::udp::endpoint peer_endpoint_;
   ConnectionAddedFunctor connection_added_functor_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;

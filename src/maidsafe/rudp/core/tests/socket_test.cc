@@ -98,7 +98,7 @@ TEST(SocketTest, BEH_Socket) {
 
   client_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, client_multiplexer));
 
-  NatType server_nat_type = NatType::kUnknown, client_nat_type = NatType::kUnknown;
+  nat_type server_nat_type = nat_type::unknown, client_nat_type = nat_type::unknown;
   Socket server_socket(*server_multiplexer, server_nat_type);
   server_ec = asio::error::would_block;
 
@@ -206,7 +206,7 @@ TEST(SocketTest, BEH_AsyncProbe) {
   server_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, server_multiplexer));
   client_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, client_multiplexer));
 
-  NatType not_joined_client_nat_type, client_nat_type, server_nat_type;
+  nat_type not_joined_client_nat_type, client_nat_type, server_nat_type;
   Socket not_joined_client_socket(*client_multiplexer, not_joined_client_nat_type);
   Socket client_socket(*client_multiplexer, client_nat_type);
   Socket server_socket(*server_multiplexer, server_nat_type);

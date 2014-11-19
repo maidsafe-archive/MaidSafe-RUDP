@@ -135,7 +135,7 @@ class Multiplexer {
  public:
   // Fail to send a constant and bursty ratio of packets. Useful for debugging. Note that values
   // are cumulative, so 0.1 each is 20% of packets overall.
-  static void SetDebugPacketLossRate(double constant, double bursty) {
+  static void set_debug_packet_loss_rate(double constant, double bursty) {
     auto &state = getPacketLossState();
     std::lock_guard<decltype(state.lock)> g(state.lock);
     if (state.enabled < (constant > 0.0 || bursty > 0.0)) {

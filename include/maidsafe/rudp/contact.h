@@ -1,4 +1,4 @@
-/*  Copyright 2012 MaidSafe.net limited
+/*  Copyright 2014 MaidSafe.net limited
 
     This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
     version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
@@ -22,72 +22,64 @@
 #include "boost/asio/ip/udp.hpp"
 
 #include "maidsafe/common/config.h"
-#include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
+
+#include "maidsafe/rudp/config.h"
 
 namespace maidsafe {
 
 namespace rudp {
 
-using Endpoint = boost::asio::ip::udp::endpoint;
-
-struct EndpointPair {
-  EndpointPair() = default;
-  EndpointPair(const EndpointPair&) = default;
-  EndpointPair(EndpointPair&& other) MAIDSAFE_NOEXCEPT : local(std::move(other.local)),
-                                                         external(std::move(other.external)) {}
-  EndpointPair& operator=(const EndpointPair&) = default;
-  EndpointPair& operator=(EndpointPair&& other) {
+struct endpoint_pair {
+  endpoint_pair() = default;
+  endpoint_pair(const endpoint_pair&) = default;
+  endpoint_pair(endpoint_pair&& other) MAIDSAFE_NOEXCEPT : local(std::move(other.local)),
+                                                           external(std::move(other.external)) {}
+  endpoint_pair& operator=(const endpoint_pair&) = default;
+  endpoint_pair& operator=(endpoint_pair&& other) {
     local = std::move(other.local);
     external = std::move(other.external);
     return *this;
   }
 
-  explicit EndpointPair(Endpoint both)
-    : local(both), external(std::move(both)) {}
+  explicit endpoint_pair(endpoint both) : local(both), external(std::move(both)) {}
 
-  EndpointPair(Endpoint local, Endpoint external)
-    : local(std::move(local)), external(std::move(external)) {}
+  endpoint_pair(endpoint local, endpoint external)
+      : local(std::move(local)), external(std::move(external)) {}
 
-
-  Endpoint local, external;
+  endpoint local, external;
 };
 
-inline bool operator==(const EndpointPair& lhs, const EndpointPair& rhs) {
+inline bool operator==(const endpoint_pair& lhs, const endpoint_pair& rhs) {
   return lhs.local == rhs.local && lhs.external == rhs.external;
 }
 
-struct Contact {
-  Contact() = default;
-  Contact(const Contact&) = default;
-  Contact(Contact&& other) MAIDSAFE_NOEXCEPT : id(std::move(other.id)),
+struct contact {
+  contact() = default;
+  contact(const contact&) = default;
+  contact(contact&& other) MAIDSAFE_NOEXCEPT : id(std::move(other.id)),
                                                endpoint_pair(std::move(other.endpoint_pair)),
                                                public_key(std::move(other.public_key)) {}
-  Contact& operator=(const Contact&) = default;
-  Contact& operator=(Contact&& other) {
+  contact& operator=(const contact&) = default;
+  contact& operator=(contact&& other) {
     id = std::move(other.id);
     endpoint_pair = std::move(other.endpoint_pair);
     public_key = std::move(other.public_key);
     return *this;
   }
 
-  Contact(NodeId node_id, asymm::PublicKey public_key_in)
-      : id(std::move(node_id)),
-        endpoint_pair(),
-        public_key(std::move(public_key_in)) {}
-
-  Contact(NodeId node_id, Endpoint both, asymm::PublicKey public_key_in)
+  contact(connection_id node_id, endpoint both, asymm::PublicKey public_key_in)
       : id(std::move(node_id)),
         endpoint_pair(std::move(both)),
         public_key(std::move(public_key_in)) {}
 
-  Contact(NodeId node_id, Endpoint local, Endpoint external, asymm::PublicKey public_key_in)
+  contact(connection_id node_id, endpoint local, endpoint external, asymm::PublicKey public_key_in)
       : id(std::move(node_id)),
         endpoint_pair(std::move(local), std::move(external)),
         public_key(std::move(public_key_in)) {}
 
-  NodeId id;
-  EndpointPair endpoint_pair;
+  connection_id id;
+  endpoint_pair endpoints;
   asymm::PublicKey public_key;
 };
 

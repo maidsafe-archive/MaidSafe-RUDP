@@ -46,7 +46,7 @@ class TickTimer;
 
 class Session {
  public:
-  typedef boost::signals2::signal<void(const boost::asio::ip::udp::endpoint&, const NodeId&,
+  typedef boost::signals2::signal<void(const boost::asio::ip::udp::endpoint&, const connection_id&,
                                        const boost::asio::ip::udp::endpoint&, uint16_t&)>
       OnNatDetectionRequested;
 
@@ -59,10 +59,10 @@ class Session {
   explicit Session(Peer& peer, TickTimer& tick_timer,
                    boost::asio::ip::udp::endpoint& this_external_endpoint,
                    std::mutex& this_external_endpoint_mutex,
-                   boost::asio::ip::udp::endpoint this_local_endpoint, NatType& nat_type);
+                   boost::asio::ip::udp::endpoint this_local_endpoint, nat_type& nat_type);
 
   // Open the session, returning the SYN cookie used.
-  uint32_t Open(uint32_t id, NodeId this_node_id,
+  uint32_t Open(uint32_t id, connection_id this_node_id,
                 const asymm::PublicKey& this_public_key,
                 uint32_t sequence_number, Mode mode, uint32_t cookie_syn,
                 const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
@@ -129,11 +129,11 @@ class Session {
   // This node's local endpoint.
   const boost::asio::ip::udp::endpoint kThisLocalEndpoint_;
 
-  // This node's NAT type.  Object owned by ManagedConnections.
-  NatType& nat_type_;
+  // This node's NAT type.  Object owned by managed_connections.
+  nat_type& nat_type_;
 
-  // This node's NodeId
-  NodeId this_node_id_;
+  // This node's connection_id
+  connection_id this_node_id_;
 
   // This node's public key
   asymm::PublicKey this_public_key_;
@@ -153,7 +153,7 @@ class Session {
   // Whether the peer requested another port to do NAT detection.
   bool peer_requested_nat_detection_port_;
 
-  // Endpoint offered by peer for this node to perform NAT detection
+  // endpoint offered by peer for this node to perform NAT detection
   boost::asio::ip::udp::endpoint peer_nat_detection_endpoint_;
 
   // The open mode of the session.

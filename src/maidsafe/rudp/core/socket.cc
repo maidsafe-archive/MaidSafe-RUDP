@@ -51,7 +51,7 @@ namespace rudp {
 
 namespace detail {
 
-Socket::Socket(Multiplexer& multiplexer, NatType& nat_type)  // NOLINT (Fraser)
+Socket::Socket(Multiplexer& multiplexer, nat_type& nat_type)  // NOLINT (Fraser)
     : dispatcher_(multiplexer.dispatcher_),
       peer_(multiplexer),
       tick_timer_(multiplexer.socket_.get_io_service()),
@@ -100,7 +100,7 @@ ip::udp::endpoint Socket::PeerEndpoint() const { return peer_.PeerEndpoint(); }
 
 uint32_t Socket::PeerSocketId() const { return peer_.SocketId(); }
 
-NodeId Socket::PeerNodeId() const { return peer_.node_id(); }
+connection_id Socket::PeerNodeId() const { return peer_.node_id(); }
 
 bool Socket::IsOpen() const { return session_.IsOpen(); }
 
@@ -147,10 +147,10 @@ void Socket::Close() {
 }
 
 uint32_t Socket::StartConnect(
-    const NodeId& this_node_id,
+    const connection_id& this_node_id,
     const asymm::PublicKey& this_public_key,
     const ip::udp::endpoint& remote,
-    const NodeId& peer_node_id,
+    const connection_id& peer_node_id,
     const asymm::PublicKey& peer_public_key,
     Session::Mode open_mode,
     uint32_t cookie_syn,

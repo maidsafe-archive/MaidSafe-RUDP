@@ -42,7 +42,7 @@ namespace detail {
 Session::Session(Peer& peer, TickTimer& tick_timer,
                  boost::asio::ip::udp::endpoint& this_external_endpoint,
                  std::mutex& this_external_endpoint_mutex,
-                 boost::asio::ip::udp::endpoint this_local_endpoint, NatType& nat_type)
+                 boost::asio::ip::udp::endpoint this_local_endpoint, nat_type& nat_type)
     : peer_(peer),
       tick_timer_(tick_timer),
       this_external_endpoint_(this_external_endpoint),
@@ -66,7 +66,7 @@ Session::Session(Peer& peer, TickTimer& tick_timer,
       on_nat_detection_requested_(),
       signal_connection_() {}
 
-uint32_t Session::Open(uint32_t id, NodeId this_node_id,
+uint32_t Session::Open(uint32_t id, connection_id this_node_id,
                    const asymm::PublicKey& this_public_key, uint32_t sequence_number,
                    Mode mode, uint32_t cookie_syn,
                    const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
@@ -212,13 +212,13 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
   if (peer_.SocketId() == 0)
     peer_.SetSocketId(packet.SocketId());
 
-  if (packet.node_id() == NodeId()) {
+  if (packet.node_id() == connection_id()) {
     LOG(kError) << DebugId(this_node_id_) << " ZeroId passed in handshake packet from peer "
                 << DebugId(peer_.node_id());
     return;
   }
 
-  if (peer_.node_id() == NodeId()) {
+  if (peer_.node_id() == connection_id()) {
     peer_.set_node_id(packet.node_id());
   } else if (peer_.node_id() != packet.node_id()) {
     // This will happen if this node has assigned a proxy ID to peer.
@@ -301,12 +301,12 @@ bool Session::CalculateEndpoint() {
     }
   } else {
     if (this_external_endpoint_ == peer_.ThisEndpoint()) {
-      if (nat_type_ == NatType::kSymmetric) {
+      if (nat_type_ == nat_type::symmetric) {
         LOG(kError) << "NAT type has been set to symmetric, but peer at " << peer_.PeerEndpoint()
                     << " is reporting our endpoint as " << peer_.ThisEndpoint()
                     << " which is what it's already been reported as by another peer.";
       }
-      nat_type_ = NatType::kOther;
+      nat_type_ = nat_type::other;
     } else {
       // Check to see if our external address has changed
       if (OnSameLocalNetwork(kThisLocalEndpoint_, peer_.PeerEndpoint())) {
@@ -321,7 +321,7 @@ bool Session::CalculateEndpoint() {
                       << ", but peer at " << peer_.PeerEndpoint()
                       << " is reporting our endpoint as " << peer_.ThisEndpoint()
                       << " - setting NAT type to symmetric.";
-        nat_type_ = NatType::kSymmetric;
+        nat_type_ = nat_type::symmetric;
       }
     }
   }
@@ -352,7 +352,7 @@ void Session::SendConnectionRequest() {
   packet.SetDestinationSocketId(0);
   packet.SetConnectionType(1);
   packet.SetConnectionReason(mode_);
-  packet.SetRequestNatDetectionPort(nat_type_ == NatType::kUnknown &&
+  packet.SetRequestNatDetectionPort(nat_type_ == nat_type::unknown &&
                                     !OnPrivateNetwork(peer_.PeerEndpoint()));
 
   LOG(kInfo) << DebugId(this_node_id_) << " sending initial handshake packet to "

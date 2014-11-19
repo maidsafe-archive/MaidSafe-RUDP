@@ -128,7 +128,7 @@ void Connection::DoClose(const Error& error) {
   LOG(kInfo) << "RUDP Connection::DoClose connection closed";
 }
 
-void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
+void Connection::StartConnecting(const connection_id& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                                  const asymm::PublicKey& peer_public_key,
                                  ConnectionAddedFunctor connection_added_functor,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
@@ -141,7 +141,7 @@ void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endp
                              failure_functor));
 }
 
-void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
+void Connection::Ping(const connection_id& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                       const PingFunctor& ping_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, asymm::PublicKey(), ConnectionAddedFunctor(),
@@ -149,7 +149,7 @@ void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_
                              OnConnect(), std::function<void()>()));
 }
 
-void Connection::DoStartConnecting(const NodeId& peer_node_id,
+void Connection::DoStartConnecting(const connection_id& peer_node_id,
                                    const ip::udp::endpoint& peer_endpoint,
                                    const asymm::PublicKey& peer_public_key,
                                    ConnectionAddedFunctor connection_added_functor,
@@ -213,9 +213,9 @@ ip::udp::endpoint Connection::RemoteNatDetectionEndpoint() const {
 
 void Connection::StartSending(const std::string& data,
                               const MessageSentFunctor& message_sent_functor) {
-  if (data.size() > static_cast<size_t>(ManagedConnections::kMaxMessageSize())) {
+  if (data.size() > static_cast<size_t>(managed_connections::max_message_size())) {
     LOG(kError) << "Data size " << data.size() << " bytes (exceeds limit of "
-                << ManagedConnections::kMaxMessageSize() << ")";
+                << managed_connections::max_message_size() << ")";
     InvokeSentFunctor(message_sent_functor, kMessageTooLarge);
   }
   try {
@@ -497,9 +497,9 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
   // LOG(kInfo) << "Connection::HandleReadSize to " << *multiplexer_ << " sees "
   //            << data_size_ << " bytes.";
   // Allow some leeway for encryption overhead
-  if (data_size_ > ManagedConnections::kMaxMessageSize() + 1024) {
+  if (data_size_ > managed_connections::max_message_size() + 1024) {
     LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > "
-                << ManagedConnections::kMaxMessageSize() + 1024 << ", closing.";
+                << managed_connections::max_message_size() + 1024 << ", closing.";
     return DoClose(asio::error::not_connected);
   }
 

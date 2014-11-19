@@ -52,7 +52,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   }
 
   // Setting up first two nodes
-  EndpointPair endpoints0, endpoints1;
+  endpoint_pair endpoints0, endpoints1;
   endpoints0.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   endpoints1.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   NodeId chosen_node_id, node1_chosen_bootstrap_contact;
@@ -78,8 +78,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
     return testing::AssertionFailure() << "Bootstrapping failed for Node 0.  Result using "
                                        << endpoints1.local << " was " << result0;
 
-  EndpointPair endpoint_pair0, endpoint_pair1;
-  NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
+  endpoint_pair endpoint_pair0, endpoint_pair1;
+  nat_type nat_type0(nat_type::unknown), nat_type1(nat_type::unknown);
   endpoint_pair1 = endpoints1;
   Sleep(std::chrono::milliseconds(250));
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
@@ -162,8 +162,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
       return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->id();
     }
 
-    EndpointPair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
-    NatType nat_type;
+    endpoint_pair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
+    nat_type nat_type;
     Sleep(std::chrono::milliseconds(250));
     for (int j(0); j != i; ++j) {
       LOG(kInfo) << "Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();
@@ -285,7 +285,7 @@ Node::Node(int id)
       connection_lost_node_ids_(),
       connected_node_ids_(),
       messages_(),
-      managed_connections_(new ManagedConnections),
+      managed_connections_(new managed_connections),
       promised_(false),
       total_message_count_expectation_(0),
       message_promise_() {}
@@ -302,7 +302,7 @@ std::vector<std::string> Node::messages() const {
 
 int Node::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints, NodeId& chosen_bootstrap_contact,
                     Endpoint local_endpoint) {
-  NatType nat_type(NatType::kUnknown);
+  nat_type nat_type(nat_type::unknown);
   return managed_connections_->Bootstrap(
       bootstrap_endpoints,
       [this](const std::string & message) {

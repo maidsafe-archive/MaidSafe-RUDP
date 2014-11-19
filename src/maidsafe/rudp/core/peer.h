@@ -46,7 +46,7 @@ class Peer {
         public_key_(),
         peer_guessed_port_(0) {}
 
-  // Endpoint of peer
+  // endpoint of peer
   const boost::asio::ip::udp::endpoint& PeerEndpoint() const { return peer_endpoint_; }
   void SetPeerEndpoint(const boost::asio::ip::udp::endpoint& ep) { peer_endpoint_ = ep; }
 
@@ -57,8 +57,8 @@ class Peer {
   uint32_t SocketId() const { return socket_id_; }
   void SetSocketId(uint32_t id) { socket_id_ = id; }
 
-  NodeId node_id() const { return node_id_; }
-  void set_node_id(NodeId node_id) { node_id_ = node_id; }
+  connection_id node_id() const { return node_id_; }
+  void set_node_id(connection_id node_id) { node_id_ = node_id; }
 
   const asymm::PublicKey& public_key() const { return public_key_; }
   void SetPublicKey(const asymm::PublicKey& public_key) {
@@ -87,8 +87,8 @@ class Peer {
   boost::asio::ip::udp::endpoint this_endpoint_;
   // The remote socket's identifier.
   uint32_t socket_id_;
-  // The remote peer's NodeId.
-  NodeId node_id_;
+  // The remote peer's connection_id.
+  connection_id node_id_;
   // The remote peer's PublicKey.
   asymm::PublicKey public_key_;
   // The port originally guessed by the peer when passing its details to this node.  This will be

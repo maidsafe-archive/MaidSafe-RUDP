@@ -1,4 +1,4 @@
-/*  Copyright 2012 MaidSafe.net limited
+/*  Copyright 2014 MaidSafe.net limited
 
     This MaidSafe Software is licensed to you under (1) the MaidSafe.net Commercial License,
     version 1.0 or later, or (2) The General Public License (GPL), version 3, depending on which
@@ -16,47 +16,38 @@
     See the Licences for the specific language governing permissions and limitations relating to
     use of the MaidSafe Software.                                                                 */
 
-#ifndef MAIDSAFE_RUDP_NAT_TYPE_H_
-#define MAIDSAFE_RUDP_NAT_TYPE_H_
+#ifndef MAIDSAFE_RUDP_CONFIG_H_
+#define MAIDSAFE_RUDP_CONFIG_H_
 
-#include <string>
+#include <functional>
+#include <vector>
+
+#include "boost/asio/ip/udp.hpp"
+
+#include "maidsafe/common/error.h"
+#include "maidsafe/common/node_id.h"
+#include "maidsafe/common/tagged_value.h"
 
 namespace maidsafe {
 
 namespace rudp {
 
-enum class nat_type : char {
-  symmetric,
-  other,
-  kUnknown
-};
+struct endpoint_pair;
+struct contact;
 
-template <typename Elem, typename Traits>
-std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
-                                             const nat_type& nat_type) {
-  std::string nat_str;
-  switch (nat_type) {
-    case nat_type::symmetric:
-      nat_str = "symmetric NAT";
-      break;
-    case nat_type::other:
-      nat_str = "other NAT";
-      break;
-    case nat_type::unknown:
-      nat_str = "unknown NAT";
-      break;
-    default:
-      nat_str = "Invalid NAT type";
-      break;
-  }
-
-  for (auto& ch : nat_str)
-    ostream << ostream.widen(ch);
-  return ostream;
-}
+using connection_id = TaggedValue<NodeId, struct connection_id_tag>;
+using endpoint = boost::asio::ip::udp::endpoint;
+using sendable_message = std::vector<unsigned char>;
+using received_message = std::vector<unsigned char>;
+using bootstrap_functor = std::function<void(maidsafe_error, contact)>;  // chosen bootstrap contact
+using get_available_endpoints_functor = std::function<void(maidsafe_error, endpoint_pair)>;
+using connection_added_functor = std::function<void(maidsafe_error)>;
+using connection_removed_functor = std::function<void(maidsafe_error)>;
+using message_sent_functor = std::function<void(maidsafe_error)>;
+using bootstrap_list = std::vector<contact>;
 
 }  // namespace rudp
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_RUDP_NAT_TYPE_H_
+#endif  // MAIDSAFE_RUDP_CONFIG_H_

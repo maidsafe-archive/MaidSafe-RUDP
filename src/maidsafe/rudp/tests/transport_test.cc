@@ -59,7 +59,7 @@ namespace test {
 //                 cond_var_connection_lost(),
 //                 cond_var_msg_received(),
 //                 asio_service(Parameters::thread_count),
-//                 nat_type(NatType::kUnknown),
+//                 nat_type(nat_type::unknown),
 //                 transport(),
 //                 messages_received(),
 //                 peers_added(),
@@ -130,7 +130,7 @@ namespace test {
 //    boost::condition_variable cond_var_connection_lost;
 //    boost::condition_variable cond_var_msg_received;
 //    AsioService asio_service;
-//    NatType nat_type;
+//    nat_type nat_type;
 //    std::shared_ptr<Transport> transport;
 //    std::vector<std::string> messages_received;
 //    std::vector<Endpoint> peers_added;

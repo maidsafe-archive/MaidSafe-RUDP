@@ -39,26 +39,27 @@ namespace maidsafe {
 
 namespace rudp {
 
-// 203.0.113.14:1314
-const Endpoint kNonRoutable(boost::asio::ip::address_v4(3405803790U), 1314);
-
 #ifdef TESTING
-void SetDebugPacketLossRate(double constant, double bursty) {
-  detail::Multiplexer::SetDebugPacketLossRate(constant, bursty);
+void set_debug_packet_loss_rate(double constant, double bursty) {
+  detail::Multiplexer::set_debug_packet_loss_rate(constant, bursty);
 }
 #endif
 
 namespace {
 
+// Legacy functors to be removed
+using MessageReceivedFunctor = std::function<void(const std::string& /*message*/)>;
+using ConnectionLostFunctor = std::function<void(const connection_id& /*peer_id*/)>;
+
 int CheckBootstrappingParameters(const BootstrapList& bootstrap_list,
-                                 std::shared_ptr<ManagedConnections::Listener> listener,
-                                 NodeId this_node_id) {
+                                 std::shared_ptr<managed_connections::listener> listener,
+                                 connection_id this_node_id) {
   if (!listener) {
-    LOG(kError) << "You must provide a non-null Listener.";
+    LOG(kError) << "You must provide a non-null listener.";
     return kInvalidParameter;
   }
   if (!this_node_id.IsValid()) {
-    LOG(kError) << "You must provide a valid NodeId.";
+    LOG(kError) << "You must provide a valid connection_id.";
     return kInvalidParameter;
   }
   if (bootstrap_list.empty()) {
@@ -71,7 +72,7 @@ int CheckBootstrappingParameters(const BootstrapList& bootstrap_list,
 
 }  // unnamed namespace
 
-ManagedConnections::PendingConnection::PendingConnection(NodeId node_id_in, TransportPtr transport,
+managed_connections::PendingConnection::PendingConnection(connection_id node_id_in, TransportPtr transport,
                                                          boost::asio::io_service& io_service)
     : node_id(std::move(node_id_in)),
       pending_transport(std::move(transport)),
@@ -79,7 +80,7 @@ ManagedConnections::PendingConnection::PendingConnection(NodeId node_id_in, Tran
             bptime::microsec_clock::universal_time() + Parameters::rendezvous_connect_timeout),
       connecting(false) {}
 
-ManagedConnections::ManagedConnections()
+managed_connections::managed_connections()
     : asio_service_(Parameters::thread_count),
       listener_(),
       this_node_id_(),
@@ -90,9 +91,9 @@ ManagedConnections::ManagedConnections()
       idle_transports_(),
       mutex_(),
       local_ip_(),
-      nat_type_(maidsafe::make_unique<NatType>(NatType::kUnknown)) {}
+      nat_type_(maidsafe::make_unique<nat_type>(nat_type::unknown)) {}
 
-ManagedConnections::~ManagedConnections() {
+managed_connections::~managed_connections() {
   {
     std::lock_guard<std::mutex> lock(mutex_);
     for (auto connection_details : connections_)
@@ -108,10 +109,10 @@ ManagedConnections::~ManagedConnections() {
   asio_service_.Stop();
 }
 
-int ManagedConnections::Bootstrap(const BootstrapList& bootstrap_list,
-                                  std::shared_ptr<Listener> listener, NodeId this_node_id,
-                                  asymm::Keys keys, Contact& chosen_bootstrap_contact,
-                                  Endpoint local_endpoint) {
+int managed_connections::Bootstrap(const BootstrapList& bootstrap_list,
+                                  std::shared_ptr<listener> listener, connection_id this_node_id,
+                                  asymm::Keys keys, contact& chosen_bootstrap_contact,
+                                  endpoint local_endpoint) {
   ClearConnectionsAndIdleTransports();
   int result(CheckBootstrappingParameters(bootstrap_list, listener, this_node_id));
   if (result != kSuccess)
@@ -132,7 +133,7 @@ int ManagedConnections::Bootstrap(const BootstrapList& bootstrap_list,
   return kSuccess;
 }
 
-void ManagedConnections::ClearConnectionsAndIdleTransports() {
+void managed_connections::ClearConnectionsAndIdleTransports() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!connections_.empty()) {
     for (auto connection_details : connections_) {
@@ -148,7 +149,7 @@ void ManagedConnections::ClearConnectionsAndIdleTransports() {
   idle_transports_.clear();
 }
 
-int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
+int managed_connections::TryToDetermineLocalEndpoint(endpoint& local_endpoint) {
   bool zero_state(detail::IsValid(local_endpoint));
   if (zero_state) {
     local_ip_ = local_endpoint.address();
@@ -158,14 +159,14 @@ int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
       LOG(kError) << "Failed to retrieve local IP.";
       return kFailedToGetLocalAddress;
     }
-    local_endpoint = Endpoint(local_ip_, 0);
+    local_endpoint = endpoint(local_ip_, 0);
   }
   return kSuccess;
 }
 
-int ManagedConnections::AttemptStartNewTransport(
-    const BootstrapList& bootstrap_list, const Endpoint& local_endpoint,
-    Contact& chosen_bootstrap_contact) {
+int managed_connections::AttemptStartNewTransport(
+    const BootstrapList& bootstrap_list, const endpoint& local_endpoint,
+    contact& chosen_bootstrap_contact) {
   ReturnCode result = StartNewTransport(bootstrap_list, local_endpoint);
   if (result != kSuccess) {
     LOG(kError) << "Failed to bootstrap managed connections.";
@@ -175,8 +176,8 @@ int ManagedConnections::AttemptStartNewTransport(
   return kSuccess;
 }
 
-ReturnCode ManagedConnections::StartNewTransport(BootstrapList bootstrap_list,
-                                                 Endpoint local_endpoint) {
+ReturnCode managed_connections::StartNewTransport(BootstrapList bootstrap_list,
+                                                 endpoint local_endpoint) {
   TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, *nat_type_));
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
@@ -203,7 +204,7 @@ ReturnCode ManagedConnections::StartNewTransport(BootstrapList bootstrap_list,
   std::promise<ReturnCode> setter;
   auto getter = setter.get_future();
 
-  auto on_bootstrap = [&](ReturnCode bootstrap_result, Contact chosen_contact) {
+  auto on_bootstrap = [&](ReturnCode bootstrap_result, contact chosen_contact) {
     if (bootstrap_result != kSuccess) {
       lock_guard lock(mutex_);
       transport->Close();
@@ -217,7 +218,7 @@ ReturnCode ManagedConnections::StartNewTransport(BootstrapList bootstrap_list,
       // Means this node's NAT is symmetric or unknown, so guess that it will be mapped to existing
       // external address and local port.
       transport->SetBestGuessExternalEndpoint(
-          Endpoint(external_address, transport->local_endpoint().port()));
+          endpoint(external_address, transport->local_endpoint().port()));
     }
 
     lock_guard guard(mutex_);
@@ -227,14 +228,14 @@ ReturnCode ManagedConnections::StartNewTransport(BootstrapList bootstrap_list,
   transport->Bootstrap(
       bootstrap_list, this_node_id_, keys_.public_key, local_endpoint,
       bootstrap_off_existing_connection,
-      std::bind(&ManagedConnections::OnMessageSlot, this, args::_1),
-      [this](const NodeId & peer_id, TransportPtr transport, bool temporary_connection,
+      std::bind(&managed_connections::OnMessageSlot, this, args::_1),
+      [this](const connection_id & peer_id, TransportPtr transport, bool temporary_connection,
              std::atomic<bool> & is_duplicate_normal_connection) {
         OnConnectionAddedSlot(peer_id, transport, temporary_connection,
                               is_duplicate_normal_connection);
       },
-      std::bind(&ManagedConnections::OnConnectionLostSlot, this, args::_1, args::_2, args::_3),
-      std::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, args::_1, args::_2,
+      std::bind(&managed_connections::OnConnectionLostSlot, this, args::_1, args::_2, args::_3),
+      std::bind(&managed_connections::OnNatDetectionRequestedSlot, this, args::_1, args::_2,
                 args::_3, args::_4),
       on_bootstrap);
 
@@ -252,7 +253,7 @@ ReturnCode ManagedConnections::StartNewTransport(BootstrapList bootstrap_list,
   return result;
 }
 
-void ManagedConnections::GetBootstrapEndpoints(BootstrapList& bootstrap_list,
+void managed_connections::GetBootstrapEndpoints(BootstrapList& bootstrap_list,
                                                boost::asio::ip::address& this_external_address) {
   bool external_address_consistent(true);
   // Favour connections which are on a different network to this to allow calculation of the new
@@ -260,7 +261,7 @@ void ManagedConnections::GetBootstrapEndpoints(BootstrapList& bootstrap_list,
   BootstrapList secondary_list;
   bootstrap_list.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
   secondary_list.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
-  std::set<Endpoint> non_duplicates;
+  std::set<endpoint> non_duplicates;
   std::lock_guard<std::mutex> lock(mutex_);
   for (auto element : connections_) {
     std::shared_ptr<detail::Connection> connection(element.second->GetConnection(element.first));
@@ -268,13 +269,13 @@ void ManagedConnections::GetBootstrapEndpoints(BootstrapList& bootstrap_list,
       continue;
     if (!non_duplicates.insert(connection->Socket().PeerEndpoint()).second)
       continue;  // Already have this endpoint added to bootstrap_contacts or secondary_endpoints.
-    Contact peer(connection->Socket().PeerNodeId(), connection->Socket().PeerEndpoint(),
+    contact peer(connection->Socket().PeerNodeId(), connection->Socket().PeerEndpoint(),
                  connection->Socket().PeerPublicKey());
     if (detail::OnPrivateNetwork(connection->Socket().PeerEndpoint())) {
       secondary_list.push_back(std::move(peer));
     } else {
       bootstrap_list.push_back(std::move(peer));
-      Endpoint this_endpoint_as_seen_by_peer(
+      endpoint this_endpoint_as_seen_by_peer(
           element.second->ThisEndpointAsSeenByPeer(element.first));
       if (this_external_address.is_unspecified())
         this_external_address = this_endpoint_as_seen_by_peer.address();
@@ -289,8 +290,8 @@ void ManagedConnections::GetBootstrapEndpoints(BootstrapList& bootstrap_list,
   bootstrap_list.insert(bootstrap_list.end(), secondary_list.begin(), secondary_list.end());
 }
 
-int ManagedConnections::GetAvailableEndpoint(const Contact& peer,
-                                             EndpointPair& this_endpoint_pair) {
+int managed_connections::GetAvailableEndpoint(const contact& peer,
+                                             endpoint_pair& this_endpoint_pair) {
   if (peer.id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
     return kOwnId;
@@ -298,7 +299,7 @@ int ManagedConnections::GetAvailableEndpoint(const Contact& peer,
 
   // Functor to handle resetting parameters in case of failure.
   const auto kDoFail([&](const std::string & message, int result)->int {
-                       this_endpoint_pair.external = this_endpoint_pair.local = Endpoint();
+                       this_endpoint_pair.external = this_endpoint_pair.local = endpoint();
                        if (!message.empty())
                          LOG(kError) << message;
                        return result;
@@ -332,7 +333,7 @@ int ManagedConnections::GetAvailableEndpoint(const Contact& peer,
   }
 
   if (ShouldStartNewTransport(peer.endpoint_pair) &&
-      StartNewTransport(BootstrapList(), Endpoint(local_ip_, 0)) != kSuccess) {
+      StartNewTransport(BootstrapList(), endpoint(local_ip_, 0)) != kSuccess) {
     return kDoFail("Failed to start transport.", kTransportStartFailure);
   }
 
@@ -347,8 +348,8 @@ int ManagedConnections::GetAvailableEndpoint(const Contact& peer,
              : kDoFail("All connectable Transports are full.", kFull);
 }
 
-bool ManagedConnections::ExistingConnectionAttempt(const NodeId& peer_id,
-                                                   EndpointPair& this_endpoint_pair) const {
+bool managed_connections::ExistingConnectionAttempt(const connection_id& peer_id,
+                                                   endpoint_pair& this_endpoint_pair) const {
   auto existing_attempt(FindPendingTransportWithNodeId(peer_id));
   if (existing_attempt == pendings_.end())
     return false;
@@ -359,7 +360,7 @@ bool ManagedConnections::ExistingConnectionAttempt(const NodeId& peer_id,
   return true;
 }
 
-bool ManagedConnections::ExistingConnection(const NodeId& peer_id, EndpointPair& this_endpoint_pair,
+bool managed_connections::ExistingConnection(const connection_id& peer_id, endpoint_pair& this_endpoint_pair,
                                             int& return_code) {
   auto itr(connections_.find(peer_id));
   if (itr == connections_.end())
@@ -368,7 +369,7 @@ bool ManagedConnections::ExistingConnection(const NodeId& peer_id, EndpointPair&
   std::shared_ptr<detail::Connection> connection((*itr).second->GetConnection(peer_id));
   // assert(connection);
   if (!connection) {
-    LOG(kError) << "Internal ManagedConnections error: mismatch between connections_ and "
+    LOG(kError) << "Internal managed_connections error: mismatch between connections_ and "
                 << "actual connections.";
     connections_.erase(peer_id);
     return false;
@@ -396,8 +397,8 @@ bool ManagedConnections::ExistingConnection(const NodeId& peer_id, EndpointPair&
   return true;
 }
 
-bool ManagedConnections::SelectIdleTransport(const NodeId& peer_id,
-                                             EndpointPair& this_endpoint_pair) {
+bool managed_connections::SelectIdleTransport(const connection_id& peer_id,
+                                             endpoint_pair& this_endpoint_pair) {
   while (!idle_transports_.empty()) {
     if ((*idle_transports_.begin())->IsAvailable()) {
       this_endpoint_pair.local = (*idle_transports_.begin())->local_endpoint();
@@ -414,8 +415,8 @@ bool ManagedConnections::SelectIdleTransport(const NodeId& peer_id,
   return false;
 }
 
-bool ManagedConnections::SelectAnyTransport(const NodeId& peer_id,
-                                            EndpointPair& this_endpoint_pair) {
+bool managed_connections::SelectAnyTransport(const connection_id& peer_id,
+                                            endpoint_pair& this_endpoint_pair) {
   // Try to get from an existing idle transport (likely to be just-started one).
   if (SelectIdleTransport(peer_id, this_endpoint_pair))
     return true;
@@ -435,7 +436,7 @@ bool ManagedConnections::SelectAnyTransport(const NodeId& peer_id,
   return true;
 }
 
-ManagedConnections::TransportPtr ManagedConnections::GetAvailableTransport() const {
+managed_connections::TransportPtr managed_connections::GetAvailableTransport() const {
   // Get transport with least connections and below kMaxConnections.
   size_t least_connections(detail::Transport::kMaxConnections());
   TransportPtr selected_transport;
@@ -448,9 +449,9 @@ ManagedConnections::TransportPtr ManagedConnections::GetAvailableTransport() con
   return selected_transport;
 }
 
-bool ManagedConnections::ShouldStartNewTransport(const EndpointPair& peer_endpoint_pair) const {
+bool managed_connections::ShouldStartNewTransport(const endpoint_pair& peer_endpoint_pair) const {
   bool start_new_transport(false);
-  if (*nat_type_ == NatType::kSymmetric &&
+  if (*nat_type_ == nat_type::symmetric &&
       static_cast<int>(connections_.size()) <
           (Parameters::max_transports * detail::Transport::kMaxConnections())) {
     if (detail::IsValid(peer_endpoint_pair.external))
@@ -463,8 +464,8 @@ bool ManagedConnections::ShouldStartNewTransport(const EndpointPair& peer_endpoi
   return start_new_transport;
 }
 
-void ManagedConnections::AddPending(std::unique_ptr<PendingConnection> connection) {
-  NodeId peer_id(connection->node_id);
+void managed_connections::AddPending(std::unique_ptr<PendingConnection> connection) {
+  connection_id peer_id(connection->node_id);
   pendings_.push_back(std::move(connection));
   pendings_.back()->timer.async_wait([peer_id, this](const boost::system::error_code & ec) {
     if (ec != boost::asio::error::operation_aborted) {
@@ -474,27 +475,27 @@ void ManagedConnections::AddPending(std::unique_ptr<PendingConnection> connectio
   });
 }
 
-void ManagedConnections::RemovePending(const NodeId& peer_id) {
+void managed_connections::RemovePending(const connection_id& peer_id) {
   auto itr(FindPendingTransportWithNodeId(peer_id));
   if (itr != pendings_.end())
     pendings_.erase(itr);
 }
 
-std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::const_iterator
-    ManagedConnections::FindPendingTransportWithNodeId(const NodeId& peer_id) const {
+std::vector<std::unique_ptr<managed_connections::PendingConnection>>::const_iterator
+    managed_connections::FindPendingTransportWithNodeId(const connection_id& peer_id) const {
   return std::find_if(pendings_.cbegin(), pendings_.cend(),
                       [&peer_id](const std::unique_ptr<PendingConnection> &
                                  element) { return element->node_id == peer_id; });
 }
 
-std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator
-    ManagedConnections::FindPendingTransportWithNodeId(const NodeId& peer_id) {
+std::vector<std::unique_ptr<managed_connections::PendingConnection>>::iterator
+    managed_connections::FindPendingTransportWithNodeId(const connection_id& peer_id) {
   return std::find_if(pendings_.begin(), pendings_.end(),
                       [&peer_id](const std::unique_ptr<PendingConnection> &
                                  element) { return element->node_id == peer_id; });
 }
 
-void ManagedConnections::Add(const Contact& peer, ConnectionAddedFunctor connection_added_functor) {
+void managed_connections::Add(const contact& peer, ConnectionAddedFunctor connection_added_functor) {
   if (peer.id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
     return asio_service_.service().post([=] { connection_added_functor(peer.id, kOwnId); });
@@ -538,7 +539,7 @@ void ManagedConnections::Add(const Contact& peer, ConnectionAddedFunctor connect
       (chosen_bootstrap_contact_.id == peer.id &&
       connection->state() == detail::Connection::State::kPermanent)) {
       if (connection->state() == detail::Connection::State::kBootstrapping) {
-        Endpoint peer_endpoint;
+        endpoint peer_endpoint;
         assert(detail::IsValid(peer_endpoint) ? peer_endpoint == connection->Socket().PeerEndpoint()
           : true);
       }
@@ -557,7 +558,7 @@ void ManagedConnections::Add(const Contact& peer, ConnectionAddedFunctor connect
                               std::move(peer.public_key), connection_added_functor);
 }
 
-void ManagedConnections::Remove(const NodeId& peer_id) {
+void managed_connections::Remove(const connection_id& peer_id) {
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
     return;
@@ -579,7 +580,7 @@ void ManagedConnections::Remove(const NodeId& peer_id) {
   transport_to_close->CloseConnection(peer_id);
 }
 
-void ManagedConnections::Send(const NodeId& peer_id, std::vector<unsigned char>&& message,
+void managed_connections::Send(const connection_id& peer_id, std::vector<unsigned char>&& message,
                               MessageSentFunctor message_sent_functor) {
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
@@ -608,7 +609,7 @@ void ManagedConnections::Send(const NodeId& peer_id, std::vector<unsigned char>&
   }
 }
 
-void ManagedConnections::OnMessageSlot(const std::string& message) {
+void managed_connections::OnMessageSlot(const std::string& message) {
   try {
     std::string decrypted_message(
 #ifdef TESTING
@@ -616,7 +617,7 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
 #endif
             asymm::Decrypt(asymm::CipherText(message), keys_.private_key).string());
     if (auto listener = listener_.lock()) {
-      listener->MessageReceived(
+      listener->message_received(
           std::vector<unsigned char>(std::begin(message), std::end(message)));
     }
   } catch (const std::exception& e) {
@@ -624,7 +625,7 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
   }
 }
 
-void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,
+void managed_connections::OnConnectionAddedSlot(const connection_id& peer_id, TransportPtr transport,
                                                bool temporary_connection,
                                                std::atomic<bool> & is_duplicate_normal_connection) {
   is_duplicate_normal_connection = false;
@@ -662,7 +663,7 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id, TransportP
 #endif
 }
 
-void ManagedConnections::UpdateIdleTransports(const TransportPtr& transport) {
+void managed_connections::UpdateIdleTransports(const TransportPtr& transport) {
   if (transport->IsIdle()) {
     assert(transport->IsAvailable());
     idle_transports_.insert(transport);
@@ -671,7 +672,7 @@ void ManagedConnections::UpdateIdleTransports(const TransportPtr& transport) {
   }
 }
 
-void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPtr transport,
+void managed_connections::OnConnectionLostSlot(const connection_id& peer_id, TransportPtr transport,
                                               bool temporary_connection) {
   std::lock_guard<std::mutex> lock(mutex_);
   UpdateIdleTransports(transport);
@@ -695,18 +696,18 @@ void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPt
     connections_.erase(itr);
 
     if (peer_id == chosen_bootstrap_contact_.id)
-      chosen_bootstrap_contact_ = Contact();
+      chosen_bootstrap_contact_ = contact();
     
     if (auto listener = listener_.lock())
-      listener->ConnectionLost(peer_id);
+      listener->connection_lost(peer_id);
   }
 }
 
-void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_endpoint,
-                                                     const NodeId& peer_id,
-                                                     const Endpoint& peer_endpoint,
+void managed_connections::OnNatDetectionRequestedSlot(const endpoint& this_local_endpoint,
+                                                     const connection_id& peer_id,
+                                                     const endpoint& peer_endpoint,
                                                      uint16_t& another_external_port) {
-  if (*nat_type_ == NatType::kUnknown || *nat_type_ == NatType::kSymmetric) {
+  if (*nat_type_ == nat_type::unknown || *nat_type_ == nat_type::symmetric) {
     another_external_port = 0;
     return;
   }
@@ -727,7 +728,7 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
   (*itr).second->Ping(peer_id, peer_endpoint, [](int) {});  // NOLINT (Fraser)
 }
 
-std::string ManagedConnections::DebugString() const {
+std::string managed_connections::DebugString() const {
   std::lock_guard<std::mutex> lock(mutex_);
   // Not interested in the log once accumulated enough connections
   if (connections_.size() > 8)

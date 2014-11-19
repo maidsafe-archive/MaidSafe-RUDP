@@ -51,7 +51,7 @@ class HandshakePacket;
 
 class ConnectionManager {
  public:
-  using Endpoint      = boost::asio::ip::udp::endpoint;
+  using endpoint      = boost::asio::ip::udp::endpoint;
   using ConnectionPtr = std::shared_ptr<Connection>;
   using Error         = boost::system::error_code;
   using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
@@ -59,39 +59,39 @@ class ConnectionManager {
  public:
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
-                    std::shared_ptr<Multiplexer> multiplexer, NodeId this_node_id,
+                    std::shared_ptr<Multiplexer> multiplexer, connection_id this_node_id,
                     asymm::PublicKey this_public_key);
   ~ConnectionManager();
 
   void Close();
 
-  void Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
+  void Connect(const connection_id& peer_id, const endpoint& peer_endpoint,
                const asymm::PublicKey& peer_public_key,
-               std::function<void(const NodeId&, int)> connection_added_functor,
+               std::function<void(const connection_id&, int)> connection_added_functor,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan, OnConnect on_connect,
                const std::function<void()>& failure_functor);
 
   int AddConnection(std::shared_ptr<Connection> connection);
-  bool CloseConnection(const NodeId& peer_id);
+  bool CloseConnection(const connection_id& peer_id);
   void RemoveConnection(std::shared_ptr<Connection> connection);
-  std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
+  std::shared_ptr<Connection> GetConnection(const connection_id& peer_id);
 
-  void Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
+  void Ping(const connection_id& peer_id, const endpoint& peer_endpoint,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
-  bool Send(const NodeId& peer_id, const std::string& message,
+  bool Send(const connection_id& peer_id, const std::string& message,
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
   // This node's endpoint as viewed by peer
-  Endpoint ThisEndpoint(const NodeId& peer_id);
+  endpoint ThisEndpoint(const connection_id& peer_id);
 
   // Called by Transport when bootstrapping a new transport but when we don't create a temporary
   // connection to establish external endpoint (i.e this node's NAT is symmetric)
-  void SetBestGuessExternalEndpoint(const Endpoint& external_endpoint);
+  void SetBestGuessExternalEndpoint(const endpoint& external_endpoint);
 
   // Get the remote endpoint offered for NAT detection by peer.
-  Endpoint RemoteNatDetectionEndpoint(const NodeId& peer_id);
+  endpoint RemoteNatDetectionEndpoint(const connection_id& peer_id);
 
   // Add a socket. Returns a new unique id for the socket.
   uint32_t AddSocket(Socket* socket);
@@ -99,11 +99,11 @@ class ConnectionManager {
   // Called by the Dispatcher when a new packet arrives for a socket.  Can return nullptr if no
   // appropriate socket found.
   Socket* GetSocket(const boost::asio::const_buffer& data,
-                    const Endpoint& endpoint);
+                    const endpoint& endpoint);
 
   size_t NormalConnectionsCount() const;
 
-  NodeId node_id() const;
+  connection_id node_id() const;
   const asymm::PublicKey& public_key() const;
 
   std::string DebugString();
@@ -112,8 +112,8 @@ class ConnectionManager {
   ConnectionManager(const ConnectionManager&);
   ConnectionManager& operator=(const ConnectionManager&);
 
-  bool CanStartConnectingTo(NodeId, Endpoint) const;
-  void MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep);
+  bool CanStartConnectingTo(connection_id, endpoint) const;
+  void MarkDoneConnecting(connection_id peer_id, endpoint peer_ep);
 
  private:
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
@@ -121,13 +121,13 @@ class ConnectionManager {
   // Map of destination socket id to corresponding socket object.
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;
 
-  void HandlePingFrom(const HandshakePacket& handshake_packet, const Endpoint& endpoint);
-  ConnectionGroup::iterator FindConnection(const NodeId& peer_id) const;
+  void HandlePingFrom(const HandshakePacket& handshake_packet, const endpoint& endpoint);
+  ConnectionGroup::iterator FindConnection(const connection_id& peer_id) const;
 
   // TODO(PeterJ): Instead of using this set, it would be nicer if we
   // added a "not yet connected connection" into the connetions_ group
   // right a way (before it is connected).
-  std::set<std::pair<NodeId, Endpoint>> being_connected_;
+  std::set<std::pair<connection_id, endpoint>> being_connected_;
 
   // Because the connections can be in an idle state with no pending async operations, they are kept
   // alive with a shared_ptr in this set, as well as in the async operation handlers.
@@ -136,7 +136,7 @@ class ConnectionManager {
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
   std::shared_ptr<Multiplexer> multiplexer_;
-  const NodeId kThisNodeId_;
+  const connection_id kThisNodeId_;
   asymm::PublicKey this_public_key_;
   SocketMap sockets_;
 };

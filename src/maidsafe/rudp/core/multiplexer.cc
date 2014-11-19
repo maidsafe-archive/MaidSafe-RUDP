@@ -133,7 +133,7 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
 
   if (endpoint.port() == 0U) {
     // Try to bind to Resilience port first. If this fails, just fall back to port 0 (i.e. any port)
-    socket_.bind(ip::udp::endpoint(endpoint.address(), ManagedConnections::kResiliencePort()), ec);
+    socket_.bind(ip::udp::endpoint(endpoint.address(), kLivePort), ec);
     if (!ec)
       return kSuccess;
   }
