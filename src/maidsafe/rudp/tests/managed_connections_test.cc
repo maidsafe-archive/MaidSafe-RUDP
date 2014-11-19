@@ -32,6 +32,7 @@ extern "C" char **environ;
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable:4127)  // conditional expression is constant
+#pragma warning(disable:4267)  // conversion of size_t to int (Boost.Process bug)
 #pragma warning(disable:4702)  // unreachable code
 #endif
 #include "boost/process.hpp"
@@ -1600,7 +1601,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
       if (is.rdbuf()->in_avail()) {
         is.get(c);
       } else {
-        if (WAIT_TIMEOUT == WaitForSingleObject(h, 10000)) {
+        if (WAIT_TIMEOUT == WaitForSingleObject(h, 30000)) {
           is.setstate(std::ios::badbit);
           return is;
         }
@@ -1623,7 +1624,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
         struct watcher : input_watcher {
           bool have_data;
           watcher(asio::io_service& service, input_watcher::native_handle_type h)
-              : input_watcher(service, h, boost::posix_time::seconds(10)), have_data(false) {}
+              : input_watcher(service, h, boost::posix_time::seconds(30)), have_data(false) {}
           virtual void data_available(const boost::system::error_code& ec) {
             if (!ec)
               have_data = true;
