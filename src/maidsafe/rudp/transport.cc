@@ -148,19 +148,13 @@ void Transport::ConnectToBootstrapEndpoint(Iterator begin,
   }
 
   ConnectToBootstrapEndpoint(
-      begin->first,
-      begin->second,
+      *begin,
       lifespan,
       [this, begin, end, lifespan, handler](const NodeId& peer_id) mutable {
         if (!peer_id.IsValid()) {
           // Retry with the next peer.
           return ConnectToBootstrapEndpoint(std::next(begin), end, lifespan, handler);
         }
-
-        LOG(kVerbose) << "Started new transport on " << multiplexer_->local_endpoint()
-                      << " connected to " << DebugId(begin->first).substr(0, 7)
-                      << " - " << begin->second;
-
         handler(peer_id);
       });
 }
@@ -169,7 +163,7 @@ template <class Handler>
 void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
                                            const bptime::time_duration& lifespan, Handler handler) {
   if (!IsValid(contact.endpoint_pair.external)) {
-    LOG(kError) << bootstrap_endpoint << " is an invalid endpoint.";
+    LOG(kError) << contact.endpoint_pair.external << " is an invalid endpoint.";
     return strand_.dispatch([handler]() mutable { handler(NodeId()); });
   }
 
@@ -192,12 +186,9 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
     DetectNatType(peer_id, strand_.wrap(on_nat_detected));
   };
 
-  connection_manager_->Connect(bootstrap_node_id, bootstrap_endpoint,
-                               "",
-                               Parameters::bootstrap_connect_timeout,
-                               lifespan,
-                               strand_.wrap(on_connect),
-                               nullptr);
+  connection_manager_->Connect(contact.id, contact.endpoint_pair.external, contact.public_key,
+                               nullptr, Parameters::bootstrap_connect_timeout, lifespan,
+                               strand_.wrap(on_connect), nullptr);
 }
 
 template<class Handler>
