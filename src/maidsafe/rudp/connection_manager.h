@@ -59,39 +59,39 @@ class ConnectionManager {
  public:
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
-                    std::shared_ptr<Multiplexer> multiplexer, connection_id this_node_id,
+                    std::shared_ptr<Multiplexer> multiplexer, node_id this_node_id,
                     asymm::PublicKey this_public_key);
   ~ConnectionManager();
 
   void Close();
 
-  void Connect(const connection_id& peer_id, const endpoint& peer_endpoint,
+  void Connect(const node_id& peer_id, const endpoint& peer_endpoint,
                const asymm::PublicKey& peer_public_key,
-               std::function<void(const connection_id&, int)> connection_added_functor,
+               std::function<void(const node_id&, int)> connection_added_functor,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan, OnConnect on_connect,
                const std::function<void()>& failure_functor);
 
   int AddConnection(std::shared_ptr<Connection> connection);
-  bool CloseConnection(const connection_id& peer_id);
+  bool CloseConnection(const node_id& peer_id);
   void RemoveConnection(std::shared_ptr<Connection> connection);
-  std::shared_ptr<Connection> GetConnection(const connection_id& peer_id);
+  std::shared_ptr<Connection> GetConnection(const node_id& peer_id);
 
-  void Ping(const connection_id& peer_id, const endpoint& peer_endpoint,
+  void Ping(const node_id& peer_id, const endpoint& peer_endpoint,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
-  bool Send(const connection_id& peer_id, const std::string& message,
+  bool Send(const node_id& peer_id, const std::string& message,
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
   // This node's endpoint as viewed by peer
-  endpoint ThisEndpoint(const connection_id& peer_id);
+  endpoint ThisEndpoint(const node_id& peer_id);
 
   // Called by Transport when bootstrapping a new transport but when we don't create a temporary
   // connection to establish external endpoint (i.e this node's NAT is symmetric)
   void SetBestGuessExternalEndpoint(const endpoint& external_endpoint);
 
   // Get the remote endpoint offered for NAT detection by peer.
-  endpoint RemoteNatDetectionEndpoint(const connection_id& peer_id);
+  endpoint RemoteNatDetectionEndpoint(const node_id& peer_id);
 
   // Add a socket. Returns a new unique id for the socket.
   uint32_t AddSocket(Socket* socket);
@@ -103,7 +103,7 @@ class ConnectionManager {
 
   size_t NormalConnectionsCount() const;
 
-  connection_id node_id() const;
+  node_id node_id() const;
   const asymm::PublicKey& public_key() const;
 
   std::string DebugString();
@@ -112,8 +112,8 @@ class ConnectionManager {
   ConnectionManager(const ConnectionManager&);
   ConnectionManager& operator=(const ConnectionManager&);
 
-  bool CanStartConnectingTo(connection_id, endpoint) const;
-  void MarkDoneConnecting(connection_id peer_id, endpoint peer_ep);
+  bool CanStartConnectingTo(node_id, endpoint) const;
+  void MarkDoneConnecting(node_id peer_id, endpoint peer_ep);
 
  private:
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
@@ -122,12 +122,12 @@ class ConnectionManager {
   typedef std::unordered_map<uint32_t, Socket*> SocketMap;
 
   void HandlePingFrom(const HandshakePacket& handshake_packet, const endpoint& endpoint);
-  ConnectionGroup::iterator FindConnection(const connection_id& peer_id) const;
+  ConnectionGroup::iterator FindConnection(const node_id& peer_id) const;
 
   // TODO(PeterJ): Instead of using this set, it would be nicer if we
   // added a "not yet connected connection" into the connetions_ group
   // right a way (before it is connected).
-  std::set<std::pair<connection_id, endpoint>> being_connected_;
+  std::set<std::pair<node_id, endpoint>> being_connected_;
 
   // Because the connections can be in an idle state with no pending async operations, they are kept
   // alive with a shared_ptr in this set, as well as in the async operation handlers.
@@ -136,7 +136,7 @@ class ConnectionManager {
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
   std::shared_ptr<Multiplexer> multiplexer_;
-  const connection_id kThisNodeId_;
+  const node_id kThisNodeId_;
   asymm::PublicKey this_public_key_;
   SocketMap sockets_;
 };

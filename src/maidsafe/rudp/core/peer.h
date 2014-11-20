@@ -25,7 +25,6 @@
 
 #include "boost/asio/ip/udp.hpp"
 #include "maidsafe/common/log.h"
-#include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 #include "maidsafe/rudp/core/multiplexer.h"
 
@@ -57,8 +56,8 @@ class Peer {
   uint32_t SocketId() const { return socket_id_; }
   void SetSocketId(uint32_t id) { socket_id_ = id; }
 
-  connection_id node_id() const { return node_id_; }
-  void set_node_id(connection_id node_id) { node_id_ = node_id; }
+  node_id node_id() const { return node_id_; }
+  void set_node_id(node_id node_id) { node_id_ = node_id; }
 
   const asymm::PublicKey& public_key() const { return public_key_; }
   void SetPublicKey(const asymm::PublicKey& public_key) {
@@ -87,8 +86,8 @@ class Peer {
   boost::asio::ip::udp::endpoint this_endpoint_;
   // The remote socket's identifier.
   uint32_t socket_id_;
-  // The remote peer's connection_id.
-  connection_id node_id_;
+  // The remote peer's node_id.
+  node_id node_id_;
   // The remote peer's PublicKey.
   asymm::PublicKey public_key_;
   // The port originally guessed by the peer when passing its details to this node.  This will be

@@ -66,7 +66,7 @@ Session::Session(Peer& peer, TickTimer& tick_timer,
       on_nat_detection_requested_(),
       signal_connection_() {}
 
-uint32_t Session::Open(uint32_t id, connection_id this_node_id,
+uint32_t Session::Open(uint32_t id, node_id this_node_id,
                    const asymm::PublicKey& this_public_key, uint32_t sequence_number,
                    Mode mode, uint32_t cookie_syn,
                    const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot) {
@@ -212,13 +212,13 @@ void Session::HandleHandshake(const HandshakePacket& packet) {
   if (peer_.SocketId() == 0)
     peer_.SetSocketId(packet.SocketId());
 
-  if (packet.node_id() == connection_id()) {
+  if (packet.node_id() == node_id()) {
     LOG(kError) << DebugId(this_node_id_) << " ZeroId passed in handshake packet from peer "
                 << DebugId(peer_.node_id());
     return;
   }
 
-  if (peer_.node_id() == connection_id()) {
+  if (peer_.node_id() == node_id()) {
     peer_.set_node_id(packet.node_id());
   } else if (peer_.node_id() != packet.node_id()) {
     // This will happen if this node has assigned a proxy ID to peer.

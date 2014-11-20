@@ -57,10 +57,10 @@ class Transport : public std::enable_shared_from_this<Transport> {
  public:
   typedef std::function<void(const std::string&)> OnMessage;
 
-  typedef std::function<void(const connection_id&, std::shared_ptr<Transport>, bool, std::atomic<bool> &)>
+  typedef std::function<void(const node_id&, std::shared_ptr<Transport>, bool, std::atomic<bool> &)>
       OnConnectionAdded;
 
-  typedef std::function<void(const connection_id&, std::shared_ptr<Transport>, bool, bool)>
+  typedef std::function<void(const node_id&, std::shared_ptr<Transport>, bool, bool)>
       OnConnectionLost;
 
   using endpoint        = boost::asio::ip::udp::endpoint;
@@ -79,7 +79,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   virtual ~Transport();
 
   void Bootstrap(const BootstrapList&              bootstrap_list,
-                 const connection_id&                     this_node_id,
+                 const node_id&                     this_node_id,
                  const asymm::PublicKey&           this_public_key,
                  endpoint                          local_endpoint,
                  bool                              bootstrap_off_existing_connection,
@@ -91,24 +91,24 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   void Close();
 
-  void Connect(const connection_id& peer_id, const endpoint_pair& peer_endpoint_pair,
+  void Connect(const node_id& peer_id, const endpoint_pair& peer_endpoint_pair,
                asymm::PublicKey peer_public_key, ConnectionAddedFunctor connection_added_functor);
 
   // If this causes the size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from managed_connections which will cause it to be destroyed.
-  bool CloseConnection(const connection_id& peer_id);
+  bool CloseConnection(const node_id& peer_id);
 
-  bool Send(const connection_id& peer_id, const std::string& message,
+  bool Send(const node_id& peer_id, const std::string& message,
             const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
 
-  void Ping(const connection_id& peer_id, const endpoint& peer_endpoint,
+  void Ping(const node_id& peer_id, const endpoint& peer_endpoint,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
 
-  ConnectionPtr GetConnection(const connection_id& peer_id);
+  ConnectionPtr GetConnection(const node_id& peer_id);
 
   endpoint external_endpoint() const;
   endpoint local_endpoint() const;
-  endpoint ThisEndpointAsSeenByPeer(const connection_id& peer_id);
+  endpoint ThisEndpointAsSeenByPeer(const node_id& peer_id);
   void SetBestGuessExternalEndpoint(const endpoint& external_endpoint);
 
   size_t NormalConnectionsCount() const;
@@ -142,16 +142,16 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void ConnectToBootstrapEndpoint(const contact& contact, const Duration& lifespan, Handler);
 
   template<class Handler>
-  void DetectNatType(connection_id const& peer_id, Handler);
+  void DetectNatType(node_id const& peer_id, Handler);
 
-  void DoConnect(const connection_id& peer_id, const endpoint_pair& peer_endpoint_pair,
+  void DoConnect(const node_id& peer_id, const endpoint_pair& peer_endpoint_pair,
                  const asymm::PublicKey& peer_public_key,
                  ConnectionAddedFunctor connection_added_functor);
 
   void StartDispatch();
   void HandleDispatch(const boost::system::error_code& ec);
 
-  connection_id node_id() const;
+  node_id node_id() const;
   const asymm::PublicKey& public_key() const;
 
   void SignalMessageReceived(const std::string& message);

@@ -33,7 +33,6 @@
 #include "boost/asio/strand.hpp"
 #include "boost/asio/ip/udp.hpp"
 
-#include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
 #include "maidsafe/rudp/core/congestion_control.h"
@@ -84,7 +83,7 @@ class Socket {
   uint32_t PeerSocketId() const;
 
   // Get the remote socket identifier to which the socket is connected.
-  connection_id PeerNodeId() const;
+  node_id PeerNodeId() const;
 
   // Returns whether the connection is open.
   bool IsOpen() const;
@@ -128,10 +127,10 @@ class Socket {
   // caller to set a timeout and close the socket after the timeout period
   // expires.
   template <typename ConnectHandler>
-  uint32_t AsyncConnect(const connection_id& this_node_id,
+  uint32_t AsyncConnect(const node_id& this_node_id,
                         const asymm::PublicKey& this_public_key,
                         const endpoint& remote,
-                        const connection_id& peer_node_id,
+                        const node_id& peer_node_id,
                         const asymm::PublicKey& peer_public_key,
                         ConnectHandler handler,
                         Session::Mode open_mode,
@@ -202,10 +201,10 @@ class Socket {
   Socket(const Socket&);
   Socket& operator=(const Socket&);
 
-  uint32_t StartConnect(const connection_id& this_node_id,
+  uint32_t StartConnect(const node_id& this_node_id,
                         const asymm::PublicKey& this_public_key,
                         const endpoint& remote,
-                        const connection_id& peer_node_id,
+                        const node_id& peer_node_id,
                         const asymm::PublicKey& peer_public_key,
                         Session::Mode open_mode,
                         uint32_t cookie_syn,

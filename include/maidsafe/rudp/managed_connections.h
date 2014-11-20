@@ -41,7 +41,6 @@
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/contact.h"
-#include "maidsafe/rudp/return_codes.h"
 
 namespace maidsafe {
 
@@ -65,8 +64,8 @@ class managed_connections {
   class listener {
    public:
     virtual ~listener() {}
-    virtual void message_received(connection_id peer_id, received_message message) = 0;
-    virtual void connection_lost(connection_id peer_id) = 0;
+    virtual void message_received(node_id peer_id, received_message message) = 0;
+    virtual void connection_lost(node_id peer_id) = 0;
   };
 
   managed_connections(const Alloc &alloc = Alloc());
@@ -89,7 +88,7 @@ class managed_connections {
   // there are any existing transports they are destroyed and all connections closed.  For
   // zero-state network, pass the required local_endpoint.
   void bootstrap(const bootstrap_list& bootstrap_list, std::shared_ptr<listener> listener,
-                 const connection_id& this_node_id, const asymm::Keys& keys,
+                 const node_id& this_node_id, const asymm::Keys& keys,
                  bootstrap_functor handler,
                  endpoint local_endpoint = endpoint());
 
@@ -103,7 +102,7 @@ class managed_connections {
   // permanent connection to a successful bootstrap endpoint) it should be passed in.  If
   // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
   // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
-  void get_available_endpoints(const connection_id& peer_id,
+  void get_available_endpoints(const node_id& peer_id,
                                get_available_endpoints_functor handler);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
@@ -112,21 +111,21 @@ class managed_connections {
   void add(const contact& peer, connection_added_functor handler);
 
   // Drops the connection with peer.
-  void remove(const connection_id& peer_id, connection_removed_functor handler);
+  void remove(const node_id& peer_id, connection_removed_functor handler);
 
   // Sends the message to the peer.  If the message is sent successfully, the message_sent_functor
   // is executed with input of kSuccess.  If there is no existing connection to peer_id,
   // kInvalidConnection is used.
-  void send(const connection_id& peer_id, sendable_message&& message,
+  void send(const node_id& peer_id, sendable_message&& message,
             message_sent_functor handler = nullptr);
 
  private:
   using TransportPtr = std::shared_ptr<detail::Transport>;
-  using ConnectionMap = std::map<connection_id, TransportPtr>;
+  using ConnectionMap = std::map<node_id, TransportPtr>;
   struct PendingConnection {
-    PendingConnection(connection_id node_id_in, TransportPtr transport,
+    PendingConnection(node_id node_id_in, TransportPtr transport,
                       boost::asio::io_service& io_service);
-    connection_id node_id;
+    node_id node_id;
     TransportPtr pending_transport;
     boost::asio::deadline_timer timer;
     bool connecting;
@@ -141,33 +140,33 @@ class managed_connections {
   void GetBootstrapEndpoints(BootstrapList& bootstrap_list,
                              boost::asio::ip::address& this_external_address);
 
-  bool ExistingConnectionAttempt(const connection_id& peer_id, endpoint_pair& this_endpoint_pair) const;
-  bool ExistingConnection(const connection_id& peer_id, endpoint_pair& this_endpoint_pair,
+  bool ExistingConnectionAttempt(const node_id& peer_id, endpoint_pair& this_endpoint_pair) const;
+  bool ExistingConnection(const node_id& peer_id, endpoint_pair& this_endpoint_pair,
                           int& return_code);
-  bool SelectIdleTransport(const connection_id& peer_id, endpoint_pair& this_endpoint_pair);
-  bool SelectAnyTransport(const connection_id& peer_id, endpoint_pair& this_endpoint_pair);
+  bool SelectIdleTransport(const node_id& peer_id, endpoint_pair& this_endpoint_pair);
+  bool SelectAnyTransport(const node_id& peer_id, endpoint_pair& this_endpoint_pair);
   TransportPtr GetAvailableTransport() const;
   bool ShouldStartNewTransport(const endpoint_pair& peer_endpoint_pair) const;
 
   void AddPending(std::unique_ptr<PendingConnection> connection);
-  void RemovePending(const connection_id& peer_id);
+  void RemovePending(const node_id& peer_id);
   std::vector<std::unique_ptr<PendingConnection>>::const_iterator FindPendingTransportWithNodeId(
 
-      const connection_id& peer_id) const;
+      const node_id& peer_id) const;
   std::vector<std::unique_ptr<PendingConnection>>::iterator FindPendingTransportWithNodeId(
-      const connection_id& peer_id);
+      const node_id& peer_id);
 
   void OnMessageSlot(const std::string& message);
-  void OnConnectionAddedSlot(const connection_id& peer_id, TransportPtr transport,
+  void OnConnectionAddedSlot(const node_id& peer_id, TransportPtr transport,
                              bool temporary_connection,
                              std::atomic<bool> & is_duplicate_normal_connection);
-  void OnConnectionLostSlot(const connection_id& peer_id, TransportPtr transport,
+  void OnConnectionLostSlot(const node_id& peer_id, TransportPtr transport,
                             bool temporary_connection);
   // This signal is fired by Session when a connecting peer requests to use this peer for NAT
   // detection.  The peer will attempt to connect to another one of this node's transports using
   // its current transport.  This node (if suitable) will begin pinging the peer.
   void OnNatDetectionRequestedSlot(const endpoint& this_local_endpoint,
-                                   const connection_id& peer_id,
+                                   const node_id& peer_id,
                                    const endpoint& peer_endpoint,
                                    uint16_t& another_external_port);
 
@@ -177,7 +176,7 @@ class managed_connections {
 
   AsioService asio_service_;
   std::weak_ptr<listener> listener_;
-  connection_id this_node_id_;
+  node_id this_node_id_;
   contact chosen_bootstrap_contact_;
   asymm::Keys keys_;
   ConnectionMap connections_;

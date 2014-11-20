@@ -68,17 +68,17 @@ struct contact {
     return *this;
   }
 
-  contact(connection_id node_id, endpoint both, asymm::PublicKey public_key_in)
+  contact(node_id node_id, endpoint both, asymm::PublicKey public_key_in)
       : id(std::move(node_id)),
         endpoint_pair(std::move(both)),
         public_key(std::move(public_key_in)) {}
 
-  contact(connection_id node_id, endpoint local, endpoint external, asymm::PublicKey public_key_in)
+  contact(node_id node_id, endpoint local, endpoint external, asymm::PublicKey public_key_in)
       : id(std::move(node_id)),
         endpoint_pair(std::move(local), std::move(external)),
         public_key(std::move(public_key_in)) {}
 
-  connection_id id;
+  node_id id;
   endpoint_pair endpoints;
   asymm::PublicKey public_key;
 };

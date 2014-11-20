@@ -34,8 +34,9 @@ namespace rudp {
 
 struct endpoint_pair;
 struct contact;
+struct node_id_tag;
 
-using connection_id = TaggedValue<NodeId, struct connection_id_tag>;
+using node_id = TaggedValue<NodeId, node_id_tag>;
 using endpoint = boost::asio::ip::udp::endpoint;
 using sendable_message = std::vector<unsigned char>;
 using received_message = std::vector<unsigned char>;

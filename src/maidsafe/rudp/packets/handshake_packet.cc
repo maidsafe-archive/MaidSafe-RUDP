@@ -88,9 +88,9 @@ uint32_t HandshakePacket::SocketId() const { return socket_id_; }
 
 void HandshakePacket::SetSocketId(uint32_t n) { socket_id_ = n; }
 
-connection_id HandshakePacket::node_id() const { return node_id_; }
+node_id HandshakePacket::node_id() const { return node_id_; }
 
-void HandshakePacket::set_node_id(connection_id node_id) { node_id_ = node_id; }
+void HandshakePacket::set_node_id(node_id node_id) { node_id_ = node_id; }
 
 uint32_t HandshakePacket::SynCookie() const { return syn_cookie_; }
 
@@ -157,7 +157,7 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   DecodeUint32(&connection_type_, p + 20);
   DecodeUint32(&connection_reason_, p + 24);
   DecodeUint32(&socket_id_, p + 28);
-  node_id_ = connection_id(std::string(p + 32, p + 96));
+  node_id_ = node_id(std::string(p + 32, p + 96));
   DecodeUint32(&syn_cookie_, p + 96);
 
   request_nat_detection_port_ = ((p[100] & 0x80) != 0);

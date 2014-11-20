@@ -46,7 +46,7 @@ class TickTimer;
 
 class Session {
  public:
-  typedef boost::signals2::signal<void(const boost::asio::ip::udp::endpoint&, const connection_id&,
+  typedef boost::signals2::signal<void(const boost::asio::ip::udp::endpoint&, const node_id&,
                                        const boost::asio::ip::udp::endpoint&, uint16_t&)>
       OnNatDetectionRequested;
 
@@ -62,7 +62,7 @@ class Session {
                    boost::asio::ip::udp::endpoint this_local_endpoint, nat_type& nat_type);
 
   // Open the session, returning the SYN cookie used.
-  uint32_t Open(uint32_t id, connection_id this_node_id,
+  uint32_t Open(uint32_t id, node_id this_node_id,
                 const asymm::PublicKey& this_public_key,
                 uint32_t sequence_number, Mode mode, uint32_t cookie_syn,
                 const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
@@ -132,8 +132,8 @@ class Session {
   // This node's NAT type.  Object owned by managed_connections.
   nat_type& nat_type_;
 
-  // This node's connection_id
-  connection_id this_node_id_;
+  // This node's node_id
+  node_id this_node_id_;
 
   // This node's public key
   asymm::PublicKey this_public_key_;

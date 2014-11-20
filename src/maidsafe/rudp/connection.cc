@@ -128,7 +128,7 @@ void Connection::DoClose(const Error& error) {
   LOG(kInfo) << "RUDP Connection::DoClose connection closed";
 }
 
-void Connection::StartConnecting(const connection_id& peer_node_id, const ip::udp::endpoint& peer_endpoint,
+void Connection::StartConnecting(const node_id& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                                  const asymm::PublicKey& peer_public_key,
                                  ConnectionAddedFunctor connection_added_functor,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
@@ -141,7 +141,7 @@ void Connection::StartConnecting(const connection_id& peer_node_id, const ip::ud
                              failure_functor));
 }
 
-void Connection::Ping(const connection_id& peer_node_id, const ip::udp::endpoint& peer_endpoint,
+void Connection::Ping(const node_id& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                       const PingFunctor& ping_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, asymm::PublicKey(), ConnectionAddedFunctor(),
@@ -149,7 +149,7 @@ void Connection::Ping(const connection_id& peer_node_id, const ip::udp::endpoint
                              OnConnect(), std::function<void()>()));
 }
 
-void Connection::DoStartConnecting(const connection_id& peer_node_id,
+void Connection::DoStartConnecting(const node_id& peer_node_id,
                                    const ip::udp::endpoint& peer_endpoint,
                                    const asymm::PublicKey& peer_public_key,
                                    ConnectionAddedFunctor connection_added_functor,
