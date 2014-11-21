@@ -100,7 +100,7 @@ ip::udp::endpoint Socket::PeerEndpoint() const { return peer_.PeerEndpoint(); }
 
 uint32_t Socket::PeerSocketId() const { return peer_.SocketId(); }
 
-node_id Socket::PeerNodeId() const { return peer_.node_id(); }
+node_id Socket::PeerNodeId() const { return peer_.get_node_id(); }
 
 bool Socket::IsOpen() const { return session_.IsOpen(); }
 

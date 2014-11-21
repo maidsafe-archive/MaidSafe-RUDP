@@ -174,7 +174,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_kBootstrapConnectionAlreadyExists) {
   std::promise<void> promise;
   auto future = promise.get_future();
 
-  nodes_[index]->managed_connections()->SetConnectionAddedFunctor([&](NodeId) {
+  nodes_[index]->managed_connections()->Setconnection_added_functor([&](NodeId) {
     lock_guard guard(mutex);
     promise.set_value();
   });
@@ -184,7 +184,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_kBootstrapConnectionAlreadyExists) {
 
   // When the above bootstrap function finishes, the node 'node_' knows it is connected
   // to node 'nodes_[index]' but not the other way around. For that we need to
-  // wait till the ConnectionAddedFunctor is executed inside node 'nodes_[index]'.
+  // wait till the connection_added_functor is executed inside node 'nodes_[index]'.
   future.wait();
   { lock_guard guard(mutex); }
 
@@ -709,7 +709,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   using lock_guard = std::lock_guard<std::mutex>;
   std::mutex mutex;
 
-  MessageSentFunctor message_sent_functor([&](int result_in) {
+  message_sent_functor handler([&](int result_in) {
     lock_guard guard(mutex);
     if (result_in != kSuccess)
       result_of_send = result_in;
@@ -719,7 +719,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   peer_futures = nodes_[1]->GetFutureForMessages(kRepeatCount);
   const std::string kMessage(RandomAlphaNumericString(256 * 1024));
   for (int i(0); i != kRepeatCount; ++i)
-    node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, message_sent_functor);
+    node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, handler);
 
   ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(60)));
   { lock_guard guard(mutex); }
@@ -782,7 +782,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
   std::atomic<int> result_of_send(kSuccess);
   std::promise<void> done_out;
   auto done_in = done_out.get_future();
-  MessageSentFunctor message_sent_functor([&](int result_in) {
+  message_sent_functor handler([&](int result_in) {
     if (result_in != kSuccess)
       result_of_send = result_in;
     if (kRepeatCount == ++result_arrived_count)
@@ -791,7 +791,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
   peer_futures = nodes_[1]->GetFutureForMessages(kRepeatCount);
   const std::string kMessage(RandomAlphaNumericString(1024));
   for (int i(0); i != kRepeatCount; ++i)
-    node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, message_sent_functor);
+    node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, handler);
 
   ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(500)))
       << result_arrived_count << " - " << kRepeatCount;
@@ -839,7 +839,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
   // Before Bootstrap
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message1", MessageSentFunctor());
+  node_.managed_connections()->Send(nodes_[0]->node_id(), "message1", message_sent_functor());
   int millis = 1000;
 
   FutureResult future_result;
@@ -857,7 +857,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
 
   // Send to non-bootstrap peer
-  node_.managed_connections()->Send(nodes_[1]->node_id(), "message3", MessageSentFunctor());
+  node_.managed_connections()->Send(nodes_[1]->node_id(), "message3", message_sent_functor());
   node_.managed_connections()->Send(nodes_[1]->node_id(), "message4",
                                     future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
@@ -866,7 +866,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   // Send to bootstrap peer
   nodes_[0]->ResetData();
   auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(2));
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message5", MessageSentFunctor());
+  node_.managed_connections()->Send(nodes_[0]->node_id(), "message5", message_sent_functor());
   node_.managed_connections()->Send(nodes_[0]->node_id(), "message6",
                                     future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
@@ -909,7 +909,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.ResetData();
   nodes_[1]->ResetData();
   node_.managed_connections()->Send(NodeId(RandomString(NodeId::kSize)), "message7",
-                                    MessageSentFunctor());
+                                    message_sent_functor());
   node_.managed_connections()->Send(NodeId(RandomString(NodeId::kSize)), "message8",
                                     future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
@@ -919,7 +919,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.ResetData();
   nodes_[1]->ResetData();
   future_messages_at_peer = nodes_[1]->GetFutureForMessages(2);
-  node_.managed_connections()->Send(nodes_[1]->node_id(), "message9", MessageSentFunctor());
+  node_.managed_connections()->Send(nodes_[1]->node_id(), "message9", message_sent_functor());
   node_.managed_connections()->Send(nodes_[1]->node_id(), "message10",
                                     future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
@@ -935,7 +935,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.ResetData();
   nodes_[1]->ResetData();
   future_messages_at_peer = node_.GetFutureForMessages(2);
-  nodes_[1]->managed_connections()->Send(node_.node_id(), "message11", MessageSentFunctor());
+  nodes_[1]->managed_connections()->Send(node_.node_id(), "message11", message_sent_functor());
   nodes_[1]->managed_connections()->Send(node_.node_id(), "message12",
                                          future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
@@ -966,7 +966,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
 
   node_.ResetData();
   nodes_[0]->ResetData();
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message13", MessageSentFunctor());
+  node_.managed_connections()->Send(nodes_[0]->node_id(), "message13", message_sent_functor());
   node_.managed_connections()->Send(nodes_[0]->node_id(), "message14",
                                     future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
@@ -1047,7 +1047,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   std::mutex mutex;
 
   auto done_in = done_out.get_future();
-  MessageSentFunctor message_sent_functor([&](int result_in) {
+  message_sent_functor handler([&](int result_in) {
     lock_guard guard(mutex);
     if (result_in != kSuccess)
       result_of_send = result_in;
@@ -1057,7 +1057,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
 
   // Send and assess results
   for (int i(0); i != kMessageCount; ++i) {
-    node_.managed_connections()->Send(nodes_[1]->node_id(), sent_messages[i], message_sent_functor);
+    node_.managed_connections()->Send(nodes_[1]->node_id(), sent_messages[i], handler);
   }
   ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(60)));
   { lock_guard guard(mutex); }
@@ -1121,7 +1121,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   auto future_messages(node_.GetFutureForMessages(kNetworkSize - 1));
   std::vector<std::string> sent_messages;
   std::vector<int> result_of_sends(kNetworkSize, kConnectError);
-  std::vector<MessageSentFunctor> message_sent_functors;
+  std::vector<message_sent_functor> message_sent_functors;
   std::atomic<int> result_arrived_count(0);
   std::shared_ptr<std::promise<void>> done_out = std::make_shared<std::promise<void>>();
   auto done_in = done_out->get_future();

@@ -45,7 +45,13 @@ using get_available_endpoints_functor = std::function<void(maidsafe_error, endpo
 using connection_added_functor = std::function<void(maidsafe_error)>;
 using connection_removed_functor = std::function<void(maidsafe_error)>;
 using message_sent_functor = std::function<void(maidsafe_error)>;
-using bootstrap_list = std::vector<contact>;
+using bootstrap_contacts = std::vector<contact>;
+
+namespace detail {
+
+using node_id = maidsafe::rudp::node_id;
+
+}  // namespace detail
 
 }  // namespace rudp
 

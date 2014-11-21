@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
   std::condition_variable cond_var;
   std::mutex mutex;
   std::unique_lock<std::mutex> lock(mutex);
-  maidsafe::rudp::MessageSentFunctor message_sent_functor([&](int result_in) {
+  maidsafe::rudp::message_sent_functor handler([&](int result_in) {
     std::lock_guard<std::mutex> lock(mutex);
     result_of_send = result_in;
     ++result_arrived_count;
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
   TLOG(kDefaultColour) << "Starting to send ... ";
   auto start_point(std::chrono::steady_clock::now());
   for (int i(0); i != message_count; ++i)
-    nodes[0]->managed_connections()->Send(nodes[1]->node_id(), messages[i], message_sent_functor);
+    nodes[0]->managed_connections()->Send(nodes[1]->node_id(), messages[i], handler);
 
   TLOG(kDefaultColour) << "All messages enqueued ... ";
   cond_var.wait(lock, [message_count, &result_arrived_count] {

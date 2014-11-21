@@ -28,7 +28,7 @@ namespace rudp {
 enum class nat_type : char {
   symmetric,
   other,
-  kUnknown
+  unknown
 };
 
 template <typename Elem, typename Traits>

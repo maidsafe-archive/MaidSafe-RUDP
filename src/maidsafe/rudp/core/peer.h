@@ -26,7 +26,9 @@
 #include "boost/asio/ip/udp.hpp"
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/rsa.h"
+
 #include "maidsafe/rudp/core/multiplexer.h"
+#include "maidsafe/rudp/types.h"
 
 namespace maidsafe {
 
@@ -56,8 +58,8 @@ class Peer {
   uint32_t SocketId() const { return socket_id_; }
   void SetSocketId(uint32_t id) { socket_id_ = id; }
 
-  node_id node_id() const { return node_id_; }
-  void set_node_id(node_id node_id) { node_id_ = node_id; }
+  node_id get_node_id() const { return node_id_; }
+  void set_node_id(node_id node_id_in) { node_id_ = node_id_in; }
 
   const asymm::PublicKey& public_key() const { return public_key_; }
   void SetPublicKey(const asymm::PublicKey& public_key) {

@@ -40,6 +40,7 @@
 #include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/nat_type.h"
 #include "maidsafe/rudp/parameters.h"
+#include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/core/session.h"
 
 namespace maidsafe {
@@ -70,7 +71,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   using Duration        = boost::posix_time::time_duration;
   using OnNatDetected   = Session::OnNatDetectionRequested::slot_function_type;
   using OnBootstrap     = std::function<void(ReturnCode, contact)>;
-  using BootstrapList   = std::vector<contact>;
+  using bootstrap_contacts = std::vector<contact>;
 
 
  public:
@@ -78,8 +79,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   virtual ~Transport();
 
-  void Bootstrap(const BootstrapList&              bootstrap_list,
-                 const node_id&                     this_node_id,
+  void Bootstrap(const bootstrap_contacts&             bootstrap_list,
+                 const node_id&                    this_node_id,
                  const asymm::PublicKey&           this_public_key,
                  endpoint                          local_endpoint,
                  bool                              bootstrap_off_existing_connection,
@@ -92,14 +93,14 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void Close();
 
   void Connect(const node_id& peer_id, const endpoint_pair& peer_endpoint_pair,
-               asymm::PublicKey peer_public_key, ConnectionAddedFunctor connection_added_functor);
+               asymm::PublicKey peer_public_key, connection_added_functor handler);
 
   // If this causes the size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from managed_connections which will cause it to be destroyed.
   bool CloseConnection(const node_id& peer_id);
 
   bool Send(const node_id& peer_id, const std::string& message,
-            const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
+            const message_sent_functor& handler);
 
   void Ping(const node_id& peer_id, const endpoint& peer_endpoint,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
@@ -131,7 +132,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
 
   template<class Handler>
-  void TryBootstrapping(const BootstrapList& bootstrap_list,
+  void TryBootstrapping(const bootstrap_contacts& bootstrap_list,
                         bool bootstrap_off_existing_connection,
                         Handler);
 
@@ -146,12 +147,12 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   void DoConnect(const node_id& peer_id, const endpoint_pair& peer_endpoint_pair,
                  const asymm::PublicKey& peer_public_key,
-                 ConnectionAddedFunctor connection_added_functor);
+                 connection_added_functor connection_added_functor);
 
   void StartDispatch();
   void HandleDispatch(const boost::system::error_code& ec);
 
-  node_id node_id() const;
+  node_id this_node_id() const;
   const asymm::PublicKey& public_key() const;
 
   void SignalMessageReceived(const std::string& message);

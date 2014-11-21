@@ -32,6 +32,7 @@
 
 #include "maidsafe/common/rsa.h"
 
+#include "maidsafe/rudp/types.h"
 #include "maidsafe/rudp/nat_type.h"
 
 namespace maidsafe {

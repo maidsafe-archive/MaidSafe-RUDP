@@ -37,6 +37,8 @@
 #include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
+#include "maidsafe/rudp/types.h"
+
 namespace maidsafe {
 
 namespace rudp {
@@ -56,7 +58,6 @@ class ConnectionManager {
   using Error         = boost::system::error_code;
   using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
 
- public:
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
                     std::shared_ptr<Multiplexer> multiplexer, node_id this_node_id,
@@ -67,7 +68,7 @@ class ConnectionManager {
 
   void Connect(const node_id& peer_id, const endpoint& peer_endpoint,
                const asymm::PublicKey& peer_public_key,
-               std::function<void(const node_id&, int)> connection_added_functor,
+               connection_added_functor handler,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan, OnConnect on_connect,
                const std::function<void()>& failure_functor);
@@ -81,7 +82,7 @@ class ConnectionManager {
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
   bool Send(const node_id& peer_id, const std::string& message,
-            const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
+            const message_sent_functor& handler);
 
   // This node's endpoint as viewed by peer
   endpoint ThisEndpoint(const node_id& peer_id);
@@ -103,7 +104,7 @@ class ConnectionManager {
 
   size_t NormalConnectionsCount() const;
 
-  node_id node_id() const;
+  node_id this_node_id() const;
   const asymm::PublicKey& public_key() const;
 
   std::string DebugString();

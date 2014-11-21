@@ -58,7 +58,7 @@ enum class nat_type : char;
 extern void set_debug_packet_loss_rate(double constant, double bursty);
 #endif
 
-template <typename Alloc = kernel_side_allocator>
+//template <typename Alloc = kernel_side_allocator>
 class managed_connections {
  public:
   class listener {
@@ -68,7 +68,7 @@ class managed_connections {
     virtual void connection_lost(node_id peer_id) = 0;
   };
 
-  managed_connections(const Alloc &alloc = Alloc());
+  managed_connections(/*const Alloc &alloc = Alloc()*/);
   managed_connections(const managed_connections&) = delete;
   managed_connections(managed_connections&&) = delete;
   ~managed_connections();
@@ -87,7 +87,7 @@ class managed_connections {
   // private_key before being passed up via MessageReceivedFunctor.  Before bootstrapping begins, if
   // there are any existing transports they are destroyed and all connections closed.  For
   // zero-state network, pass the required local_endpoint.
-  void bootstrap(const bootstrap_list& bootstrap_list, std::shared_ptr<listener> listener,
+  void bootstrap(const bootstrap_contacts& bootstrap_list, std::shared_ptr<listener> listener,
                  const node_id& this_node_id, const asymm::Keys& keys,
                  bootstrap_functor handler,
                  endpoint local_endpoint = endpoint());
@@ -131,13 +131,17 @@ class managed_connections {
     bool connecting;
   };
 
+  void do_bootstrap(const bootstrap_contacts& bootstrap_list, std::shared_ptr<listener> listener,
+                    const node_id& this_node_id, const asymm::Keys& keys, bootstrap_functor handler,
+                    endpoint local_endpoint);
+
   void ClearConnectionsAndIdleTransports();
   int TryToDetermineLocalEndpoint(endpoint& local_endpoint);
-  int AttemptStartNewTransport(const BootstrapList& bootstrap_list, const endpoint& local_endpoint,
+  int AttemptStartNewTransport(const bootstrap_contacts& bootstrap_list, const endpoint& local_endpoint,
                                contact& chosen_bootstrap_contact);
-  ReturnCode StartNewTransport(BootstrapList bootstrap_list, endpoint local_endpoint);
+  int StartNewTransport(bootstrap_contacts bootstrap_list, endpoint local_endpoint);
 
-  void GetBootstrapEndpoints(BootstrapList& bootstrap_list,
+  void GetBootstrapEndpoints(bootstrap_contacts& bootstrap_list,
                              boost::asio::ip::address& this_external_address);
 
   bool ExistingConnectionAttempt(const node_id& peer_id, endpoint_pair& this_endpoint_pair) const;
@@ -150,13 +154,12 @@ class managed_connections {
 
   void AddPending(std::unique_ptr<PendingConnection> connection);
   void RemovePending(const node_id& peer_id);
-  std::vector<std::unique_ptr<PendingConnection>>::const_iterator FindPendingTransportWithNodeId(
-
-      const node_id& peer_id) const;
+  std::vector<std::unique_ptr<PendingConnection>>::const_iterator
+      FindPendingTransportWithNodeId(const node_id& peer_id) const;
   std::vector<std::unique_ptr<PendingConnection>>::iterator FindPendingTransportWithNodeId(
       const node_id& peer_id);
 
-  void OnMessageSlot(const std::string& message);
+  void OnMessageSlot(const node_id& peer_id, const std::string& message);
   void OnConnectionAddedSlot(const node_id& peer_id, TransportPtr transport,
                              bool temporary_connection,
                              std::atomic<bool> & is_duplicate_normal_connection);

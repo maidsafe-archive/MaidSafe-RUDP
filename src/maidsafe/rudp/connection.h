@@ -80,15 +80,14 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartConnecting(const node_id& peer_node_id,
                        const boost::asio::ip::udp::endpoint& peer_endpoint,
                        const asymm::PublicKey& peer_public_key,
-                       ConnectionAddedFunctor connection_added_functor,
+                       connection_added_functor handler,
                        const boost::posix_time::time_duration& connect_attempt_timeout,
                        const boost::posix_time::time_duration& lifespan,
                        OnConnect on_connect,
                        const std::function<void()>& failure_functor);
   void Ping(const node_id& peer_node_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
-  void StartSending(const std::string& data,
-                    const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
+  void StartSending(const std::string& data, const message_sent_functor& handler);
   State state() const;
   // Sets the state_ to kPermanent or kUnvalidated and sets the lifespan_timer_ to expire at
   // pos_infin.
@@ -111,12 +110,10 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   struct SendRequest {
     std::string encrypted_data_;
-    std::function<void(int)> message_sent_functor_;  // NOLINT (Dan)
+    message_sent_functor handler_;
 
-    SendRequest(std::string encrypted_data,
-                std::function<void(int)> message_sent_functor)  // NOLINT (Dan)
-        : encrypted_data_(std::move(encrypted_data)),
-          message_sent_functor_(std::move(message_sent_functor)) {}
+    SendRequest(std::string encrypted_data, message_sent_functor handler)
+        : encrypted_data_(std::move(encrypted_data)), handler_(std::move(handler)) {}
   };
 
   void DoClose(const Error&);
@@ -124,7 +121,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void DoStartConnecting(const node_id& peer_node_id,
                          const boost::asio::ip::udp::endpoint& peer_endpoint,
                          const asymm::PublicKey& peer_public_key,
-                         ConnectionAddedFunctor connection_added_functor,
+                         connection_added_functor handler,
                          const boost::posix_time::time_duration& connect_attempt_timeout,
                          const boost::posix_time::time_duration& lifespan,
                          const std::function<void(int)>& ping_functor,  // NOLINT (Fraser)
@@ -155,8 +152,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartReadData();
   void HandleReadData(const boost::system::error_code& ec, size_t length);
 
-  void StartWrite(const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
-  void HandleWrite(std::function<void(int)> message_sent_functor);        // NOLINT (Fraser)
+  void StartWrite(const message_sent_functor& handler);  // NOLINT (Fraser)
+  void HandleWrite(message_sent_functor handler);        // NOLINT (Fraser)
 
   void StartProbing();
   void DoProbe(const boost::system::error_code& ec);
@@ -166,11 +163,10 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void EncodeData(const std::string& data);
 
-  void InvokeSentFunctor(const std::function<void(int)>& message_sent_functor,  // NOLINT (Fraser)
-                         int result) const;
+  void InvokeSentFunctor(const message_sent_functor& handler, const maidsafe_error& error) const;
 
   void FireOnConnectFunctor(const Error&);
-  void FireConnectionAddedFunctor(int result);
+  void Fireconnection_added_functor(int result);
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
@@ -180,7 +176,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
   node_id peer_node_id_;
   boost::asio::ip::udp::endpoint peer_endpoint_;
-  ConnectionAddedFunctor connection_added_functor_;
+  connection_added_functor connection_added_functor_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   DataSize data_size_, data_received_;
   uint8_t failed_probe_count_;

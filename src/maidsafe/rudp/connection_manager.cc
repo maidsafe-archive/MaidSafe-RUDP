@@ -78,26 +78,26 @@ void ConnectionManager::Close() {
       strand_.post(std::bind(&Connection::Close, connection));
   }
   // Ugly, but we must not reset dispatcher until he's done
-  while (multiplexer_->dispatcher_.use_count()) std::this_thread::yield();
+  while (multiplexer_->dispatcher_.use_count())
+    std::this_thread::yield();
   multiplexer_->dispatcher_.SetConnectionManager(nullptr);
 }
 
 bool ConnectionManager::CanStartConnectingTo(node_id peer_id, endpoint peer_ep) const {
-  return std::find_if( being_connected_.begin()
-                     , being_connected_.end()
-                     , [&](const std::pair<node_id, endpoint>& pair) {
-                       if (!peer_id.IsValid() || !pair.first.IsValid() || peer_id == pair.first) {
-                         return pair.second == peer_ep;
-                       }
-                       return false;
-                     }) == being_connected_.end();
+  return std::find_if(being_connected_.begin(), being_connected_.end(),
+                      [&](const std::pair<node_id, endpoint>& pair) {
+           if (!peer_id->IsValid() || !pair.first->IsValid() || peer_id == pair.first) {
+             return pair.second == peer_ep;
+           }
+           return false;
+         }) == being_connected_.end();
 }
 
 void ConnectionManager::MarkDoneConnecting(node_id peer_id, endpoint peer_ep) {
   auto j = being_connected_.begin();
   for (auto i = being_connected_.begin(); i != being_connected_.end(); i = j) {
     ++j;
-    if (!peer_id.IsValid() || !i->first.IsValid() || peer_id == i->first) {
+    if (!peer_id->IsValid() || !i->first->IsValid() || peer_id == i->first) {
       if (peer_ep == i->second) {
         being_connected_.erase(i);
       }
@@ -107,7 +107,7 @@ void ConnectionManager::MarkDoneConnecting(node_id peer_id, endpoint peer_ep) {
 
 void ConnectionManager::Connect(const node_id& peer_id, const endpoint& peer_endpoint,
                                 const asymm::PublicKey& peer_public_key,
-                                std::function<void(const node_id&, int)> connection_added_functor,
+                                connection_added_functor handler,
                                 const bptime::time_duration& connect_attempt_timeout,
                                 const bptime::time_duration& lifespan, OnConnect on_connect,
                                 const std::function<void()>& failure_functor) {
@@ -116,24 +116,20 @@ void ConnectionManager::Connect(const node_id& peer_id, const endpoint& peer_end
   auto transport = transport_.lock();
 
   if (!transport) {
-    strand_.dispatch([&] { connection_added_functor(peer_id, kConnectError); });
-    return strand_.dispatch([on_connect]() {
-        on_connect(asio::error::shut_down, nullptr);
-        });
+    strand_.dispatch([&] { handler(MakeError(RudpErrors::failed_to_connect)); });
+    return strand_.dispatch([on_connect]() { on_connect(asio::error::shut_down, nullptr); });
   }
 
   if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
-    strand_.dispatch([&] { connection_added_functor(peer_id, kConnectError); });
-    return strand_.dispatch([on_connect]() {
-        on_connect(asio::error::already_started, nullptr);
-        });
+    strand_.dispatch([&] { handler(MakeError(RudpErrors::failed_to_connect)); });
+    return strand_.dispatch([on_connect]() { on_connect(asio::error::already_started, nullptr); });
   }
 
   being_connected_.insert(std::make_pair(peer_id, peer_endpoint));
 
   auto connection = std::make_shared<Connection>(transport, strand_, multiplexer_);
 
-  connection->StartConnecting(peer_id, peer_endpoint, peer_public_key, connection_added_functor,
+  connection->StartConnecting(peer_id, peer_endpoint, peer_public_key, handler,
                               connect_attempt_timeout, lifespan, on_connect, failure_functor);
 }
 
@@ -195,7 +191,7 @@ void ConnectionManager::Ping(const node_id& peer_id, const endpoint& peer_endpoi
 }
 
 bool ConnectionManager::Send(const node_id& peer_id, const std::string& message,
-                             const std::function<void(int)>& message_sent_functor) {  // NOLINT
+                             const message_sent_functor& handler) {
   std::unique_lock<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
@@ -205,7 +201,7 @@ bool ConnectionManager::Send(const node_id& peer_id, const std::string& message,
 
   ConnectionPtr connection(*itr);
   lock.unlock();
-  strand_.dispatch([=] { connection->StartSending(message, message_sent_functor); });
+  strand_.dispatch([=] { connection->StartSending(message, handler); });
   return true;
 }
 
@@ -220,23 +216,22 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const endpo
   if (socket_id == 0) {
     HandshakePacket handshake_packet;
     if (!handshake_packet.Decode(data)) {
-      LOG(kVerbose) << kThisNodeId_ << " Failed to decode handshake packet from "
-                    << endpoint;
+      LOG(kVerbose) << kThisNodeId_ << " Failed to decode handshake packet from " << endpoint;
       return nullptr;
     }
     if (handshake_packet.ConnectionReason() == Session::kNormal) {
       // This is a handshake packet on a newly-added socket
-      LOG(kVerbose) << kThisNodeId_
-                    << " This is a handshake packet on a newly-added socket from " << endpoint;
+      LOG(kVerbose) << kThisNodeId_ << " This is a handshake packet on a newly-added socket from "
+                    << endpoint;
       socket_iter = std::find_if(sockets_.begin(), sockets_.end(),
-                                 [endpoint](const SocketMap::value_type & socket_pair) {
+                                 [endpoint](const SocketMap::value_type& socket_pair) {
         return socket_pair.second->PeerEndpoint() == endpoint && !socket_pair.second->IsConnected();
       });
       // If the socket wasn't found, this could be a connect attempt from a peer using symmetric
       // NAT, so the peer's port may be different to what this node was told to expect.
       if (socket_iter == sockets_.end()) {
         socket_iter = std::find_if(sockets_.begin(), sockets_.end(),
-                                   [endpoint](const SocketMap::value_type & socket_pair) {
+                                   [endpoint](const SocketMap::value_type& socket_pair) {
           return socket_pair.second->PeerEndpoint().address() == endpoint.address() &&
                  !OnPrivateNetwork(socket_pair.second->PeerEndpoint()) &&
                  !socket_pair.second->IsConnected();
@@ -252,7 +247,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const endpo
       }
     } else {  // Session::mode_ != kNormal
       socket_iter = std::find_if(sockets_.begin(), sockets_.end(),
-                                 [endpoint](const SocketMap::value_type & socket_pair) {
+                                 [endpoint](const SocketMap::value_type& socket_pair) {
         return socket_pair.second->PeerEndpoint() == endpoint;
       });
       if (socket_iter == sockets_.end()) {
@@ -280,9 +275,8 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const endpo
     return socket_iter->second;
   } else {
     const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
-    LOG(kVerbose) << kThisNodeId_ << "  Received a packet \"0x" << std::hex
-                  << static_cast<int>(*p) << std::dec << "\" for unknown connection " << socket_id
-                  << " from " << endpoint;
+    LOG(kVerbose) << kThisNodeId_ << "  Received a packet \"0x" << std::hex << static_cast<int>(*p)
+                  << std::dec << "\" for unknown connection " << socket_id << " from " << endpoint;
     return nullptr;
   }
 }
@@ -291,7 +285,7 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
                                        const endpoint& endpoint) {
   LOG(kVerbose) << kThisNodeId_ << " This is a handshake packet from " << endpoint
                 << " which is trying to ping this node or join the network";
-  if (handshake_packet.node_id() == kThisNodeId_) {
+  if (handshake_packet.get_node_id() == kThisNodeId_) {
     LOG(kWarning) << kThisNodeId_ << " is handshaking with another local transport.";
     return;
   }
@@ -305,19 +299,19 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
   bool bootstrap_and_drop(handshake_packet.ConnectionReason() == Session::kBootstrapAndDrop);
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto itr(FindConnection(handshake_packet.node_id()));
+    auto itr(FindConnection(handshake_packet.get_node_id()));
     if (itr != connections_.end() && !bootstrap_and_drop)
       joining_connection = *itr;
   }
   if (joining_connection) {
     LOG(kWarning) << kThisNodeId_ << " received another bootstrap connection request "
-                  << "from currently connected peer " << handshake_packet.node_id()
-                  << " - " << endpoint << " - closing connection.";
+                  << "from currently connected peer " << handshake_packet.get_node_id() << " - "
+                  << endpoint << " - closing connection.";
     joining_connection->Close();
   } else {
     // Joining node is not already connected - start new bootstrap or temporary connection
     if (auto t = transport_.lock()) {
-      Connect(handshake_packet.node_id(), endpoint, handshake_packet.PublicKey(), nullptr,
+      Connect(handshake_packet.get_node_id(), endpoint, handshake_packet.PublicKey(), nullptr,
               Parameters::bootstrap_connect_timeout,
               bootstrap_and_drop ? bptime::time_duration() :
                                    Parameters::bootstrap_connection_lifespan,
@@ -370,12 +364,12 @@ ConnectionManager::ConnectionGroup::iterator ConnectionManager::FindConnection(
     const node_id& peer_id) const {
   assert(!mutex_.try_lock());
   return std::find_if(connections_.begin(), connections_.end(),
-                      [&peer_id](const ConnectionPtr & connection) {
+                      [&peer_id](const ConnectionPtr& connection) {
     return connection->Socket().PeerNodeId() == peer_id;
   });
 }
 
-node_id ConnectionManager::node_id() const { return kThisNodeId_; }
+node_id ConnectionManager::this_node_id() const { return kThisNodeId_; }
 
 const asymm::PublicKey& ConnectionManager::public_key() const { return this_public_key_; }
 

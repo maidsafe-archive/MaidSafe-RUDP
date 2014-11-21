@@ -32,6 +32,7 @@
 
 #include "maidsafe/common/rsa.h"
 
+#include "maidsafe/rudp/types.h"
 #include "maidsafe/rudp/packets/control_packet.h"
 
 namespace maidsafe {
@@ -78,7 +79,7 @@ class HandshakePacket : public ControlPacket {
   uint32_t SocketId() const;
   void SetSocketId(uint32_t n);
 
-  node_id node_id() const;
+  node_id get_node_id() const;
   void set_node_id(node_id node_id);
 
   uint32_t SynCookie() const;
