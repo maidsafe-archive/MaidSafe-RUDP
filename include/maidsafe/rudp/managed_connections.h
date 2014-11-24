@@ -125,7 +125,7 @@ class managed_connections {
   struct PendingConnection {
     PendingConnection(node_id node_id_in, TransportPtr transport,
                       boost::asio::io_service& io_service);
-    node_id node_id;
+    node_id peer_id;
     TransportPtr pending_transport;
     boost::asio::deadline_timer timer;
     bool connecting;
