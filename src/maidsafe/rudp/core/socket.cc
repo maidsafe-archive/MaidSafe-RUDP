@@ -88,8 +88,8 @@ Socket::Socket(Multiplexer& multiplexer, nat_type& nat_type)  // NOLINT (Fraser)
 Socket::~Socket() {
   if (IsOpen())
     dispatcher_.RemoveSocket(session_.Id());
-  for (auto message_sent_functor : message_sent_functors_)
-    message_sent_functor.second(kConnectionClosed);
+  for (auto& message_sent_functor : message_sent_functors_)
+    message_sent_functor.second(MakeError(RudpErrors::not_connected));
 }
 
 uint32_t Socket::Id() const { return session_.Id(); }
@@ -181,8 +181,7 @@ void Socket::StartProbe() {
   }
 }
 
-void Socket::StartWrite(const asio::const_buffer& data,
-                        const std::function<void(int)>& message_sent_functor) {  // NOLINT (Fraser)
+void Socket::StartWrite(const asio::const_buffer& data, const message_sent_functor& handler) {
   // Check for a no-op write.
   if (asio::buffer_size(data) == 0) {
     waiting_write_ec_.clear();
@@ -196,7 +195,7 @@ void Socket::StartWrite(const asio::const_buffer& data,
   waiting_write_buffer_ = data;
   waiting_write_bytes_transferred_ = 0;
   ++waiting_write_message_number_;
-  message_sent_functors_[waiting_write_message_number_] = message_sent_functor;
+  message_sent_functors_[waiting_write_message_number_] = handler;
   ProcessWrite();
 }
 
@@ -367,7 +366,7 @@ void Socket::HandleAck(const AckPacket& packet) {
       if (itr == message_sent_functors_.end()) {
         LOG(kError) << "Lost sent functor for message " << num;
       } else {
-        (*itr).second(kSuccess);
+        (*itr).second(MakeError(CommonErrors::success));
         message_sent_functors_.erase(itr);
       }
     }

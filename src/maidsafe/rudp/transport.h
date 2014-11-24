@@ -56,7 +56,7 @@ class Socket;
 
 class Transport : public std::enable_shared_from_this<Transport> {
  public:
-  typedef std::function<void(const std::string&)> OnMessage;
+  typedef std::function<void(const node_id& peer_id, const std::string&)> OnMessage;
 
   typedef std::function<void(const node_id&, std::shared_ptr<Transport>, bool, std::atomic<bool> &)>
       OnConnectionAdded;
@@ -155,8 +155,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   node_id this_node_id() const;
   const asymm::PublicKey& public_key() const;
 
-  void SignalMessageReceived(const std::string& message);
-  void DoSignalMessageReceived(const std::string& message);
+  void SignalMessageReceived(const node_id& peer_id, const std::string& message);
+  void DoSignalMessageReceived(const node_id& peer_id, const std::string& message);
   void AddConnection(ConnectionPtr connection);
   void DoAddConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection, bool timed_out);

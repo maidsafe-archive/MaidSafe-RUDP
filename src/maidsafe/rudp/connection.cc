@@ -545,7 +545,8 @@ void Connection::HandleReadData(const bs::error_code& ec, size_t length) {
   data_received_ += static_cast<DataSize>(length);
   if (data_received_ == data_size_) {
     if (std::shared_ptr<Transport> transport = transport_.lock()) {
-      transport->SignalMessageReceived(std::string(receive_buffer_.begin(), receive_buffer_.end()));
+      transport->SignalMessageReceived(socket_.PeerNodeId(),
+                                       std::string(receive_buffer_.begin(), receive_buffer_.end()));
       StartReadSize();
     }
   } else {

@@ -149,8 +149,7 @@ class Socket {
   // been acknowledged by the peer.
   template <typename WriteHandler>
   void AsyncWrite(const boost::asio::const_buffer& data,
-                  const std::function<void(int)>& message_sent_functor,  // NOLINT (Fraser)
-                  WriteHandler handler) {
+                  const message_sent_functor& message_sent_functor, WriteHandler handler) {
     WriteOp<WriteHandler> op(handler, waiting_write_ec_, waiting_write_bytes_transferred_);
     waiting_write_.async_wait(op);
     StartWrite(data, message_sent_functor);
@@ -210,8 +209,7 @@ class Socket {
                         uint32_t cookie_syn,
                         const Session::OnNatDetectionRequested::slot_type&);
 
-  void StartWrite(const boost::asio::const_buffer& data,
-                  const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
+  void StartWrite(const boost::asio::const_buffer& data, const message_sent_functor& handler);
   void ProcessWrite();
   void StartRead(const boost::asio::mutable_buffer& data, size_t transfer_at_least);
   void ProcessRead();
@@ -283,7 +281,7 @@ class Socket {
   boost::system::error_code waiting_write_ec_;
   size_t waiting_write_bytes_transferred_;
   uint32_t waiting_write_message_number_;
-  std::map<uint32_t, std::function<void(int)>> message_sent_functors_;  // NOLINT (Fraser)
+  std::map<uint32_t, message_sent_functor> message_sent_functors_;
 
   // This class allows only one outstanding asynchronous read operation at a
   // time. The following data members store the pending read, its associated

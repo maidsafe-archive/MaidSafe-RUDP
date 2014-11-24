@@ -326,20 +326,20 @@ node_id Transport::this_node_id() const { return connection_manager_->this_node_
 
 const asymm::PublicKey& Transport::public_key() const { return connection_manager_->public_key(); }
 
-void Transport::SignalMessageReceived(const std::string& message) {
+void Transport::SignalMessageReceived(const node_id& peer_id, const std::string& message) {
   // Dispatch the message outside the strand.
   strand_.get_io_service().post(
-      std::bind(&Transport::DoSignalMessageReceived, shared_from_this(), message));
+      std::bind(&Transport::DoSignalMessageReceived, shared_from_this(), peer_id, message));
 }
 
-void Transport::DoSignalMessageReceived(const std::string& message) {
+void Transport::DoSignalMessageReceived(const node_id& peer_id, const std::string& message) {
   OnMessage local_callback;
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
     local_callback = on_message_;
   }
   if (local_callback)
-    local_callback(message);
+    local_callback(peer_id, message);
 }
 
 void Transport::AddConnection(ConnectionPtr connection) {
