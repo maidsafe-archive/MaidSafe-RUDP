@@ -77,7 +77,7 @@ int CheckBootstrappingParameters(const bootstrap_contacts& bootstrap_list,
 managed_connections::PendingConnection::PendingConnection(maidsafe::rudp::node_id node_id_in,
                                                           TransportPtr transport,
                                                           boost::asio::io_service& io_service)
-    : node_id(std::move(node_id_in)),
+    : peer_id(std::move(node_id_in)),
       pending_transport(std::move(transport)),
       timer(io_service,
             bptime::microsec_clock::universal_time() + Parameters::rendezvous_connect_timeout),
@@ -479,7 +479,7 @@ bool managed_connections::ShouldStartNewTransport(const endpoint_pair& peer_endp
 }
 
 void managed_connections::AddPending(std::unique_ptr<PendingConnection> connection) {
-  node_id peer_id(connection->node_id);
+  node_id peer_id(connection->peer_id);
   pendings_.push_back(std::move(connection));
   pendings_.back()->timer.async_wait([peer_id, this](const boost::system::error_code& ec) {
     if (ec != boost::asio::error::operation_aborted) {
@@ -499,7 +499,7 @@ std::vector<std::unique_ptr<managed_connections::PendingConnection>>::const_iter
     managed_connections::FindPendingTransportWithNodeId(const node_id& peer_id) const {
   return std::find_if(pendings_.cbegin(), pendings_.cend(),
                       [&peer_id](const std::unique_ptr<PendingConnection>& element) {
-    return element->node_id == peer_id;
+    return element->peer_id == peer_id;
   });
 }
 
@@ -507,7 +507,7 @@ std::vector<std::unique_ptr<managed_connections::PendingConnection>>::iterator
     managed_connections::FindPendingTransportWithNodeId(const node_id& peer_id) {
   return std::find_if(pendings_.begin(), pendings_.end(),
                       [&peer_id](const std::unique_ptr<PendingConnection>& element) {
-    return element->node_id == peer_id;
+    return element->peer_id == peer_id;
   });
 }
 
@@ -576,7 +576,7 @@ void managed_connections::add(const contact& peer, connection_added_functor hand
                               std::move(peer.public_key), handler);
 }
 
-void managed_connections::remove(const node_id& peer_id, connection_removed_functor handler) {
+void managed_connections::remove(const node_id& peer_id, connection_removed_functor /*handler*/) {
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
     return;
@@ -767,7 +767,7 @@ std::string managed_connections::DebugString() const {
 
   s += "\nThis node's pending connections:\n";
   for (auto& pending : pendings_) {
-    s += "\tPending to peer " + DebugId(pending->node_id).substr(0, 7);
+    s += "\tPending to peer " + DebugId(pending->peer_id).substr(0, 7);
     s += " on this node's transport ";
     s += boost::lexical_cast<std::string>(pending->pending_transport->external_endpoint()) + " / ";
     s += boost::lexical_cast<std::string>(pending->pending_transport->local_endpoint()) + '\n';
