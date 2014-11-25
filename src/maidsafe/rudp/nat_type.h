@@ -33,9 +33,9 @@ enum class nat_type : char {
 
 template <typename Elem, typename Traits>
 std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
-                                             const nat_type& nat_type) {
+                                             const nat_type& nat_type_in) {
   std::string nat_str;
-  switch (nat_type) {
+  switch (nat_type_in) {
     case nat_type::symmetric:
       nat_str = "symmetric NAT";
       break;
