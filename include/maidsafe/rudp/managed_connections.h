@@ -215,7 +215,7 @@ class managed_connections {
 template <typename CompletionToken>
 typename boost::asio::async_result<
     typename boost::asio::handler_type<CompletionToken, void(maidsafe_error, contact)>::type>::type
-    bootstrap(const bootstrap_contacts& bootstrap_list, std::shared_ptr<listener> listener,
+    managed_connections::bootstrap(const bootstrap_contacts& bootstrap_list, std::shared_ptr<listener> listener,
               const node_id& this_node_id, const asymm::Keys& keys, CompletionToken&& token,
               endpoint local_endpoint = endpoint()) {
   using handler_type =
@@ -227,7 +227,7 @@ typename boost::asio::async_result<
 template <typename CompletionToken>
 typename boost::asio::async_result<typename boost::asio::handler_type<
     CompletionToken, void(maidsafe_error, endpoint_pair)>::type>::type
-    get_available_endpoints(const node_id& peer_id, CompletionToken&& token) {
+    managed_connections::get_available_endpoints(const node_id& peer_id, CompletionToken&& token) {
   using handler_type = typename boost::asio::handler_type<
       CompletionToken, void(maidsafe_error, endpoint_pair)>::type;
   handler_type handler(std::forward<decltype(token)>(token));
@@ -237,7 +237,7 @@ typename boost::asio::async_result<typename boost::asio::handler_type<
 template <typename CompletionToken>
 typename boost::asio::async_result<
     typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
-    add(const contact& peer, CompletionToken&& token) {
+    managed_connections::add(const contact& peer, CompletionToken&& token) {
   using handler_type =
       typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type;
   handler_type handler(std::forward<decltype(token)>(token));
@@ -247,7 +247,7 @@ typename boost::asio::async_result<
 template <typename CompletionToken>
 typename boost::asio::async_result<
     typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
-    remove(const node_id& peer_id, CompletionToken&& token) {
+    managed_connections::remove(const node_id& peer_id, CompletionToken&& token) {
   using handler_type =
       typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type;
   handler_type handler(std::forward<decltype(token)>(token));
@@ -257,14 +257,35 @@ typename boost::asio::async_result<
 template <typename CompletionToken>
 typename boost::asio::async_result<
     typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
-    send(const node_id& peer_id, sendable_message&& message, CompletionToken&& token) {
+    managed_connections::send(const node_id& peer_id, sendable_message&& message, CompletionToken&& token) {
   using handler_type =
       typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type;
   handler_type handler(std::forward<decltype(token)>(token));
   boost::asio::async_result<decltype(handler)> result(handler);
 }
 
+template <typename Handler, typename ErrorCode>
+void managed_connections::invoke_handler(Handler&& handler, ErrorCode error) {
+  assert(error);
+  asio_service_.service().post(
+      [handler, error]() mutable { handler(make_error_code(error)); });
+}
 
+template <typename Handler, typename ErrorCode>
+void managed_connections::invoke_handler(Handler&& handler, ErrorCode error,
+                                         contact chosen_contact) {
+  assert(error);
+  asio_service_.service().post(
+    [handler, error]() mutable { handler(make_error_code(error), chosen_contact); });
+}
+
+template <typename Handler, typename ErrorCode>
+void managed_connections::invoke_handler(Handler&& handler, ErrorCode error, endpoint_pair our_endpoints) {
+  assert(error);
+  asio_service_.service().post(
+    [handler, error]() mutable { handler(make_error_code(error)); });
+
+}
 
 }  // namespace rudp
 
