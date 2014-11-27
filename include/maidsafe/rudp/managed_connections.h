@@ -29,9 +29,10 @@
 #include <utility>
 #include <vector>
 
+#include "boost/asio/async_result.hpp"
+#include "boost/asio/deadline_timer.hpp"
 #include "boost/asio/ip/address.hpp"
 #include "boost/asio/ip/udp.hpp"
-#include "boost/asio/deadline_timer.hpp"
 #include "boost/date_time/posix_time/ptime.hpp"
 #include "boost/optional.hpp"
 
@@ -58,7 +59,7 @@ enum class nat_type : char;
 extern void set_debug_packet_loss_rate(double constant, double bursty);
 #endif
 
-//template <typename Alloc = kernel_side_allocator>
+// template <typename Alloc = kernel_side_allocator>
 class managed_connections {
  public:
   class listener {
@@ -87,37 +88,49 @@ class managed_connections {
   // private_key before being passed up via MessageReceivedFunctor.  Before bootstrapping begins, if
   // there are any existing transports they are destroyed and all connections closed.  For
   // zero-state network, pass the required local_endpoint.
-  void bootstrap(const bootstrap_contacts& bootstrap_list, std::shared_ptr<listener> listener,
-                 const node_id& this_node_id, const asymm::Keys& keys,
-                 bootstrap_functor handler,
-                 endpoint local_endpoint = endpoint());
+  template <typename CompletionToken>
+  typename boost::asio::async_result<typename boost::asio::handler_type<
+      CompletionToken, void(maidsafe_error, contact)>::type>::type
+      bootstrap(const bootstrap_contacts& bootstrap_list, std::shared_ptr<listener> listener,
+                const node_id& this_node_id, const asymm::Keys& keys, CompletionToken&& token,
+                endpoint local_endpoint = endpoint());
 
   // Returns a transport's endpoint_pair and nat_type.  Returns kNotBootstrapped if there are no
   // running Managed Connections.  In this case, Bootstrap must be called to start new Managed
   // Connections.  Returns kFull if all Managed Connections already have the maximum number of
   // running sockets.  If there are less than kMaxTransports transports running, or if this node's
   // NAT type is symmetric and peer_endpoint is non-local, a new transport will be started and if
-  // successful, this will be the returned endpoint_pair.  If peer_endpoint is known (e.g. if this is
-  // being executed by Routing::Service in response to a connection request, or if we want to make a
-  // permanent connection to a successful bootstrap endpoint) it should be passed in.  If
+  // successful, this will be the returned endpoint_pair.  If peer_endpoint is known (e.g. if this
+  // is being executed by Routing::Service in response to a connection request, or if we want to
+  // make a permanent connection to a successful bootstrap endpoint) it should be passed in.  If
   // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
   // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
-  void get_available_endpoints(const node_id& peer_id,
-                               get_available_endpoints_functor handler);
+  template <typename CompletionToken>
+  typename boost::asio::async_result<typename boost::asio::handler_type<
+      CompletionToken, void(maidsafe_error, endpoint_pair)>::type>::type
+      get_available_endpoints(const node_id& peer_id, CompletionToken&& token);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
   // runs its message_received_functor_ with the data.  All messages sent via this connection are
   // encrypted for the peer.
-  void add(const contact& peer, connection_added_functor handler);
+  template <typename CompletionToken>
+  typename boost::asio::async_result<
+      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
+      add(const contact& peer, CompletionToken&& token);
 
   // Drops the connection with peer.
-  void remove(const node_id& peer_id, connection_removed_functor handler);
+  template <typename CompletionToken>
+  typename boost::asio::async_result<
+      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
+      remove(const node_id& peer_id, CompletionToken&& token);
 
   // Sends the message to the peer.  If the message is sent successfully, the message_sent_functor
   // is executed with input of kSuccess.  If there is no existing connection to peer_id,
   // kInvalidConnection is used.
-  void send(const node_id& peer_id, sendable_message&& message,
-            message_sent_functor handler = nullptr);
+  template <typename CompletionToken>
+  typename boost::asio::async_result<
+      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
+      send(const node_id& peer_id, sendable_message&& message, CompletionToken&& token);
 
  private:
   using TransportPtr = std::shared_ptr<detail::Transport>;
@@ -131,14 +144,23 @@ class managed_connections {
     bool connecting;
   };
 
+  template <typename Handler, typename ErrorCode>
+  void invoke_handler(Handler&& handler, ErrorCode error);
+
+  template <typename Handler, typename ErrorCode>
+  void invoke_handler(Handler&& handler, ErrorCode error, contact chosen_contact);
+
+  template <typename Handler, typename ErrorCode>
+  void invoke_handler(Handler&& handler, ErrorCode error, endpoint_pair our_endpoints);
+
   void do_bootstrap(const bootstrap_contacts& bootstrap_list, std::shared_ptr<listener> listener,
                     const node_id& this_node_id, const asymm::Keys& keys, bootstrap_functor handler,
                     endpoint local_endpoint);
 
   void ClearConnectionsAndIdleTransports();
   int TryToDetermineLocalEndpoint(endpoint& local_endpoint);
-  int AttemptStartNewTransport(const bootstrap_contacts& bootstrap_list, const endpoint& local_endpoint,
-                               contact& chosen_bootstrap_contact);
+  int AttemptStartNewTransport(const bootstrap_contacts& bootstrap_list,
+                               const endpoint& local_endpoint, contact& chosen_bootstrap_contact);
   int StartNewTransport(bootstrap_contacts bootstrap_list, endpoint local_endpoint);
 
   void GetBootstrapEndpoints(bootstrap_contacts& bootstrap_list,
@@ -154,24 +176,22 @@ class managed_connections {
 
   void AddPending(std::unique_ptr<PendingConnection> connection);
   void RemovePending(const node_id& peer_id);
-  std::vector<std::unique_ptr<PendingConnection>>::const_iterator
-      FindPendingTransportWithNodeId(const node_id& peer_id) const;
+  std::vector<std::unique_ptr<PendingConnection>>::const_iterator FindPendingTransportWithNodeId(
+      const node_id& peer_id) const;
   std::vector<std::unique_ptr<PendingConnection>>::iterator FindPendingTransportWithNodeId(
       const node_id& peer_id);
 
   void OnMessageSlot(const node_id& peer_id, const std::string& message);
   void OnConnectionAddedSlot(const node_id& peer_id, TransportPtr transport,
                              bool temporary_connection,
-                             std::atomic<bool> & is_duplicate_normal_connection);
+                             std::atomic<bool>& is_duplicate_normal_connection);
   void OnConnectionLostSlot(const node_id& peer_id, TransportPtr transport,
                             bool temporary_connection);
   // This signal is fired by Session when a connecting peer requests to use this peer for NAT
   // detection.  The peer will attempt to connect to another one of this node's transports using
   // its current transport.  This node (if suitable) will begin pinging the peer.
-  void OnNatDetectionRequestedSlot(const endpoint& this_local_endpoint,
-                                   const node_id& peer_id,
-                                   const endpoint& peer_endpoint,
-                                   uint16_t& another_external_port);
+  void OnNatDetectionRequestedSlot(const endpoint& this_local_endpoint, const node_id& peer_id,
+                                   const endpoint& peer_endpoint, uint16_t& another_external_port);
 
   void UpdateIdleTransports(const TransportPtr&);
 
@@ -189,6 +209,62 @@ class managed_connections {
   boost::asio::ip::address local_ip_;
   std::unique_ptr<nat_type> nat_type_;
 };
+
+
+
+template <typename CompletionToken>
+typename boost::asio::async_result<
+    typename boost::asio::handler_type<CompletionToken, void(maidsafe_error, contact)>::type>::type
+    bootstrap(const bootstrap_contacts& bootstrap_list, std::shared_ptr<listener> listener,
+              const node_id& this_node_id, const asymm::Keys& keys, CompletionToken&& token,
+              endpoint local_endpoint = endpoint()) {
+  using handler_type =
+      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error, contact)>::type;
+  handler_type handler(std::forward<decltype(token)>(token));
+  boost::asio::async_result<decltype(handler)> result(handler);
+}
+
+template <typename CompletionToken>
+typename boost::asio::async_result<typename boost::asio::handler_type<
+    CompletionToken, void(maidsafe_error, endpoint_pair)>::type>::type
+    get_available_endpoints(const node_id& peer_id, CompletionToken&& token) {
+  using handler_type = typename boost::asio::handler_type<
+      CompletionToken, void(maidsafe_error, endpoint_pair)>::type;
+  handler_type handler(std::forward<decltype(token)>(token));
+  boost::asio::async_result<decltype(handler)> result(handler);
+}
+
+template <typename CompletionToken>
+typename boost::asio::async_result<
+    typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
+    add(const contact& peer, CompletionToken&& token) {
+  using handler_type =
+      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type;
+  handler_type handler(std::forward<decltype(token)>(token));
+  boost::asio::async_result<decltype(handler)> result(handler);
+}
+
+template <typename CompletionToken>
+typename boost::asio::async_result<
+    typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
+    remove(const node_id& peer_id, CompletionToken&& token) {
+  using handler_type =
+      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type;
+  handler_type handler(std::forward<decltype(token)>(token));
+  boost::asio::async_result<decltype(handler)> result(handler);
+}
+
+template <typename CompletionToken>
+typename boost::asio::async_result<
+    typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
+    send(const node_id& peer_id, sendable_message&& message, CompletionToken&& token) {
+  using handler_type =
+      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type;
+  handler_type handler(std::forward<decltype(token)>(token));
+  boost::asio::async_result<decltype(handler)> result(handler);
+}
+
+
 
 }  // namespace rudp
 
