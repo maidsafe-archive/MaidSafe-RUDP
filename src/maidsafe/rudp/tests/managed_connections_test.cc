@@ -26,14 +26,14 @@
 #include <vector>
 
 #ifndef WIN32
-extern "C" char **environ;
+extern "C" char** environ;
 #endif
 
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable:4127)  // conditional expression is constant
-#pragma warning(disable:4267)  // conversion of size_t to int (Boost.Process bug)
-#pragma warning(disable:4702)  // unreachable code
+#pragma warning(disable : 4127)  // conditional expression is constant
+#pragma warning(disable : 4267)  // conversion of size_t to int (Boost.Process bug)
+#pragma warning(disable : 4702)  // unreachable code
 #endif
 #include "boost/process.hpp"
 #include "boost/iostreams/stream.hpp"
@@ -41,7 +41,7 @@ extern "C" char **environ;
 #pragma warning(pop)
 #endif
 #ifndef WIN32
-# include "boost/asio/posix/stream_descriptor.hpp"
+#include "boost/asio/posix/stream_descriptor.hpp"
 #endif
 
 #include "maidsafe/common/log.h"
@@ -73,7 +73,7 @@ namespace test {
 namespace {
 
 std::future<std::pair<int, std::string>> GetFuture(std::vector<NodePtr>& nodes, int x, int y) {
-  return std::async([&nodes, x, y]()->std::pair<int, std::string> {
+  return std::async([&nodes, x, y ]() -> std::pair<int, std::string> {
     NodeId chosen_node_id;
     EndpointPair endpoint_pair;
     NatType nat_type;
@@ -88,7 +88,7 @@ std::future<std::pair<int, std::string>> GetFuture(std::vector<NodePtr>& nodes, 
 
 std::chrono::milliseconds rendezvous_connect_timeout() {
   static const std::chrono::milliseconds timeout(
-    Parameters::rendezvous_connect_timeout.total_milliseconds());
+      Parameters::rendezvous_connect_timeout.total_milliseconds());
   return timeout;
 }
 
@@ -108,7 +108,8 @@ class ManagedConnectionsTest : public testing::Test {
         bootstrap_endpoints_(),
         do_nothing_on_message_([](const std::string&) {}),
 #ifndef MAIDSAFE_APPLE
-        do_nothing_on_connection_lost_([](const NodeId&) {}) {}
+        do_nothing_on_connection_lost_([](const NodeId&) {}) {
+  }
 #else
         do_nothing_on_connection_lost_([](const NodeId&) {}),
         rlimit_() {
@@ -194,9 +195,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_kBootstrapConnectionAlreadyExists) {
   auto future = promise.get_future();
 
   nodes_[index]->managed_connections()->SetConnectionAddedFunctor([&](NodeId) {
-      lock_guard guard(mutex);
-      promise.set_value();
-      });
+    lock_guard guard(mutex);
+    promise.set_value();
+  });
 
   ASSERT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[index]), chosen_node));
@@ -209,11 +210,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_kBootstrapConnectionAlreadyExists) {
 
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             nodes_[index]->managed_connections()->GetAvailableEndpoint(
-               node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
+                node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
 
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             node_.managed_connections()->GetAvailableEndpoint(
-                  nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
+                nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
@@ -241,12 +242,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
     boost::asio::ip::udp::socket tmp_socket(io_service, Endpoint(GetLocalIp(), 0));
     int16_t some_used_port = tmp_socket.local_endpoint().port();
 
-    EXPECT_NE(kSuccess,
-              node_.managed_connections()->Bootstrap(
-                  std::vector<Endpoint>(1, Endpoint(GetLocalIp(), some_used_port)),
-                  do_nothing_on_message_, do_nothing_on_connection_lost_,
-                  node_.node_id(), node_.private_key(),
-                  node_.public_key(), chosen_bootstrap, nat_type));
+    EXPECT_NE(kSuccess, node_.managed_connections()->Bootstrap(
+                            std::vector<Endpoint>(1, Endpoint(GetLocalIp(), some_used_port)),
+                            do_nothing_on_message_, do_nothing_on_connection_lost_, node_.node_id(),
+                            node_.private_key(), node_.public_key(), chosen_bootstrap, nat_type));
   }
   // Unavailable bootstrap_endpoints with kLivePort
   {
@@ -262,9 +261,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
       EXPECT_EQ(kTransportStartFailure,
                 node_.managed_connections()->Bootstrap(
                     std::vector<Endpoint>(1, Endpoint(GetLocalIp(), kLivePort)),
-                    do_nothing_on_message_, do_nothing_on_connection_lost_,
-                    node_.node_id(), node_.private_key(),
-                    node_.public_key(), chosen_bootstrap, nat_type));
+                    do_nothing_on_message_, do_nothing_on_connection_lost_, node_.node_id(),
+                    node_.private_key(), node_.public_key(), chosen_bootstrap, nat_type));
     }
   }
 
@@ -286,12 +284,12 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                 node_.node_id(), std::shared_ptr<asymm::PrivateKey>(new asymm::PrivateKey),
                 node_.public_key(), chosen_bootstrap, nat_type));
   // Invalid public key
-  EXPECT_EQ(
-      kInvalidParameter,
-      node_.managed_connections()->Bootstrap(
-          bootstrap_endpoints_, do_nothing_on_message_, do_nothing_on_connection_lost_,
-          node_.node_id(), node_.private_key(),
-          std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey), chosen_bootstrap, nat_type));
+  EXPECT_EQ(kInvalidParameter,
+            node_.managed_connections()->Bootstrap(
+                bootstrap_endpoints_, do_nothing_on_message_, do_nothing_on_connection_lost_,
+                node_.node_id(), node_.private_key(),
+                std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey), chosen_bootstrap,
+                nat_type));
   // NULL private key
   EXPECT_EQ(kInvalidParameter,
             node_.managed_connections()->Bootstrap(
@@ -320,10 +318,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                NodeId(NodeId::IdType::kRandomId),
-                EndpointPair(),
-                this_endpoint_pair,
-                nat_type));
+                NodeId(NodeId::IdType::kRandomId), EndpointPair(), this_endpoint_pair, nat_type));
 
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
   EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
@@ -333,10 +328,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                NodeId(NodeId::IdType::kRandomId),
-                endpoint_pair,
-                this_endpoint_pair,
-                nat_type));
+                NodeId(NodeId::IdType::kRandomId), endpoint_pair, this_endpoint_pair, nat_type));
 
   EXPECT_EQ(EndpointPair(), this_endpoint_pair);
 
@@ -351,22 +343,16 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   EXPECT_FALSE(chosen_node.IsZero());
 
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-            node_.managed_connections()->GetAvailableEndpoint(
-              chosen_node,
-              EndpointPair(),
-              this_endpoint_pair,
-              nat_type));
+            node_.managed_connections()->GetAvailableEndpoint(chosen_node, EndpointPair(),
+                                                              this_endpoint_pair, nat_type));
 
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
 
   EndpointPair another_endpoint_pair;
 
-  EXPECT_EQ(kSuccess,
-            node_.managed_connections()->GetAvailableEndpoint(
-              NodeId(NodeId::IdType::kRandomId),
-              EndpointPair(),
-              another_endpoint_pair,
-              nat_type));
+  EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
+                          NodeId(NodeId::IdType::kRandomId), EndpointPair(), another_endpoint_pair,
+                          nat_type));
 
   EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
@@ -568,15 +554,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
   multiplexer->AsyncDispatch(std::bind(&DispatchHandler, args::_1, multiplexer));
 
   detail::Socket socket(*multiplexer, peer_nat_type);
-  auto on_nat_detection_requested_slot([](
-      const boost::asio::ip::udp::endpoint & /*this_local_endpoint*/, const NodeId & /*peer_id*/,
-      const boost::asio::ip::udp::endpoint & /*peer_endpoint*/,
-      uint16_t & /*another_external_port*/) {});
+  auto on_nat_detection_requested_slot(
+      [](const boost::asio::ip::udp::endpoint& /*this_local_endpoint*/, const NodeId& /*peer_id*/,
+         const boost::asio::ip::udp::endpoint& /*peer_endpoint*/,
+         uint16_t& /*another_external_port*/) {});
 
   // Try to connect in kBootstrapAndKeep mode to node_'s existing connected Transport.
   socket.AsyncConnect(nodes_[1]->node_id(), nodes_[1]->public_key(), this_endpoint_pair.local,
                       node_.node_id(),
-                      [&error_code](const boost::system::error_code & ec) { error_code = ec; },
+                      [&error_code](const boost::system::error_code& ec) { error_code = ec; },
                       detail::Session::kBootstrapAndKeep, 0, on_nat_detection_requested_slot);
 
   auto future(std::async(std::launch::async, [&io_service]() { io_service.run_one(); }));
@@ -588,15 +574,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
 
 TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 4));
-  auto wait_for_signals([&](int node_index, unsigned active_connection_count)->bool {
+  auto wait_for_signals([&](int node_index, unsigned active_connection_count) -> bool {
     int count(0);
     do {
       Sleep(std::chrono::milliseconds(100));
       ++count;
     } while ((node_.connection_lost_node_ids().empty() ||
               nodes_[node_index]->connection_lost_node_ids().empty() ||
-              node_.managed_connections()->GetActiveConnectionCount() !=
-              active_connection_count) && count != 10);
+              node_.managed_connections()->GetActiveConnectionCount() != active_connection_count) &&
+             count != 10);
     return (!node_.connection_lost_node_ids().empty() &&
             !nodes_[node_index]->connection_lost_node_ids().empty());
   });
@@ -807,10 +793,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
   nodes_[1]->ResetData();
   static int kRepeatCount = 10000;
 #if defined(__has_feature)
-# if __has_feature(thread_sanitizer)
+#if __has_feature(thread_sanitizer)
   // 2014-04-03 ned: Looks like above this we run into hard buffer limits in tsan
   kRepeatCount = 1024;
-# endif
+#endif
 #endif
   std::atomic<int> result_arrived_count(0);
   std::atomic<int> result_of_send(kSuccess);
@@ -828,7 +814,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
     node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, message_sent_functor);
 
   ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(500)))
-    << result_arrived_count << " - " << kRepeatCount;
+      << result_arrived_count << " - " << kRepeatCount;
   EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost::chrono::minutes(2)));
   peer_messages = peer_futures.get();
@@ -840,7 +826,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
 struct FutureResult {
   struct State {
     std::promise<int> promise;
-    std::future<int>  future;
+    std::future<int> future;
 
     State() : future(promise.get_future()) {}
   };
@@ -849,7 +835,7 @@ struct FutureResult {
     _state = std::make_shared<State>();
 
     auto state_copy = _state;
-    return [state_copy](int result) { // NOLINT
+    return [state_copy](int result) {  // NOLINT
       state_copy->promise.set_value(result);
     };
   }
@@ -989,11 +975,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   do {
     Sleep(std::chrono::milliseconds(100));
     ++count;
-  } while (
-      (node_.connection_lost_node_ids().empty() ||
-       nodes_[0]->connection_lost_node_ids().empty() ||
-       node_.managed_connections()->GetActiveConnectionCount() != 2) &&
-      count != 10);
+  } while ((node_.connection_lost_node_ids().empty() ||
+            nodes_[0]->connection_lost_node_ids().empty() ||
+            node_.managed_connections()->GetActiveConnectionCount() != 2) &&
+           count != 10);
   EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
   ASSERT_EQ(node_.connection_lost_node_ids().size(), 1U);
   ASSERT_EQ(nodes_[0]->connection_lost_node_ids().size(), 1U);
@@ -1133,7 +1118,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
     auto peer_futures(nodes_[i]->GetFutureForMessages(1));
     auto this_node_futures(node_.GetFutureForMessages(1));
     std::string validation_data_copy(nodes_[i]->validation_data());
-    (void) validation_data_copy[0];  // workaround tsan warning (Niall)
+    (void)validation_data_copy[0];  // workaround tsan warning (Niall)
     EXPECT_EQ(kSuccess, nodes_[i]->managed_connections()->Add(node_.node_id(), this_endpoint_pair,
                                                               validation_data_copy));
     EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[i]->node_id(), peer_endpoint_pair,
@@ -1172,8 +1157,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   }
 
   auto wait_for_result([&] {
-    return std::future_status::timeout != done_in.wait_for(std::chrono::seconds(20))
-           && result_arrived_count == kNetworkSize - 1;
+    return std::future_status::timeout != done_in.wait_for(std::chrono::seconds(20)) &&
+           result_arrived_count == kNetworkSize - 1;
   });
 
   // Perform sends
@@ -1181,7 +1166,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   for (int i(0); i != kNetworkSize - 1; ++i) {
     threads[i] =
         std::move(std::thread(&ManagedConnections::Send, nodes_[i]->managed_connections().get(),
-                                node_.node_id(), sent_messages[i], message_sent_functors[i]));
+                              node_.node_id(), sent_messages[i], message_sent_functors[i]));
   }
   for (auto& thread : threads) {
     while (!thread.joinable()) {
@@ -1219,8 +1204,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   node_.ResetData();
   nodes_[0]->ResetData();
   auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(1));
-  node_.managed_connections()->Send(nodes_[0]->node_id(),
-                                    "message01",
+  node_.managed_connections()->Send(nodes_[0]->node_id(), "message01",
                                     future_result.MakeContinuation());
 
   ASSERT_TRUE(future_result.Wait(wait_millis));
@@ -1240,8 +1224,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(), EndpointPair(),
                                                               this_endpoint_pair, nat_type));
-  nodes_[0]->managed_connections()->Send(node_.node_id(),
-                                         "message02",
+  nodes_[0]->managed_connections()->Send(node_.node_id(), "message02",
                                          future_result.MakeContinuation());
 
   ASSERT_TRUE(future_result.Wait(wait_millis));
@@ -1270,8 +1253,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   // Send again in both directions - expect failure
   node_.ResetData();
   nodes_[0]->ResetData();
-  node_.managed_connections()->Send(nodes_[0]->node_id(),
-                                    "message03",
+  node_.managed_connections()->Send(nodes_[0]->node_id(), "message03",
                                     future_result.MakeContinuation());
 
   ASSERT_TRUE(future_result.Wait(wait_millis));
@@ -1279,8 +1261,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
 
   node_.ResetData();
   nodes_[0]->ResetData();
-  nodes_[0]->managed_connections()->Send(node_.node_id(),
-                                         "message04",
+  nodes_[0]->managed_connections()->Send(node_.node_id(), "message04",
                                          future_result.MakeContinuation());
 
   ASSERT_TRUE(future_result.Wait(wait_millis));
@@ -1341,7 +1322,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
 // Unfortunately disabled on Windows as ASIO and NT refuses to work well with anonymous pipe handles
 // (think win32 exception throws in the kernel, you are about right)
 #ifdef WIN32
-struct input_watcher { typedef HANDLE native_handle_type; };
+struct input_watcher {
+  typedef HANDLE native_handle_type;
+};
 #else
 struct input_watcher {
   asio::io_service& _service;
@@ -1388,9 +1371,7 @@ struct input_watcher {
   }
 
  public:
-  ~input_watcher() {
-    _h.release();
-  }
+  ~input_watcher() { _h.release(); }
   asio::io_service& service() { return _service; }
   native_handle_type handle() { return _h.native(); }
   asio::deadline_timer& timer() { return _timer; }
@@ -1403,13 +1384,13 @@ struct input_watcher {
 #endif
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable: 4706)  // assignment within conditional expression
+#pragma warning(disable : 4706)  // assignment within conditional expression
 #endif
 TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
   const char* endpoints = std::getenv("MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS");
   if (endpoints) {
     bootstrap_endpoints_.clear();
-    for (const char* s = endpoints, *e = endpoints - 1; (s = e + 1, e = strchr(s, ';'));) {
+    for (const char* s = endpoints, * e = endpoints - 1; (s = e + 1, e = strchr(s, ';'));) {
       const char* colon = strchr(s, ':');
       if (!colon || colon > e) {
         std::cout << "ERROR: Couldn't parse " << endpoints << " so exiting." << std::endl;
@@ -1417,7 +1398,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
       }
       bootstrap_endpoints_.push_back(boost::asio::ip::udp::endpoint(
           boost::asio::ip::address::from_string(std::string(s, colon - s)),
-          (uint16_t) atoi(colon + 1)));
+          (uint16_t)atoi(colon + 1)));
       // std::cerr << "I have bootstrap endpoint " <<
       // bootstrap_endpoints_.back().address().to_string() << ":" <<
       // bootstrap_endpoints_.back().port() << std::endl;
@@ -1449,7 +1430,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
         std::lock_guard<decltype(lock)> g(lock);
         if (peer_node_ids_idx < peer_node_ids.size()) {
-          node.managed_connections()->Send(peer_node_ids[peer_node_ids_idx], bleh, [&](int) {  // NOLINT (Niall)
+          node.managed_connections()->Send(peer_node_ids[peer_node_ids_idx], bleh,
+                                           [&](int) {  // NOLINT (Niall)
             std::lock_guard<decltype(lock)> g(lock);
             ++messages_sent;
           });
@@ -1507,7 +1489,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
           EndpointPair peer_endpoint_pair;
           peer_endpoint_pair.local = boost::asio::ip::udp::endpoint(
               boost::asio::ip::address::from_string(std::string(colon1 + 1, colon2 - colon1 - 1)),
-              (uint16_t) atoi(colon2 + 1));
+              (uint16_t)atoi(colon2 + 1));
           auto fi = node.GetFutureForMessages(1);
           // std::cerr << my_id << ": Adding connection to node " <<
           // peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex)
@@ -1537,11 +1519,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
 }
 TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
   size_t node_count = 23, messages_sent_count = 100000;
-  const char *node_count_env = std::getenv("MAIDSAFE_RUDP_TEST_PARALLEL_CONNECTIONS_NODE_COUNT");
+  const char* node_count_env = std::getenv("MAIDSAFE_RUDP_TEST_PARALLEL_CONNECTIONS_NODE_COUNT");
   if (node_count_env)
     node_count = atoi(node_count_env);
-  const char *messages_sent_count_env =
-    std::getenv("MAIDSAFE_RUDP_TEST_PARALLEL_CONNECTIONS_MESSAGE_COUNT");
+  const char* messages_sent_count_env =
+      std::getenv("MAIDSAFE_RUDP_TEST_PARALLEL_CONNECTIONS_MESSAGE_COUNT");
   if (messages_sent_count_env)
     messages_sent_count = atoi(messages_sent_count_env);
   const auto self_path = ThisExecutablePath();
@@ -1553,37 +1535,37 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
 #else
       "--gtest_filter=ManagedConnectionsTest.FUNC_API_500ParallelConnectionsWorker"
 #endif
-      };
+  };
 
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
   native_string endpoints(
 #ifdef WIN32
-    L"MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
+      L"MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
 #else
-    "MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
+      "MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
 #endif
   for (auto& i : bootstrap_endpoints_) {
     auto temp = i.address().to_string();
 #ifdef WIN32
-    endpoints.append(native_string(temp.begin(), temp.end()) + L":"
-      + std::to_wstring(i.port()) + L";");
+    endpoints.append(native_string(temp.begin(), temp.end()) + L":" + std::to_wstring(i.port()) +
+                     L";");
 #else
     endpoints.append(temp + ":" + std::to_string(i.port()) + ";");
 #endif
   }
   std::vector<native_string> env{endpoints};
-  // Boost.Process won't inherit environment at the same time as do custom env,
-  // so manually propagate our current environment into the custom environment.
-  // Failure to propagate environment causes child processes to fail due to CryptoPP
-  // refusing to initialise.
+// Boost.Process won't inherit environment at the same time as do custom env,
+// so manually propagate our current environment into the custom environment.
+// Failure to propagate environment causes child processes to fail due to CryptoPP
+// refusing to initialise.
 #ifdef WIN32
-  for (const TCHAR *e = GetEnvironmentStrings(); *e; e++) {
+  for (const TCHAR* e = GetEnvironmentStrings(); *e; e++) {
     env.push_back(e);
     while (*e != 0)
       e++;
   }
 #else
-  for (char **e = environ; *e; ++e)
+  for (char** e = environ; *e; ++e)
     env.push_back(*e);
 #endif
   auto getline = [](std::istream & is, input_watcher::native_handle_type h, std::string & str)
@@ -1690,7 +1672,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
                   boost::iostreams::never_close_handle))  // libstdc++ hasn't implemented the custom
                                                           // deleter implicit conversions for some
                                                           // weird reason
-          ));  // NOLINT (Niall)
+          ));                                             // NOLINT (Niall)
       *childpipes.back().second << "NODE_ID: " << n << std::endl;
     }
     // Prepare to connect node_count nodes to one another, making node_count*(node_count-1) total
@@ -1822,7 +1804,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
           }
           if (!line.compare(0, 9, "ENDPOINT:")) {
             bool first = true;
-            for (const char* s, *e = line.c_str() + 9; (s = e + 1, e = strchr(s, ';'));
+            for (const char* s, * e = line.c_str() + 9; (s = e + 1, e = strchr(s, ';'));
                  first = false) {
               const char* colon = strchr(s, ':');
               if (!colon || colon > e) {
@@ -1831,7 +1813,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
               }
               (first ? endpoint.local : endpoint.external)
                   .address(boost::asio::ip::address::from_string(std::string(s, colon - s)));
-              (first ? endpoint.local : endpoint.external).port((uint16_t) atoi(colon + 1));
+              (first ? endpoint.local : endpoint.external).port((uint16_t)atoi(colon + 1));
             }
             // std::cout << "Child " << a << " returns endpoints " << line.substr(10) << std::endl;
             return true;
@@ -1923,8 +1905,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
   // Shutdown children
   childpipes.clear();
   for (size_t n = 0; n < node_count; n++) {
+    boost::system::error_code ec;
     // std::cout << "Waiting for child " << n << " to exit" << std::endl;
-    boost::process::wait_for_exit(children[n]);
+    boost::process::wait_for_exit(children[n], ec);
   }
 }
 #ifdef _MSC_VER
