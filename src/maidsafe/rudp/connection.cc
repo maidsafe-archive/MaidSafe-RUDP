@@ -51,8 +51,6 @@ namespace rudp {
 
 namespace detail {
 
-namespace {
-
 #if USE_LOGGING
 std::ostream& operator<<(std::ostream& ostream, const Multiplexer& multiplexer) {
   ostream << multiplexer.external_endpoint() << " / " << multiplexer.local_endpoint();
@@ -60,8 +58,8 @@ std::ostream& operator<<(std::ostream& ostream, const Multiplexer& multiplexer) 
 }
 #endif
 
+namespace {
 typedef std::function<void(int /*result*/)> PingFunctor;
-
 }  // unnamed namespace
 
 Connection::Connection(const std::shared_ptr<Transport>& transport,
