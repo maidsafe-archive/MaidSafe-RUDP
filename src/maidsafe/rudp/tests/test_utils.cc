@@ -31,6 +31,7 @@
 #include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/utils.h"
+#include "maidsafe/rudp/nat_type.h"
 
 namespace bptime = boost::posix_time;
 
@@ -300,8 +301,8 @@ std::vector<std::string> Node::messages() const {
   return messages_;
 }
 
-int Node::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints, NodeId& chosen_bootstrap_contact,
-                    Endpoint local_endpoint) {
+int Node::Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints,
+                    NodeId& chosen_bootstrap_contact, Endpoint local_endpoint) {
   nat_type nat_type(nat_type::unknown);
   return managed_connections_->Bootstrap(
       bootstrap_endpoints,

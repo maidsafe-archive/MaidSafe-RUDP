@@ -16,8 +16,8 @@
     See the Licences for the specific language governing permissions and limitations relating to
     use of the MaidSafe Software.                                                                 */
 
-#ifndef MAIDSAFE_RUDP_CONFIG_H_
-#define MAIDSAFE_RUDP_CONFIG_H_
+#ifndef MAIDSAFE_RUDP_TYPES_H_
+#define MAIDSAFE_RUDP_TYPES_H_
 
 #include <functional>
 #include <system_error>
@@ -88,4 +88,4 @@ using BootstrapContacts = std::vector<Contact>;
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_RUDP_CONFIG_H_
+#endif  // MAIDSAFE_RUDP_TYPES_H_

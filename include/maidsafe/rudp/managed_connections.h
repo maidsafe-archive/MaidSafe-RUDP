@@ -42,6 +42,7 @@
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/contact.h"
+#include "maidsafe/rudp/return_codes.h"
 
 namespace maidsafe {
 
@@ -261,8 +262,8 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
   }
 
   Contact chosen_bootstrap_contact;
-  if (AttemptStartNewTransport(bootstrap_endpoints, local_endpoint, chosen_bootstrap_contact,
-                               nat_type) != kSuccess) {
+  if (AttemptStartNewTransport(bootstrap_list, local_endpoint, chosen_bootstrap_contact)
+      != kSuccess) {
     return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
                          Contact());
   }
@@ -295,7 +296,7 @@ void ManagedConnections::DoGetAvailableEndpoints(
     std::lock_guard<std::mutex> lock(mutex_);
     if (connections_.empty() && idle_transports_.empty()) {
       LOG(kError) << "No running Transports.";
-      return InvokeHandler(std::forward<Handler>(handler), RudpErrors::unable_to_handle_request,
+      return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unable_to_handle_request,
                            EndpointPair());
     }
 
@@ -341,7 +342,7 @@ void ManagedConnections::DoGetAvailableEndpoints(
 
   if (!SelectAnyTransport(peer_id, this_endpoint_pair)) {
     LOG(kError) << "All connectable Transports are full.";
-    return InvokeHandler(std::forward<Handler>(handler), RudpErrors::unable_to_handle_request,
+    return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unable_to_handle_request,
                          EndpointPair());
   }
 
@@ -360,7 +361,7 @@ template <typename CompletionToken>
 void ManagedConnections::DoAdd(const Contact& peer, AddHandler<CompletionToken> handler) {
   DoAdd(peer, [=](std::error_code error_code) {
     if (error_code)
-      this->InvokeHandler(error_code);
+      this->InvokeHandler(handler, error_code);
     else  // success case
       handler(error_code);
   });
@@ -389,11 +390,11 @@ SendReturn<CompletionToken> ManagedConnections::Send(const NodeId& peer_id,
 }
 
 template <typename CompletionToken>
-void DoSend(const NodeId& peer_id, SendableMessage&& message,
+void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message,
             SendHandler<CompletionToken> handler) {
   DoSend(peer_id, std::move(message), [=](std::error_code error_code) {
     if (error_code)
-      this->InvokeHandler(error_code);
+      this->InvokeHandler(handler, error_code);
     else  // success case
       handler(error_code);
   });
@@ -409,7 +410,8 @@ template <typename Handler, typename ErrorCode>
 void ManagedConnections::InvokeHandler(Handler&& handler, ErrorCode error, Contact chosen_contact) {
   assert(error);
   asio_service_.service().post(
-      [handler, error]() mutable { handler(make_error_code(error), chosen_contact); });
+      [handler, error, chosen_contact]() mutable
+      { handler(make_error_code(error), chosen_contact); });
 }
 
 template <typename Handler, typename ErrorCode>
@@ -417,7 +419,8 @@ void ManagedConnections::InvokeHandler(Handler&& handler, ErrorCode error,
                                        EndpointPair our_endpoints) {
   assert(error);
   asio_service_.service().post(
-      [handler, error]() mutable { handler(make_error_code(error), our_endpoints); });
+      [handler, error, our_endpoints]() mutable
+      { handler(make_error_code(error), our_endpoints); });
 }
 
 }  // namespace rudp

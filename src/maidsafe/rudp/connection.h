@@ -163,7 +163,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void EncodeData(const std::string& data);
 
-  void InvokeSentFunctor(const MessageSentFunctor& message_sent_functor, const std::error_code& error) const;
+  void InvokeSentFunctor(const MessageSentFunctor& message_sent_functor,
+                         const std::error_code& error) const;
 
   void FireOnConnectFunctor(const Error&);
   void FireConnectionAddedFunctor(int result);

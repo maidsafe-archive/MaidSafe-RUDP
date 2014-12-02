@@ -140,7 +140,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void ConnectToBootstrapEndpoint(Iterator begin, Iterator end, Duration lifespan, Handler handler);
 
   template<typename Handler>
-  void ConnectToBootstrapEndpoint(const Contact& contact, const Duration& lifespan, Handler handler);
+  void ConnectToBootstrapEndpoint(const Contact& contact, const Duration& lifespan,
+                                  Handler handler);
 
   template<typename Handler>
   void DetectNatType(NodeId const& peer_id, Handler);

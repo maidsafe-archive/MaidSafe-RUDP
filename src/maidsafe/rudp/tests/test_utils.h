@@ -38,11 +38,11 @@ namespace maidsafe {
 
 namespace rudp {
 
-class managed_connections;
+class ManagedConnections;
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
 
-typedef std::shared_ptr<managed_connections> ManagedConnectionsPtr;
+typedef std::shared_ptr<ManagedConnections> ManagedConnectionsPtr;
 
 
 namespace test {
