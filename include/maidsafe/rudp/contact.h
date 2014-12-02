@@ -30,56 +30,56 @@ namespace maidsafe {
 
 namespace rudp {
 
-struct endpoint_pair {
-  endpoint_pair() = default;
-  endpoint_pair(const endpoint_pair&) = default;
-  endpoint_pair(endpoint_pair&& other) MAIDSAFE_NOEXCEPT : local(std::move(other.local)),
-                                                           external(std::move(other.external)) {}
-  endpoint_pair& operator=(const endpoint_pair&) = default;
-  endpoint_pair& operator=(endpoint_pair&& other) {
+struct EndpointPair {
+  EndpointPair() = default;
+  EndpointPair(const EndpointPair&) = default;
+  EndpointPair(EndpointPair&& other) MAIDSAFE_NOEXCEPT : local(std::move(other.local)),
+                                                         external(std::move(other.external)) {}
+  EndpointPair& operator=(const EndpointPair&) = default;
+  EndpointPair& operator=(EndpointPair&& other) {
     local = std::move(other.local);
     external = std::move(other.external);
     return *this;
   }
 
-  explicit endpoint_pair(endpoint both) : local(both), external(std::move(both)) {}
+  explicit EndpointPair(Endpoint both) : local(both), external(std::move(both)) {}
 
-  endpoint_pair(endpoint local, endpoint external)
+  EndpointPair(Endpoint local, Endpoint external)
       : local(std::move(local)), external(std::move(external)) {}
 
-  endpoint local, external;
+  Endpoint local, external;
 };
 
-inline bool operator==(const endpoint_pair& lhs, const endpoint_pair& rhs) {
+inline bool operator==(const EndpointPair& lhs, const EndpointPair& rhs) {
   return lhs.local == rhs.local && lhs.external == rhs.external;
 }
 
-struct contact {
-  contact() = default;
-  contact(const contact&) = default;
-  contact(contact&& other) MAIDSAFE_NOEXCEPT : id(std::move(other.id)),
-                                               endpoints(std::move(other.endpoints)),
+struct Contact {
+  Contact() = default;
+  Contact(const Contact&) = default;
+  Contact(Contact&& other) MAIDSAFE_NOEXCEPT : id(std::move(other.id)),
+                                               endpoint_pair(std::move(other.endpoint_pair)),
                                                public_key(std::move(other.public_key)) {}
-  contact& operator=(const contact&) = default;
-  contact& operator=(contact&& other) {
+  Contact& operator=(const Contact&) = default;
+  Contact& operator=(Contact&& other) {
     id = std::move(other.id);
-    endpoints = std::move(other.endpoints);
+    endpoint_pair = std::move(other.endpoint_pair);
     public_key = std::move(other.public_key);
     return *this;
   }
 
-  contact(node_id node_id, endpoint both, asymm::PublicKey public_key_in)
+  Contact(NodeId node_id, Endpoint both, asymm::PublicKey public_key_in)
       : id(std::move(node_id)),
-        endpoints(std::move(both)),
+        endpoint_pair(std::move(both)),
         public_key(std::move(public_key_in)) {}
 
-  contact(node_id node_id, endpoint local, endpoint external, asymm::PublicKey public_key_in)
+  Contact(NodeId node_id, Endpoint local, Endpoint external, asymm::PublicKey public_key_in)
       : id(std::move(node_id)),
-        endpoints(std::move(local), std::move(external)),
+        endpoint_pair(std::move(local), std::move(external)),
         public_key(std::move(public_key_in)) {}
 
-  node_id id;
-  endpoint_pair endpoints;
+  NodeId id;
+  EndpointPair endpoint_pair;
   asymm::PublicKey public_key;
 };
 
