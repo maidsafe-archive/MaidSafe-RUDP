@@ -73,9 +73,9 @@ struct Contact {
         endpoint_pair(std::move(both)),
         public_key(std::move(public_key_in)) {}
 
-  Contact(NodeId node_id, Endpoint local, Endpoint external, asymm::PublicKey public_key_in)
+  Contact(NodeId node_id, EndpointPair endpoint_pair_in, asymm::PublicKey public_key_in)
       : id(std::move(node_id)),
-        endpoint_pair(std::move(local), std::move(external)),
+        endpoint_pair(std::move(endpoint_pair_in)),
         public_key(std::move(public_key_in)) {}
 
   NodeId id;
