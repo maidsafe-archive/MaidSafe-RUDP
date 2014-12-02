@@ -77,7 +77,7 @@ if(INCLUDE_TESTS)
 #  ms_add_executable(rudp_node "Tools/RUDP" ${RudpSourcesDir}/tests/rudp_node.cc
 #                                           ${RudpSourcesDir}/tests/rudp_node_impl.h
 #                                           ${RudpSourcesDir}/tests/rudp_node_impl.cc)
-  target_link_libraries(test_rudp maidsafe_rudp maidsafe_test)
+  target_link_libraries(test_rudp maidsafe_rudp maidsafe_test BoostIostreams)
   target_link_libraries(rudp_performance_tool maidsafe_rudp maidsafe_test)
 #  target_link_libraries(rudp_node maidsafe_rudp maidsafe_passport)
   ms_add_executable(udp_server "Tools/RUDP"
