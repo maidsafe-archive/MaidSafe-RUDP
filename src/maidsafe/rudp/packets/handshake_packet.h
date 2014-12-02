@@ -30,9 +30,9 @@
 #include "boost/asio/ip/udp.hpp"
 #include "boost/system/error_code.hpp"
 
+#include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
-#include "maidsafe/rudp/types.h"
 #include "maidsafe/rudp/packets/control_packet.h"
 
 namespace maidsafe {
@@ -79,8 +79,8 @@ class HandshakePacket : public ControlPacket {
   uint32_t SocketId() const;
   void SetSocketId(uint32_t n);
 
-  node_id get_node_id() const;
-  void set_node_id(node_id node_id);
+  NodeId node_id() const;
+  void set_node_id(NodeId node_id);
 
   uint32_t SynCookie() const;
   void SetSynCookie(uint32_t n);
@@ -110,7 +110,7 @@ class HandshakePacket : public ControlPacket {
   uint32_t connection_type_;
   uint32_t connection_reason_;
   uint32_t socket_id_;
-  node_id node_id_;
+  NodeId node_id_;
   uint32_t syn_cookie_;
   bool request_nat_detection_port_;
   uint16_t nat_detection_port_;

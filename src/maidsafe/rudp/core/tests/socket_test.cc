@@ -98,7 +98,7 @@ TEST(SocketTest, BEH_Socket) {
 
   client_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, client_multiplexer));
 
-  nat_type server_nat_type = nat_type::unknown, client_nat_type = nat_type::unknown;
+  NatType server_nat_type = NatType::kUnknown, client_nat_type = NatType::kUnknown;
   Socket server_socket(*server_multiplexer, server_nat_type);
   server_ec = asio::error::would_block;
 
@@ -165,7 +165,7 @@ TEST(SocketTest, BEH_AsyncProbe) {
   bs::error_code server_ec;
   bs::error_code client_ec;
   asymm::Keys server_key_pair(asymm::GenerateKeyPair()), client_key_pair(asymm::GenerateKeyPair());
-  NodeId server_node_id(RandomString(NodeId::kSize)), client_node_id(RandomString(NodeId::kSize));
+  NodeId server_node_id(NodeId::IdType::kRandomId), client_node_id(NodeId::IdType::kRandomId);
   std::shared_ptr<asymm::PublicKey> server_public_key(
       std::make_shared<asymm::PublicKey>(server_key_pair.public_key));
   std::shared_ptr<asymm::PublicKey> client_public_key(
@@ -206,7 +206,7 @@ TEST(SocketTest, BEH_AsyncProbe) {
   server_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, server_multiplexer));
   client_multiplexer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, client_multiplexer));
 
-  nat_type not_joined_client_nat_type, client_nat_type, server_nat_type;
+  NatType not_joined_client_nat_type, client_nat_type, server_nat_type;
   Socket not_joined_client_socket(*client_multiplexer, not_joined_client_nat_type);
   Socket client_socket(*client_multiplexer, client_nat_type);
   Socket server_socket(*server_multiplexer, server_nat_type);

@@ -20,38 +20,69 @@
 #define MAIDSAFE_RUDP_CONFIG_H_
 
 #include <functional>
+#include <system_error>
 #include <vector>
 
+#include "boost/asio/async_result.hpp"
+#include "boost/asio/handler_type.hpp"
 #include "boost/asio/ip/udp.hpp"
-
-#include "maidsafe/common/error.h"
-#include "maidsafe/common/node_id.h"
-#include "maidsafe/common/tagged_value.h"
 
 namespace maidsafe {
 
 namespace rudp {
 
-struct endpoint_pair;
-struct contact;
-struct node_id_tag;
+struct EndpointPair;
+struct Contact;
 
-using node_id = TaggedValue<NodeId, node_id_tag>;
-using endpoint = boost::asio::ip::udp::endpoint;
-using sendable_message = std::vector<unsigned char>;
-using received_message = std::vector<unsigned char>;
-using bootstrap_functor = std::function<void(maidsafe_error, contact)>;  // chosen bootstrap contact
-using get_available_endpoints_functor = std::function<void(maidsafe_error, endpoint_pair)>;
-using connection_added_functor = std::function<void(maidsafe_error)>;
-using connection_removed_functor = std::function<void(maidsafe_error)>;
-using message_sent_functor = std::function<void(maidsafe_error)>;
-using bootstrap_contacts = std::vector<contact>;
+using Endpoint = boost::asio::ip::udp::endpoint;
+using SendableMessage = std::vector<unsigned char>;
+using ReceivedMessage = std::vector<unsigned char>;
 
-namespace detail {
+template <typename CompletionToken>
+using BootstrapHandler =
+    typename boost::asio::handler_type<CompletionToken, void(std::error_code, Contact)>::type;
 
-using node_id = maidsafe::rudp::node_id;
+template <typename CompletionToken>
+using BootstrapReturn =
+    typename boost::asio::async_result<typename BootstrapHandler<CompletionToken>::type>::type;
 
-}  // namespace detail
+template <typename CompletionToken>
+using GetAvailableEndpointsHandler =
+    typename boost::asio::handler_type<CompletionToken, void(std::error_code, EndpointPair)>::type;
+
+template <typename CompletionToken>
+using GetAvailableEndpointsReturn = typename boost::asio::async_result<
+    typename GetAvailableEndpointsHandler<CompletionToken>::type>::type;
+
+template <typename CompletionToken>
+using AddHandler = typename boost::asio::handler_type<CompletionToken, void(std::error_code)>::type;
+
+template <typename CompletionToken>
+using AddReturn =
+    typename boost::asio::async_result<typename AddHandler<CompletionToken>::type>::type;
+
+template <typename CompletionToken>
+using RemoveHandler =
+    typename boost::asio::handler_type<CompletionToken, void(std::error_code)>::type;
+
+template <typename CompletionToken>
+using RemoveReturn =
+    typename boost::asio::async_result<typename RemoveHandler<CompletionToken>::type>::type;
+
+template <typename CompletionToken>
+using SendHandler =
+    typename boost::asio::handler_type<CompletionToken, void(std::error_code)>::type;
+
+template <typename CompletionToken>
+using SendReturn =
+    typename boost::asio::async_result<typename SendHandler<CompletionToken>::type>::type;
+
+
+
+// TODO(Fraser#5#): 2014-12-01 - Remove for RUDPv2
+using ConnectionAddedFunctor = std::function<void(std::error_code)>;
+using MessageSentFunctor = std::function<void(std::error_code)>;
+using BootstrapContacts = std::vector<Contact>;
 
 }  // namespace rudp
 

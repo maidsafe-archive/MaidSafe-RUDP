@@ -51,9 +51,9 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
       std::cerr << "Message count must be >= 1 and size of messages must be >= 12.\n";
       return false;
     }
-    if (message_size > maidsafe::rudp::managed_connections::max_message_size()) {
+    if (message_size > maidsafe::rudp::ManagedConnections::MaxMessageSize()) {
       std::cerr << "Maximum message size is "
-                << maidsafe::rudp::managed_connections::max_message_size() << std::endl;
+                << maidsafe::rudp::ManagedConnections::MaxMessageSize() << std::endl;
       return false;
     }
     if (argc > 3) {
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
                        << packet_loss_bursty * 100.0 << "%.\n";
 
   if (packet_loss_constant > 0 || packet_loss_bursty > 0)
-    maidsafe::rudp::set_debug_packet_loss_rate(packet_loss_constant, packet_loss_bursty);
+    maidsafe::rudp::SetDebugPacketLossRate(packet_loss_constant, packet_loss_bursty);
   std::vector<maidsafe::rudp::test::NodePtr> nodes;
   std::vector<maidsafe::rudp::Endpoint> bootstrap_endpoints;
   if (!maidsafe::rudp::test::SetupNetwork(nodes, bootstrap_endpoints, 2)) {
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
   std::condition_variable cond_var;
   std::mutex mutex;
   std::unique_lock<std::mutex> lock(mutex);
-  maidsafe::rudp::message_sent_functor handler([&](int result_in) {
+  maidsafe::rudp::MessageSentFunctor message_sent_functor([&](int result_in) {
     std::lock_guard<std::mutex> lock(mutex);
     result_of_send = result_in;
     ++result_arrived_count;
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
   TLOG(kDefaultColour) << "Starting to send ... ";
   auto start_point(std::chrono::steady_clock::now());
   for (int i(0); i != message_count; ++i)
-    nodes[0]->managed_connections()->Send(nodes[1]->node_id(), messages[i], handler);
+    nodes[0]->managed_connections()->Send(nodes[1]->node_id(), messages[i], message_sent_functor);
 
   TLOG(kDefaultColour) << "All messages enqueued ... ";
   cond_var.wait(lock, [message_count, &result_arrived_count] {

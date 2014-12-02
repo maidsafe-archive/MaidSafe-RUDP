@@ -53,14 +53,14 @@ namespace test {
 namespace {
 
 std::future<std::pair<int, std::string>> GetFuture(std::vector<NodePtr>& nodes, int x, int y) {
-  return std::async([&nodes, x, y ]() -> std::pair<int, std::string> {
+  return std::async([&nodes, x, y]()->std::pair<int, std::string> {
     NodeId chosen_node_id;
-    endpoint_pair endpoint_pair;
-    nat_type nat_type;
+    EndpointPair endpoint_pair;
+    NatType nat_type;
     boost::this_thread::disable_interruption disable_interruption;
     Sleep(std::chrono::milliseconds(RandomUint32() % 100));
     return std::make_pair(
-        nodes[x]->managed_connections()->GetAvailableEndpoint(nodes[y]->node_id(), endpoint_pair(),
+        nodes[x]->managed_connections()->GetAvailableEndpoint(nodes[y]->node_id(), EndpointPair(),
                                                               endpoint_pair, nat_type),
         std::string("GetAvailableEndpoint on ") + nodes[x]->id() + " for " + nodes[y]->id());
   });
@@ -68,7 +68,7 @@ std::future<std::pair<int, std::string>> GetFuture(std::vector<NodePtr>& nodes, 
 
 std::chrono::milliseconds rendezvous_connect_timeout() {
   static const std::chrono::milliseconds timeout(
-      Parameters::rendezvous_connect_timeout.total_milliseconds());
+    Parameters::rendezvous_connect_timeout.total_milliseconds());
   return timeout;
 }
 
@@ -88,8 +88,7 @@ class ManagedConnectionsTest : public testing::Test {
         bootstrap_endpoints_(),
         do_nothing_on_message_([](const std::string&) {}),
 #ifndef MAIDSAFE_APPLE
-        do_nothing_on_connection_lost_([](const NodeId&) {}) {
-  }
+        do_nothing_on_connection_lost_([](const NodeId&) {}) {}
 #else
         do_nothing_on_connection_lost_([](const NodeId&) {}),
         rlimit_() {
@@ -125,8 +124,8 @@ class ManagedConnectionsTest : public testing::Test {
   }
 #endif
 
-  void BootstrapAndAdd(size_t index, NodeId& chosen_node, endpoint_pair& this_endpoint_pair,
-                       nat_type& nat_type) {
+  void BootstrapAndAdd(size_t index, NodeId& chosen_node, EndpointPair& this_endpoint_pair,
+                       NatType& nat_type) {
     ASSERT_EQ(kSuccess,
               node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[index]), chosen_node));
     ASSERT_EQ(nodes_[index]->node_id(), chosen_node);
@@ -135,8 +134,8 @@ class ManagedConnectionsTest : public testing::Test {
 
     EXPECT_EQ(kBootstrapConnectionAlreadyExists,
               node_.managed_connections()->GetAvailableEndpoint(
-                  nodes_[index]->node_id(), endpoint_pair(), this_endpoint_pair, nat_type));
-    endpoint_pair peer_endpoint_pair;
+                  nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
+    EndpointPair peer_endpoint_pair;
     EXPECT_EQ(kBootstrapConnectionAlreadyExists,
               nodes_[index]->managed_connections()->GetAvailableEndpoint(
                   node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
@@ -165,8 +164,8 @@ class ManagedConnectionsTest : public testing::Test {
 TEST_F(ManagedConnectionsTest, BEH_API_kBootstrapConnectionAlreadyExists) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
   NodeId chosen_node;
-  endpoint_pair this_endpoint_pair, peer_endpoint_pair;
-  nat_type nat_type;
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
   size_t index(1);
 
   using lock_guard = std::lock_guard<std::mutex>;
@@ -174,27 +173,27 @@ TEST_F(ManagedConnectionsTest, BEH_API_kBootstrapConnectionAlreadyExists) {
   std::promise<void> promise;
   auto future = promise.get_future();
 
-  nodes_[index]->managed_connections()->Setconnection_added_functor([&](NodeId) {
-    lock_guard guard(mutex);
-    promise.set_value();
-  });
+  nodes_[index]->managed_connections()->SetConnectionAddedFunctor([&](NodeId) {
+      lock_guard guard(mutex);
+      promise.set_value();
+      });
 
   ASSERT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[index]), chosen_node));
 
   // When the above bootstrap function finishes, the node 'node_' knows it is connected
   // to node 'nodes_[index]' but not the other way around. For that we need to
-  // wait till the connection_added_functor is executed inside node 'nodes_[index]'.
+  // wait till the ConnectionAddedFunctor is executed inside node 'nodes_[index]'.
   future.wait();
   { lock_guard guard(mutex); }
 
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             nodes_[index]->managed_connections()->GetAvailableEndpoint(
-                node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
+               node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
 
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             node_.managed_connections()->GetAvailableEndpoint(
-                nodes_[index]->node_id(), endpoint_pair(), this_endpoint_pair, nat_type));
+                  nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
@@ -204,7 +203,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
 
 TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // All invalid
-  nat_type nat_type(nat_type::unknown);
+  NatType nat_type(NatType::kUnknown);
   NodeId chosen_bootstrap;
   EXPECT_EQ(kInvalidParameter,
             node_.managed_connections()->Bootstrap(
@@ -222,10 +221,12 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
     boost::asio::ip::udp::socket tmp_socket(io_service, Endpoint(GetLocalIp(), 0));
     int16_t some_used_port = tmp_socket.local_endpoint().port();
 
-    EXPECT_NE(kSuccess, node_.managed_connections()->Bootstrap(
-                            std::vector<Endpoint>(1, Endpoint(GetLocalIp(), some_used_port)),
-                            do_nothing_on_message_, do_nothing_on_connection_lost_, node_.node_id(),
-                            node_.private_key(), node_.public_key(), chosen_bootstrap, nat_type));
+    EXPECT_NE(kSuccess,
+              node_.managed_connections()->Bootstrap(
+                  std::vector<Endpoint>(1, Endpoint(GetLocalIp(), some_used_port)),
+                  do_nothing_on_message_, do_nothing_on_connection_lost_,
+                  node_.node_id(), node_.private_key(),
+                  node_.public_key(), chosen_bootstrap, nat_type));
   }
   // Unavailable bootstrap_endpoints with kLivePort
   {
@@ -241,8 +242,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
       EXPECT_EQ(kTransportStartFailure,
                 node_.managed_connections()->Bootstrap(
                     std::vector<Endpoint>(1, Endpoint(GetLocalIp(), kLivePort)),
-                    do_nothing_on_message_, do_nothing_on_connection_lost_, node_.node_id(),
-                    node_.private_key(), node_.public_key(), chosen_bootstrap, nat_type));
+                    do_nothing_on_message_, do_nothing_on_connection_lost_,
+                    node_.node_id(), node_.private_key(),
+                    node_.public_key(), chosen_bootstrap, nat_type));
     }
   }
 
@@ -264,12 +266,12 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                 node_.node_id(), std::shared_ptr<asymm::PrivateKey>(new asymm::PrivateKey),
                 node_.public_key(), chosen_bootstrap, nat_type));
   // Invalid public key
-  EXPECT_EQ(kInvalidParameter,
-            node_.managed_connections()->Bootstrap(
-                bootstrap_endpoints_, do_nothing_on_message_, do_nothing_on_connection_lost_,
-                node_.node_id(), node_.private_key(),
-                std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey), chosen_bootstrap,
-                nat_type));
+  EXPECT_EQ(
+      kInvalidParameter,
+      node_.managed_connections()->Bootstrap(
+          bootstrap_endpoints_, do_nothing_on_message_, do_nothing_on_connection_lost_,
+          node_.node_id(), node_.private_key(),
+          std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey), chosen_bootstrap, nat_type));
   // NULL private key
   EXPECT_EQ(kInvalidParameter,
             node_.managed_connections()->Bootstrap(
@@ -286,53 +288,65 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                           bootstrap_endpoints_, do_nothing_on_message_,
                           do_nothing_on_connection_lost_, node_.node_id(), node_.private_key(),
                           node_.public_key(), chosen_bootstrap, nat_type));
-  EXPECT_TRUE(chosen_bootstrap.IsValid());
+  EXPECT_FALSE(chosen_bootstrap.IsZero());
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
   //  Before Bootstrapping
-  endpoint_pair this_endpoint_pair(Endpoint(ip::address::from_string("1.1.1.1"), 1025));
-  nat_type nat_type;
+  EndpointPair this_endpoint_pair(Endpoint(ip::address::from_string("1.1.1.1"), 1025));
+  NatType nat_type;
 
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                NodeId(RandomString(NodeId::kSize)), endpoint_pair(), this_endpoint_pair, nat_type));
+                NodeId(NodeId::IdType::kRandomId),
+                EndpointPair(),
+                this_endpoint_pair,
+                nat_type));
 
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
   EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
 
-  this_endpoint_pair = endpoint_pair(Endpoint(ip::address::from_string("1.1.1.1"), 1025));
-  endpoint_pair endpoint_pair(Endpoint(ip::address::from_string("1.2.3.4"), 1026));
+  this_endpoint_pair = EndpointPair(Endpoint(ip::address::from_string("1.1.1.1"), 1025));
+  EndpointPair endpoint_pair(Endpoint(ip::address::from_string("1.2.3.4"), 1026));
 
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                NodeId(RandomString(NodeId::kSize)), endpoint_pair, this_endpoint_pair, nat_type));
+                NodeId(NodeId::IdType::kRandomId),
+                endpoint_pair,
+                this_endpoint_pair,
+                nat_type));
 
-  EXPECT_EQ(endpoint_pair(), this_endpoint_pair);
+  EXPECT_EQ(EndpointPair(), this_endpoint_pair);
 
   //  After Bootstrapping
   NodeId chosen_node;
-  nat_type = nat_type::unknown;
+  nat_type = NatType::kUnknown;
   EXPECT_EQ(kSuccess,
             node_.managed_connections()->Bootstrap(
                 bootstrap_endpoints_, do_nothing_on_message_, do_nothing_on_connection_lost_,
                 node_.node_id(), node_.private_key(), node_.public_key(), chosen_node, nat_type));
 
-  EXPECT_TRUE(chosen_node.IsValid());
+  EXPECT_FALSE(chosen_node.IsZero());
 
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-            node_.managed_connections()->GetAvailableEndpoint(chosen_node, endpoint_pair(),
-                                                              this_endpoint_pair, nat_type));
+            node_.managed_connections()->GetAvailableEndpoint(
+              chosen_node,
+              EndpointPair(),
+              this_endpoint_pair,
+              nat_type));
 
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
 
-  endpoint_pair another_endpoint_pair;
+  EndpointPair another_endpoint_pair;
 
-  EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-                          NodeId(RandomString(NodeId::kSize)), endpoint_pair(),
-                          another_endpoint_pair, nat_type));
+  EXPECT_EQ(kSuccess,
+            node_.managed_connections()->GetAvailableEndpoint(
+              NodeId(NodeId::IdType::kRandomId),
+              EndpointPair(),
+              another_endpoint_pair,
+              nat_type));
 
   EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
@@ -344,24 +358,24 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
 
   std::string message("message1");
   NodeId chosen_node;
-  endpoint_pair this_endpoint_pair;
-  nat_type nat_type;
+  EndpointPair this_endpoint_pair;
+  NatType nat_type;
   BootstrapAndAdd(0, chosen_node, this_endpoint_pair, nat_type);
 
   // Run GetAvailableEndpoint to add elements to pendings_.
   for (int i(1); i != kNodeCount; ++i) {
     EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-                            nodes_[i]->node_id(), endpoint_pair(), this_endpoint_pair, nat_type));
+                            nodes_[i]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
   }
 
   // Wait for rendezvous_connect_timeout + 500ms to clear the pendings, which should allow for
   // further GetAvailableEndpoint calls to be made. Intermediate calls should return with
   // kConnectAttemptAlreadyRunning.
-  endpoint_pair test_endpoint_pair;
+  EndpointPair test_endpoint_pair;
   for (int i(1); i != kNodeCount; ++i) {
     EXPECT_EQ(kConnectAttemptAlreadyRunning,
               node_.managed_connections()->GetAvailableEndpoint(
-                  nodes_[i]->node_id(), endpoint_pair(), test_endpoint_pair, nat_type));
+                  nodes_[i]->node_id(), EndpointPair(), test_endpoint_pair, nat_type));
     EXPECT_EQ(this_endpoint_pair.external, test_endpoint_pair.external);
     EXPECT_EQ(this_endpoint_pair.local, test_endpoint_pair.local);
   }
@@ -370,7 +384,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
 
   // Remove one from the pendings_ by calling Add to complete making the connection.
   const int kSelected((RandomUint32() % (kNodeCount - 1)) + 1);
-  endpoint_pair peer_endpoint_pair;
+  EndpointPair peer_endpoint_pair;
   EXPECT_EQ(kSuccess, nodes_[kSelected]->managed_connections()->GetAvailableEndpoint(
                           node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
   EXPECT_EQ(kSuccess,
@@ -384,7 +398,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
     if (i != kSelected) {
       EXPECT_EQ(kConnectAttemptAlreadyRunning,
                 node_.managed_connections()->GetAvailableEndpoint(
-                    nodes_[i]->node_id(), endpoint_pair(), test_endpoint_pair, nat_type));
+                    nodes_[i]->node_id(), EndpointPair(), test_endpoint_pair, nat_type));
       EXPECT_EQ(this_endpoint_pair.external, test_endpoint_pair.external);
       EXPECT_EQ(this_endpoint_pair.local, test_endpoint_pair.local);
     }
@@ -395,7 +409,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
   for (int i(1); i != kNodeCount; ++i) {
     EXPECT_EQ((i == kSelected ? kUnvalidatedConnectionAlreadyExists : kSuccess),
               node_.managed_connections()->GetAvailableEndpoint(
-                  nodes_[i]->node_id(), endpoint_pair(), test_endpoint_pair, nat_type));
+                  nodes_[i]->node_id(), EndpointPair(), test_endpoint_pair, nat_type));
   }
 }
 
@@ -406,15 +420,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   NodeId chosen_node;
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-  EXPECT_TRUE(chosen_node.IsValid());
+  EXPECT_FALSE(chosen_node.IsZero());
   Sleep(std::chrono::milliseconds(250));
 
   nodes_[0]->ResetData();
-  endpoint_pair peer_endpoint_pair0, peer_endpoint_pair2, this_endpoint_pair0, this_endpoint_pair1,
+  EndpointPair peer_endpoint_pair0, peer_endpoint_pair2, this_endpoint_pair0, this_endpoint_pair1,
       this_endpoint_pair2;
-  nat_type nat_type0(nat_type::unknown), nat_type1(nat_type::unknown);
+  NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-            node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(), endpoint_pair(),
+            node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(), EndpointPair(),
                                                               this_endpoint_pair0, nat_type1));
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             nodes_[0]->managed_connections()->GetAvailableEndpoint(
@@ -423,22 +437,22 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair0.local));
 
   // Case: Own NodeId
-  EXPECT_EQ(kOwnId, node_.managed_connections()->Add(node_.node_id(), endpoint_pair(),
+  EXPECT_EQ(kOwnId, node_.managed_connections()->Add(node_.node_id(), EndpointPair(),
                                                      node_.validation_data()));
   // Case: Empty endpoint
-  EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[0]->node_id(), endpoint_pair(),
+  EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[0]->node_id(), EndpointPair(),
                                                        node_.validation_data()));
   auto this_node_futures(node_.GetFutureForMessages(1));
   ASSERT_NE(boost::future_status::ready,
             this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
 
   // Case: Non-existent endpoint
-  endpoint_pair random_peer_endpoint;
+  EndpointPair random_peer_endpoint;
   random_peer_endpoint.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   random_peer_endpoint.external = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
 
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-                          nodes_[1]->node_id(), endpoint_pair(), this_endpoint_pair1, nat_type1));
+                          nodes_[1]->node_id(), EndpointPair(), this_endpoint_pair1, nat_type1));
   EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(), random_peer_endpoint,
                                                        node_.validation_data()));
   this_node_futures = node_.GetFutureForMessages(1);
@@ -449,7 +463,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   node_.ResetData();
   nodes_[2]->ResetData();
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-                          nodes_[2]->node_id(), endpoint_pair(), this_endpoint_pair2, nat_type1));
+                          nodes_[2]->node_id(), EndpointPair(), this_endpoint_pair2, nat_type1));
   EXPECT_EQ(kSuccess, nodes_[2]->managed_connections()->GetAvailableEndpoint(
                           node_.node_id(), this_endpoint_pair2, peer_endpoint_pair2, nat_type0));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair2.local));
@@ -489,18 +503,18 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
   NodeId chosen_node;
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-  EXPECT_TRUE(chosen_node.IsValid());
+  EXPECT_FALSE(chosen_node.IsZero());
   Sleep(std::chrono::milliseconds(250));
 
   nodes_[0]->ResetData();
-  endpoint_pair peer_endpoint_pair, this_endpoint_pair;
-  nat_type this_nat_type(nat_type::unknown), peer_nat_type(nat_type::unknown);
+  EndpointPair peer_endpoint_pair, this_endpoint_pair;
+  NatType this_nat_type(NatType::kUnknown), peer_nat_type(NatType::kUnknown);
 
   // Connect node_ to nodes_[1]
   node_.ResetData();
   nodes_[1]->ResetData();
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-                          nodes_[1]->node_id(), endpoint_pair(), this_endpoint_pair, this_nat_type));
+                          nodes_[1]->node_id(), EndpointPair(), this_endpoint_pair, this_nat_type));
   EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->GetAvailableEndpoint(
                           node_.node_id(), this_endpoint_pair, peer_endpoint_pair, peer_nat_type));
   EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
@@ -534,15 +548,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
   multiplexer->AsyncDispatch(std::bind(&DispatchHandler, args::_1, multiplexer));
 
   detail::Socket socket(*multiplexer, peer_nat_type);
-  auto on_nat_detection_requested_slot(
-      [](const boost::asio::ip::udp::endpoint& /*this_local_endpoint*/, const NodeId& /*peer_id*/,
-         const boost::asio::ip::udp::endpoint& /*peer_endpoint*/,
-         uint16_t& /*another_external_port*/) {});
+  auto on_nat_detection_requested_slot([](
+      const boost::asio::ip::udp::endpoint & /*this_local_endpoint*/, const NodeId & /*peer_id*/,
+      const boost::asio::ip::udp::endpoint & /*peer_endpoint*/,
+      uint16_t & /*another_external_port*/) {});
 
   // Try to connect in kBootstrapAndKeep mode to node_'s existing connected Transport.
   socket.AsyncConnect(nodes_[1]->node_id(), nodes_[1]->public_key(), this_endpoint_pair.local,
                       node_.node_id(),
-                      [&error_code](const boost::system::error_code& ec) { error_code = ec; },
+                      [&error_code](const boost::system::error_code & ec) { error_code = ec; },
                       detail::Session::kBootstrapAndKeep, 0, on_nat_detection_requested_slot);
 
   auto future(std::async(std::launch::async, [&io_service]() { io_service.run_one(); }));
@@ -554,15 +568,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
 
 TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 4));
-  auto wait_for_signals([&](int node_index, unsigned active_connection_count) -> bool {
+  auto wait_for_signals([&](int node_index, unsigned active_connection_count)->bool {
     int count(0);
     do {
       Sleep(std::chrono::milliseconds(100));
       ++count;
     } while ((node_.connection_lost_node_ids().empty() ||
               nodes_[node_index]->connection_lost_node_ids().empty() ||
-              node_.managed_connections()->GetActiveConnectionCount() != active_connection_count) &&
-             count != 10);
+              node_.managed_connections()->GetActiveConnectionCount() !=
+              active_connection_count) && count != 10);
     return (!node_.connection_lost_node_ids().empty() &&
             !nodes_[node_index]->connection_lost_node_ids().empty());
   });
@@ -593,11 +607,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
   ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
   nodes_[0]->ResetData();
-  endpoint_pair this_endpoint_pair, peer_endpoint_pair;
-  nat_type nat_type;
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
   Sleep(std::chrono::milliseconds(250));
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-            node_.managed_connections()->GetAvailableEndpoint(chosen_node, endpoint_pair(),
+            node_.managed_connections()->GetAvailableEndpoint(chosen_node, EndpointPair(),
                                                               this_endpoint_pair, nat_type));
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             nodes_[0]->managed_connections()->GetAvailableEndpoint(
@@ -673,10 +687,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
     Sleep(std::chrono::milliseconds(100));
   EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
 
-  endpoint_pair this_endpoint_pair, peer_endpoint_pair;
-  nat_type nat_type;
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-                          nodes_[1]->node_id(), endpoint_pair(), this_endpoint_pair, nat_type));
+                          nodes_[1]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
   EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->GetAvailableEndpoint(
                           node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
@@ -709,7 +723,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   using lock_guard = std::lock_guard<std::mutex>;
   std::mutex mutex;
 
-  message_sent_functor handler([&](int result_in) {
+  MessageSentFunctor message_sent_functor([&](int result_in) {
     lock_guard guard(mutex);
     if (result_in != kSuccess)
       result_of_send = result_in;
@@ -719,7 +733,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   peer_futures = nodes_[1]->GetFutureForMessages(kRepeatCount);
   const std::string kMessage(RandomAlphaNumericString(256 * 1024));
   for (int i(0); i != kRepeatCount; ++i)
-    node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, handler);
+    node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, message_sent_functor);
 
   ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(60)));
   { lock_guard guard(mutex); }
@@ -744,10 +758,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
     Sleep(std::chrono::milliseconds(100));
   EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
 
-  endpoint_pair this_endpoint_pair, peer_endpoint_pair;
-  nat_type nat_type;
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-                          nodes_[1]->node_id(), endpoint_pair(), this_endpoint_pair, nat_type));
+                          nodes_[1]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
   EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->GetAvailableEndpoint(
                           node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
@@ -773,16 +787,16 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
   nodes_[1]->ResetData();
   static int kRepeatCount = 10000;
 #if defined(__has_feature)
-#if __has_feature(thread_sanitizer)
+# if __has_feature(thread_sanitizer)
   // 2014-04-03 ned: Looks like above this we run into hard buffer limits in tsan
   kRepeatCount = 1024;
-#endif
+# endif
 #endif
   std::atomic<int> result_arrived_count(0);
   std::atomic<int> result_of_send(kSuccess);
   std::promise<void> done_out;
   auto done_in = done_out.get_future();
-  message_sent_functor handler([&](int result_in) {
+  MessageSentFunctor message_sent_functor([&](int result_in) {
     if (result_in != kSuccess)
       result_of_send = result_in;
     if (kRepeatCount == ++result_arrived_count)
@@ -791,10 +805,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
   peer_futures = nodes_[1]->GetFutureForMessages(kRepeatCount);
   const std::string kMessage(RandomAlphaNumericString(1024));
   for (int i(0); i != kRepeatCount; ++i)
-    node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, handler);
+    node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, message_sent_functor);
 
   ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(500)))
-      << result_arrived_count << " - " << kRepeatCount;
+    << result_arrived_count << " - " << kRepeatCount;
   EXPECT_EQ(kSuccess, result_of_send);
   ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost::chrono::minutes(2)));
   peer_messages = peer_futures.get();
@@ -806,7 +820,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
 struct FutureResult {
   struct State {
     std::promise<int> promise;
-    std::future<int> future;
+    std::future<int>  future;
 
     State() : future(promise.get_future()) {}
   };
@@ -815,7 +829,7 @@ struct FutureResult {
     _state = std::make_shared<State>();
 
     auto state_copy = _state;
-    return [state_copy](int result) {  // NOLINT
+    return [state_copy](int result) { // NOLINT
       state_copy->promise.set_value(result);
     };
   }
@@ -839,7 +853,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
   // Before Bootstrap
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message1", message_sent_functor());
+  node_.managed_connections()->Send(nodes_[0]->node_id(), "message1", MessageSentFunctor());
   int millis = 1000;
 
   FutureResult future_result;
@@ -857,7 +871,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
 
   // Send to non-bootstrap peer
-  node_.managed_connections()->Send(nodes_[1]->node_id(), "message3", message_sent_functor());
+  node_.managed_connections()->Send(nodes_[1]->node_id(), "message3", MessageSentFunctor());
   node_.managed_connections()->Send(nodes_[1]->node_id(), "message4",
                                     future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
@@ -866,7 +880,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   // Send to bootstrap peer
   nodes_[0]->ResetData();
   auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(2));
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message5", message_sent_functor());
+  node_.managed_connections()->Send(nodes_[0]->node_id(), "message5", MessageSentFunctor());
   node_.managed_connections()->Send(nodes_[0]->node_id(), "message6",
                                     future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
@@ -880,10 +894,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
 
   // After Add
   nodes_[1]->ResetData();
-  endpoint_pair this_endpoint_pair, peer_endpoint_pair;
-  nat_type nat_type;
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-                          nodes_[1]->node_id(), endpoint_pair(), this_endpoint_pair, nat_type));
+                          nodes_[1]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
   EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->GetAvailableEndpoint(
                           node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
   EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
@@ -908,9 +922,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   // Unavailable node id
   node_.ResetData();
   nodes_[1]->ResetData();
-  node_.managed_connections()->Send(NodeId(RandomString(NodeId::kSize)), "message7",
-                                    message_sent_functor());
-  node_.managed_connections()->Send(NodeId(RandomString(NodeId::kSize)), "message8",
+  node_.managed_connections()->Send(NodeId(NodeId::IdType::kRandomId), "message7",
+                                    MessageSentFunctor());
+  node_.managed_connections()->Send(NodeId(NodeId::IdType::kRandomId), "message8",
                                     future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
   EXPECT_EQ(kInvalidConnection, future_result.Result());
@@ -919,7 +933,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.ResetData();
   nodes_[1]->ResetData();
   future_messages_at_peer = nodes_[1]->GetFutureForMessages(2);
-  node_.managed_connections()->Send(nodes_[1]->node_id(), "message9", message_sent_functor());
+  node_.managed_connections()->Send(nodes_[1]->node_id(), "message9", MessageSentFunctor());
   node_.managed_connections()->Send(nodes_[1]->node_id(), "message10",
                                     future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
@@ -935,7 +949,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_.ResetData();
   nodes_[1]->ResetData();
   future_messages_at_peer = node_.GetFutureForMessages(2);
-  nodes_[1]->managed_connections()->Send(node_.node_id(), "message11", message_sent_functor());
+  nodes_[1]->managed_connections()->Send(node_.node_id(), "message11", MessageSentFunctor());
   nodes_[1]->managed_connections()->Send(node_.node_id(), "message12",
                                          future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
@@ -955,10 +969,11 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   do {
     Sleep(std::chrono::milliseconds(100));
     ++count;
-  } while ((node_.connection_lost_node_ids().empty() ||
-            nodes_[0]->connection_lost_node_ids().empty() ||
-            node_.managed_connections()->GetActiveConnectionCount() != 2) &&
-           count != 10);
+  } while (
+      (node_.connection_lost_node_ids().empty() ||
+       nodes_[0]->connection_lost_node_ids().empty() ||
+       node_.managed_connections()->GetActiveConnectionCount() != 2) &&
+      count != 10);
   EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
   ASSERT_EQ(node_.connection_lost_node_ids().size(), 1U);
   ASSERT_EQ(nodes_[0]->connection_lost_node_ids().size(), 1U);
@@ -966,7 +981,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
 
   node_.ResetData();
   nodes_[0]->ResetData();
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message13", message_sent_functor());
+  node_.managed_connections()->Send(nodes_[0]->node_id(), "message13", MessageSentFunctor());
   node_.managed_connections()->Send(nodes_[0]->node_id(), "message14",
                                     future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
@@ -975,7 +990,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   // Valid large message
   node_.ResetData();
   nodes_[1]->ResetData();
-  std::string sent_message(RandomString(managed_connections::max_message_size()));
+  std::string sent_message(RandomString(ManagedConnections::MaxMessageSize()));
   future_messages_at_peer = node_.GetFutureForMessages(1);
   nodes_[1]->managed_connections()->Send(node_.node_id(), sent_message,
                                          future_result.MakeContinuation());
@@ -1008,10 +1023,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
 
   // Connect node_ to nodes_[1]
   nodes_[1]->ResetData();
-  endpoint_pair this_endpoint_pair, peer_endpoint_pair;
-  nat_type nat_type;
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+  NatType nat_type;
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-                          nodes_[1]->node_id(), endpoint_pair(), this_endpoint_pair, nat_type));
+                          nodes_[1]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
   EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->GetAvailableEndpoint(
                           node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
   auto peer_futures(nodes_[1]->GetFutureForMessages(1));
@@ -1047,7 +1062,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   std::mutex mutex;
 
   auto done_in = done_out.get_future();
-  message_sent_functor handler([&](int result_in) {
+  MessageSentFunctor message_sent_functor([&](int result_in) {
     lock_guard guard(mutex);
     if (result_in != kSuccess)
       result_of_send = result_in;
@@ -1057,7 +1072,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
 
   // Send and assess results
   for (int i(0); i != kMessageCount; ++i) {
-    node_.managed_connections()->Send(nodes_[1]->node_id(), sent_messages[i], handler);
+    node_.managed_connections()->Send(nodes_[1]->node_id(), sent_messages[i], message_sent_functor);
   }
   ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(60)));
   { lock_guard guard(mutex); }
@@ -1089,16 +1104,16 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
     SCOPED_TRACE("Connecting to " + nodes_[i]->id());
     node_.ResetData();
     nodes_[i]->ResetData();
-    endpoint_pair this_endpoint_pair, peer_endpoint_pair;
-    nat_type nat_type;
+    EndpointPair this_endpoint_pair, peer_endpoint_pair;
+    NatType nat_type;
     EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-                            nodes_[i]->node_id(), endpoint_pair(), this_endpoint_pair, nat_type));
+                            nodes_[i]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
     EXPECT_EQ(kSuccess, nodes_[i]->managed_connections()->GetAvailableEndpoint(
                             node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
     auto peer_futures(nodes_[i]->GetFutureForMessages(1));
     auto this_node_futures(node_.GetFutureForMessages(1));
     std::string validation_data_copy(nodes_[i]->validation_data());
-    (void)validation_data_copy[0];  // workaround tsan warning (Niall)
+    (void) validation_data_copy[0];  // workaround tsan warning (Niall)
     EXPECT_EQ(kSuccess, nodes_[i]->managed_connections()->Add(node_.node_id(), this_endpoint_pair,
                                                               validation_data_copy));
     EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[i]->node_id(), peer_endpoint_pair,
@@ -1121,7 +1136,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   auto future_messages(node_.GetFutureForMessages(kNetworkSize - 1));
   std::vector<std::string> sent_messages;
   std::vector<int> result_of_sends(kNetworkSize, kConnectError);
-  std::vector<message_sent_functor> message_sent_functors;
+  std::vector<MessageSentFunctor> message_sent_functors;
   std::atomic<int> result_arrived_count(0);
   std::shared_ptr<std::promise<void>> done_out = std::make_shared<std::promise<void>>();
   auto done_in = done_out->get_future();
@@ -1137,16 +1152,16 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   }
 
   auto wait_for_result([&] {
-    return std::future_status::timeout != done_in.wait_for(std::chrono::seconds(20)) &&
-           result_arrived_count == kNetworkSize - 1;
+    return std::future_status::timeout != done_in.wait_for(std::chrono::seconds(20))
+           && result_arrived_count == kNetworkSize - 1;
   });
 
   // Perform sends
   std::vector<std::thread> threads(kNetworkSize - 1);
   for (int i(0); i != kNetworkSize - 1; ++i) {
     threads[i] =
-        std::move(std::thread(&managed_connections::Send, nodes_[i]->managed_connections().get(),
-                              node_.node_id(), sent_messages[i], message_sent_functors[i]));
+        std::move(std::thread(&ManagedConnections::Send, nodes_[i]->managed_connections().get(),
+                                node_.node_id(), sent_messages[i], message_sent_functors[i]));
   }
   for (auto& thread : threads) {
     while (!thread.joinable()) {
@@ -1176,7 +1191,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   NodeId chosen_node;
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-  EXPECT_TRUE(chosen_node.IsValid());
+  EXPECT_FALSE(chosen_node.IsZero());
 
   FutureResult future_result;
   auto wait_millis = 1000;
@@ -1184,7 +1199,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   node_.ResetData();
   nodes_[0]->ResetData();
   auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(1));
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message01",
+  node_.managed_connections()->Send(nodes_[0]->node_id(),
+                                    "message01",
                                     future_result.MakeContinuation());
 
   ASSERT_TRUE(future_result.Wait(wait_millis));
@@ -1199,12 +1215,13 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   node_.ResetData();
   nodes_[0]->ResetData();
   future_messages_at_peer = node_.GetFutureForMessages(1);
-  endpoint_pair this_endpoint_pair;
-  nat_type nat_type;
+  EndpointPair this_endpoint_pair;
+  NatType nat_type;
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-            node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(), endpoint_pair(),
+            node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(), EndpointPair(),
                                                               this_endpoint_pair, nat_type));
-  nodes_[0]->managed_connections()->Send(node_.node_id(), "message02",
+  nodes_[0]->managed_connections()->Send(node_.node_id(),
+                                         "message02",
                                          future_result.MakeContinuation());
 
   ASSERT_TRUE(future_result.Wait(wait_millis));
@@ -1233,7 +1250,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   // Send again in both directions - expect failure
   node_.ResetData();
   nodes_[0]->ResetData();
-  node_.managed_connections()->Send(nodes_[0]->node_id(), "message03",
+  node_.managed_connections()->Send(nodes_[0]->node_id(),
+                                    "message03",
                                     future_result.MakeContinuation());
 
   ASSERT_TRUE(future_result.Wait(wait_millis));
@@ -1241,7 +1259,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
 
   node_.ResetData();
   nodes_[0]->ResetData();
-  nodes_[0]->managed_connections()->Send(node_.node_id(), "message04",
+  nodes_[0]->managed_connections()->Send(node_.node_id(),
+                                         "message04",
                                          future_result.MakeContinuation());
 
   ASSERT_TRUE(future_result.Wait(wait_millis));
@@ -1267,8 +1286,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
       NodeId chosen_node_id;
       ASSERT_EQ(kSuccess, nodes[i]->Bootstrap(bootstrap_endpoints_, chosen_node_id));
 
-      endpoint_pair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
-      nat_type nat_type;
+      EndpointPair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
+      NatType nat_type;
 
       for (int j(0); j != i; ++j) {
         EXPECT_EQ(kSuccess,

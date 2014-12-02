@@ -52,7 +52,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   }
 
   // Setting up first two nodes
-  endpoint_pair endpoints0, endpoints1;
+  EndpointPair endpoints0, endpoints1;
   endpoints0.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   endpoints1.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   NodeId chosen_node_id, node1_chosen_bootstrap_contact;
@@ -78,8 +78,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
     return testing::AssertionFailure() << "Bootstrapping failed for Node 0.  Result using "
                                        << endpoints1.local << " was " << result0;
 
-  endpoint_pair endpoint_pair0, endpoint_pair1;
-  nat_type nat_type0(nat_type::unknown), nat_type1(nat_type::unknown);
+  EndpointPair endpoint_pair0, endpoint_pair1;
+  NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
   endpoint_pair1 = endpoints1;
   Sleep(std::chrono::milliseconds(250));
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
@@ -162,8 +162,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
       return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->id();
     }
 
-    endpoint_pair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
-    nat_type nat_type;
+    EndpointPair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
+    NatType nat_type;
     Sleep(std::chrono::milliseconds(250));
     for (int j(0); j != i; ++j) {
       LOG(kInfo) << "Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();

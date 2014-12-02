@@ -25,24 +25,24 @@ namespace maidsafe {
 
 namespace rudp {
 
-enum class nat_type : char {
-  symmetric,
-  other,
-  unknown
+enum class NatType : char {
+  kSymmetric,
+  kOther,
+  kUnknown
 };
 
 template <typename Elem, typename Traits>
 std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
-                                             const nat_type& nat_type_in) {
+                                             const NatType& nat_type) {
   std::string nat_str;
-  switch (nat_type_in) {
-    case nat_type::symmetric:
+  switch (nat_type) {
+    case NatType::kSymmetric:
       nat_str = "symmetric NAT";
       break;
-    case nat_type::other:
+    case NatType::kOther:
       nat_str = "other NAT";
       break;
-    case nat_type::unknown:
+    case NatType::kUnknown:
       nat_str = "unknown NAT";
       break;
     default:

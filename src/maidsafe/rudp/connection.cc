@@ -112,7 +112,7 @@ void Connection::DoClose(const Error& error) {
                                               asio::error::not_connected)));
     transport->RemoveConnection(shared_from_this(), error == asio::error::timed_out);
     FireOnConnectFunctor(error);
-    Fireconnection_added_functor(kConnectionClosed);
+    FireConnectionAddedFunctor(kConnectionClosed);
     transport_.reset();
     sending_ = false;
     std::queue<SendRequest>().swap(send_queue_);
@@ -127,31 +127,31 @@ void Connection::DoClose(const Error& error) {
   LOG(kInfo) << "RUDP Connection::DoClose connection closed";
 }
 
-void Connection::StartConnecting(const node_id& peer_node_id, const ip::udp::endpoint& peer_endpoint,
+void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                                  const asymm::PublicKey& peer_public_key,
-                                 connection_added_functor handler,
+                                 ConnectionAddedFunctor connection_added_functor,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan,
                                  OnConnect on_connect,
                                  const std::function<void()>& failure_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
-                             peer_endpoint, peer_public_key, handler,
+                             peer_endpoint, peer_public_key, connection_added_functor,
                              connect_attempt_timeout, lifespan, PingFunctor(), on_connect,
                              failure_functor));
 }
 
-void Connection::Ping(const node_id& peer_node_id, const ip::udp::endpoint& peer_endpoint,
+void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
                       const PingFunctor& ping_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
-                             peer_endpoint, asymm::PublicKey(), connection_added_functor(),
+                             peer_endpoint, asymm::PublicKey(), ConnectionAddedFunctor(),
                              Parameters::ping_timeout, bptime::time_duration(), ping_functor,
                              OnConnect(), std::function<void()>()));
 }
 
-void Connection::DoStartConnecting(const node_id& peer_node_id,
+void Connection::DoStartConnecting(const NodeId& peer_node_id,
                                    const ip::udp::endpoint& peer_endpoint,
                                    const asymm::PublicKey& peer_public_key,
-                                   connection_added_functor handler,
+                                   ConnectionAddedFunctor connection_added_functor,
                                    const boost::posix_time::time_duration& connect_attempt_timeout,
                                    const boost::posix_time::time_duration& lifespan,
                                    const PingFunctor& ping_functor,
@@ -159,7 +159,7 @@ void Connection::DoStartConnecting(const node_id& peer_node_id,
                                    const std::function<void()>& failure_functor) {
   peer_node_id_ = peer_node_id;
   peer_endpoint_ = peer_endpoint;
-  connection_added_functor_ = handler;
+  connection_added_functor_ = connection_added_functor;
   on_connect_ = on_connect;
   failure_functor_ = failure_functor;
 
@@ -211,11 +211,11 @@ ip::udp::endpoint Connection::RemoteNatDetectionEndpoint() const {
 }
 
 void Connection::StartSending(const std::string& data,
-                              const message_sent_functor& handler) {
-  if (data.size() > static_cast<size_t>(managed_connections::max_message_size())) {
+                              const MessageSentFunctor& message_sent_functor) {
+  if (data.size() > static_cast<size_t>(ManagedConnections::MaxMessageSize())) {
     LOG(kError) << "Data size " << data.size() << " bytes (exceeds limit of "
-                << managed_connections::max_message_size() << ")";
-    return InvokeSentFunctor(handler, MakeError(RudpErrors::message_size));
+                << ManagedConnections::MaxMessageSize() << ")";
+    return InvokeSentFunctor(message_sent_functor, make_error_code(RudpErrors::message_size));
   }
   try {
     // 2014-8-26 ned: TODO FIXME: This code is encrypting the message into
@@ -229,11 +229,11 @@ void Connection::StartSending(const std::string& data,
                       !Parameters::rudp_encrypt ? data :
 #endif
                           asymm::Encrypt(asymm::PlainText(data), socket_.PeerPublicKey()).string(),
-                      handler)));
+                      message_sent_functor)));
   }
   catch (const std::exception& e) {
     LOG(kError) << "Failed to encrypt message: " << e.what();
-    InvokeSentFunctor(handler, MakeError(RudpErrors::bad_message));
+    InvokeSentFunctor(message_sent_functor, make_error_code(RudpErrors::bad_message));
   }
 }
 
@@ -256,13 +256,13 @@ void Connection::FinishSendAndQueueNext() {
 
 void Connection::DoStartSending(const SendRequest& request) {
   sending_ = true;
-  const auto& handler = request.handler_;
-  message_sent_functor wrapped_functor([this, handler](maidsafe_error result) {
-    InvokeSentFunctor(handler, result);
+  const auto& message_sent_functor = request.handler_;
+  MessageSentFunctor wrapped_functor([this, message_sent_functor](std::error_code result) {
+    InvokeSentFunctor(message_sent_functor, result);
   });
 
   if (Stopped()) {
-    InvokeSentFunctor(handler, MakeError(RudpErrors::not_connected));
+    InvokeSentFunctor(message_sent_functor, make_error_code(RudpErrors::not_connected));
     FinishSendAndQueueNext();
   } else {
     EncodeData(request.encrypted_data_);
@@ -373,7 +373,7 @@ void Connection::StartConnect(const asymm::PublicKey& peer_public_key,
     };
 
     LOG(kVerbose) << "Connection::StartConnect";
-    cookie_syn_ = socket_.AsyncConnect(transport->this_node_id(),
+    cookie_syn_ = socket_.AsyncConnect(transport->node_id(),
                                        transport->public_key(),
                                        peer_endpoint_,
                                        peer_node_id_,
@@ -446,7 +446,7 @@ void Connection::HandleConnect(const bs::error_code& ec, PingFunctor ping_functo
 
     transport->strand_.dispatch([transport, self]() { self->FireOnConnectFunctor(Error()); });
     transport->strand_.dispatch(
-        [transport, self]() { self->Fireconnection_added_functor(kSuccess); });
+        [transport, self]() { self->FireConnectionAddedFunctor(kSuccess); });
   } else {
     LOG(kError) << "Pointer to Transport already destroyed.";
     return DoClose(asio::error::not_connected);
@@ -496,9 +496,9 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
   // LOG(kInfo) << "Connection::HandleReadSize to " << *multiplexer_ << " sees "
   //            << data_size_ << " bytes.";
   // Allow some leeway for encryption overhead
-  if (data_size_ > managed_connections::max_message_size() + 1024) {
+  if (data_size_ > ManagedConnections::MaxMessageSize() + 1024) {
     LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > "
-                << managed_connections::max_message_size() + 1024 << ", closing.";
+                << ManagedConnections::MaxMessageSize() + 1024 << ", closing.";
     return DoClose(asio::error::not_connected);
   }
 
@@ -570,27 +570,27 @@ void Connection::EncodeData(const std::string& data) {
   send_buffer_.insert(send_buffer_.end(), data.begin(), data.end());
 }
 
-void Connection::StartWrite(const message_sent_functor& handler) {
+void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
   if (Stopped()) {
     LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                 << " - connection stopped.";
-    InvokeSentFunctor(handler, MakeError(RudpErrors::not_connected));
+    InvokeSentFunctor(message_sent_functor, make_error_code(RudpErrors::not_connected));
     FinishSendAndQueueNext();
     return DoClose(asio::error::not_connected);
   }
   socket_.AsyncWrite(
-      asio::buffer(send_buffer_), handler,
-      strand_.wrap(std::bind(&Connection::HandleWrite, shared_from_this(), handler)));
+      asio::buffer(send_buffer_), message_sent_functor,
+      strand_.wrap(std::bind(&Connection::HandleWrite, shared_from_this(), message_sent_functor)));
 }
 
-void Connection::HandleWrite(message_sent_functor handler) {
+void Connection::HandleWrite(MessageSentFunctor message_sent_functor) {
   // Message has now been fully sent, so safe to start sending next.  message_sent_functor will be
   // invoked by Socket::HandleAck once peer has acknowledged receipt.
   FinishSendAndQueueNext();
   if (Stopped()) {
     LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                 << " - connection stopped.";
-    InvokeSentFunctor(handler, MakeError(RudpErrors::not_connected));
+    InvokeSentFunctor(message_sent_functor, make_error_code(RudpErrors::not_connected));
     return DoClose(asio::error::not_connected);
   }
 
@@ -633,11 +633,11 @@ void Connection::HandleProbe(const bs::error_code& ec) {
   }
 }
 
-void Connection::InvokeSentFunctor(const message_sent_functor& handler,
-                                   const maidsafe_error& error) const {
-  if (handler) {
+void Connection::InvokeSentFunctor(const MessageSentFunctor& message_sent_functor,
+  const std::error_code& error) const {
+  if (message_sent_functor) {
     if (std::shared_ptr<Transport> transport = transport_.lock())
-      handler(error);
+      message_sent_functor(error);
   }
 }
 
@@ -658,11 +658,11 @@ void Connection::FireOnConnectFunctor(const Error& error) {
   }
 }
 
-void Connection::Fireconnection_added_functor(int result) {
+void Connection::FireConnectionAddedFunctor(int result) {
   if (connection_added_functor_) {
-    auto temp_functor(std::move(connection_added_functor_));
+    auto functor(std::move(connection_added_functor_));
     connection_added_functor_ = nullptr;
-    temp_functor(MakeError(result == kSuccess ? CommonErrors::success : CommonErrors::unknown));
+    functor(make_error_code(result == kSuccess ? CommonErrors::success : CommonErrors::unknown));
   }
 }
 

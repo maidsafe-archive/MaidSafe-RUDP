@@ -47,38 +47,38 @@ namespace maidsafe {
 
 namespace rudp {
 
+enum class NatType : char;
+
 namespace detail {
 class Transport;
-}
-
-enum class nat_type : char;
+}  // namespace detail
 
 #ifdef TESTING
 // Fail to send a constant and bursty ratio of packets. Useful for debugging. Note that values
 // are cumulative, so 0.1 each is 20% of packets overall.
-extern void set_debug_packet_loss_rate(double constant, double bursty);
+extern void SetDebugPacketLossRate(double constant, double bursty);
 #endif
 
 // template <typename Alloc = kernel_side_allocator>
-class managed_connections {
+class ManagedConnections {
  public:
-  class listener {
+  class Listener {
    public:
-    virtual ~listener() {}
-    virtual void message_received(node_id peer_id, received_message message) = 0;
-    virtual void connection_lost(node_id peer_id) = 0;
+    virtual ~Listener() {}
+    virtual void MessageReceived(NodeId peer_id, ReceivedMessage message) = 0;
+    virtual void ConnectionLost(NodeId peer_id) = 0;
   };
 
-  managed_connections(/*const Alloc &alloc = Alloc()*/);
-  managed_connections(const managed_connections&) = delete;
-  managed_connections(managed_connections&&) = delete;
-  ~managed_connections();
-  managed_connections& operator=(const managed_connections&) = delete;
-  managed_connections& operator=(managed_connections&&) = delete;
+  ManagedConnections(/*const Alloc &alloc = Alloc()*/);
+  ManagedConnections(const ManagedConnections&) = delete;
+  ManagedConnections(ManagedConnections&&) = delete;
+  ~ManagedConnections();
+  ManagedConnections& operator=(const ManagedConnections&) = delete;
+  ManagedConnections& operator=(ManagedConnections&&) = delete;
 
-  static int32_t max_message_size() { return 2097152; }
+  static int32_t MaxMessageSize() { return 2097152; }
 
-  // Creates a new transport object and bootstraps it to one of the provided bootstrap_contacts.
+  // Creates a new transport object and bootstraps it to one of the provided BootstrapContacts.
   // It first tries bootstrapping to "own_local_address:kLivePort".  Bootstrapping involves
   // connecting to the peer, then connecting again to another endpoint (provided by the same
   // bootstrap peer) to establish the local NAT type, which is returned in the nat_type parameter.
@@ -89,202 +89,335 @@ class managed_connections {
   // there are any existing transports they are destroyed and all connections closed.  For
   // zero-state network, pass the required local_endpoint.
   template <typename CompletionToken>
-  typename boost::asio::async_result<typename boost::asio::handler_type<
-      CompletionToken, void(maidsafe_error, contact)>::type>::type
-      bootstrap(const bootstrap_contacts& bootstrap_list, std::shared_ptr<listener> listener,
-                const node_id& this_node_id, const asymm::Keys& keys, CompletionToken&& token,
-                endpoint local_endpoint = endpoint());
+  BootstrapReturn<CompletionToken> Bootstrap(const BootstrapContacts& bootstrap_list,
+                                             std::shared_ptr<Listener> listener,
+                                             const NodeId& this_node_id, const asymm::Keys& keys,
+                                             CompletionToken&& token,
+                                             Endpoint local_endpoint = Endpoint());
 
-  // Returns a transport's endpoint_pair and nat_type.  Returns kNotBootstrapped if there are no
+  // Returns a transport's EndpointPair and NatType.  Returns kNotBootstrapped if there are no
   // running Managed Connections.  In this case, Bootstrap must be called to start new Managed
   // Connections.  Returns kFull if all Managed Connections already have the maximum number of
   // running sockets.  If there are less than kMaxTransports transports running, or if this node's
   // NAT type is symmetric and peer_endpoint is non-local, a new transport will be started and if
-  // successful, this will be the returned endpoint_pair.  If peer_endpoint is known (e.g. if this
+  // successful, this will be the returned EndpointPair.  If peer_endpoint is known (e.g. if this
   // is being executed by Routing::Service in response to a connection request, or if we want to
   // make a permanent connection to a successful bootstrap endpoint) it should be passed in.  If
   // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
   // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
   template <typename CompletionToken>
-  typename boost::asio::async_result<typename boost::asio::handler_type<
-      CompletionToken, void(maidsafe_error, endpoint_pair)>::type>::type
-      get_available_endpoints(const node_id& peer_id, CompletionToken&& token);
+  GetAvailableEndpointsReturn<CompletionToken> GetAvailableEndpoints(const NodeId& peer_id,
+                                                                     CompletionToken&& token);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
   // runs its message_received_functor_ with the data.  All messages sent via this connection are
   // encrypted for the peer.
   template <typename CompletionToken>
-  typename boost::asio::async_result<
-      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
-      add(const contact& peer, CompletionToken&& token);
+  AddReturn<CompletionToken> Add(const Contact& peer, CompletionToken&& token);
 
   // Drops the connection with peer.
   template <typename CompletionToken>
-  typename boost::asio::async_result<
-      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
-      remove(const node_id& peer_id, CompletionToken&& token);
+  RemoveReturn<CompletionToken> Remove(const NodeId& peer_id, CompletionToken&& token);
 
   // Sends the message to the peer.  If the message is sent successfully, the message_sent_functor
   // is executed with input of kSuccess.  If there is no existing connection to peer_id,
   // kInvalidConnection is used.
   template <typename CompletionToken>
-  typename boost::asio::async_result<
-      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
-      send(const node_id& peer_id, sendable_message&& message, CompletionToken&& token);
+  SendReturn<CompletionToken> Send(const NodeId& peer_id, SendableMessage&& message,
+                                   CompletionToken&& token);
 
  private:
   using TransportPtr = std::shared_ptr<detail::Transport>;
-  using ConnectionMap = std::map<node_id, TransportPtr>;
+  using ConnectionMap = std::map<NodeId, TransportPtr>;
   struct PendingConnection {
-    PendingConnection(node_id node_id_in, TransportPtr transport,
+    PendingConnection(NodeId node_id_in, TransportPtr transport,
                       boost::asio::io_service& io_service);
-    node_id peer_id;
+    NodeId node_id;
     TransportPtr pending_transport;
     boost::asio::deadline_timer timer;
     bool connecting;
   };
 
-  template <typename Handler, typename ErrorCode>
-  void invoke_handler(Handler&& handler, ErrorCode error);
+  template <typename CompletionToken>
+  void DoBootstrap(const BootstrapContacts& bootstrap_list, std::shared_ptr<Listener> listener,
+                   const NodeId& this_node_id, const asymm::Keys& keys,
+                   BootstrapHandler<CompletionToken> handler, Endpoint local_endpoint);
 
-  template <typename Handler, typename ErrorCode>
-  void invoke_handler(Handler&& handler, ErrorCode error, contact chosen_contact);
+  template <typename CompletionToken>
+  void DoGetAvailableEndpoints(const NodeId& peer_id,
+                               GetAvailableEndpointsHandler<CompletionToken> handler);
 
-  template <typename Handler, typename ErrorCode>
-  void invoke_handler(Handler&& handler, ErrorCode error, endpoint_pair our_endpoints);
+  template <typename CompletionToken>
+  void DoAdd(const Contact& peer, AddHandler<CompletionToken> handler);
 
-  void do_bootstrap(const bootstrap_contacts& bootstrap_list, std::shared_ptr<listener> listener,
-                    const node_id& this_node_id, const asymm::Keys& keys, bootstrap_functor handler,
-                    endpoint local_endpoint);
+  void DoAdd(const Contact& peer, ConnectionAddedFunctor handler);
+
+  void DoRemove(const NodeId& peer_id);
+
+  template <typename CompletionToken>
+  void DoSend(const NodeId& peer_id, SendableMessage&& message,
+              SendHandler<CompletionToken> handler);
+
+  void DoSend(const NodeId& peer_id, SendableMessage&& message, MessageSentFunctor handler);
+
+  int CheckBootstrappingParameters(const BootstrapContacts& bootstrap_list,
+                                   std::shared_ptr<Listener> listener, NodeId this_node_id) const;
 
   void ClearConnectionsAndIdleTransports();
-  int TryToDetermineLocalEndpoint(endpoint& local_endpoint);
-  int AttemptStartNewTransport(const bootstrap_contacts& bootstrap_list,
-                               const endpoint& local_endpoint, contact& chosen_bootstrap_contact);
-  int StartNewTransport(bootstrap_contacts bootstrap_list, endpoint local_endpoint);
+  int TryToDetermineLocalEndpoint(Endpoint& local_endpoint);
+  int AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
+                               const Endpoint& local_endpoint, Contact& chosen_bootstrap_contact);
+  int StartNewTransport(BootstrapContacts bootstrap_list, Endpoint local_endpoint);
 
-  void GetBootstrapEndpoints(bootstrap_contacts& bootstrap_list,
+  void GetBootstrapEndpoints(BootstrapContacts& bootstrap_list,
                              boost::asio::ip::address& this_external_address);
 
-  bool ExistingConnectionAttempt(const node_id& peer_id, endpoint_pair& this_endpoint_pair) const;
-  bool ExistingConnection(const node_id& peer_id, endpoint_pair& this_endpoint_pair,
+  bool ExistingConnectionAttempt(const NodeId& peer_id, EndpointPair& this_endpoint_pair) const;
+  bool ExistingConnection(const NodeId& peer_id, EndpointPair& this_endpoint_pair,
                           int& return_code);
-  bool SelectIdleTransport(const node_id& peer_id, endpoint_pair& this_endpoint_pair);
-  bool SelectAnyTransport(const node_id& peer_id, endpoint_pair& this_endpoint_pair);
+  bool SelectIdleTransport(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
+  bool SelectAnyTransport(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
   TransportPtr GetAvailableTransport() const;
-  bool ShouldStartNewTransport(const endpoint_pair& peer_endpoint_pair) const;
+  bool ShouldStartNewTransport(const EndpointPair& peer_endpoint_pair) const;
 
   void AddPending(std::unique_ptr<PendingConnection> connection);
-  void RemovePending(const node_id& peer_id);
+  void RemovePending(const NodeId& peer_id);
   std::vector<std::unique_ptr<PendingConnection>>::const_iterator FindPendingTransportWithNodeId(
-      const node_id& peer_id) const;
+      const NodeId& peer_id) const;
   std::vector<std::unique_ptr<PendingConnection>>::iterator FindPendingTransportWithNodeId(
-      const node_id& peer_id);
+      const NodeId& peer_id);
 
-  void OnMessageSlot(const node_id& peer_id, const std::string& message);
-  void OnConnectionAddedSlot(const node_id& peer_id, TransportPtr transport,
+  void OnMessageSlot(const NodeId& peer_id, const std::string& message);
+  void OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,
                              bool temporary_connection,
                              std::atomic<bool>& is_duplicate_normal_connection);
-  void OnConnectionLostSlot(const node_id& peer_id, TransportPtr transport,
+  void OnConnectionLostSlot(const NodeId& peer_id, TransportPtr transport,
                             bool temporary_connection);
   // This signal is fired by Session when a connecting peer requests to use this peer for NAT
   // detection.  The peer will attempt to connect to another one of this node's transports using
   // its current transport.  This node (if suitable) will begin pinging the peer.
-  void OnNatDetectionRequestedSlot(const endpoint& this_local_endpoint, const node_id& peer_id,
-                                   const endpoint& peer_endpoint, uint16_t& another_external_port);
+  void OnNatDetectionRequestedSlot(const Endpoint& this_local_endpoint, const NodeId& peer_id,
+                                   const Endpoint& peer_endpoint, uint16_t& another_external_port);
 
   void UpdateIdleTransports(const TransportPtr&);
 
   std::string DebugString() const;
 
+  template <typename Handler, typename ErrorCode>
+  void InvokeHandler(Handler&& handler, ErrorCode error);
+
+  template <typename Handler, typename ErrorCode>
+  void InvokeHandler(Handler&& handler, ErrorCode error, Contact chosen_contact);
+
+  template <typename Handler, typename ErrorCode>
+  void InvokeHandler(Handler&& handler, ErrorCode error, EndpointPair our_endpoints);
+
   AsioService asio_service_;
-  std::weak_ptr<listener> listener_;
-  node_id this_node_id_;
-  contact chosen_bootstrap_contact_;
+  std::weak_ptr<Listener> listener_;
+  NodeId this_node_id_;
+  Contact chosen_bootstrap_contact_;
   asymm::Keys keys_;
   ConnectionMap connections_;
   std::vector<std::unique_ptr<PendingConnection>> pendings_;
   std::set<TransportPtr> idle_transports_;
   mutable std::mutex mutex_;
   boost::asio::ip::address local_ip_;
-  std::unique_ptr<nat_type> nat_type_;
+  std::unique_ptr<NatType> nat_type_;
 };
 
 
 
 template <typename CompletionToken>
-typename boost::asio::async_result<
-    typename boost::asio::handler_type<CompletionToken, void(maidsafe_error, contact)>::type>::type
-    managed_connections::bootstrap(const bootstrap_contacts& bootstrap_list, std::shared_ptr<listener> listener,
-              const node_id& this_node_id, const asymm::Keys& keys, CompletionToken&& token,
-              endpoint local_endpoint = endpoint()) {
-  using handler_type =
-      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error, contact)>::type;
-  handler_type handler(std::forward<decltype(token)>(token));
+BootstrapReturn<CompletionToken> ManagedConnections::Bootstrap(
+    const BootstrapContacts& bootstrap_list, std::shared_ptr<Listener> listener,
+    const NodeId& this_node_id, const asymm::Keys& keys, CompletionToken&& token,
+    Endpoint local_endpoint) {
+  BootstrapHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   boost::asio::async_result<decltype(handler)> result(handler);
+  asio_service_.service().post(
+      [=] { DoBootstrap(bootstrap_list, listener, this_node_id, keys, handler, local_endpoint); });
+  return result.get();
 }
 
 template <typename CompletionToken>
-typename boost::asio::async_result<typename boost::asio::handler_type<
-    CompletionToken, void(maidsafe_error, endpoint_pair)>::type>::type
-    managed_connections::get_available_endpoints(const node_id& peer_id, CompletionToken&& token) {
-  using handler_type = typename boost::asio::handler_type<
-      CompletionToken, void(maidsafe_error, endpoint_pair)>::type;
-  handler_type handler(std::forward<decltype(token)>(token));
-  boost::asio::async_result<decltype(handler)> result(handler);
+void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
+                                     std::shared_ptr<Listener> listener, const NodeId& this_node_id,
+                                     const asymm::Keys& keys,
+                                     BootstrapHandler<CompletionToken> handler,
+                                     Endpoint local_endpoint) {
+  using Handler = BootstrapHandler<CompletionToken>;
+  ClearConnectionsAndIdleTransports();
+  if (CheckBootstrappingParameters(bootstrap_list, listener, this_node_id) != kSuccess) {
+    return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
+                         Contact());
+  }
+
+  this_node_id_ = this_node_id;
+  keys_ = keys;
+
+  if (TryToDetermineLocalEndpoint(local_endpoint) != kSuccess) {
+    return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
+                         Contact());
+  }
+
+  Contact chosen_bootstrap_contact;
+  if (AttemptStartNewTransport(bootstrap_endpoints, local_endpoint, chosen_bootstrap_contact,
+                               nat_type) != kSuccess) {
+    return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
+                         Contact());
+  }
+
+  listener_ = listener;
+  handler(make_error_code(CommonErrors::success), chosen_bootstrap_contact);
 }
 
 template <typename CompletionToken>
-typename boost::asio::async_result<
-    typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
-    managed_connections::add(const contact& peer, CompletionToken&& token) {
-  using handler_type =
-      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type;
-  handler_type handler(std::forward<decltype(token)>(token));
+GetAvailableEndpointsReturn<CompletionToken> ManagedConnections::GetAvailableEndpoints(
+    const NodeId& peer_id, CompletionToken&& token) {
+  GetAvailableEndpointsHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   boost::asio::async_result<decltype(handler)> result(handler);
+  asio_service_.service().post([=] { DoGetAvailableEndpoints(peer_id, handler); });
+  return result.get();
 }
 
 template <typename CompletionToken>
-typename boost::asio::async_result<
-    typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
-    managed_connections::remove(const node_id& peer_id, CompletionToken&& token) {
-  using handler_type =
-      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type;
-  handler_type handler(std::forward<decltype(token)>(token));
-  boost::asio::async_result<decltype(handler)> result(handler);
+void ManagedConnections::DoGetAvailableEndpoints(
+    const NodeId& peer_id, GetAvailableEndpointsHandler<CompletionToken> handler) {
+  using Handler = GetAvailableEndpointsHandler<CompletionToken>;
+  if (peer_id == this_node_id_) {
+    LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
+    return InvokeHandler(std::forward<Handler>(handler), RudpErrors::operation_not_supported,
+                         EndpointPair());
+  }
+
+  EndpointPair this_endpoint_pair;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (connections_.empty() && idle_transports_.empty()) {
+      LOG(kError) << "No running Transports.";
+      return InvokeHandler(std::forward<Handler>(handler), RudpErrors::unable_to_handle_request,
+                           EndpointPair());
+    }
+
+    // Check for an existing connection attempt.
+    if (ExistingConnectionAttempt(peer_id, this_endpoint_pair)) {
+      LOG(kError) << "Connection attempt already in progress.";
+      return InvokeHandler(std::forward<Handler>(handler),
+                           RudpErrors::connection_already_in_progress, EndpointPair());
+    }
+
+    // Check for existing connection to peer.
+    int return_code(kSuccess);
+    if (ExistingConnection(peer_id, this_endpoint_pair, return_code)) {
+      if (return_code == kConnectionAlreadyExists) {
+        LOG(kError) << "A non-bootstrap managed connection from " << this_node_id_ << " to "
+                    << peer_id << " already exists";
+        return InvokeHandler(std::forward<Handler>(handler), RudpErrors::already_connected,
+                             EndpointPair());
+      } else {
+        return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unknown, EndpointPair());
+      }
+    }
+
+    // Try to use an existing idle transport.
+    if (SelectIdleTransport(peer_id, this_endpoint_pair))
+      return handler(make_error_code(CommonErrors::success), this_endpoint_pair);
+  }
+
+  if (/*ShouldStartNewTransport(peer.endpoint_pair) &&*/
+      StartNewTransport(BootstrapContacts(), Endpoint(local_ip_, 0)) != kSuccess) {
+    LOG(kError) << "Failed to start transport.";
+    return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unknown, EndpointPair());
+  }
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  // Check again for an existing connection attempt in case it was added while mutex unlocked
+  // during starting new transport.
+  if (ExistingConnectionAttempt(peer_id, this_endpoint_pair)) {
+    LOG(kError) << "Connection attempt already in progress.";
+    return InvokeHandler(std::forward<Handler>(handler), RudpErrors::connection_already_in_progress,
+                         EndpointPair());
+  }
+
+  if (!SelectAnyTransport(peer_id, this_endpoint_pair)) {
+    LOG(kError) << "All connectable Transports are full.";
+    return InvokeHandler(std::forward<Handler>(handler), RudpErrors::unable_to_handle_request,
+                         EndpointPair());
+  }
+
+  handler(make_error_code(CommonErrors::success), this_endpoint_pair);
 }
 
 template <typename CompletionToken>
-typename boost::asio::async_result<
-    typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type>::type
-    managed_connections::send(const node_id& peer_id, sendable_message&& message, CompletionToken&& token) {
-  using handler_type =
-      typename boost::asio::handler_type<CompletionToken, void(maidsafe_error)>::type;
-  handler_type handler(std::forward<decltype(token)>(token));
+AddReturn<CompletionToken> ManagedConnections::Add(const Contact& peer, CompletionToken&& token) {
+  AddHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   boost::asio::async_result<decltype(handler)> result(handler);
+  asio_service_.service().post([=] { DoAdd(peer, handler); });
+  return result.get();
+}
+
+template <typename CompletionToken>
+void ManagedConnections::DoAdd(const Contact& peer, AddHandler<CompletionToken> handler) {
+  DoAdd(peer, [=](std::error_code error_code) {
+    if (error_code)
+      this->InvokeHandler(error_code);
+    else  // success case
+      handler(error_code);
+  });
+}
+
+template <typename CompletionToken>
+RemoveReturn<CompletionToken> ManagedConnections::Remove(const NodeId& peer_id,
+                                                         CompletionToken&& token) {
+  RemoveHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
+  boost::asio::async_result<decltype(handler)> result(handler);
+  asio_service_.service().post([=] {
+    DoRemove(peer_id);
+    handler(make_error_code(CommonErrors::success));
+  });
+  return result.get();
+}
+
+template <typename CompletionToken>
+SendReturn<CompletionToken> ManagedConnections::Send(const NodeId& peer_id,
+                                                     SendableMessage&& message,
+                                                     CompletionToken&& token) {
+  SendHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
+  boost::asio::async_result<decltype(handler)> result(handler);
+  asio_service_.service().post([=] { DoSend(peer_id, std::move(message), handler); });
+  return result.get();
+}
+
+template <typename CompletionToken>
+void DoSend(const NodeId& peer_id, SendableMessage&& message,
+            SendHandler<CompletionToken> handler) {
+  DoSend(peer_id, std::move(message), [=](std::error_code error_code) {
+    if (error_code)
+      this->InvokeHandler(error_code);
+    else  // success case
+      handler(error_code);
+  });
 }
 
 template <typename Handler, typename ErrorCode>
-void managed_connections::invoke_handler(Handler&& handler, ErrorCode error) {
+void ManagedConnections::InvokeHandler(Handler&& handler, ErrorCode error) {
   assert(error);
-  asio_service_.service().post(
-      [handler, error]() mutable { handler(make_error_code(error)); });
+  asio_service_.service().post([handler, error]() mutable { handler(make_error_code(error)); });
 }
 
 template <typename Handler, typename ErrorCode>
-void managed_connections::invoke_handler(Handler&& handler, ErrorCode error,
-                                         contact chosen_contact) {
+void ManagedConnections::InvokeHandler(Handler&& handler, ErrorCode error, Contact chosen_contact) {
   assert(error);
   asio_service_.service().post(
-    [handler, error]() mutable { handler(make_error_code(error), chosen_contact); });
+      [handler, error]() mutable { handler(make_error_code(error), chosen_contact); });
 }
 
 template <typename Handler, typename ErrorCode>
-void managed_connections::invoke_handler(Handler&& handler, ErrorCode error, endpoint_pair our_endpoints) {
+void ManagedConnections::InvokeHandler(Handler&& handler, ErrorCode error,
+                                       EndpointPair our_endpoints) {
   assert(error);
   asio_service_.service().post(
-    [handler, error]() mutable { handler(make_error_code(error)); });
-
+      [handler, error]() mutable { handler(make_error_code(error), our_endpoints); });
 }
 
 }  // namespace rudp

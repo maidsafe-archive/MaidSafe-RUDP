@@ -33,6 +33,7 @@
 #include "boost/asio/strand.hpp"
 #include "boost/asio/ip/udp.hpp"
 
+#include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
 #include "maidsafe/rudp/core/congestion_control.h"
@@ -68,22 +69,22 @@ class NegativeAckPacket;
 
 class Socket {
  public:
-  using endpoint = boost::asio::ip::udp::endpoint;
+  using Endpoint = boost::asio::ip::udp::endpoint;
 
-  Socket(Multiplexer& multiplexer, nat_type& nat_type);  // NOLINT (Fraser)
+  Socket(Multiplexer& multiplexer, NatType& nat_type);  // NOLINT (Fraser)
   ~Socket();
 
   // Get the unique identifier that has been assigned to the socket.
   uint32_t Id() const;
 
   // Get the remote endpoint to which the socket is connected.
-  endpoint PeerEndpoint() const;
+  Endpoint PeerEndpoint() const;
 
   // Get the remote socket identifier to which the socket is connected.
   uint32_t PeerSocketId() const;
 
   // Get the remote socket identifier to which the socket is connected.
-  node_id PeerNodeId() const;
+  NodeId PeerNodeId() const;
 
   // Returns whether the connection is open.
   bool IsOpen() const;
@@ -93,14 +94,14 @@ class Socket {
 
   // This should only be called by the ConnectionManager if this node discovers that the peer has a
   // different endpoint than it predicted (i.e. the peer is behind symmetric NAT).
-  void UpdatePeerEndpoint(const endpoint& remote);
+  void UpdatePeerEndpoint(const Endpoint& remote);
 
   // If the peer endpoint was updated using UpdatePeerEndpoint, this returns the port originally
   // provided by the peer as its best guess.  Otherwise 0 is returned.
   uint16_t PeerGuessedPort() const;
 
   // Get the remote endpoint offered for NAT detection.
-  endpoint RemoteNatDetectionEndpoint() const;
+  Endpoint RemoteNatDetectionEndpoint() const;
 
   // Notify the peer that the socket is about to close.
   void NotifyClose();
@@ -127,10 +128,10 @@ class Socket {
   // caller to set a timeout and close the socket after the timeout period
   // expires.
   template <typename ConnectHandler>
-  uint32_t AsyncConnect(const node_id& this_node_id,
+  uint32_t AsyncConnect(const NodeId& this_node_id,
                         const asymm::PublicKey& this_public_key,
-                        const endpoint& remote,
-                        const node_id& peer_node_id,
+                        const Endpoint& remote,
+                        const NodeId& peer_node_id,
                         const asymm::PublicKey& peer_public_key,
                         ConnectHandler handler,
                         Session::Mode open_mode,
@@ -149,7 +150,7 @@ class Socket {
   // been acknowledged by the peer.
   template <typename WriteHandler>
   void AsyncWrite(const boost::asio::const_buffer& data,
-                  const message_sent_functor& message_sent_functor, WriteHandler handler) {
+                  const MessageSentFunctor& message_sent_functor, WriteHandler handler) {
     WriteOp<WriteHandler> op(handler, waiting_write_ec_, waiting_write_bytes_transferred_);
     waiting_write_.async_wait(op);
     StartWrite(data, message_sent_functor);
@@ -188,7 +189,7 @@ class Socket {
   void MakeNormal();
 
   // This node's endpoint as viewed by peer
-  endpoint ThisEndpoint() const;
+  Endpoint ThisEndpoint() const;
 
   // Public key of remote peer, used to encrypt all outgoing messages on this socket
   const asymm::PublicKey& PeerPublicKey() const;
@@ -200,16 +201,16 @@ class Socket {
   Socket(const Socket&);
   Socket& operator=(const Socket&);
 
-  uint32_t StartConnect(const node_id& this_node_id,
+  uint32_t StartConnect(const NodeId& this_node_id,
                         const asymm::PublicKey& this_public_key,
-                        const endpoint& remote,
-                        const node_id& peer_node_id,
+                        const Endpoint& remote,
+                        const NodeId& peer_node_id,
                         const asymm::PublicKey& peer_public_key,
                         Session::Mode open_mode,
                         uint32_t cookie_syn,
                         const Session::OnNatDetectionRequested::slot_type&);
 
-  void StartWrite(const boost::asio::const_buffer& data, const message_sent_functor& handler);
+  void StartWrite(const boost::asio::const_buffer& data, const MessageSentFunctor& handler);
   void ProcessWrite();
   void StartRead(const boost::asio::mutable_buffer& data, size_t transfer_at_least);
   void ProcessRead();
@@ -220,7 +221,7 @@ class Socket {
 
   // Called by the Dispatcher when a new packet arrives for the socket.
   void HandleReceiveFrom(const boost::asio::const_buffer& data,
-                         const endpoint& endpoint);
+                         const Endpoint& endpoint);
 
   // Called to process a newly received handshake packet.
   void HandleHandshake(const HandshakePacket& packet);
@@ -281,7 +282,7 @@ class Socket {
   boost::system::error_code waiting_write_ec_;
   size_t waiting_write_bytes_transferred_;
   uint32_t waiting_write_message_number_;
-  std::map<uint32_t, message_sent_functor> message_sent_functors_;
+  std::map<uint32_t, MessageSentFunctor> message_sent_functors_;
 
   // This class allows only one outstanding asynchronous read operation at a
   // time. The following data members store the pending read, its associated

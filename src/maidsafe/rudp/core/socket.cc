@@ -51,7 +51,7 @@ namespace rudp {
 
 namespace detail {
 
-Socket::Socket(Multiplexer& multiplexer, nat_type& nat_type)  // NOLINT (Fraser)
+Socket::Socket(Multiplexer& multiplexer, NatType& nat_type)  // NOLINT (Fraser)
     : dispatcher_(multiplexer.dispatcher_),
       peer_(multiplexer),
       tick_timer_(multiplexer.socket_.get_io_service()),
@@ -89,7 +89,7 @@ Socket::~Socket() {
   if (IsOpen())
     dispatcher_.RemoveSocket(session_.Id());
   for (auto& message_sent_functor : message_sent_functors_)
-    message_sent_functor.second(MakeError(RudpErrors::not_connected));
+    message_sent_functor.second(make_error_code(RudpErrors::not_connected));
 }
 
 uint32_t Socket::Id() const { return session_.Id(); }
@@ -100,7 +100,7 @@ ip::udp::endpoint Socket::PeerEndpoint() const { return peer_.PeerEndpoint(); }
 
 uint32_t Socket::PeerSocketId() const { return peer_.SocketId(); }
 
-node_id Socket::PeerNodeId() const { return peer_.get_node_id(); }
+NodeId Socket::PeerNodeId() const { return peer_.node_id(); }
 
 bool Socket::IsOpen() const { return session_.IsOpen(); }
 
@@ -147,10 +147,10 @@ void Socket::Close() {
 }
 
 uint32_t Socket::StartConnect(
-    const node_id& this_node_id,
+    const NodeId& this_node_id,
     const asymm::PublicKey& this_public_key,
     const ip::udp::endpoint& remote,
-    const node_id& peer_node_id,
+    const NodeId& peer_node_id,
     const asymm::PublicKey& peer_public_key,
     Session::Mode open_mode,
     uint32_t cookie_syn,
@@ -181,7 +181,7 @@ void Socket::StartProbe() {
   }
 }
 
-void Socket::StartWrite(const asio::const_buffer& data, const message_sent_functor& handler) {
+void Socket::StartWrite(const asio::const_buffer& data, const MessageSentFunctor& handler) {
   // Check for a no-op write.
   if (asio::buffer_size(data) == 0) {
     waiting_write_ec_.clear();
@@ -366,7 +366,7 @@ void Socket::HandleAck(const AckPacket& packet) {
       if (itr == message_sent_functors_.end()) {
         LOG(kError) << "Lost sent functor for message " << num;
       } else {
-        (*itr).second(MakeError(CommonErrors::success));
+        (*itr).second(make_error_code(CommonErrors::success));
         message_sent_functors_.erase(itr);
       }
     }
