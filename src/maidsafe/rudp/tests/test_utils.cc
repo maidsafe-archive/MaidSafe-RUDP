@@ -343,6 +343,7 @@ void Node::ResetData() {
 }
 
 boost::future<Node::messages_t> Node::GetFutureForMessages(uint32_t message_count) {
+  std::lock_guard<std::mutex> guard(mutex_);
   assert(message_count > 0);
   total_message_count_expectation_ = message_count;
   promised_ = true;
