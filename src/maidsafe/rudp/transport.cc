@@ -220,15 +220,18 @@ void Transport::DetectNatType(NodeId const& peer_id, Handler handler) {
 void Transport::Close() {
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
-    on_message_ = nullptr;
+    on_message_          = nullptr;
     on_connection_added_ = nullptr;
-    on_connection_lost_ = nullptr;
+    on_connection_lost_  = nullptr;
   }
-  if (connection_manager_)
-    connection_manager_->Close();
-  if (multiplexer_) {
-    multiplexer_->Close();
-  }
+
+  auto connection_manager = connection_manager_;
+  auto multiplexer        = multiplexer_;
+
+  strand_.dispatch([connection_manager, multiplexer]() {
+      if (connection_manager) { connection_manager->Close(); }
+      if (multiplexer)        { multiplexer->Close(); }
+      });
 }
 
 void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
