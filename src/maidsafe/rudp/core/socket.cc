@@ -366,7 +366,7 @@ void Socket::HandleAck(const AckPacket& packet) {
       if (itr == message_sent_functors_.end()) {
         LOG(kError) << "Lost sent functor for message " << num;
       } else {
-        (*itr).second(make_error_code(CommonErrors::success));
+        (*itr).second(error_code());
         message_sent_functors_.erase(itr);
       }
     }

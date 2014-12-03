@@ -37,33 +37,34 @@ struct Contact;
 using Endpoint = boost::asio::ip::udp::endpoint;
 using SendableMessage = std::vector<unsigned char>;
 using ReceivedMessage = std::vector<unsigned char>;
+using error_code      = boost::system::error_code;
 
 template <typename CompletionToken>
 using BootstrapHandler =
-    typename boost::asio::handler_type<CompletionToken, void(std::error_code, Contact)>::type;
+    typename boost::asio::handler_type<CompletionToken, void(error_code, Contact)>::type;
 
 template <typename CompletionToken>
 using BootstrapReturn =
-    typename boost::asio::async_result<typename BootstrapHandler<CompletionToken>::type>::type;
+    typename boost::asio::async_result<BootstrapHandler<CompletionToken>>::type;
 
 template <typename CompletionToken>
 using GetAvailableEndpointsHandler =
-    typename boost::asio::handler_type<CompletionToken, void(std::error_code, EndpointPair)>::type;
+    typename boost::asio::handler_type<CompletionToken, void(error_code, EndpointPair)>::type;
 
 template <typename CompletionToken>
 using GetAvailableEndpointsReturn = typename boost::asio::async_result<
-    typename GetAvailableEndpointsHandler<CompletionToken>::type>::type;
+                                      GetAvailableEndpointsHandler<CompletionToken>>::type;
 
 template <typename CompletionToken>
-using AddHandler = typename boost::asio::handler_type<CompletionToken, void(std::error_code)>::type;
+using AddHandler = typename boost::asio::handler_type<CompletionToken, void(error_code)>::type;
 
 template <typename CompletionToken>
 using AddReturn =
-    typename boost::asio::async_result<typename AddHandler<CompletionToken>::type>::type;
+    typename boost::asio::async_result<AddHandler<CompletionToken>>::type;
 
 template <typename CompletionToken>
 using RemoveHandler =
-    typename boost::asio::handler_type<CompletionToken, void(std::error_code)>::type;
+    typename boost::asio::handler_type<CompletionToken, void(error_code)>::type;
 
 template <typename CompletionToken>
 using RemoveReturn =
@@ -71,7 +72,7 @@ using RemoveReturn =
 
 template <typename CompletionToken>
 using SendHandler =
-    typename boost::asio::handler_type<CompletionToken, void(std::error_code)>::type;
+    typename boost::asio::handler_type<CompletionToken, void(error_code)>::type;
 
 template <typename CompletionToken>
 using SendReturn =
@@ -80,8 +81,8 @@ using SendReturn =
 
 
 // TODO(Fraser#5#): 2014-12-01 - Remove for RUDPv2
-using ConnectionAddedFunctor = std::function<void(std::error_code)>;
-using MessageSentFunctor = std::function<void(std::error_code)>;
+using ConnectionAddedFunctor = std::function<void(error_code)>;
+using MessageSentFunctor = std::function<void(error_code)>;
 using BootstrapContacts = std::vector<Contact>;
 
 }  // namespace rudp

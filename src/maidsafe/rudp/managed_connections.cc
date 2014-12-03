@@ -156,6 +156,7 @@ int ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& bootst
 
 int ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
                                           Endpoint local_endpoint) {
+  LOG(kVerbose) << "peter " << this << " StartNewTrasport";
   TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, *nat_type_));
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
@@ -463,7 +464,7 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
                    peer_endpoint == connection->Socket().PeerEndpoint() :
                    true);
       }
-      return handler(make_error_code(CommonErrors::success));
+      return handler(error_code());
     } else {
       LOG(kError) << "A managed connection from " << this_node_id_ << " to " << peer.id
                   << " already exists, and this node's chosen bootstrap ID is "

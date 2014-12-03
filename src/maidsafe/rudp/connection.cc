@@ -112,7 +112,7 @@ void Connection::DoClose(const Error& error) {
                                               asio::error::not_connected)));
     transport->RemoveConnection(shared_from_this(), error == asio::error::timed_out);
     FireOnConnectFunctor(error);
-    FireConnectionAddedFunctor(kConnectionClosed);
+    FireConnectionAddedFunctor(error);
     transport_.reset();
     sending_ = false;
     std::queue<SendRequest>().swap(send_queue_);
@@ -257,7 +257,7 @@ void Connection::FinishSendAndQueueNext() {
 void Connection::DoStartSending(const SendRequest& request) {
   sending_ = true;
   const auto& message_sent_functor = request.handler_;
-  MessageSentFunctor wrapped_functor([this, message_sent_functor](std::error_code result) {
+  MessageSentFunctor wrapped_functor([this, message_sent_functor](error_code result) {
     InvokeSentFunctor(message_sent_functor, result);
   });
 
@@ -446,7 +446,7 @@ void Connection::HandleConnect(const bs::error_code& ec, PingFunctor ping_functo
 
     transport->strand_.dispatch([transport, self]() { self->FireOnConnectFunctor(Error()); });
     transport->strand_.dispatch(
-        [transport, self]() { self->FireConnectionAddedFunctor(kSuccess); });
+        [transport, self]() { self->FireConnectionAddedFunctor(Error()); });
   } else {
     LOG(kError) << "Pointer to Transport already destroyed.";
     return DoClose(asio::error::not_connected);
@@ -634,7 +634,7 @@ void Connection::HandleProbe(const bs::error_code& ec) {
 }
 
 void Connection::InvokeSentFunctor(const MessageSentFunctor& message_sent_functor,
-  const std::error_code& error) const {
+                                   const error_code& error) const {
   if (message_sent_functor) {
     if (std::shared_ptr<Transport> transport = transport_.lock())
       message_sent_functor(error);
@@ -658,11 +658,11 @@ void Connection::FireOnConnectFunctor(const Error& error) {
   }
 }
 
-void Connection::FireConnectionAddedFunctor(int result) {
+void Connection::FireConnectionAddedFunctor(const Error& error) {
   if (connection_added_functor_) {
     auto functor(std::move(connection_added_functor_));
     connection_added_functor_ = nullptr;
-    functor(make_error_code(result == kSuccess ? CommonErrors::success : CommonErrors::unknown));
+    functor(error);
   }
 }
 

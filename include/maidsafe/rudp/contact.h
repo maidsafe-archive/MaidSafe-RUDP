@@ -54,6 +54,10 @@ inline bool operator==(const EndpointPair& lhs, const EndpointPair& rhs) {
   return lhs.local == rhs.local && lhs.external == rhs.external;
 }
 
+inline std::ostream& operator<<(std::ostream& os, const EndpointPair& ep) {
+  return os << "(local: " << ep.local << "; external: " << ep.external << ")";
+}
+
 struct Contact {
   Contact() = default;
   Contact(const Contact&) = default;

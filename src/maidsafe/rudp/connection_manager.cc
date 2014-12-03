@@ -130,6 +130,7 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
 
   auto connection = std::make_shared<Connection>(transport, strand_, multiplexer_);
 
+  LOG(kVerbose) << "peter " << this << " ConnectionManager::Connect";
   connection->StartConnecting(peer_id, peer_endpoint, peer_public_key, handler,
                               connect_attempt_timeout, lifespan, on_connect, failure_functor);
 }

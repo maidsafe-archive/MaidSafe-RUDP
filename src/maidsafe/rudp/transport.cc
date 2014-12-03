@@ -100,6 +100,7 @@ void Transport::Bootstrap(const BootstrapContacts& bootstrap_list, const NodeId&
 template<typename Handler /* void(ReturnCode, NodeId) */>
 void Transport::TryBootstrapping(const BootstrapContacts& bootstrap_list,
                                  bool bootstrap_off_existing_connection, Handler handler) {
+  LOG(kVerbose) << "peter " << this << " TryBootstrapping";
   bool try_connect(true);
   bptime::time_duration lifespan;
 
@@ -164,8 +165,10 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
 
   auto default_on_connect = MakeDefaultOnConnectHandler();
 
+  LOG(kVerbose) << "peter " << this << " ConnectToBootstrapEndpoint";
   auto on_connect = [this, handler, default_on_connect]
                     (const Error& error, const ConnectionPtr& connection) mutable {
+    LOG(kVerbose) << "peter on_connect " << error.message();
     if (error) {
       return handler(NodeId());
     }
