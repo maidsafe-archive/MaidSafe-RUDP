@@ -74,13 +74,14 @@ ConnectionManager::~ConnectionManager() {
 }
 
 void ConnectionManager::Close() {
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto connection : connections_)
-      strand_.post(std::bind(&Connection::Close, connection));
+  std::lock_guard<std::mutex> lock(mutex_);
+
+  for (auto connection : connections_) {
+    strand_.post([connection]() {
+        connection->Close();
+        });
   }
-  // Ugly, but we must not reset dispatcher until he's done
-  while (multiplexer_->dispatcher_.use_count()) std::this_thread::yield();
+
   multiplexer_->dispatcher_.SetConnectionManager(nullptr);
 }
 
