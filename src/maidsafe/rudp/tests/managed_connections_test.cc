@@ -306,7 +306,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                           bootstrap_endpoints_, do_nothing_on_message_,
                           do_nothing_on_connection_lost_, node_.node_id(), node_.private_key(),
                           node_.public_key(), chosen_bootstrap, nat_type));
-  EXPECT_FALSE(chosen_bootstrap.IsZero());
+  EXPECT_TRUE(chosen_bootstrap.IsValid());
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
@@ -318,7 +318,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                NodeId(NodeId::IdType::kRandomId), EndpointPair(), this_endpoint_pair, nat_type));
+                NodeId(RandomString(NodeId::kSize)), EndpointPair(), this_endpoint_pair, nat_type));
 
   EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
   EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
@@ -328,7 +328,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 
   EXPECT_EQ(kNotBootstrapped,
             node_.managed_connections()->GetAvailableEndpoint(
-                NodeId(NodeId::IdType::kRandomId), endpoint_pair, this_endpoint_pair, nat_type));
+                NodeId(RandomString(NodeId::kSize)), endpoint_pair, this_endpoint_pair, nat_type));
 
   EXPECT_EQ(EndpointPair(), this_endpoint_pair);
 
@@ -340,7 +340,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
                 bootstrap_endpoints_, do_nothing_on_message_, do_nothing_on_connection_lost_,
                 node_.node_id(), node_.private_key(), node_.public_key(), chosen_node, nat_type));
 
-  EXPECT_FALSE(chosen_node.IsZero());
+  EXPECT_TRUE(chosen_node.IsValid());
 
   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
             node_.managed_connections()->GetAvailableEndpoint(chosen_node, EndpointPair(),
@@ -351,8 +351,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
   EndpointPair another_endpoint_pair;
 
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-                          NodeId(NodeId::IdType::kRandomId), EndpointPair(), another_endpoint_pair,
-                          nat_type));
+                          NodeId(RandomString(NodeId::kSize)), EndpointPair(),
+                          another_endpoint_pair, nat_type));
 
   EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
   EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
@@ -426,7 +426,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   NodeId chosen_node;
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-  EXPECT_FALSE(chosen_node.IsZero());
+  EXPECT_TRUE(chosen_node.IsValid());
   Sleep(std::chrono::milliseconds(250));
 
   nodes_[0]->ResetData();
@@ -509,7 +509,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
   NodeId chosen_node;
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-  EXPECT_FALSE(chosen_node.IsZero());
+  EXPECT_TRUE(chosen_node.IsValid());
   Sleep(std::chrono::milliseconds(250));
 
   nodes_[0]->ResetData();
@@ -928,9 +928,9 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   // Unavailable node id
   node_.ResetData();
   nodes_[1]->ResetData();
-  node_.managed_connections()->Send(NodeId(NodeId::IdType::kRandomId), "message7",
+  node_.managed_connections()->Send(NodeId(RandomString(NodeId::kSize)), "message7",
                                     MessageSentFunctor());
-  node_.managed_connections()->Send(NodeId(NodeId::IdType::kRandomId), "message8",
+  node_.managed_connections()->Send(NodeId(RandomString(NodeId::kSize)), "message8",
                                     future_result.MakeContinuation());
   ASSERT_TRUE(future_result.Wait(millis));
   EXPECT_EQ(kInvalidConnection, future_result.Result());
@@ -1196,7 +1196,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   NodeId chosen_node;
   EXPECT_EQ(kSuccess,
             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-  EXPECT_FALSE(chosen_node.IsZero());
+  EXPECT_TRUE(chosen_node.IsValid());
 
   FutureResult future_result;
   auto wait_millis = 1000;

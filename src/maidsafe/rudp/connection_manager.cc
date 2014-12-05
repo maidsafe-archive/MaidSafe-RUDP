@@ -87,11 +87,11 @@ bool ConnectionManager::CanStartConnectingTo(NodeId peer_id, Endpoint peer_ep) c
   return std::find_if( being_connected_.begin()
                      , being_connected_.end()
                      , [&](const std::pair<NodeId, Endpoint>& pair) {
-           if (!peer_id.IsValid() || !pair.first.IsValid() || peer_id == pair.first) {
-             return pair.second == peer_ep;
-           }
-           return false;
-         }) == being_connected_.end();
+                       if (!peer_id.IsValid() || !pair.first.IsValid() || peer_id == pair.first) {
+                         return pair.second == peer_ep;
+                       }
+                       return false;
+                     }) == being_connected_.end();
 }
 
 void ConnectionManager::MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep) {
