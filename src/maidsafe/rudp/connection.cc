@@ -99,11 +99,11 @@ void Connection::Close() {
 }
 
 void Connection::DoClose(const Error& error) {
-  LOG(kVerbose) << "RUDP Connection::DoClose";
+  LOG(kVerbose) << "peter RUDP Connection::DoClose";
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    LOG(kVerbose) << "rudp connection disconnecting transport";
+    LOG(kVerbose) << "peter rudp connection disconnecting transport";
     // We're still connected to the transport. We need to detach and then start flushing the socket
     // to attempt a graceful closure.
     socket_.NotifyClose();
@@ -120,11 +120,11 @@ void Connection::DoClose(const Error& error) {
     timeout_state_ = TimeoutState::kClosing;
   } else {
     // We've already had a go at graceful closure. Just tear down the socket.
-    LOG(kVerbose) << "rudp connection cleanup resource";
+    LOG(kVerbose) << "peter rudp connection cleanup resource";
     socket_.Close();
     timer_.cancel();
   }
-  LOG(kInfo) << "RUDP Connection::DoClose connection closed";
+  LOG(kInfo) << "peter RUDP Connection::DoClose connection closed";
 }
 
 void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
@@ -309,6 +309,7 @@ void Connection::StartTick() {
 }
 
 void Connection::HandleTick() {
+  LOG(kVerbose) << "peter " << this << " HandleTick";
   // 2014-04-15 ned: We had a double free induced by two ticks calling
   //                 DoClose simultaneously which should never happen as
   //                 HandleTick is called by strand_, so we assert under
@@ -372,7 +373,7 @@ void Connection::StartConnect(const asymm::PublicKey& peer_public_key,
       self->HandleConnect(error, ping_functor);
     };
 
-    LOG(kVerbose) << "Connection::StartConnect";
+    LOG(kVerbose) << "peter " << this << " Connection::StartConnect";
     cookie_syn_ = socket_.AsyncConnect(transport->node_id(),
                                        transport->public_key(),
                                        peer_endpoint_,
@@ -412,11 +413,13 @@ void Connection::CheckLifespanTimeout(const bs::error_code& ec) {
 }
 
 void Connection::HandleConnect(const bs::error_code& ec, PingFunctor ping_functor) {
+  LOG(kVerbose) << "peter " << this << " HandleConnect";
   if (timeout_state_ == TimeoutState::kConnected) {
     LOG(kWarning) << "Duplicate Connect received, ignoring";
     return;
   }
 
+  LOG(kVerbose) << "peter " << this << " HandleConnect " << ec.message();
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped())
@@ -428,6 +431,7 @@ void Connection::HandleConnect(const bs::error_code& ec, PingFunctor ping_functo
     return DoClose(asio::error::not_connected);
   }
 
+  LOG(kVerbose) << "peter " << this << " HandleConnect";
   if (Stopped()) {
     if (ping_functor) {
       ping_functor(kSuccess);
@@ -440,11 +444,14 @@ void Connection::HandleConnect(const bs::error_code& ec, PingFunctor ping_functo
     return DoClose(asio::error::not_connected);
   }
 
+  LOG(kVerbose) << "peter " << this << " HandleConnect";
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     peer_node_id_ = socket_.PeerNodeId();
     auto self = shared_from_this();
 
-    transport->strand_.dispatch([transport, self]() { self->FireOnConnectFunctor(Error()); });
+    // FIXME: This is probably always executed right here (not posted).
+    transport->strand_.dispatch(
+        [transport, self]() { self->FireOnConnectFunctor(Error()); });
     transport->strand_.dispatch(
         [transport, self]() { self->FireConnectionAddedFunctor(Error()); });
   } else {
@@ -452,6 +459,7 @@ void Connection::HandleConnect(const bs::error_code& ec, PingFunctor ping_functo
     return DoClose(asio::error::not_connected);
   }
 
+  LOG(kVerbose) << "peter " << this << " HandleConnect";
   timer_.expires_at(boost::posix_time::pos_infin);
   timeout_state_ = TimeoutState::kConnected;
 

@@ -158,8 +158,8 @@ class ManagedConnections {
   template <typename Handler>
   void DoGetAvailableEndpoints(const NodeId& peer_id, Handler handler);
 
-  template <typename CompletionToken>
-  void DoAdd(const Contact& peer, AddHandler<CompletionToken> handler);
+  //template <typename CompletionToken>
+  //void DoAdd(const Contact& peer, AddHandler<CompletionToken> handler);
 
   void DoAdd(const Contact& peer, ConnectionAddedFunctor handler);
 
@@ -176,9 +176,14 @@ class ManagedConnections {
 
   void ClearConnectionsAndIdleTransports();
   int TryToDetermineLocalEndpoint(Endpoint& local_endpoint);
-  int AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
-                               const Endpoint& local_endpoint, Contact& chosen_bootstrap_contact);
-  int StartNewTransport(BootstrapContacts bootstrap_list, Endpoint local_endpoint);
+  //int AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
+  //                             const Endpoint& local_endpoint,Contact& chosen_bootstrap_contact);
+  void AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
+                               const Endpoint& local_endpoint,
+                               const std::function<void(Error, const Contact&)>&);
+
+  void StartNewTransport(BootstrapContacts bootstrap_list, Endpoint local_endpoint,
+                         const std::function<void(Error, const Contact&)>&);
 
   void GetBootstrapEndpoints(BootstrapContacts& bootstrap_list,
                              boost::asio::ip::address& this_external_address);
@@ -254,13 +259,13 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
                                      Handler handler,
                                      Endpoint local_endpoint) {
   ClearConnectionsAndIdleTransports();
-  LOG(kVerbose) << "peter -----------";
+  LOG(kVerbose) << "peter ManagedConnections::DoBootstrap";
   if (CheckBootstrappingParameters(bootstrap_list, listener, this_node_id) != kSuccess) {
     return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
                          Contact());
   }
 
-  LOG(kVerbose) << "peter -----------";
+  LOG(kVerbose) << "peter ManagedConnections::DoBootstrap";
   this_node_id_ = this_node_id;
   keys_ = keys;
 
@@ -269,17 +274,27 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
                          Contact());
   }
 
-  LOG(kVerbose) << "peter -----------";
-  Contact chosen_bootstrap_contact;
-  if (AttemptStartNewTransport(bootstrap_list, local_endpoint, chosen_bootstrap_contact)
-      != kSuccess) {
-    return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
-                         Contact());
-  }
+  LOG(kVerbose) << "peter ManagedConnections::DoBootstrap";
+  //Contact chosen_bootstrap_contact;
 
-  LOG(kVerbose) << "peter -----------";
-  listener_ = listener;
-  handler(Error(), chosen_bootstrap_contact);
+  AttemptStartNewTransport(bootstrap_list, local_endpoint,
+      [=](Error error, Contact chosen_contact) mutable {
+        if (!error) {
+          listener_ = listener;
+        }
+
+        handler(error, chosen_contact);
+      });
+  //if (AttemptStartNewTransport(bootstrap_list, local_endpoint, chosen_bootstrap_contact)
+  //    != kSuccess) {
+  //  LOG(kVerbose) << "peter -----------";
+  //  return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
+  //                       Contact());
+  //}
+
+  //LOG(kVerbose) << "peter -----------";
+  //listener_ = listener;
+  //handler(Error(), chosen_bootstrap_contact);
 }
 
 //template <typename Handler>
@@ -332,31 +347,48 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
       return handler(Error(), this_endpoint_pair);
   }
 
-  if (/*ShouldStartNewTransport(peer.endpoint_pair) &&*/
-      StartNewTransport(BootstrapContacts(), Endpoint(local_ip_, 0)) != kSuccess) {
-    LOG(kError) << "Failed to start transport.";
-    return InvokeHandler(std::forward<Handler>(handler), error::no_descriptors, EndpointPair());
-    //return InvokeHandler(std::forward<Handler>(handler), make_error_code(CommonErrors::unknown), EndpointPair());
-  }
+  //if (/*ShouldStartNewTransport(peer.endpoint_pair) &&*/
+  //    StartNewTransport(BootstrapContacts(), Endpoint(local_ip_, 0)) != kSuccess) {
+  //  LOG(kError) << "Failed to start transport.";
+  //  return InvokeHandler(std::forward<Handler>(handler), error::no_descriptors, EndpointPair());
+  //  //return InvokeHandler(std::forward<Handler>(handler), make_error_code(CommonErrors::unknown), EndpointPair());
+  //}
+  StartNewTransport(BootstrapContacts(), Endpoint(local_ip_, 0), [=](Error error, const Contact&) mutable {
+      if (error) {
+        return handler(error, EndpointPair());
+      }
 
-  std::lock_guard<std::mutex> lock(mutex_);
-  // Check again for an existing connection attempt in case it was added while mutex unlocked
-  // during starting new transport.
-  if (ExistingConnectionAttempt(peer_id, this_endpoint_pair)) {
-    LOG(kError) << "Connection attempt already in progress.";
-    return InvokeHandler(std::forward<Handler>(handler), make_error_code(RudpErrors::connection_already_in_progress),
-                         EndpointPair());
-  }
+      if (ExistingConnectionAttempt(peer_id, this_endpoint_pair)) {
+        LOG(kError) << "Connection attempt already in progress.";
+        return handler(RudpErrors::connection_already_in_progress, EndpointPair());
+      }
 
-  if (!SelectAnyTransport(peer_id, this_endpoint_pair)) {
-    LOG(kError) << "All connectable Transports are full.";
-    return InvokeHandler(std::forward<Handler>(handler), boost::asio::error::no_descriptors,
-                         EndpointPair());
-    //return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unable_to_handle_request,
-    //                     EndpointPair());
-  }
+      if (!SelectAnyTransport(peer_id, this_endpoint_pair)) {
+        LOG(kError) << "All connectable Transports are full.";
+        return handler(boost::asio::error::no_descriptors, EndpointPair());
+      }
 
-  handler(Error(), this_endpoint_pair);
+      handler(Error(), this_endpoint_pair);
+      });
+
+  ////std::lock_guard<std::mutex> lock(mutex_);
+  //// Check again for an existing connection attempt in case it was added while mutex unlocked
+  //// during starting new transport.
+  //if (ExistingConnectionAttempt(peer_id, this_endpoint_pair)) {
+  //  LOG(kError) << "Connection attempt already in progress.";
+  //  return InvokeHandler(std::forward<Handler>(handler), make_error_code(RudpErrors::connection_already_in_progress),
+  //                       EndpointPair());
+  //}
+
+  //if (!SelectAnyTransport(peer_id, this_endpoint_pair)) {
+  //  LOG(kError) << "All connectable Transports are full.";
+  //  return InvokeHandler(std::forward<Handler>(handler), boost::asio::error::no_descriptors,
+  //                       EndpointPair());
+  //  //return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unable_to_handle_request,
+  //  //                     EndpointPair());
+  //}
+
+  //handler(Error(), this_endpoint_pair);
   //handler(make_error_code(CommonErrors::success), this_endpoint_pair);
 }
 
@@ -368,15 +400,15 @@ AddReturn<CompletionToken> ManagedConnections::Add(const Contact& peer, Completi
   return result.get();
 }
 
-template <typename CompletionToken>
-void ManagedConnections::DoAdd(const Contact& peer, AddHandler<CompletionToken> handler) {
-  DoAdd(peer, [=](Error error_code) {
-    if (error_code)
-      this->InvokeHandler(handler, error_code);
-    else  // success case
-      handler(error_code);
-  });
-}
+//template <typename CompletionToken>
+//void ManagedConnections::DoAdd(const Contact& peer, AddHandler<CompletionToken> handler) {
+//  DoAdd(peer, [=](Error error_code) {
+//    if (error_code)
+//      this->InvokeHandler(handler, error_code);
+//    else  // success case
+//      handler(error_code);
+//  });
+//}
 
 template <typename CompletionToken>
 RemoveReturn<CompletionToken> ManagedConnections::Remove(const NodeId& peer_id,

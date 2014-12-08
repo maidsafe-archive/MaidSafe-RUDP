@@ -44,6 +44,8 @@ namespace test {
 
 testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
                                       std::vector<Endpoint>& bootstrap_endpoints, int node_count) {
+  using boost::asio::use_future;
+
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 1";
   if (node_count < 2)
     return testing::AssertionFailure() << "Network size must be greater than 1";
@@ -60,7 +62,13 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   EndpointPair endpoints0, endpoints1;
   endpoints0.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   endpoints1.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
+  Contact contacts[] = { Contact(nodes[0]->node_id(), endpoints0.local, *nodes[0]->public_key())
+                       , Contact(nodes[1]->node_id(), endpoints1.local, *nodes[1]->public_key())
+                       };
+
   Contact chosen_node_id, node1_chosen_bootstrap_contact;
+  bool node_0_bootstrapped = false;
+  bool node_1_bootstrapped = false;
   //int result0(0);
 
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 4";
@@ -68,16 +76,36 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
     //chosen_node_id = nodes[0]->Bootstrap(std::vector<Endpoint>(1, endpoints1.local),
     //                              chosen_node_id,
     //                              endpoints0.local);
-    chosen_node_id = nodes[0]->Bootstrap(std::vector<Contact>(1, Contact(nodes[1]->node_id(), endpoints1.local, *nodes[1]->public_key())),
-                                  endpoints0.local);
+    try {
+      chosen_node_id = nodes[0]->Bootstrap(std::vector<Contact>(1, contacts[1]), endpoints0.local);
+      node_0_bootstrapped = true;
+    }
+    catch (maidsafe_error e) {
+      LOG(kVerbose) << "peter Node 0 failed to bootstrap " << e.what();
+    }
   });
-  node1_chosen_bootstrap_contact = nodes[1]->Bootstrap(std::vector<Contact>(1, Contact(nodes[0]->node_id(), endpoints0.local, *nodes[0]->public_key())),
-                                  endpoints1.local);
+
+  try {
+    node1_chosen_bootstrap_contact = nodes[1]->Bootstrap(std::vector<Contact>(1, contacts[0]),
+                                    endpoints1.local);
+    node_1_bootstrapped = true;
+  } catch (maidsafe_error e) {
+    LOG(kVerbose) << "peter Node 1 failed to bootstrap " << e.what();
+  }
+
   //node1_chosen_bootstrap_contact = nodes[1]->Bootstrap(std::vector<Endpoint>(1, endpoints0.local),
   //                                node1_chosen_bootstrap_contact,
   //                                endpoints1.local);
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 4.5";
   thread.join();
+
+  if (!node_0_bootstrapped) {
+    return testing::AssertionFailure() << "peter Node 0 failed to bootstrap";
+  }
+
+  if (!node_1_bootstrapped) {
+    return testing::AssertionFailure() << "peter Node 1 failed to bootstrap";
+  }
 
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 5 ";
   //if (result0 == kBindError || result1 == kBindError) {
@@ -104,17 +132,23 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   //    });
 
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 9";
-  EndpointPair endpoint_pair = nodes[0]->managed_connections()->GetAvailableEndpoints
-                         (nodes[1]->node_id(), boost::asio::use_future).get();
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 10 " << endpoint_pair;
 
   //EXPECT_EQ(kBootstrapConnectionAlreadyExists,
   //          nodes[0]->managed_connections()->GetAvailableEndpoints(
   //              nodes[1]->node_id(), endpoint_pair1, endpoint_pair0, nat_type0));
+  // FIXME: Expect particular error
+  EXPECT_ANY_THROW(nodes[0]->managed_connections()->GetAvailableEndpoints
+                         (nodes[1]->node_id(), use_future).get());
+  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 10 ";
 
   //EXPECT_EQ(kBootstrapConnectionAlreadyExists,
   //          nodes[1]->managed_connections()->GetAvailableEndpoints(
   //              nodes[0]->node_id(), endpoint_pair0, endpoint_pair1, nat_type1));
+  // FIXME: Expect particular error
+  EXPECT_ANY_THROW(nodes[1]->managed_connections()->GetAvailableEndpoints
+                         (nodes[0]->node_id(), use_future).get());
+
+  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 11 ";
 
   //auto futures0(nodes[0]->GetFutureForMessages(1));
   //auto futures1(nodes[1]->GetFutureForMessages(1));
@@ -123,6 +157,18 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   //                                         nodes[0]->validation_data()) != kSuccess) {
   //  return testing::AssertionFailure() << "Node 0 failed to add Node 1";
   //}
+  nodes[0]->managed_connections()->Add(Contact(nodes[1]->node_id(), endpoints1, *nodes[0]->public_key()), [=](const boost::system::error_code& e) mutable {
+      LOG(kVerbose) << "peter Add result = " << e.message();
+      });
+  Sleep(std::chrono::seconds(10));
+  //try {
+  //  nodes[0]->managed_connections()->Add(Contact(nodes[1]->node_id(), endpoints1, *nodes[0]->public_key()), use_future).get();
+  //}
+  //catch(maidsafe_error e) {
+  //  LOG(kVerbose) << "peter =============> " << e.what();
+  //}
+  LOG(kVerbose) << "peter success ";
+
   //nodes[0]->AddConnectedNodeId(nodes[1]->node_id());
   //LOG(kInfo) << "Calling Add from " << endpoints1.local << " to " << endpoints0.local;
   //if (nodes[1]->managed_connections()->Add(nodes[0]->node_id(), endpoints0,
@@ -327,9 +373,6 @@ std::vector<std::string> Node::messages() const {
   return messages_;
 }
 
-//int Node::Bootstrap(const std::vector<Endpoint>&, NodeId&, Endpoint) {
-//  return 0;
-//}
 Contact Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint) {
   //NatType nat_type(NatType::kUnknown);
 
@@ -371,6 +414,7 @@ Contact Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoin
       asymm::Keys(*private_key(), *public_key()),
       boost::asio::use_future,
       local_endpoint).get();
+
   //return managed_connections_->Bootstrap(
   //    bootstrap_endpoints,
   //    [this](const std::string & message) {

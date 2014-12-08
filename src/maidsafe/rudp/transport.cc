@@ -58,7 +58,10 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
       on_nat_detection_requested_slot_(),
       managed_connections_debug_printout_() {}
 
-Transport::~Transport() { Close(); }
+Transport::~Transport() {
+  LOG(kVerbose) << "peter ~Transport " << this;
+  Close();
+}
 
 void Transport::Bootstrap(const BootstrapContacts& bootstrap_list, const NodeId& this_node_id,
                           const asymm::PublicKey& this_public_key, Endpoint local_endpoint,
