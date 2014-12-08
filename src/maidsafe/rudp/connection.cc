@@ -93,15 +93,17 @@ Connection::Connection(const std::shared_ptr<Transport>& transport,
 Socket& Connection::Socket() { return socket_; }
 
 void Connection::Close() {
-  strand_.dispatch(std::bind(&Connection::DoClose, shared_from_this(), asio::error::not_connected));
+  auto self = shared_from_this();
+
+  strand_.dispatch([self]() {
+      self->DoClose(asio::error::not_connected);
+      });
 }
 
 void Connection::DoClose(const Error& error) {
-  LOG(kVerbose) << "RUDP Connection::DoClose";
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    LOG(kVerbose) << "rudp connection disconnecting transport";
     // We're still connected to the transport. We need to detach and then start flushing the socket
     // to attempt a graceful closure.
     socket_.NotifyClose();
@@ -117,11 +119,9 @@ void Connection::DoClose(const Error& error) {
     timeout_state_ = TimeoutState::kClosing;
   } else {
     // We've already had a go at graceful closure. Just tear down the socket.
-    LOG(kVerbose) << "rudp connection cleanup resource";
     socket_.Close();
     timer_.cancel();
   }
-  LOG(kInfo) << "RUDP Connection::DoClose connection closed";
 }
 
 void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
@@ -156,7 +156,6 @@ void Connection::DoStartConnecting(const NodeId& peer_node_id,
   failure_functor_ = failure_functor;
 
   StartTick();
-  LOG(kVerbose) << "Connection::DoStartConnecting";
   StartConnect(validation_data, connect_attempt_timeout, lifespan, ping_functor);
   bs::error_code ignored_ec;
   CheckTimeout(ignored_ec);
@@ -365,7 +364,6 @@ void Connection::StartConnect(const std::string& validation_data,
       self->HandleConnect(error, validation_data, ping_functor);
     };
 
-    LOG(kVerbose) << "Connection::StartConnect";
     cookie_syn_ = socket_.AsyncConnect(transport->node_id(),
                                        transport->public_key(),
                                        peer_endpoint_,
@@ -494,8 +492,6 @@ void Connection::HandleReadSize(const bs::error_code& ec) {
       (((((receive_buffer_.at(0) << 8) | receive_buffer_.at(1)) << 8) | receive_buffer_.at(2))
        << 8) |
       receive_buffer_.at(3);
-  // LOG(kInfo) << "Connection::HandleReadSize to " << *multiplexer_ << " sees "
-  //            << data_size_ << " bytes.";
   // Allow some leeway for encryption overhead
   if (data_size_ > ManagedConnections::kMaxMessageSize() + 1024) {
     LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > "
