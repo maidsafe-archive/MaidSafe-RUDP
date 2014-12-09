@@ -134,7 +134,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
   }
 
   std::vector<NodePtr> nodes_;
-  std::vector<Endpoint> bootstrap_endpoints_;
+  std::vector<Contact> bootstrap_endpoints_;
   uint16_t network_size_;
 
  private:

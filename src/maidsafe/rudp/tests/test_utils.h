@@ -52,7 +52,7 @@ class Node;
 typedef std::shared_ptr<Node> NodePtr;
 
 testing::AssertionResult SetupNetwork(std::vector<NodePtr> & nodes,
-                                      std::vector<Endpoint> & bootstrap_endpoints, int node_count);
+                                      std::vector<Contact> & bootstrap_endpoints, int node_count);
 
 
 class Node {

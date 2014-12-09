@@ -127,6 +127,23 @@ class ManagedConnections {
   template <typename CompletionToken>
   AddReturn<CompletionToken> Add(const Contact& peer, CompletionToken&& token);
 
+  //template <typename CompletionToken>
+  //typename boost::asio::async_result
+  //  < typename boost::asio::handler_type< CompletionToken
+  //                                      , void(boost::system::error_code)
+  //                                      >::type
+  //  >::type
+  //Add(const Contact& , CompletionToken&& token) {
+  //  namespace asio = boost::asio;
+  //  namespace system = boost::system;
+
+  //  using handler_type = typename asio::handler_type <CompletionToken, void(system::error_code)>::type;
+  //  handler_type handler(std::forward<decltype(token)>(token));
+  //  boost::asio::async_result<decltype(handler)> result(handler);
+  //  asio_service_.service().post([=]() mutable { handler(boost::asio::error::operation_aborted); LOG(kVerbose) << "peter handler called"; });
+  //  return result.get();
+  //}
+
   // Drops the connection with peer.
   template <typename CompletionToken>
   RemoveReturn<CompletionToken> Remove(const NodeId& peer_id, CompletionToken&& token);
@@ -157,9 +174,6 @@ class ManagedConnections {
 
   template <typename Handler>
   void DoGetAvailableEndpoints(const NodeId& peer_id, Handler handler);
-
-  //template <typename CompletionToken>
-  //void DoAdd(const Contact& peer, AddHandler<CompletionToken> handler);
 
   void DoAdd(const Contact& peer, ConnectionAddedFunctor handler);
 
@@ -396,19 +410,9 @@ template <typename CompletionToken>
 AddReturn<CompletionToken> ManagedConnections::Add(const Contact& peer, CompletionToken&& token) {
   AddHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   boost::asio::async_result<decltype(handler)> result(handler);
-  asio_service_.service().post([=] { DoAdd(peer, handler); });
+  asio_service_.service().post([=]() mutable { DoAdd(peer, handler); });
   return result.get();
 }
-
-//template <typename CompletionToken>
-//void ManagedConnections::DoAdd(const Contact& peer, AddHandler<CompletionToken> handler) {
-//  DoAdd(peer, [=](Error error_code) {
-//    if (error_code)
-//      this->InvokeHandler(handler, error_code);
-//    else  // success case
-//      handler(error_code);
-//  });
-//}
 
 template <typename CompletionToken>
 RemoveReturn<CompletionToken> ManagedConnections::Remove(const NodeId& peer_id,

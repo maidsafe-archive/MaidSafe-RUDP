@@ -43,8 +43,9 @@ namespace rudp {
 namespace test {
 
 testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
-                                      std::vector<Endpoint>& bootstrap_endpoints, int node_count) {
+                                      std::vector<Contact>& bootstrap_endpoints, int node_count) {
   using boost::asio::use_future;
+  using boost::system::system_error;
 
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 1";
   if (node_count < 2)
@@ -67,8 +68,6 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
                        };
 
   Contact chosen_node_id, node1_chosen_bootstrap_contact;
-  bool node_0_bootstrapped = false;
-  bool node_1_bootstrapped = false;
   //int result0(0);
 
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 4";
@@ -76,36 +75,18 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
     //chosen_node_id = nodes[0]->Bootstrap(std::vector<Endpoint>(1, endpoints1.local),
     //                              chosen_node_id,
     //                              endpoints0.local);
-    try {
-      chosen_node_id = nodes[0]->Bootstrap(std::vector<Contact>(1, contacts[1]), endpoints0.local);
-      node_0_bootstrapped = true;
-    }
-    catch (maidsafe_error e) {
-      LOG(kVerbose) << "peter Node 0 failed to bootstrap " << e.what();
-    }
+    EXPECT_NO_THROW(chosen_node_id
+                     = nodes[0]->Bootstrap(std::vector<Contact>(1, contacts[1]), endpoints0.local));
   });
 
-  try {
-    node1_chosen_bootstrap_contact = nodes[1]->Bootstrap(std::vector<Contact>(1, contacts[0]),
-                                    endpoints1.local);
-    node_1_bootstrapped = true;
-  } catch (maidsafe_error e) {
-    LOG(kVerbose) << "peter Node 1 failed to bootstrap " << e.what();
-  }
+  EXPECT_NO_THROW(node1_chosen_bootstrap_contact
+                   = nodes[1]->Bootstrap(std::vector<Contact>(1, contacts[0]), endpoints1.local));
 
   //node1_chosen_bootstrap_contact = nodes[1]->Bootstrap(std::vector<Endpoint>(1, endpoints0.local),
   //                                node1_chosen_bootstrap_contact,
   //                                endpoints1.local);
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 4.5";
   thread.join();
-
-  if (!node_0_bootstrapped) {
-    return testing::AssertionFailure() << "peter Node 0 failed to bootstrap";
-  }
-
-  if (!node_1_bootstrapped) {
-    return testing::AssertionFailure() << "peter Node 1 failed to bootstrap";
-  }
 
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 5 ";
   //if (result0 == kBindError || result1 == kBindError) {
@@ -157,26 +138,21 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   //                                         nodes[0]->validation_data()) != kSuccess) {
   //  return testing::AssertionFailure() << "Node 0 failed to add Node 1";
   //}
-  nodes[0]->managed_connections()->Add(Contact(nodes[1]->node_id(), endpoints1, *nodes[0]->public_key()), [=](const boost::system::error_code& e) mutable {
-      LOG(kVerbose) << "peter Add result = " << e.message();
-      });
-  Sleep(std::chrono::seconds(10));
-  //try {
-  //  nodes[0]->managed_connections()->Add(Contact(nodes[1]->node_id(), endpoints1, *nodes[0]->public_key()), use_future).get();
-  //}
-  //catch(maidsafe_error e) {
-  //  LOG(kVerbose) << "peter =============> " << e.what();
-  //}
-  LOG(kVerbose) << "peter success ";
+  EXPECT_THROW( nodes[0]->managed_connections()->Add(contacts[1], use_future).get()
+              , boost::system::system_error);
 
-  //nodes[0]->AddConnectedNodeId(nodes[1]->node_id());
+
+  nodes[0]->AddConnectedNodeId(nodes[1]->node_id());
   //LOG(kInfo) << "Calling Add from " << endpoints1.local << " to " << endpoints0.local;
   //if (nodes[1]->managed_connections()->Add(nodes[0]->node_id(), endpoints0,
   //                                         nodes[1]->validation_data()) != kSuccess) {
   //  return testing::AssertionFailure() << "Node 1 failed to add Node 0";
   //}
-  //nodes[1]->AddConnectedNodeId(nodes[0]->node_id());
+  EXPECT_THROW( nodes[1]->managed_connections()->Add(contacts[0], use_future).get()
+              , boost::system::system_error);
+  nodes[1]->AddConnectedNodeId(nodes[0]->node_id());
 
+  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 12 ";
   //boost::chrono::milliseconds timeout(Parameters::rendezvous_connect_timeout.total_milliseconds());
   //if (futures0.wait_for(timeout) != boost::future_status::ready) {
   //  return testing::AssertionFailure() << "Failed waiting for " << nodes[0]->id() << " to receive "
@@ -221,131 +197,143 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
 
   //bootstrap_endpoints.push_back(endpoints0.local);
   //bootstrap_endpoints.push_back(endpoints1.local);
-  //nodes[0]->ResetData();
-  //nodes[1]->ResetData();
+  bootstrap_endpoints.push_back(contacts[0]);
+  bootstrap_endpoints.push_back(contacts[1]);
+  nodes[0]->ResetData();
+  nodes[1]->ResetData();
 
-  //if (node_count > 2)
-  //  LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
+  if (node_count > 2)
+    LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
 
-  //// Adding nodes to each other
-  //for (int i(2); i != node_count; ++i) {
-  //  NodeId chosen_node_id;
-  //  if (nodes[i]->Bootstrap(bootstrap_endpoints, chosen_node_id) != kSuccess ||
-  //      chosen_node_id == NodeId()) {
-  //    return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->id();
-  //  }
+  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 13 ";
+  // Adding nodes to each other
+  for (int i = 2; i != node_count; ++i) {
+    Contact chosen_node_id;
+    EXPECT_NO_THROW(chosen_node_id = nodes[i]->Bootstrap(bootstrap_endpoints));
 
-  //  EndpointPair empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
-  //  NatType nat_type;
-  //  Sleep(std::chrono::milliseconds(250));
-  //  for (int j(0); j != i; ++j) {
-  //    LOG(kInfo) << "Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();
-  //    // Call GetAvailableEndpoint at each peer.
-  //    nodes[i]->ResetData();
-  //    nodes[j]->ResetData();
-  //    int result(nodes[i]->managed_connections()->GetAvailableEndpoint(
-  //        nodes[j]->node_id(), empty_endpoint_pair, this_endpoint_pair, nat_type));
-  //    if (result != kSuccess && result != kBootstrapConnectionAlreadyExists) {
-  //      return testing::AssertionFailure() << "GetAvailableEndpoint failed for " << nodes[i]->id()
-  //                                         << " with result " << result
-  //                                         << ".  Local: " << this_endpoint_pair.local
-  //                                         << "  External: " << this_endpoint_pair.external;
-  //    } else {
-  //      LOG(kInfo) << "GetAvailableEndpoint on " << nodes[i]->id() << " to " << nodes[j]->id()
-  //                 << " with peer_id " << nodes[j]->debug_node_id() << " returned "
-  //                 << this_endpoint_pair.external << " / " << this_endpoint_pair.local;
-  //    }
-  //    result = nodes[j]->managed_connections()->GetAvailableEndpoint(
-  //        nodes[i]->node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type);
-  //    if (result != kSuccess && result != kBootstrapConnectionAlreadyExists) {
-  //      return testing::AssertionFailure() << "GetAvailableEndpoint failed for " << nodes[j]->id()
-  //                                         << " with result " << result
-  //                                         << ".  Local: " << peer_endpoint_pair.local
-  //                                         << "  External: " << peer_endpoint_pair.external
-  //                                         << "  Peer: " << this_endpoint_pair.local;
-  //    } else {
-  //      LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[j]->id() << " to "
-  //                 << nodes[i]->id() << " with peer_endpoint " << this_endpoint_pair.local
-  //                 << " returned " << peer_endpoint_pair.external << " / "
-  //                 << peer_endpoint_pair.local;
-  //    }
+    LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 14 ";
+    if (chosen_node_id.id == NodeId()) {
+      return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->id();
+    }
 
-  //    // Call Add at each peer.
-  //    futures0 = nodes[i]->GetFutureForMessages(1);
-  //    futures1 = nodes[j]->GetFutureForMessages(1);
+    LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 15 ";
+    Contact empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
+    //NatType nat_type;
+    Sleep(std::chrono::milliseconds(250));
+    for (int j(0); j != i; ++j) {
+      LOG(kInfo) << "Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();
+      // Call GetAvailableEndpoint at each peer.
+      nodes[i]->ResetData();
+      nodes[j]->ResetData();
+    //  int result(nodes[i]->managed_connections()->GetAvailableEndpoint(
+    //      nodes[j]->node_id(), empty_endpoint_pair, this_endpoint_pair, nat_type));
+    //  if (result != kSuccess && result != kBootstrapConnectionAlreadyExists) {
+    //    return testing::AssertionFailure() << "GetAvailableEndpoint failed for " << nodes[i]->id()
+    //                                       << " with result " << result
+    //                                       << ".  Local: " << this_endpoint_pair.local
+    //                                       << "  External: " << this_endpoint_pair.external;
+    //  } else {
+    //    LOG(kInfo) << "GetAvailableEndpoint on " << nodes[i]->id() << " to " << nodes[j]->id()
+    //               << " with peer_id " << nodes[j]->debug_node_id() << " returned "
+    //               << this_endpoint_pair.external << " / " << this_endpoint_pair.local;
+    //  }
+      try {
+        nodes[i]->managed_connections()->GetAvailableEndpoints(nodes[j]->node_id(), use_future).get();
+      }
+      catch(system_error e) {
+        EXPECT_EQ(e.code(), RudpErrors::already_connected);
+      }
+    //  result = nodes[j]->managed_connections()->GetAvailableEndpoint(
+    //      nodes[i]->node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type);
+    //  if (result != kSuccess && result != kBootstrapConnectionAlreadyExists) {
+    //    return testing::AssertionFailure() << "GetAvailableEndpoint failed for " << nodes[j]->id()
+    //                                       << " with result " << result
+    //                                       << ".  Local: " << peer_endpoint_pair.local
+    //                                       << "  External: " << peer_endpoint_pair.external
+    //                                       << "  Peer: " << this_endpoint_pair.local;
+    //  } else {
+    //    LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[j]->id() << " to "
+    //               << nodes[i]->id() << " with peer_endpoint " << this_endpoint_pair.local
+    //               << " returned " << peer_endpoint_pair.external << " / "
+    //               << peer_endpoint_pair.local;
+    //  }
 
-  //    LOG(kInfo) << "Calling Add from " << nodes[j]->id() << " on " << peer_endpoint_pair.local
-  //               << " to " << nodes[i]->id() << " on " << this_endpoint_pair.local;
-  //    result = nodes[j]->managed_connections()->Add(nodes[i]->node_id(), this_endpoint_pair,
-  //                                                  nodes[j]->validation_data());
-  //    nodes[j]->AddConnectedNodeId(nodes[i]->node_id());
-  //    if (result != kSuccess) {
-  //      return testing::AssertionFailure() << "Add failed for " << nodes[j]->id() << " with result "
-  //                                         << result;
-  //    }
+    //  // Call Add at each peer.
+    //  futures0 = nodes[i]->GetFutureForMessages(1);
+    //  futures1 = nodes[j]->GetFutureForMessages(1);
 
-  //    LOG(kInfo) << "Calling Add from " << nodes[i]->id() << " on " << this_endpoint_pair.local
-  //               << " to " << nodes[j]->id() << " on " << peer_endpoint_pair.local;
-  //    result = nodes[i]->managed_connections()->Add(nodes[j]->node_id(), peer_endpoint_pair,
-  //                                                  nodes[i]->validation_data());
-  //    nodes[i]->AddConnectedNodeId(nodes[j]->node_id());
-  //    if (result != kSuccess) {
-  //      return testing::AssertionFailure() << "Add failed for " << nodes[i]->id() << " with result "
-  //                                         << result;
-  //    }
+    //  LOG(kInfo) << "Calling Add from " << nodes[j]->id() << " on " << peer_endpoint_pair.local
+    //             << " to " << nodes[i]->id() << " on " << this_endpoint_pair.local;
+    //  result = nodes[j]->managed_connections()->Add(nodes[i]->node_id(), this_endpoint_pair,
+    //                                                nodes[j]->validation_data());
+    //  nodes[j]->AddConnectedNodeId(nodes[i]->node_id());
+    //  if (result != kSuccess) {
+    //    return testing::AssertionFailure() << "Add failed for " << nodes[j]->id() << " with result "
+    //                                       << result;
+    //  }
 
-  //    // Check validation data was received correctly at each peer, and if so call
-  //    // MarkConnectionAsValid.
-  //    boost::chrono::milliseconds timeout(
-  //        Parameters::rendezvous_connect_timeout.total_milliseconds());
-  //    if (futures0.wait_for(timeout) != boost::future_status::ready) {
-  //      return testing::AssertionFailure() << "Failed waiting for " << nodes[i]->id()
-  //                                         << " to receive " << nodes[j]->id()
-  //                                         << "'s validation data.";
-  //    }
-  //    if (futures1.wait_for(timeout) != boost::future_status::ready) {
-  //      return testing::AssertionFailure() << "Failed waiting for " << nodes[j]->id()
-  //                                         << " to receive " << nodes[i]->id()
-  //                                         << "'s validation data.";
-  //    }
-  //    messages0 = futures0.get();
-  //    messages1 = futures1.get();
-  //    if (messages0.size() != 1U) {
-  //      return testing::AssertionFailure() << nodes[i]->id() << " has " << messages0.size()
-  //                                         << " messages [should be 1].";
-  //    }
-  //    if (messages1.size() != 1U) {
-  //      return testing::AssertionFailure() << nodes[j]->id() << " has " << messages1.size()
-  //                                         << " messages [should be 1].";
-  //    }
-  //    if (messages0[0] != nodes[j]->validation_data()) {
-  //      return testing::AssertionFailure() << nodes[i]->id() << " has received " << nodes[j]->id()
-  //                                         << "'s validation data as " << messages0[0]
-  //                                         << " [should be \"" << nodes[j]->validation_data()
-  //                                         << "\"].";
-  //    }
-  //    if (messages1[0] != nodes[i]->validation_data()) {
-  //      return testing::AssertionFailure() << nodes[j]->id() << " has received " << nodes[i]->id()
-  //                                         << "'s validation data as " << messages1[0]
-  //                                         << " [should be \"" << nodes[i]->validation_data()
-  //                                         << "\"].";
-  //    }
-  //    Endpoint endpoint1, endpoint2;
-  //    result =
-  //        nodes[i]->managed_connections()->MarkConnectionAsValid(nodes[j]->node_id(), endpoint1);
-  //    if (result != kSuccess) {
-  //      return testing::AssertionFailure() << nodes[i]->id() << " failed to mark connection to "
-  //                                         << nodes[j]->id() << " as valid.";
-  //    }
-  //    result =
-  //        nodes[j]->managed_connections()->MarkConnectionAsValid(nodes[i]->node_id(), endpoint2);
-  //    if (result != kSuccess) {
-  //      return testing::AssertionFailure() << nodes[j]->id() << " failed to mark connection to "
-  //                                         << nodes[i]->id() << " as valid.";
-  //    }
-  //  }
-  //  bootstrap_endpoints.push_back(this_endpoint_pair.local);
-  //}
+    //  LOG(kInfo) << "Calling Add from " << nodes[i]->id() << " on " << this_endpoint_pair.local
+    //             << " to " << nodes[j]->id() << " on " << peer_endpoint_pair.local;
+    //  result = nodes[i]->managed_connections()->Add(nodes[j]->node_id(), peer_endpoint_pair,
+    //                                                nodes[i]->validation_data());
+    //  nodes[i]->AddConnectedNodeId(nodes[j]->node_id());
+    //  if (result != kSuccess) {
+    //    return testing::AssertionFailure() << "Add failed for " << nodes[i]->id() << " with result "
+    //                                       << result;
+    //  }
+
+    //  // Check validation data was received correctly at each peer, and if so call
+    //  // MarkConnectionAsValid.
+    //  boost::chrono::milliseconds timeout(
+    //      Parameters::rendezvous_connect_timeout.total_milliseconds());
+    //  if (futures0.wait_for(timeout) != boost::future_status::ready) {
+    //    return testing::AssertionFailure() << "Failed waiting for " << nodes[i]->id()
+    //                                       << " to receive " << nodes[j]->id()
+    //                                       << "'s validation data.";
+    //  }
+    //  if (futures1.wait_for(timeout) != boost::future_status::ready) {
+    //    return testing::AssertionFailure() << "Failed waiting for " << nodes[j]->id()
+    //                                       << " to receive " << nodes[i]->id()
+    //                                       << "'s validation data.";
+    //  }
+    //  messages0 = futures0.get();
+    //  messages1 = futures1.get();
+    //  if (messages0.size() != 1U) {
+    //    return testing::AssertionFailure() << nodes[i]->id() << " has " << messages0.size()
+    //                                       << " messages [should be 1].";
+    //  }
+    //  if (messages1.size() != 1U) {
+    //    return testing::AssertionFailure() << nodes[j]->id() << " has " << messages1.size()
+    //                                       << " messages [should be 1].";
+    //  }
+    //  if (messages0[0] != nodes[j]->validation_data()) {
+    //    return testing::AssertionFailure() << nodes[i]->id() << " has received " << nodes[j]->id()
+    //                                       << "'s validation data as " << messages0[0]
+    //                                       << " [should be \"" << nodes[j]->validation_data()
+    //                                       << "\"].";
+    //  }
+    //  if (messages1[0] != nodes[i]->validation_data()) {
+    //    return testing::AssertionFailure() << nodes[j]->id() << " has received " << nodes[i]->id()
+    //                                       << "'s validation data as " << messages1[0]
+    //                                       << " [should be \"" << nodes[i]->validation_data()
+    //                                       << "\"].";
+    //  }
+    //  Endpoint endpoint1, endpoint2;
+    //  result =
+    //      nodes[i]->managed_connections()->MarkConnectionAsValid(nodes[j]->node_id(), endpoint1);
+    //  if (result != kSuccess) {
+    //    return testing::AssertionFailure() << nodes[i]->id() << " failed to mark connection to "
+    //                                       << nodes[j]->id() << " as valid.";
+    //  }
+    //  result =
+    //      nodes[j]->managed_connections()->MarkConnectionAsValid(nodes[i]->node_id(), endpoint2);
+    //  if (result != kSuccess) {
+    //    return testing::AssertionFailure() << nodes[j]->id() << " failed to mark connection to "
+    //                                       << nodes[i]->id() << " as valid.";
+    //  }
+    }
+    bootstrap_endpoints.push_back(this_endpoint_pair);
+  }
   return testing::AssertionSuccess();
 }
 

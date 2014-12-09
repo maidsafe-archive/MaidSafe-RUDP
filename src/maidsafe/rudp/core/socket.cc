@@ -263,7 +263,6 @@ void Socket::ProcessFlush() {
 }
 
 void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::endpoint& endpoint) {
-  LOG(kVerbose) << "peter " << this << " HandleReceiveFrom " << endpoint;
   if (endpoint == peer_.PeerEndpoint()) {
     // TODO(Team): Surely this can be templetised somehow to avoid all the obejct creation
     DataPacket data_packet;

@@ -66,9 +66,9 @@ struct Contact {
                                                public_key(std::move(other.public_key)) {}
   Contact& operator=(const Contact&) = default;
   Contact& operator=(Contact&& other) {
-    id = std::move(other.id);
+    id            = std::move(other.id);
     endpoint_pair = std::move(other.endpoint_pair);
-    public_key = std::move(other.public_key);
+    public_key    = std::move(other.public_key);
     return *this;
   }
 
