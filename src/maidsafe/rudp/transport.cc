@@ -178,13 +178,14 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
 
     default_on_connect(error, connection);
 
-    auto peer_id = connection->Socket().PeerNodeId();
+    auto peer_id         = connection->Socket().PeerNodeId();
+    auto peer_public_key = connection->Socket().PeerPublicKey();
 
     auto on_nat_detected = [peer_id, handler]() mutable {
       handler(peer_id);
     };
 
-    DetectNatType(peer_id, strand_.wrap(on_nat_detected));
+    DetectNatType(peer_id, peer_public_key, strand_.wrap(on_nat_detected));
   };
 
   connection_manager_->Connect(contact.id, contact.endpoint_pair.external, contact.public_key,
@@ -193,7 +194,9 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
 }
 
 template<typename Handler>
-void Transport::DetectNatType(NodeId const& peer_id, Handler handler) {
+void Transport::DetectNatType( NodeId const& peer_id
+                             , const asymm::PublicKey& peer_public_key
+                             , Handler handler) {
   Endpoint nat_detection_endpoint(connection_manager_->RemoteNatDetectionEndpoint(peer_id));
 
   if (!IsValid(nat_detection_endpoint)) {
@@ -209,6 +212,7 @@ void Transport::DetectNatType(NodeId const& peer_id, Handler handler) {
 
   connection_manager_->Ping(peer_id,
                             nat_detection_endpoint,
+                            peer_public_key,
                             strand_.wrap(on_ping));
 }
 
@@ -284,8 +288,9 @@ bool Transport::Send(const NodeId& peer_id, const std::string& message,
 }
 
 void Transport::Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
+                     const asymm::PublicKey& peer_public_key,
                      const std::function<void(int /*result*/)>& ping_functor) {
-  connection_manager_->Ping(peer_id, peer_endpoint, ping_functor);
+  connection_manager_->Ping(peer_id, peer_endpoint, peer_public_key, ping_functor);
 }
 
 std::shared_ptr<Connection> Transport::GetConnection(const NodeId& peer_id) {

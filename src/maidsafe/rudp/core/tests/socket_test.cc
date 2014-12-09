@@ -48,8 +48,8 @@ namespace test {
 
 namespace {
 
-const size_t kBufferSize = 256 * 1024;
-const size_t kIterations = 50;
+//const size_t kBufferSize = 256 * 1024;
+//const size_t kIterations = 50;
 
 }  // unnamed namespace
 

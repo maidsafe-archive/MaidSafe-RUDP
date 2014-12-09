@@ -141,9 +141,10 @@ void Connection::StartConnecting(const NodeId& peer_node_id, const ip::udp::endp
 }
 
 void Connection::Ping(const NodeId& peer_node_id, const ip::udp::endpoint& peer_endpoint,
+                      const asymm::PublicKey& peer_public_key,
                       const PingFunctor& ping_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
-                             peer_endpoint, asymm::PublicKey(), ConnectionAddedFunctor(),
+                             peer_endpoint, peer_public_key, ConnectionAddedFunctor(),
                              Parameters::ping_timeout, bptime::time_duration(), ping_functor,
                              OnConnect(), std::function<void()>()));
 }

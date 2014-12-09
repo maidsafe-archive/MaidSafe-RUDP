@@ -79,6 +79,7 @@ class ConnectionManager {
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
   void Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
+            const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
   bool Send(const NodeId& peer_id, const std::string& message,

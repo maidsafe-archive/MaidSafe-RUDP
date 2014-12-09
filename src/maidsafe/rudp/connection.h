@@ -86,6 +86,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
                        OnConnect on_connect,
                        const std::function<void()>& failure_functor);
   void Ping(const NodeId& peer_node_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+            const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   void StartSending(const std::string& data, const MessageSentFunctor& message_sent_functor);
   State state() const;

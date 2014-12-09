@@ -39,7 +39,7 @@ namespace maidsafe {
 namespace rudp {
 
 class ManagedConnections;
-class Contact;
+struct Contact;
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
 

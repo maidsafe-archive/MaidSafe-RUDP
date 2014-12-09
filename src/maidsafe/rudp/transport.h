@@ -103,6 +103,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
             const MessageSentFunctor& message_sent_functor);
 
   void Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
+            const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
 
   ConnectionPtr GetConnection(const NodeId& peer_id);
@@ -144,7 +145,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
                                   Handler handler);
 
   template<typename Handler>
-  void DetectNatType(NodeId const& peer_id, Handler);
+  void DetectNatType(NodeId const& peer_id, const asymm::PublicKey& peer_pub_key, Handler);
 
   void DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
                  const asymm::PublicKey& peer_public_key,

@@ -647,7 +647,8 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
 
   another_external_port = (*itr).second->external_endpoint().port();
   // This node doesn't care about the Ping result, but Ping should not be given a NULL functor.
-  (*itr).second->Ping(peer_id, peer_endpoint, [](int) {});  // NOLINT (Fraser)
+  assert(0 && "FIXME: valid public key");
+  (*itr).second->Ping(peer_id, peer_endpoint, asymm::PublicKey(), [](int) {});  // NOLINT (Fraser)
 }
 
 std::string ManagedConnections::DebugString() const {
