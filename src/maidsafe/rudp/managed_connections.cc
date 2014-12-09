@@ -629,15 +629,13 @@ int ManagedConnections::MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_end
 }
 
 void ManagedConnections::Remove(NodeId peer_id) {
-  if (peer_id == this_node_id_) {
-    LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
-    return;
-  }
-
   TransportPtr transport_to_close;
-
   {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (peer_id == this_node_id_) {
+      LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
+      return;
+    }
     auto itr(connections_.find(peer_id));
     if (itr == connections_.end()) {
       LOG(kWarning) << "Can't remove connection from " << DebugId(this_node_id_) << " to "
