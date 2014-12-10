@@ -34,15 +34,15 @@
 #include "maidsafe/rudp/utils.h"
 
 namespace args = std::placeholders;
-namespace asio = boost::asio;
+namespace Asio = boost::asio;
 namespace bptime = boost::posix_time;
-namespace ip = asio::ip;
+namespace ip = Asio::ip;
 
 namespace maidsafe {
 
 namespace rudp {
 
-typedef boost::asio::ip::udp::endpoint Endpoint;
+typedef Asio::ip::udp::endpoint Endpoint;
 
 namespace test {
 

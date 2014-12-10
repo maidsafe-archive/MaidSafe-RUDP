@@ -20,7 +20,7 @@
 
 #include <thread>
 #include <set>
-#include <boost/asio/use_future.hpp>
+#include "asio/use_future.hpp"
 
 #include "boost/lexical_cast.hpp"
 #include "boost/date_time/posix_time/posix_time.hpp"
@@ -44,8 +44,8 @@ namespace test {
 
 testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
                                       std::vector<Contact>& bootstrap_endpoints, int node_count) {
-  using boost::asio::use_future;
-  using boost::system::system_error;
+  using asio::use_future;
+  using std::system_error;
 
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 1";
   if (node_count < 2)
@@ -139,7 +139,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   //  return testing::AssertionFailure() << "Node 0 failed to add Node 1";
   //}
   EXPECT_THROW( nodes[0]->managed_connections()->Add(contacts[1], use_future).get()
-              , boost::system::system_error);
+              , system_error);
 
 
   nodes[0]->AddConnectedNodeId(nodes[1]->node_id());
@@ -149,7 +149,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   //  return testing::AssertionFailure() << "Node 1 failed to add Node 0";
   //}
   EXPECT_THROW( nodes[1]->managed_connections()->Add(contacts[0], use_future).get()
-              , boost::system::system_error);
+              , system_error);
   nodes[1]->AddConnectedNodeId(nodes[0]->node_id());
 
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 12 ";
@@ -400,8 +400,8 @@ Contact Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoin
       bootstrap_endpoints,
       std::make_shared<BootstrapListener>(*this),
       node_id_,
-      asymm::Keys(*private_key(), *public_key()),
-      boost::asio::use_future,
+      asymm::Keys{*private_key(), *public_key()},
+      asio::use_future,
       local_endpoint).get();
 
   //return managed_connections_->Bootstrap(

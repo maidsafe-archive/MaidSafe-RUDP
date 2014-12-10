@@ -65,8 +65,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
   };
 
   using ConnectionPtr = std::shared_ptr<Connection>;
-  using Error         = boost::system::error_code;
-  using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
+  using ExtErrorCode  = std::error_code;
+  using ErrorCode     = boost::system::error_code;
+  using OnConnect     = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
 
   Connection(const std::shared_ptr<Transport>& transport,
              const boost::asio::io_service::strand& strand,
@@ -117,7 +118,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
         : encrypted_data_(std::move(encrypted_data)), handler_(std::move(message_sent_functor)) {}
   };
 
-  void DoClose(const Error&);
+  void DoClose(const ExtErrorCode&);
 
   void DoStartConnecting(const NodeId& peer_node_id,
                          const boost::asio::ip::udp::endpoint& peer_endpoint,
@@ -132,8 +133,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void DoQueueSendRequest(SendRequest const& request);
   void FinishSendAndQueueNext();
 
-  void CheckTimeout(const boost::system::error_code& ec);
-  void CheckLifespanTimeout(const boost::system::error_code& ec);
+  void CheckTimeout(const ErrorCode& ec);
+  void CheckLifespanTimeout(const ErrorCode& ec);
   bool Stopped() const;
   bool TicksStopped() const;
 
@@ -144,31 +145,31 @@ class Connection : public std::enable_shared_from_this<Connection> {
                     const boost::posix_time::time_duration& connect_attempt_timeout,
                     const boost::posix_time::time_duration& lifespan,
                     const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
-  void HandleConnect(const boost::system::error_code& ec,
+  void HandleConnect(const ErrorCode& ec,
                      std::function<void(int)> ping_functor);  // NOLINT (Fraser)
 
   void StartReadSize();
-  void HandleReadSize(const boost::system::error_code& ec);
+  void HandleReadSize(const ErrorCode& ec);
 
   void StartReadData();
-  void HandleReadData(const boost::system::error_code& ec, size_t length);
+  void HandleReadData(const ErrorCode& ec, size_t length);
 
   void StartWrite(const MessageSentFunctor& message_sent_functor);  // NOLINT (Fraser)
   void HandleWrite(MessageSentFunctor message_sent_functor);        // NOLINT (Fraser)
 
   void StartProbing();
-  void DoProbe(const boost::system::error_code& ec);
-  void HandleProbe(const boost::system::error_code& ec);
+  void DoProbe(const ErrorCode& ec);
+  void HandleProbe(const ErrorCode& ec);
 
   void DoMakePermanent(bool validated);
 
   void EncodeData(const std::string& data);
 
   void InvokeSentFunctor(const MessageSentFunctor& message_sent_functor,
-                         const error_code& error) const;
+                         const ExtErrorCode& error) const;
 
-  void FireOnConnectFunctor(const Error&);
-  void FireConnectionAddedFunctor(const Error&);
+  void FireOnConnectFunctor(const ExtErrorCode&);
+  void FireConnectionAddedFunctor(const ExtErrorCode&);
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;

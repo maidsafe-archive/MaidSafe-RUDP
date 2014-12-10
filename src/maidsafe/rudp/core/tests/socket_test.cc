@@ -33,8 +33,8 @@
 #include "maidsafe/rudp/utils.h"
 #include "maidsafe/rudp/tests/test_utils.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
+namespace Asio = boost::asio;
+namespace ip = Asio::ip;
 namespace bs = boost::system;
 namespace args = std::placeholders;
 
@@ -53,22 +53,22 @@ namespace {
 
 }  // unnamed namespace
 
-void dispatch_handler(const bs::error_code& ec, std::shared_ptr<Multiplexer> muxer) {
+void dispatch_handler(const std::error_code& ec, std::shared_ptr<Multiplexer> muxer) {
   if (!ec)
     muxer->AsyncDispatch(std::bind(&dispatch_handler, args::_1, muxer));
 }
 
-void tick_handler(const bs::error_code& ec, Socket* sock) {
+void tick_handler(const std::error_code& ec, Socket* sock) {
   if (!ec)
     sock->AsyncTick(std::bind(&tick_handler, args::_1, sock));
 }
 
-void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; }
+void handler1(const std::error_code& ec, std::error_code* out_ec) { *out_ec = ec; }
 
 //TEST(SocketTest, BEH_Socket) {
 //  using Endpoint = ip::udp::endpoint;
 //
-//  asio::io_service io_service;
+//  Asio::io_service io_service;
 //  bs::error_code server_ec;
 //  bs::error_code client_ec;
 //  NodeId server_node_id(RandomString(NodeId::kSize)), client_node_id(RandomString(NodeId::kSize));
@@ -80,7 +80,7 @@ void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; 
 //
 //  std::shared_ptr<Multiplexer> server_multiplexer(new Multiplexer(io_service));
 //  ConnectionManager server_connection_manager(
-//      std::shared_ptr<Transport>(), asio::io_service::strand(io_service), server_multiplexer,
+//      std::shared_ptr<Transport>(), Asio::io_service::strand(io_service), server_multiplexer,
 //      server_node_id, std::shared_ptr<asymm::PublicKey>());
 //  ReturnCode condition = server_multiplexer->Open(Endpoint(GetLocalIp(), 0));
 //  ASSERT_EQ(kSuccess, condition);
@@ -88,7 +88,7 @@ void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; 
 //
 //  std::shared_ptr<Multiplexer> client_multiplexer(new Multiplexer(io_service));
 //  ConnectionManager client_connection_manager(
-//      std::shared_ptr<Transport>(), asio::io_service::strand(io_service), client_multiplexer,
+//      std::shared_ptr<Transport>(), Asio::io_service::strand(io_service), client_multiplexer,
 //      client_node_id, std::shared_ptr<asymm::PublicKey>());
 //  condition = client_multiplexer->Open(Endpoint(GetLocalIp(), 0));
 //  ASSERT_EQ(kSuccess, condition);
@@ -100,10 +100,10 @@ void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; 
 //
 //  NatType server_nat_type = NatType::kUnknown, client_nat_type = NatType::kUnknown;
 //  Socket server_socket(*server_multiplexer, server_nat_type);
-//  server_ec = asio::error::would_block;
+//  server_ec = Asio::error::would_block;
 //
 //  Socket client_socket(*client_multiplexer, client_nat_type);
-//  client_ec = asio::error::would_block;
+//  client_ec = Asio::error::would_block;
 //  auto on_nat_detection_requested_slot([](
 //      const Endpoint & /*this_local_endpoint*/, const NodeId & /*peer_id*/,
 //      const Endpoint & /*peer_endpoint*/,
@@ -117,7 +117,7 @@ void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; 
 //
 //  do {
 //    io_service.run_one();
-//  } while (server_ec == asio::error::would_block || client_ec == asio::error::would_block);
+//  } while (server_ec == Asio::error::would_block || client_ec == Asio::error::would_block);
 //  ASSERT_TRUE(!server_ec);
 //  ASSERT_TRUE(server_socket.IsOpen());
 //  ASSERT_TRUE(!client_ec);
@@ -129,31 +129,31 @@ void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; 
 //
 //  for (size_t i = 0; i < kIterations; ++i) {
 //    std::vector<unsigned char> server_buffer(kBufferSize);
-//    server_ec = asio::error::would_block;
-//    server_socket.AsyncRead(asio::buffer(server_buffer), kBufferSize,
+//    server_ec = Asio::error::would_block;
+//    server_socket.AsyncRead(Asio::buffer(server_buffer), kBufferSize,
 //                            std::bind(&handler1, args::_1, &server_ec));
 //
 //    std::vector<unsigned char> client_buffer(kBufferSize, 'A');
-//    client_ec = asio::error::would_block;
-//    client_socket.AsyncWrite(asio::buffer(client_buffer), [](int) {},  // NOLINT (Fraser)
+//    client_ec = Asio::error::would_block;
+//    client_socket.AsyncWrite(Asio::buffer(client_buffer), [](int) {},  // NOLINT (Fraser)
 //                             std::bind(&handler1, args::_1, &client_ec));
 //
 //    do {
 //      io_service.run_one();
-//    } while (server_ec == asio::error::would_block || client_ec == asio::error::would_block);
+//    } while (server_ec == Asio::error::would_block || client_ec == Asio::error::would_block);
 //    ASSERT_TRUE(!server_ec);
 //    ASSERT_TRUE(!client_ec);
 //  }
 //
-//  server_ec = asio::error::would_block;
+//  server_ec = Asio::error::would_block;
 //  server_socket.AsyncFlush(std::bind(&handler1, args::_1, &server_ec));
 //
-//  client_ec = asio::error::would_block;
+//  client_ec = Asio::error::would_block;
 //  client_socket.AsyncFlush(std::bind(&handler1, args::_1, &client_ec));
 //
 //  do {
 //    io_service.run_one();
-//  } while (server_ec == asio::error::would_block || client_ec == asio::error::would_block);
+//  } while (server_ec == Asio::error::would_block || client_ec == Asio::error::would_block);
 //  ASSERT_TRUE(!server_ec);
 //  ASSERT_TRUE(!client_ec);
 //}
@@ -161,7 +161,7 @@ void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; 
 //TEST(SocketTest, BEH_AsyncProbe) {
 //  using Endpoint = ip::udp::endpoint;
 //
-//  asio::io_service io_service;
+//  Asio::io_service io_service;
 //  bs::error_code server_ec;
 //  bs::error_code client_ec;
 //  asymm::Keys server_key_pair(asymm::GenerateKeyPair()), client_key_pair(asymm::GenerateKeyPair());
@@ -173,7 +173,7 @@ void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; 
 //
 //  std::shared_ptr<Multiplexer> server_multiplexer(new Multiplexer(io_service));
 //  ConnectionManager server_connection_manager(
-//      std::shared_ptr<Transport>(), asio::io_service::strand(io_service), server_multiplexer,
+//      std::shared_ptr<Transport>(), Asio::io_service::strand(io_service), server_multiplexer,
 //      server_node_id, std::shared_ptr<asymm::PublicKey>());
 //  ReturnCode result(kPendingResult);
 //  Endpoint server_endpoint;
@@ -189,7 +189,7 @@ void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; 
 //
 //  std::shared_ptr<Multiplexer> client_multiplexer(new Multiplexer(io_service));
 //  ConnectionManager client_connection_manager(
-//      std::shared_ptr<Transport>(), asio::io_service::strand(io_service), client_multiplexer,
+//      std::shared_ptr<Transport>(), Asio::io_service::strand(io_service), client_multiplexer,
 //      client_node_id, std::shared_ptr<asymm::PublicKey>());
 //  Endpoint client_endpoint;
 //  result = kPendingResult;
@@ -212,16 +212,16 @@ void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; 
 //  Socket server_socket(*server_multiplexer, server_nat_type);
 //
 //  // Probing when not connected
-//  client_ec = asio::error::would_block;
+//  client_ec = Asio::error::would_block;
 //  not_joined_client_socket.AsyncProbe(std::bind(&handler1, args::_1, &client_ec));
 //  do {
 //    io_service.run_one();
-//  } while (client_ec == asio::error::would_block);
-//  EXPECT_EQ(asio::error::not_connected, client_ec);
+//  } while (client_ec == Asio::error::would_block);
+//  EXPECT_EQ(Asio::error::not_connected, client_ec);
 //
 //  // Connecting to peer
-//  server_ec = asio::error::would_block;
-//  client_ec = asio::error::would_block;
+//  server_ec = Asio::error::would_block;
+//  client_ec = Asio::error::would_block;
 //
 //  auto on_nat_detection_requested_slot([](
 //      const Endpoint & /*this_local_endpoint*/, const NodeId & /*peer_id*/,
@@ -236,7 +236,7 @@ void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; 
 //
 //  do {
 //    io_service.run_one();
-//  } while (server_ec == asio::error::would_block || client_ec == asio::error::would_block);
+//  } while (server_ec == Asio::error::would_block || client_ec == Asio::error::would_block);
 //  ASSERT_TRUE(!server_ec);
 //  ASSERT_TRUE(server_socket.IsOpen());
 //  ASSERT_TRUE(!client_ec);
@@ -244,51 +244,51 @@ void handler1(const bs::error_code& ec, bs::error_code* out_ec) { *out_ec = ec; 
 //
 //  server_socket.AsyncTick(std::bind(&tick_handler, args::_1, &server_socket));
 //  client_socket.AsyncTick(std::bind(&tick_handler, args::_1, &client_socket));
-//  server_ec = asio::error::would_block;
-//  client_ec = asio::error::would_block;
+//  server_ec = Asio::error::would_block;
+//  client_ec = Asio::error::would_block;
 //  server_socket.AsyncFlush(std::bind(&handler1, args::_1, &server_ec));
 //  client_socket.AsyncFlush(std::bind(&handler1, args::_1, &client_ec));
 //
 //  do {
 //    io_service.run_one();
-//  } while (server_ec == asio::error::would_block || client_ec == asio::error::would_block);
+//  } while (server_ec == Asio::error::would_block || client_ec == Asio::error::would_block);
 //  ASSERT_TRUE(!server_ec);
 //  ASSERT_TRUE(!client_ec);
 //
 //  // Both ends probing together
-//  client_ec = asio::error::would_block;
-//  server_ec = asio::error::would_block;
+//  client_ec = Asio::error::would_block;
+//  server_ec = Asio::error::would_block;
 //  client_socket.AsyncProbe(std::bind(&handler1, args::_1, &client_ec));
 //  server_socket.AsyncProbe(std::bind(&handler1, args::_1, &server_ec));
 //  do {
 //    io_service.run_one();
-//  } while (client_ec == asio::error::would_block || server_ec == asio::error::would_block);
+//  } while (client_ec == Asio::error::would_block || server_ec == Asio::error::would_block);
 //  EXPECT_TRUE(!client_ec);
 //  EXPECT_TRUE(!server_ec);
 //
 //  // Multiple probe
-//  bs::error_code client_ec_1 = asio::error::would_block;
-//  bs::error_code client_ec_2 = asio::error::would_block;
-//  bs::error_code client_ec_3 = asio::error::would_block;
+//  bs::error_code client_ec_1 = Asio::error::would_block;
+//  bs::error_code client_ec_2 = Asio::error::would_block;
+//  bs::error_code client_ec_3 = Asio::error::would_block;
 //  client_socket.AsyncProbe(std::bind(&handler1, args::_1, &client_ec_1));
 //  client_socket.AsyncProbe(std::bind(&handler1, args::_1, &client_ec_2));
 //  client_socket.AsyncProbe(std::bind(&handler1, args::_1, &client_ec_3));
 //  do {
 //    io_service.run_one();
-//  } while (client_ec_1 == asio::error::would_block || client_ec_2 == asio::error::would_block ||
-//           client_ec_3 == asio::error::would_block);
-//  EXPECT_EQ(asio::error::operation_aborted, client_ec_1);
-//  EXPECT_EQ(asio::error::operation_aborted, client_ec_2);
+//  } while (client_ec_1 == Asio::error::would_block || client_ec_2 == Asio::error::would_block ||
+//           client_ec_3 == Asio::error::would_block);
+//  EXPECT_EQ(Asio::error::operation_aborted, client_ec_1);
+//  EXPECT_EQ(Asio::error::operation_aborted, client_ec_2);
 //  EXPECT_TRUE(!client_ec_3);
 //
 //  // Probing when peer shuts down
 //  server_socket.Close();
-//  client_ec = asio::error::would_block;
+//  client_ec = Asio::error::would_block;
 //  client_socket.AsyncProbe(std::bind(&handler1, args::_1, &client_ec));
 //  do {
 //    io_service.run_one();
-//  } while (client_ec == asio::error::would_block);
-//  EXPECT_EQ(asio::error::shut_down, client_ec);
+//  } while (client_ec == Asio::error::would_block);
+//  EXPECT_EQ(Asio::error::shut_down, client_ec);
 //
 //  server_multiplexer->Close();
 //  client_multiplexer->Close();

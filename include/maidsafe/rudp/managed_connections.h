@@ -116,7 +116,7 @@ class ManagedConnections {
   GetAvailableEndpointsReturn<CompletionToken> GetAvailableEndpoints(
       const NodeId& peer_id, CompletionToken&& token) {
     GetAvailableEndpointsHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
-    boost::asio::async_result<decltype(handler)> result(handler);
+    asio::async_result<decltype(handler)> result(handler);
     asio_service_.service().post([=] { DoGetAvailableEndpoints(peer_id, handler); });
     return result.get();
   }
@@ -260,7 +260,7 @@ BootstrapReturn<CompletionToken> ManagedConnections::Bootstrap(
     const NodeId& this_node_id, const asymm::Keys& keys, CompletionToken&& token,
     Endpoint local_endpoint) {
   BootstrapHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
-  boost::asio::async_result<decltype(handler)> result(handler);
+  asio::async_result<decltype(handler)> result(handler);
   asio_service_.service().post(
       [=] { DoBootstrap(bootstrap_list, listener, this_node_id, keys, handler, local_endpoint); });
   return result.get();
@@ -331,7 +331,7 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
     std::lock_guard<std::mutex> lock(mutex_);
     if (connections_.empty() && idle_transports_.empty()) {
       LOG(kError) << "No running Transports.";
-      return InvokeHandler(std::forward<Handler>(handler), error::no_descriptors,
+      return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unable_to_handle_request,
                            EndpointPair());
     }
 
@@ -351,8 +351,7 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
         return InvokeHandler(std::forward<Handler>(handler), RudpErrors::already_connected,
                              EndpointPair());
       } else {
-        return InvokeHandler(std::forward<Handler>(handler), error::no_descriptors, EndpointPair());
-        //return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unknown, EndpointPair());
+        return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unknown, EndpointPair());
       }
     }
 
@@ -379,7 +378,7 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
 
       if (!SelectAnyTransport(peer_id, this_endpoint_pair)) {
         LOG(kError) << "All connectable Transports are full.";
-        return handler(boost::asio::error::no_descriptors, EndpointPair());
+        return handler(CommonErrors::unable_to_handle_request, EndpointPair());
       }
 
       handler(Error(), this_endpoint_pair);
@@ -409,7 +408,7 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
 template <typename CompletionToken>
 AddReturn<CompletionToken> ManagedConnections::Add(const Contact& peer, CompletionToken&& token) {
   AddHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
-  boost::asio::async_result<decltype(handler)> result(handler);
+  asio::async_result<decltype(handler)> result(handler);
   asio_service_.service().post([=]() mutable { DoAdd(peer, handler); });
   return result.get();
 }
@@ -418,7 +417,7 @@ template <typename CompletionToken>
 RemoveReturn<CompletionToken> ManagedConnections::Remove(const NodeId& peer_id,
                                                          CompletionToken&& token) {
   RemoveHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
-  boost::asio::async_result<decltype(handler)> result(handler);
+  asio::async_result<decltype(handler)> result(handler);
   asio_service_.service().post([=] {
     DoRemove(peer_id);
     handler(make_error_code(CommonErrors::success));
@@ -431,7 +430,7 @@ SendReturn<CompletionToken> ManagedConnections::Send(const NodeId& peer_id,
                                                      SendableMessage&& message,
                                                      CompletionToken&& token) {
   SendHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
-  boost::asio::async_result<decltype(handler)> result(handler);
+  asio::async_result<decltype(handler)> result(handler);
   asio_service_.service().post([=] { DoSend(peer_id, std::move(message), handler); });
   return result.get();
 }

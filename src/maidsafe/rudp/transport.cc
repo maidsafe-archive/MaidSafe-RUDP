@@ -36,9 +36,8 @@
 #include "maidsafe/rudp/types.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
-namespace args = std::placeholders;
+namespace ip     = boost::asio::ip;
+namespace args   = std::placeholders;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -168,10 +167,8 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
 
   auto default_on_connect = MakeDefaultOnConnectHandler();
 
-  LOG(kVerbose) << "peter " << this << " ConnectToBootstrapEndpoint";
   auto on_connect = [this, handler, default_on_connect]
-                    (const Error& error, const ConnectionPtr& connection) mutable {
-    LOG(kVerbose) << "peter on_connect " << error.message();
+                    (const ExtErrorCode& error, const ConnectionPtr& connection) mutable {
     if (error) {
       return handler(NodeId());
     }
@@ -242,7 +239,7 @@ void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint
 Transport::OnConnect Transport::MakeDefaultOnConnectHandler() {
   std::weak_ptr<Transport> weak_self = shared_from_this();
 
-  return [weak_self](const Error& error, const ConnectionPtr& connection) {  // NOLINT
+  return [weak_self](const ExtErrorCode& error, const ConnectionPtr& connection) {  // NOLINT
     if (error)
       return;
 
@@ -328,7 +325,7 @@ bool Transport::IsAvailable() const {
 void Transport::StartDispatch() {
   std::weak_ptr<Transport> weak_self = shared_from_this();
 
-  auto handler = strand_.wrap([weak_self](const Error& error) {
+  auto handler = strand_.wrap([weak_self](const ExtErrorCode& error) {
     if (auto self = weak_self.lock()) {
       self->HandleDispatch(error);
     }
@@ -337,7 +334,7 @@ void Transport::StartDispatch() {
   multiplexer_->AsyncDispatch(handler);
 }
 
-void Transport::HandleDispatch(const boost::system::error_code& /*ec*/) {
+void Transport::HandleDispatch(const ExtErrorCode& /*ec*/) {
   if (!multiplexer_->IsOpen())
     return;
 
