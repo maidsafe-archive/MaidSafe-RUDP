@@ -507,7 +507,8 @@ bool ManagedConnections::ShouldStartNewTransport(const EndpointPair& peer_endpoi
 }
 
 void ManagedConnections::AddPending(std::unique_ptr<PendingConnection> connection) {
-  NodeId peer_id(connection->node_id);
+  NodeId peer_id(connection->node_id.ToStringEncoded(NodeId::EncodingType::kHex),
+                 NodeId::EncodingType::kHex);
   pendings_.push_back(std::move(connection));
   pendings_.back()->timer.async_wait([peer_id, this](const boost::system::error_code & ec) {
     if (ec != boost::asio::error::operation_aborted) {
