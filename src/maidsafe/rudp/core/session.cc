@@ -342,7 +342,7 @@ void Session::SendConnectionRequest() {
   if (cookie_retries_togo_)
     --cookie_retries_togo_;
   HandshakePacket packet;
-  packet.SetPublicKey(peer_.public_key());
+  packet.SetPublicKey(this_public_key_);
   packet.SetRudpVersion(4);
   packet.SetSocketType(HandshakePacket::kStreamSocketType);
   packet.SetSocketId(id_);
@@ -402,7 +402,7 @@ void Session::SendConnected() {
   if (cookie_retries_togo_)
     --cookie_retries_togo_;
   HandshakePacket packet;
-  packet.SetPublicKey(peer_.public_key());
+  packet.SetPublicKey(this_public_key_);
   packet.SetPeerEndpoint(peer_.PeerEndpoint());
   packet.SetDestinationSocketId(peer_.SocketId());
   packet.SetRudpVersion(4);
