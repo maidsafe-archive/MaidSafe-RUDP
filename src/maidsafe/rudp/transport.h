@@ -130,7 +130,8 @@ class Transport : public std::enable_shared_from_this<Transport> {
   Transport(const Transport&);
   Transport& operator=(const Transport&);
 
-  typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
+  typedef std::shared_ptr<Multiplexer>       MultiplexerPtr;
+  typedef std::shared_ptr<ConnectionManager> ConnectionManagerPtr;
 
   template<typename Handler>
   void TryBootstrapping(const BootstrapContacts& bootstrap_list,
@@ -171,7 +172,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   NatType&                           nat_type_;
   boost::asio::io_service::strand    strand_;
   MultiplexerPtr                     multiplexer_;
-  std::unique_ptr<ConnectionManager> connection_manager_;
+  ConnectionManagerPtr               connection_manager_;
   std::mutex                         callback_mutex_;
 
   OnMessage         on_message_;

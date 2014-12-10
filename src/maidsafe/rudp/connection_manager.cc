@@ -69,17 +69,19 @@ ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
   multiplexer_->dispatcher_.SetConnectionManager(this);
 }
 
-ConnectionManager::~ConnectionManager() { Close(); }
+ConnectionManager::~ConnectionManager() {
+  Close();
+}
 
 void ConnectionManager::Close() {
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto connection : connections_)
-      strand_.post(std::bind(&Connection::Close, connection));
+  std::lock_guard<std::mutex> lock(mutex_);
+
+  for (auto connection : connections_) {
+    strand_.post([connection]() {
+        connection->Close();
+        });
   }
-  // Ugly, but we must not reset dispatcher until he's done
-  while (multiplexer_->dispatcher_.use_count())
-    std::this_thread::yield();
+
   multiplexer_->dispatcher_.SetConnectionManager(nullptr);
 }
 
@@ -313,12 +315,16 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
     joining_connection->Close();
   } else {
     // Joining node is not already connected - start new bootstrap or temporary connection
-    if (auto t = transport_.lock()) {
-      Connect(handshake_packet.node_id(), endpoint, handshake_packet.PublicKey(), nullptr,
-              Parameters::bootstrap_connect_timeout,
-              bootstrap_and_drop ? bptime::time_duration() :
-                                   Parameters::bootstrap_connection_lifespan,
-              t->MakeDefaultOnConnectHandler(), nullptr);
+    if (auto transport = transport_.lock()) {
+      Connect(
+          handshake_packet.node_id(),
+          endpoint,
+          handshake_packet.PublicKey(),
+          Parameters::bootstrap_connect_timeout,
+          bootstrap_and_drop ? bptime::time_duration()
+                             : Parameters::bootstrap_connection_lifespan,
+          transport->MakeDefaultOnConnectHandler(),
+          nullptr);
     }
   }
 }
