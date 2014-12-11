@@ -242,7 +242,7 @@ ReturnCode ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_p
   std::promise<ReturnCode> setter;
   auto getter = setter.get_future();
 
-  auto on_bootstrap = [&](ReturnCode bootstrap_result, NodeId chosen_id) {
+  auto on_bootstrap = [&, transport](ReturnCode bootstrap_result, NodeId chosen_id) {
     if (bootstrap_result != kSuccess) {
       lock_guard lock(mutex_);
       transport->Close();
