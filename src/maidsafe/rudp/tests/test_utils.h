@@ -39,7 +39,6 @@ namespace maidsafe {
 namespace rudp {
 
 class ManagedConnections;
-struct Contact;
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
 
@@ -52,7 +51,7 @@ class Node;
 typedef std::shared_ptr<Node> NodePtr;
 
 testing::AssertionResult SetupNetwork(std::vector<NodePtr> & nodes,
-                                      std::vector<Contact> & bootstrap_endpoints, int node_count);
+                                      std::vector<Endpoint> & bootstrap_endpoints, int node_count);
 
 
 class Node {
@@ -64,7 +63,8 @@ class Node {
   explicit Node(int id);
   std::vector<NodeId> connection_lost_node_ids() const;
   messages_t messages() const;
-  Contact Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint = Endpoint());
+  int Bootstrap(const std::vector<Endpoint>& bootstrap_endpoints, NodeId& chosen_bootstrap_peer,
+                Endpoint local_endpoint = Endpoint());
   boost::future<messages_t> GetFutureForMessages(uint32_t message_count);
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }

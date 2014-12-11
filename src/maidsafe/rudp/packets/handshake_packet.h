@@ -94,8 +94,8 @@ class HandshakePacket : public ControlPacket {
   boost::asio::ip::udp::endpoint PeerEndpoint() const;
   void SetPeerEndpoint(const boost::asio::ip::udp::endpoint& endpoint);
 
-  asymm::PublicKey PublicKey() const;
-  void SetPublicKey(const asymm::PublicKey& public_key);
+  std::shared_ptr<asymm::PublicKey> PublicKey() const;
+  void SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key);
 
   static bool IsValid(const boost::asio::const_buffer& buffer);
   bool Decode(const boost::asio::const_buffer& buffer);
@@ -115,7 +115,7 @@ class HandshakePacket : public ControlPacket {
   bool request_nat_detection_port_;
   uint16_t nat_detection_port_;
   boost::asio::ip::udp::endpoint peer_endpoint_;
-  asymm::PublicKey public_key_;
+  std::shared_ptr<asymm::PublicKey> public_key_;
 };
 
 }  // namespace detail
