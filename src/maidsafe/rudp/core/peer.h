@@ -27,6 +27,7 @@
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
+
 #include "maidsafe/rudp/core/multiplexer.h"
 
 namespace maidsafe {
@@ -60,9 +61,9 @@ class Peer {
   NodeId node_id() const { return node_id_; }
   void set_node_id(NodeId node_id) { node_id_ = node_id; }
 
-  std::shared_ptr<asymm::PublicKey> public_key() const { return public_key_; }
-  void SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key) {
-    assert(asymm::ValidateKey(*public_key));
+  const asymm::PublicKey& public_key() const { return public_key_; }
+  void SetPublicKey(const asymm::PublicKey& public_key) {
+    assert(asymm::ValidateKey(public_key));
     public_key_ = public_key;
   }
 
@@ -90,7 +91,7 @@ class Peer {
   // The remote peer's NodeId.
   NodeId node_id_;
   // The remote peer's PublicKey.
-  std::shared_ptr<asymm::PublicKey> public_key_;
+  asymm::PublicKey public_key_;
   // The port originally guessed by the peer when passing its details to this node.  This will be
   // set by the ConnectionManager if it detects that the peer's actual external port is different to
   // the one provided by the peer as its best guess.

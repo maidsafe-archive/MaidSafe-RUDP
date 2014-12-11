@@ -35,8 +35,8 @@
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace asio = boost::asio;
-namespace ip = boost::asio::ip;
+namespace Asio = boost::asio;
+namespace ip = Asio::ip;
 namespace bs = boost::system;
 
 namespace maidsafe {
@@ -45,7 +45,7 @@ namespace rudp {
 
 namespace detail {
 
-Multiplexer::Multiplexer(asio::io_service& asio_service)
+Multiplexer::Multiplexer(Asio::io_service& asio_service)
     : socket_(asio_service),
       sender_endpoint_(),
       dispatcher_(),
@@ -133,7 +133,7 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
 
   if (endpoint.port() == 0U) {
     // Try to bind to Resilience port first. If this fails, just fall back to port 0 (i.e. any port)
-    socket_.bind(ip::udp::endpoint(endpoint.address(), ManagedConnections::kResiliencePort()), ec);
+    socket_.bind(ip::udp::endpoint(endpoint.address(), kLivePort), ec);
     if (!ec)
       return kSuccess;
   }
