@@ -417,7 +417,7 @@ RemoveReturn<CompletionToken> ManagedConnections::Remove(const NodeId& peer_id,
                                                          CompletionToken&& token) {
   RemoveHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
-  asio_service_.service().post([=] {
+  asio_service_.service().post([=]() mutable {
     DoRemove(peer_id);
     handler(make_error_code(CommonErrors::success));
   });
@@ -430,7 +430,7 @@ SendReturn<CompletionToken> ManagedConnections::Send(const NodeId& peer_id,
                                                      CompletionToken&& token) {
   SendHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
-  asio_service_.service().post([=] { DoSend(peer_id, std::move(message), handler); });
+  asio_service_.service().post([=]() mutable { DoSend(peer_id, std::move(message), handler); });
   return result.get();
 }
 
