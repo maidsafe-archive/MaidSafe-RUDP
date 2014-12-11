@@ -34,7 +34,7 @@ struct Parameters {
   // Thread count for use of asio::io_service.
   static uint32_t thread_count;
 
-  // Maximum number of Transports per ManagedConnections object
+  // Maximum number of Transports per managed_connections object
   static int max_transports;
 
   // The window size increases/decreases by increments of the maximum_segment_size

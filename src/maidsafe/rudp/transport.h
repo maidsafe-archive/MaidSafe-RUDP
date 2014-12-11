@@ -37,9 +37,11 @@
 #include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
+#include "maidsafe/rudp/contact.h"
 #include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/nat_type.h"
 #include "maidsafe/rudp/parameters.h"
+#include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/core/session.h"
 
 namespace maidsafe {
@@ -55,7 +57,7 @@ class Socket;
 
 class Transport : public std::enable_shared_from_this<Transport> {
  public:
-  typedef std::function<void(const std::string&)> OnMessage;
+  typedef std::function<void(const NodeId& peer_id, const std::string&)> OnMessage;
 
   typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, std::atomic<bool> &)>
       OnConnectionAdded;
@@ -63,23 +65,24 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool)>
       OnConnectionLost;
 
-  using Endpoint        = boost::asio::ip::udp::endpoint;
-  using ConnectionPtr   = std::shared_ptr<Connection>;
-  using Error           = boost::system::error_code;
-  using OnConnect       = std::function<void(const Error&, const ConnectionPtr&)>;
-  using Duration        = boost::posix_time::time_duration;
-  using IdEndpointPairs = std::vector<std::pair<NodeId, Endpoint>>;
-  using OnNatDetected   = Session::OnNatDetectionRequested::slot_function_type;
-  using OnBootstrap     = std::function<void(ReturnCode, NodeId)>;
+  using Endpoint          = boost::asio::ip::udp::endpoint;
+  using ConnectionPtr     = std::shared_ptr<Connection>;
+  using ExtErrorCode      = std::error_code;
+  using ErrorCode         = boost::system::error_code;
+  using OnConnect         = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using Duration          = boost::posix_time::time_duration;
+  using OnNatDetected     = Session::OnNatDetectionRequested::slot_function_type;
+  using OnBootstrap       = std::function<void(ReturnCode, Contact)>;
+  using BootstrapContacts = std::vector<Contact>;
 
  public:
   Transport(AsioService& asio_service, NatType& nat_type_);
 
   virtual ~Transport();
 
-  void Bootstrap(const IdEndpointPairs&            bootstrap_peers,
+  void Bootstrap(const BootstrapContacts&          bootstrap_list,
                  const NodeId&                     this_node_id,
-                 std::shared_ptr<asymm::PublicKey> this_public_key,
+                 const asymm::PublicKey&  this_public_key,
                  Endpoint                          local_endpoint,
                  bool                              bootstrap_off_existing_connection,
                  OnMessage                         on_message_slot,
@@ -91,16 +94,17 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void Close();
 
   void Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
-               const std::string& validation_data);
+               asymm::PublicKey peer_public_key, ConnectionAddedFunctor handler);
 
   // If this causes the size of connected_endpoints_ to drop to 0, this transport will remove
   // itself from ManagedConnections which will cause it to be destroyed.
   bool CloseConnection(const NodeId& peer_id);
 
   bool Send(const NodeId& peer_id, const std::string& message,
-            const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
+            const MessageSentFunctor& message_sent_functor);
 
   void Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
+            const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
 
   ConnectionPtr GetConnection(const NodeId& peer_id);
@@ -109,8 +113,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
   Endpoint local_endpoint() const;
   Endpoint ThisEndpointAsSeenByPeer(const NodeId& peer_id);
   void SetBestGuessExternalEndpoint(const Endpoint& external_endpoint);
-
-  bool MakeConnectionPermanent(const NodeId& peer_id, bool validated, Endpoint& peer_endpoint);
 
   size_t NormalConnectionsCount() const;
   bool IsIdle() const;
@@ -132,34 +134,33 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::shared_ptr<Multiplexer>       MultiplexerPtr;
   typedef std::shared_ptr<ConnectionManager> ConnectionManagerPtr;
 
-  template<class Handler>
-  void TryBootstrapping(const IdEndpointPairs& bootstrap_peers,
+  template<typename Handler>
+  void TryBootstrapping(const BootstrapContacts& bootstrap_list,
                         bool bootstrap_off_existing_connection,
                         Handler);
 
-  template<class Iterator, class Handler>
+  template<typename Iterator, typename Handler>
   void ConnectToBootstrapEndpoint(Iterator begin, Iterator end, Duration lifespan, Handler handler);
 
-  template<class Handler>
-  void ConnectToBootstrapEndpoint(const NodeId&   bootstrap_node_id,
-                                  const Endpoint& bootstrap_endpoint,
-                                  const Duration& lifespan,
-                                  Handler);
+  template<typename Handler>
+  void ConnectToBootstrapEndpoint(const Contact& contact, const Duration& lifespan,
+                                  Handler handler);
 
-  template<class Handler>
-  void DetectNatType(NodeId const& peer_id, Handler);
+  template<typename Handler>
+  void DetectNatType(NodeId const& peer_id, const asymm::PublicKey& peer_pub_key, Handler);
 
   void DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
-                 const std::string& validation_data);
+                 const asymm::PublicKey& peer_public_key,
+                 ConnectionAddedFunctor connection_added_functor);
 
   void StartDispatch();
-  void HandleDispatch(const boost::system::error_code& ec);
+  void HandleDispatch(const ExtErrorCode& ec);
 
   NodeId node_id() const;
-  std::shared_ptr<asymm::PublicKey> public_key() const;
+  const asymm::PublicKey& public_key() const;
 
-  void SignalMessageReceived(const std::string& message);
-  void DoSignalMessageReceived(const std::string& message);
+  void SignalMessageReceived(const NodeId& peer_id, const std::string& message);
+  void DoSignalMessageReceived(const NodeId& peer_id, const std::string& message);
   void AddConnection(ConnectionPtr connection);
   void DoAddConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection, bool timed_out);
