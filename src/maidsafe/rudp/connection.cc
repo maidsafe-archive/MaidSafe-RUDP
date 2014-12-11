@@ -229,7 +229,7 @@ void Connection::StartSending(const std::string& data,
   }
 }
 
-void Connection::DoQueueSendRequest(SendRequest const& request) {
+void Connection::DoQueueSendRequest(SendRequest const request) {
   if (sending_) {
     send_queue_.push(request);
   } else {
@@ -246,7 +246,7 @@ void Connection::FinishSendAndQueueNext() {
   }
 }
 
-void Connection::DoStartSending(SendRequest const& request) {
+void Connection::DoStartSending(SendRequest const request) {
   sending_ = true;
   const std::function<void(int)> message_sent_functor = request.message_sent_functor_;  // NOLINT
   MessageSentFunctor wrapped_functor([this, message_sent_functor](int result) {

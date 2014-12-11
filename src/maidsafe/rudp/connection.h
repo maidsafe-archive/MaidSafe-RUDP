@@ -128,8 +128,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
                          const std::function<void(int)>& ping_functor,  // NOLINT (Fraser)
                          const OnConnect& on_connect,
                          const std::function<void()>& failure_functor);
-  void DoStartSending(SendRequest const& request);  // NOLINT (Fraser)
-  void DoQueueSendRequest(SendRequest const& request);
+  void DoStartSending(SendRequest const request);  // NOLINT (Fraser)
+  void DoQueueSendRequest(SendRequest const request);
   void FinishSendAndQueueNext();
 
   void CheckTimeout(const boost::system::error_code& ec);
