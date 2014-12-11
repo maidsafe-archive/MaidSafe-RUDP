@@ -42,7 +42,6 @@
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/contact.h"
-#include "maidsafe/rudp/return_codes.h"
 
 namespace maidsafe {
 
