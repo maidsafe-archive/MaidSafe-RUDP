@@ -37,46 +37,40 @@ struct Contact;
 using Endpoint = boost::asio::ip::udp::endpoint;
 using SendableMessage = std::vector<unsigned char>;
 using ReceivedMessage = std::vector<unsigned char>;
-using error_code      = std::error_code;
+using error_code = std::error_code;
 
 template <typename CompletionToken>
 using BootstrapHandler =
     typename asio::handler_type<CompletionToken, void(error_code, Contact)>::type;
 
 template <typename CompletionToken>
-using BootstrapReturn =
-    typename asio::async_result<BootstrapHandler<CompletionToken>>::type;
+using BootstrapReturn = typename asio::async_result<BootstrapHandler<CompletionToken>>::type;
 
 template <typename CompletionToken>
 using GetAvailableEndpointsHandler =
     typename asio::handler_type<CompletionToken, void(error_code, EndpointPair)>::type;
 
 template <typename CompletionToken>
-using GetAvailableEndpointsReturn = typename asio::async_result<
-                                      GetAvailableEndpointsHandler<CompletionToken>>::type;
+using GetAvailableEndpointsReturn =
+    typename asio::async_result<GetAvailableEndpointsHandler<CompletionToken>>::type;
 
 template <typename CompletionToken>
 using AddHandler = typename asio::handler_type<CompletionToken, void(error_code)>::type;
 
 template <typename CompletionToken>
-using AddReturn =
-    typename asio::async_result<AddHandler<CompletionToken>>::type;
+using AddReturn = typename asio::async_result<AddHandler<CompletionToken>>::type;
 
 template <typename CompletionToken>
-using RemoveHandler =
-    typename asio::handler_type<CompletionToken, void(error_code)>::type;
+using RemoveHandler = typename asio::handler_type<CompletionToken, void(error_code)>::type;
 
 template <typename CompletionToken>
-using RemoveReturn =
-    typename asio::async_result<typename RemoveHandler<CompletionToken>>::type;
+using RemoveReturn = typename asio::async_result<RemoveHandler<CompletionToken>>::type;
 
 template <typename CompletionToken>
-using SendHandler =
-    typename asio::handler_type<CompletionToken, void(error_code)>::type;
+using SendHandler = typename asio::handler_type<CompletionToken, void(error_code)>::type;
 
 template <typename CompletionToken>
-using SendReturn =
-    typename asio::async_result<typename SendHandler<CompletionToken>>::type;
+using SendReturn = typename asio::async_result<SendHandler<CompletionToken>>::type;
 
 
 
