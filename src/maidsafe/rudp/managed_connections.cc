@@ -168,9 +168,11 @@ void ManagedConnections::ClearConnectionsAndIdleTransports() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!connections_.empty()) {
     for (auto connection_details : connections_) {
-      assert(connection_details.second->GetConnection(connection_details.first)->state() ==
-             detail::Connection::State::kBootstrapping);
-      connection_details.second->Close();
+      auto connection_ptr(connection_details.second->GetConnection(connection_details.first));
+      if (connection_ptr) {
+        assert(connection_ptr->state() == detail::Connection::State::kBootstrapping);
+        connection_details.second->Close();
+      }
     }
     connections_.clear();
   }
@@ -507,7 +509,8 @@ bool ManagedConnections::ShouldStartNewTransport(const EndpointPair& peer_endpoi
 }
 
 void ManagedConnections::AddPending(std::unique_ptr<PendingConnection> connection) {
-  NodeId peer_id(connection->node_id);
+  NodeId peer_id(connection->node_id.ToStringEncoded(NodeId::EncodingType::kHex),
+                 NodeId::EncodingType::kHex);
   pendings_.push_back(std::move(connection));
   pendings_.back()->timer.async_wait([peer_id, this](const boost::system::error_code & ec) {
     if (ec != boost::asio::error::operation_aborted) {
@@ -629,15 +632,13 @@ int ManagedConnections::MarkConnectionAsValid(NodeId peer_id, Endpoint& peer_end
 }
 
 void ManagedConnections::Remove(NodeId peer_id) {
-  if (peer_id == this_node_id_) {
-    LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
-    return;
-  }
-
   TransportPtr transport_to_close;
-
   {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (peer_id == this_node_id_) {
+      LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
+      return;
+    }
     auto itr(connections_.find(peer_id));
     if (itr == connections_.end()) {
       LOG(kWarning) << "Can't remove connection from " << DebugId(this_node_id_) << " to "
@@ -682,11 +683,11 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
   LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();
 
   try {
-    std::string decrypted_message(
+    std::shared_ptr<std::string> decrypted_message(new std::string(
 #ifdef TESTING
         !Parameters::rudp_encrypt ? message :
 #endif
-            asymm::Decrypt(asymm::CipherText(message), *private_key_).string());
+            asymm::Decrypt(asymm::CipherText(message), *private_key_).string()));
     MessageReceivedFunctor local_callback;
     {
       std::lock_guard<std::mutex> guard(callback_mutex_);
@@ -694,7 +695,7 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
     }
 
     if (local_callback) {
-      asio_service_.service().post([=] { local_callback(decrypted_message); });
+      asio_service_.service().post([=] { local_callback(*decrypted_message); });
     }
   }
   catch (const std::exception& e) {
