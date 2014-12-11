@@ -68,7 +68,7 @@ using RemoveHandler =
 
 template <typename CompletionToken>
 using RemoveReturn =
-    typename asio::async_result<typename RemoveHandler<CompletionToken>::type>::type;
+    typename asio::async_result<typename RemoveHandler<CompletionToken>>::type;
 
 template <typename CompletionToken>
 using SendHandler =
@@ -76,7 +76,7 @@ using SendHandler =
 
 template <typename CompletionToken>
 using SendReturn =
-    typename asio::async_result<typename SendHandler<CompletionToken>::type>::type;
+    typename asio::async_result<typename SendHandler<CompletionToken>>::type;
 
 
 
