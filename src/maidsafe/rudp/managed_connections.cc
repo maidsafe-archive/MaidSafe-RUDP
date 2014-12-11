@@ -74,7 +74,10 @@ ManagedConnections::ManagedConnections()
       idle_transports_(),
       mutex_(),
       local_ip_(),
-      nat_type_(maidsafe::make_unique<NatType>(NatType::kUnknown)) {}
+      nat_type_(maidsafe::make_unique<NatType>(NatType::kUnknown))
+{
+  LOG(kVerbose) << "peter ManagedConnections()";
+}
 
 ManagedConnections::~ManagedConnections() {
   {
@@ -142,20 +145,19 @@ int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
   return kSuccess;
 }
 
-int ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
+//int ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
+//                                                 const Endpoint& local_endpoint,
+//                                                 Contact& chosen_bootstrap_contact) {
+void ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
                                                  const Endpoint& local_endpoint,
-                                                 Contact& chosen_bootstrap_contact) {
-  int result = StartNewTransport(bootstrap_list, local_endpoint);
-  if (result != kSuccess) {
-    LOG(kError) << "Failed to bootstrap managed connections.";
-    return result;
-  }
-  chosen_bootstrap_contact = chosen_bootstrap_contact_;
-  return kSuccess;
+                                                 const std::function<void(Error, const Contact&)>& handler) {
+  StartNewTransport(bootstrap_list, local_endpoint, handler);
 }
 
-int ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
-                                          Endpoint local_endpoint) {
+void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
+                                          Endpoint local_endpoint,
+                                          const std::function<void(Error, const Contact&)>& handler) {
+  LOG(kVerbose) << "peter " << this << " StartNewTrasport";
   TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, *nat_type_));
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
@@ -178,15 +180,16 @@ int ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
     }
   }
 
-  using lock_guard = std::lock_guard<std::mutex>;
-  std::promise<ReturnCode> setter;
-  auto getter = setter.get_future();
+  //using lock_guard = std::lock_guard<std::mutex>;
+  //std::promise<ReturnCode> setter;
+  //auto getter = setter.get_future();
 
-  auto on_bootstrap = [&](ReturnCode bootstrap_result, Contact chosen_contact) {
+  auto on_bootstrap = [=](ReturnCode bootstrap_result, Contact chosen_contact) {
     if (bootstrap_result != kSuccess) {
-      lock_guard lock(mutex_);
+      //lock_guard lock(mutex_);
       transport->Close();
-      return setter.set_value(bootstrap_result);
+      return handler(RudpErrors::failed_to_bootstrap, chosen_contact);
+      //return setter.set_value(bootstrap_result);
     }
 
     if (!chosen_bootstrap_contact_.id.IsValid())
@@ -199,8 +202,13 @@ int ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
           Endpoint(external_address, transport->local_endpoint().port()));
     }
 
-    lock_guard guard(mutex_);
-    return setter.set_value(kSuccess);
+    //lock_guard guard(mutex_);
+    //return setter.set_value(kSuccess);
+    if (bootstrap_result != kSuccess) {
+      return handler(RudpErrors::failed_to_bootstrap, chosen_contact);
+    }
+
+    return handler(Error(), chosen_contact);
   };
 
   transport->Bootstrap(
@@ -217,18 +225,11 @@ int ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
                 args::_3, args::_4),
       on_bootstrap);
 
-  getter.wait();
-  { lock_guard guard(mutex_); }
-  auto result = getter.get();
+  //getter.wait();
+  //{ lock_guard guard(mutex_); }
+  //auto result = getter.get();
 
-  if (result == kSuccess) {
-    LOG(kVerbose) << "Started a new transport on " << transport->external_endpoint() << " / "
-                  << transport->local_endpoint() << " behind " << *nat_type_;
-  } else {
-    LOG(kWarning) << "Failed to start a new Transport.";
-  }
-
-  return result;
+  //return result;
 }
 
 void ManagedConnections::GetBootstrapEndpoints(BootstrapContacts& bootstrap_list,
@@ -418,6 +419,7 @@ std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator
 }
 
 void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handler) {
+  LOG(kVerbose) << "peter DoAdd";
   if (peer.id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
     return handler(make_error_code(RudpErrors::operation_not_supported));
@@ -425,19 +427,21 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
 
   std::lock_guard<std::mutex> lock(mutex_);
 
+  LOG(kVerbose) << "peter DoAdd";
   auto itr(FindPendingTransportWithNodeId(peer.id));
   if (itr == pendings_.end()) {
     if (connections_.find(peer.id) != connections_.end()) {
-      LOG(kWarning) << "A managed connection from " << this_node_id_ << " to " << peer.id
+      LOG(kWarning) << "peter A managed connection from " << this_node_id_ << " to " << peer.id
                     << " already exists, and this node's chosen BootstrapID is "
                     << chosen_bootstrap_contact_.id;
-      return handler(make_error_code(RudpErrors::already_connected));
+      return handler(RudpErrors::already_connected);
     }
-    LOG(kError) << "No connection attempt from " << this_node_id_ << " to " << peer.id
+    LOG(kError) << "peter No connection attempt from " << this_node_id_ << " to " << peer.id
                 << " - ensure GetAvailableEndpoint has been called first.";
     return handler(make_error_code(RudpErrors::operation_not_supported));
   }
 
+  LOG(kVerbose) << "peter DoAdd";
   if ((*itr)->connecting) {
     LOG(kWarning) << "A connection attempt from " << this_node_id_ << " to " << peer.id
                   << " is already happening";
@@ -447,6 +451,7 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
   TransportPtr selected_transport((*itr)->pending_transport);
   (*itr)->connecting = true;
 
+  LOG(kVerbose) << "peter DoAdd";
   std::shared_ptr<detail::Connection> connection(selected_transport->GetConnection(peer.id));
   if (connection) {
     // If the connection exists, it should be a bootstrapping one.  If the peer used this node,
@@ -463,7 +468,7 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
                    peer_endpoint == connection->Socket().PeerEndpoint() :
                    true);
       }
-      return handler(make_error_code(CommonErrors::success));
+      return handler(error_code());
     } else {
       LOG(kError) << "A managed connection from " << this_node_id_ << " to " << peer.id
                   << " already exists, and this node's chosen bootstrap ID is "
@@ -473,6 +478,7 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
     }
   }
 
+  LOG(kVerbose) << "peter DoAdd";
   selected_transport->Connect(std::move(peer.id), std::move(peer.endpoint_pair),
                               std::move(peer.public_key), handler);
 }
@@ -641,7 +647,8 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
 
   another_external_port = (*itr).second->external_endpoint().port();
   // This node doesn't care about the Ping result, but Ping should not be given a NULL functor.
-  (*itr).second->Ping(peer_id, peer_endpoint, [](int) {});  // NOLINT (Fraser)
+  assert(0 && "FIXME: valid public key");
+  (*itr).second->Ping(peer_id, peer_endpoint, asymm::PublicKey(), [](int) {});  // NOLINT (Fraser)
 }
 
 std::string ManagedConnections::DebugString() const {

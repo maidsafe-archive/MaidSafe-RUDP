@@ -36,9 +36,8 @@
 #include "maidsafe/rudp/types.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
-namespace args = std::placeholders;
+namespace ip     = boost::asio::ip;
+namespace args   = std::placeholders;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -58,7 +57,10 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
       on_nat_detection_requested_slot_(),
       managed_connections_debug_printout_() {}
 
-Transport::~Transport() { Close(); }
+Transport::~Transport() {
+  LOG(kVerbose) << "peter ~Transport " << this;
+  Close();
+}
 
 void Transport::Bootstrap(const BootstrapContacts& bootstrap_list, const NodeId& this_node_id,
                           const asymm::PublicKey& this_public_key, Endpoint local_endpoint,
@@ -100,6 +102,7 @@ void Transport::Bootstrap(const BootstrapContacts& bootstrap_list, const NodeId&
 template<typename Handler /* void(ReturnCode, NodeId) */>
 void Transport::TryBootstrapping(const BootstrapContacts& bootstrap_list,
                                  bool bootstrap_off_existing_connection, Handler handler) {
+  LOG(kVerbose) << "peter " << this << " TryBootstrapping";
   bool try_connect(true);
   bptime::time_duration lifespan;
 
@@ -165,20 +168,21 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
   auto default_on_connect = MakeDefaultOnConnectHandler();
 
   auto on_connect = [this, handler, default_on_connect]
-                    (const Error& error, const ConnectionPtr& connection) mutable {
+                    (const ExtErrorCode& error, const ConnectionPtr& connection) mutable {
     if (error) {
       return handler(NodeId());
     }
 
     default_on_connect(error, connection);
 
-    auto peer_id = connection->Socket().PeerNodeId();
+    auto peer_id         = connection->Socket().PeerNodeId();
+    auto peer_public_key = connection->Socket().PeerPublicKey();
 
     auto on_nat_detected = [peer_id, handler]() mutable {
       handler(peer_id);
     };
 
-    DetectNatType(peer_id, strand_.wrap(on_nat_detected));
+    DetectNatType(peer_id, peer_public_key, strand_.wrap(on_nat_detected));
   };
 
   connection_manager_->Connect(contact.id, contact.endpoint_pair.external, contact.public_key,
@@ -187,7 +191,9 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
 }
 
 template<typename Handler>
-void Transport::DetectNatType(NodeId const& peer_id, Handler handler) {
+void Transport::DetectNatType( NodeId const& peer_id
+                             , const asymm::PublicKey& peer_public_key
+                             , Handler handler) {
   Endpoint nat_detection_endpoint(connection_manager_->RemoteNatDetectionEndpoint(peer_id));
 
   if (!IsValid(nat_detection_endpoint)) {
@@ -203,6 +209,7 @@ void Transport::DetectNatType(NodeId const& peer_id, Handler handler) {
 
   connection_manager_->Ping(peer_id,
                             nat_detection_endpoint,
+                            peer_public_key,
                             strand_.wrap(on_ping));
 }
 
@@ -232,7 +239,7 @@ void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint
 Transport::OnConnect Transport::MakeDefaultOnConnectHandler() {
   std::weak_ptr<Transport> weak_self = shared_from_this();
 
-  return [weak_self](const Error& error, const ConnectionPtr& connection) {  // NOLINT
+  return [weak_self](const ExtErrorCode& error, const ConnectionPtr& connection) {  // NOLINT
     if (error)
       return;
 
@@ -281,8 +288,9 @@ bool Transport::Send(const NodeId& peer_id, const std::string& message,
 }
 
 void Transport::Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
+                     const asymm::PublicKey& peer_public_key,
                      const std::function<void(int /*result*/)>& ping_functor) {
-  connection_manager_->Ping(peer_id, peer_endpoint, ping_functor);
+  connection_manager_->Ping(peer_id, peer_endpoint, peer_public_key, ping_functor);
 }
 
 std::shared_ptr<Connection> Transport::GetConnection(const NodeId& peer_id) {
@@ -317,7 +325,7 @@ bool Transport::IsAvailable() const {
 void Transport::StartDispatch() {
   std::weak_ptr<Transport> weak_self = shared_from_this();
 
-  auto handler = strand_.wrap([weak_self](const Error& error) {
+  auto handler = strand_.wrap([weak_self](const ExtErrorCode& error) {
     if (auto self = weak_self.lock()) {
       self->HandleDispatch(error);
     }
@@ -326,7 +334,7 @@ void Transport::StartDispatch() {
   multiplexer_->AsyncDispatch(handler);
 }
 
-void Transport::HandleDispatch(const boost::system::error_code& /*ec*/) {
+void Transport::HandleDispatch(const ExtErrorCode& /*ec*/) {
   if (!multiplexer_->IsOpen())
     return;
 

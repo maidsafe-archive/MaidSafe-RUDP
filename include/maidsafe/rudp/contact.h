@@ -54,6 +54,10 @@ inline bool operator==(const EndpointPair& lhs, const EndpointPair& rhs) {
   return lhs.local == rhs.local && lhs.external == rhs.external;
 }
 
+inline std::ostream& operator<<(std::ostream& os, const EndpointPair& ep) {
+  return os << "(local: " << ep.local << "; external: " << ep.external << ")";
+}
+
 struct Contact {
   Contact() = default;
   Contact(const Contact&) = default;
@@ -62,9 +66,9 @@ struct Contact {
                                                public_key(std::move(other.public_key)) {}
   Contact& operator=(const Contact&) = default;
   Contact& operator=(Contact&& other) {
-    id = std::move(other.id);
+    id            = std::move(other.id);
     endpoint_pair = std::move(other.endpoint_pair);
-    public_key = std::move(other.public_key);
+    public_key    = std::move(other.public_key);
     return *this;
   }
 

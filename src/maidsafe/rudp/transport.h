@@ -67,8 +67,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   using Endpoint          = boost::asio::ip::udp::endpoint;
   using ConnectionPtr     = std::shared_ptr<Connection>;
-  using Error             = boost::system::error_code;
-  using OnConnect         = std::function<void(const Error&, const ConnectionPtr&)>;
+  using ExtErrorCode      = std::error_code;
+  using ErrorCode         = boost::system::error_code;
+  using OnConnect         = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
   using Duration          = boost::posix_time::time_duration;
   using OnNatDetected     = Session::OnNatDetectionRequested::slot_function_type;
   using OnBootstrap       = std::function<void(ReturnCode, Contact)>;
@@ -103,6 +104,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
             const MessageSentFunctor& message_sent_functor);
 
   void Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
+            const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
 
   ConnectionPtr GetConnection(const NodeId& peer_id);
@@ -141,17 +143,18 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void ConnectToBootstrapEndpoint(Iterator begin, Iterator end, Duration lifespan, Handler handler);
 
   template<typename Handler>
-  void ConnectToBootstrapEndpoint(const Contact& contact, const Duration& lifespan, Handler handler);
+  void ConnectToBootstrapEndpoint(const Contact& contact, const Duration& lifespan,
+                                  Handler handler);
 
   template<typename Handler>
-  void DetectNatType(NodeId const& peer_id, Handler);
+  void DetectNatType(NodeId const& peer_id, const asymm::PublicKey& peer_pub_key, Handler);
 
   void DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
                  const asymm::PublicKey& peer_public_key,
                  ConnectionAddedFunctor connection_added_functor);
 
   void StartDispatch();
-  void HandleDispatch(const boost::system::error_code& ec);
+  void HandleDispatch(const ExtErrorCode& ec);
 
   NodeId node_id() const;
   const asymm::PublicKey& public_key() const;

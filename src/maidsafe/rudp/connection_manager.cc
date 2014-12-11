@@ -32,8 +32,8 @@
 #include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
+namespace Asio = boost::asio;
+namespace ip = Asio::ip;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -44,7 +44,7 @@ namespace detail {
 
 namespace {
 
-typedef boost::asio::ip::udp::endpoint Endpoint;
+typedef Asio::ip::udp::endpoint Endpoint;
 
 bool IsNormal(std::shared_ptr<Connection> connection) {
   return connection->state() == Connection::State::kPermanent ||
@@ -55,7 +55,7 @@ bool IsNormal(std::shared_ptr<Connection> connection) {
 }  // unnamed namespace
 
 ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
-                                     const boost::asio::io_service::strand& strand,
+                                     const Asio::io_service::strand& strand,
                                      MultiplexerPtr multiplexer, NodeId this_node_id,
                                      asymm::PublicKey this_public_key)
     : connections_(),
@@ -120,12 +120,12 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
 
   if (!transport) {
     strand_.dispatch([&] { handler(make_error_code(RudpErrors::failed_to_connect)); });
-    return strand_.dispatch([on_connect]() { on_connect(asio::error::shut_down, nullptr); });
+    return strand_.dispatch([on_connect]() { on_connect(RudpErrors::shut_down, nullptr); });
   }
 
   if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
     strand_.dispatch([&] { handler(make_error_code(RudpErrors::failed_to_connect)); });
-    return strand_.dispatch([on_connect]() { on_connect(asio::error::already_started, nullptr); });
+    return strand_.dispatch([on_connect]() { on_connect(RudpErrors::already_started, nullptr); });
   }
 
   being_connected_.insert(std::make_pair(peer_id, peer_endpoint));
@@ -183,11 +183,12 @@ ConnectionManager::ConnectionPtr ConnectionManager::GetConnection(const NodeId& 
 }
 
 void ConnectionManager::Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
+                             const asymm::PublicKey& peer_public_key,
                              const std::function<void(int)>& ping_functor) {  // NOLINT (Fraser)
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     assert(ping_functor);
     ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
-    connection->Ping(peer_id, peer_endpoint, ping_functor);
+    connection->Ping(peer_id, peer_endpoint, peer_public_key, ping_functor);
   } else {
     assert(0 && "Transport already closed");
   }
@@ -208,7 +209,7 @@ bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
   return true;
 }
 
-Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpoint& endpoint) {
+Socket* ConnectionManager::GetSocket(const Asio::const_buffer& data, const Endpoint& endpoint) {
   uint32_t socket_id(0);
   if (!Packet::DecodeDestinationSocketId(&socket_id, data)) {
     LOG(kError) << kThisNodeId_ << " Received a non-RUDP packet from " << endpoint;
@@ -277,7 +278,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
   if (socket_iter != sockets_.end()) {
     return socket_iter->second;
   } else {
-    const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
+    const unsigned char* p = Asio::buffer_cast<const unsigned char*>(data);
     LOG(kVerbose) << kThisNodeId_ << "  Received a packet \"0x" << std::hex << static_cast<int>(*p)
                   << std::dec << "\" for unknown connection " << socket_id << " from " << endpoint;
     return nullptr;
@@ -314,11 +315,16 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
   } else {
     // Joining node is not already connected - start new bootstrap or temporary connection
     if (auto transport = transport_.lock()) {
-      Connect(handshake_packet.node_id(), endpoint, handshake_packet.PublicKey(), nullptr,
-              Parameters::bootstrap_connect_timeout,
-              bootstrap_and_drop ? bptime::time_duration() :
-                                   Parameters::bootstrap_connection_lifespan,
-              transport->MakeDefaultOnConnectHandler(), nullptr);
+      Connect(
+          handshake_packet.node_id(),
+          endpoint,
+          handshake_packet.PublicKey(),
+          nullptr,
+          Parameters::bootstrap_connect_timeout,
+          bootstrap_and_drop ? bptime::time_duration()
+                             : Parameters::bootstrap_connection_lifespan,
+          transport->MakeDefaultOnConnectHandler(),
+          nullptr);
     }
   }
 }

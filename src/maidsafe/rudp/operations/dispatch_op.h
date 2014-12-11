@@ -22,6 +22,7 @@
 #define MAIDSAFE_RUDP_OPERATIONS_DISPATCH_OP_H_
 
 #include <mutex>
+#include <system_error>
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/handler_alloc_hook.hpp"
 #include "boost/asio/handler_invoke_hook.hpp"
@@ -57,7 +58,8 @@ class DispatchOp {
         dispatcher_(other.dispatcher_) {}
 
   void operator()(const boost::system::error_code& ec, size_t bytes_transferred) {
-    boost::system::error_code local_ec = ec;
+    auto local_ec = ec;
+
     while (!local_ec) {
       std::lock_guard<std::mutex> lock(*mutex_);
       dispatcher_.HandleReceiveFrom(boost::asio::buffer(buffer_, bytes_transferred),
@@ -66,7 +68,7 @@ class DispatchOp {
           socket_.receive_from(boost::asio::buffer(buffer_), sender_endpoint_, 0, local_ec);
     }
 
-    handler_(ec);
+    handler_(std::make_error_code(static_cast<std::errc>(local_ec.value())));
   }
 
   friend void* asio_handler_allocate(size_t n, DispatchOp* op) {

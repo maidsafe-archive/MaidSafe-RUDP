@@ -55,8 +55,8 @@ class ConnectionManager {
  public:
   using Endpoint      = boost::asio::ip::udp::endpoint;
   using ConnectionPtr = std::shared_ptr<Connection>;
-  using Error         = boost::system::error_code;
-  using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
+  using ExtErrorCode  = std::error_code;
+  using OnConnect     = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
 
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
@@ -79,6 +79,7 @@ class ConnectionManager {
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
   void Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
+            const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
   bool Send(const NodeId& peer_id, const std::string& message,
