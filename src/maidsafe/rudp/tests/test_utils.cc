@@ -243,7 +243,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
       catch(system_error e) {
         EXPECT_EQ(e.code(), RudpErrors::already_connected);
       }
-      break; // TODO: Debug break
+//      break; // TODO: Debug break
     //  result = nodes[j]->managed_connections()->GetAvailableEndpoint(
     //      nodes[i]->node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type);
     //  if (result != kSuccess && result != kBootstrapConnectionAlreadyExists) {
