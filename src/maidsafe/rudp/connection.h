@@ -65,9 +65,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
   };
 
   using ConnectionPtr = std::shared_ptr<Connection>;
-  using ExtErrorCode  = std::error_code;
-  using ErrorCode     = boost::system::error_code;
-  using OnConnect     = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using Error         = boost::system::error_code;
+  using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
 
   Connection(const std::shared_ptr<Transport>& transport,
              const boost::asio::io_service::strand& strand,
@@ -80,16 +79,15 @@ class Connection : public std::enable_shared_from_this<Connection> {
   // after lifespan has passed.
   void StartConnecting(const NodeId& peer_node_id,
                        const boost::asio::ip::udp::endpoint& peer_endpoint,
-                       const asymm::PublicKey& peer_public_key,
-                       ConnectionAddedFunctor connection_added_functor,
+                       const std::string& validation_data,
                        const boost::posix_time::time_duration& connect_attempt_timeout,
                        const boost::posix_time::time_duration& lifespan,
                        OnConnect on_connect,
                        const std::function<void()>& failure_functor);
   void Ping(const NodeId& peer_node_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
-            const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
-  void StartSending(const std::string& data, const MessageSentFunctor& message_sent_functor);
+  void StartSending(const std::string& data,
+                    const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
   State state() const;
   // Sets the state_ to kPermanent or kUnvalidated and sets the lifespan_timer_ to expire at
   // pos_infin.
@@ -112,18 +110,19 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   struct SendRequest {
     std::string encrypted_data_;
-    MessageSentFunctor handler_;
+    std::function<void(int)> message_sent_functor_;  // NOLINT (Dan)
 
-    SendRequest(std::string encrypted_data, MessageSentFunctor message_sent_functor)
-        : encrypted_data_(std::move(encrypted_data)), handler_(std::move(message_sent_functor)) {}
+    SendRequest(std::string encrypted_data,
+                std::function<void(int)> message_sent_functor)  // NOLINT (Dan)
+        : encrypted_data_(std::move(encrypted_data)),
+          message_sent_functor_(std::move(message_sent_functor)) {}
   };
 
-  void DoClose(const ExtErrorCode&);
+  void DoClose(const Error&);
 
   void DoStartConnecting(const NodeId& peer_node_id,
                          const boost::asio::ip::udp::endpoint& peer_endpoint,
-                         const asymm::PublicKey& peer_public_key,
-                         ConnectionAddedFunctor connection_added_functor,
+                         const std::string& validation_data,
                          const boost::posix_time::time_duration& connect_attempt_timeout,
                          const boost::posix_time::time_duration& lifespan,
                          const std::function<void(int)>& ping_functor,  // NOLINT (Fraser)
@@ -133,43 +132,42 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void DoQueueSendRequest(SendRequest const& request);
   void FinishSendAndQueueNext();
 
-  void CheckTimeout(const ErrorCode& ec);
-  void CheckLifespanTimeout(const ErrorCode& ec);
+  void CheckTimeout(const boost::system::error_code& ec);
+  void CheckLifespanTimeout(const boost::system::error_code& ec);
   bool Stopped() const;
   bool TicksStopped() const;
 
   void StartTick();
   void HandleTick();
 
-  void StartConnect(const asymm::PublicKey& peer_public_key,
+  void StartConnect(const std::string& validation_data,
                     const boost::posix_time::time_duration& connect_attempt_timeout,
                     const boost::posix_time::time_duration& lifespan,
                     const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
-  void HandleConnect(const ErrorCode& ec,
+  void HandleConnect(const boost::system::error_code& ec, const std::string& validation_data,
                      std::function<void(int)> ping_functor);  // NOLINT (Fraser)
 
   void StartReadSize();
-  void HandleReadSize(const ErrorCode& ec);
+  void HandleReadSize(const boost::system::error_code& ec);
 
   void StartReadData();
-  void HandleReadData(const ErrorCode& ec, size_t length);
+  void HandleReadData(const boost::system::error_code& ec, size_t length);
 
-  void StartWrite(const MessageSentFunctor& message_sent_functor);  // NOLINT (Fraser)
-  void HandleWrite(MessageSentFunctor message_sent_functor);        // NOLINT (Fraser)
+  void StartWrite(const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
+  void HandleWrite(std::function<void(int)> message_sent_functor);        // NOLINT (Fraser)
 
   void StartProbing();
-  void DoProbe(const ErrorCode& ec);
-  void HandleProbe(const ErrorCode& ec);
+  void DoProbe(const boost::system::error_code& ec);
+  void HandleProbe(const boost::system::error_code& ec);
 
   void DoMakePermanent(bool validated);
 
   void EncodeData(const std::string& data);
 
-  void InvokeSentFunctor(const MessageSentFunctor& message_sent_functor,
-                         const ExtErrorCode& error) const;
+  void InvokeSentFunctor(const std::function<void(int)>& message_sent_functor,  // NOLINT (Fraser)
+                         int result) const;
 
-  void FireOnConnectFunctor(const ExtErrorCode&);
-  void FireConnectionAddedFunctor(const ExtErrorCode&);
+  void FireOnConnectFunctor(const Error&);
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
@@ -179,7 +177,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
   boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
   NodeId peer_node_id_;
   boost::asio::ip::udp::endpoint peer_endpoint_;
-  ConnectionAddedFunctor connection_added_functor_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   DataSize data_size_, data_received_;
   uint8_t failed_probe_count_;

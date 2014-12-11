@@ -27,14 +27,14 @@
 #include "maidsafe/rudp/tests/test_utils.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace Asio = boost::asio;
+namespace asio = boost::asio;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
 namespace rudp {
 
-typedef Asio::ip::udp::endpoint Endpoint;
+typedef asio::ip::udp::endpoint Endpoint;
 
 namespace detail {
 

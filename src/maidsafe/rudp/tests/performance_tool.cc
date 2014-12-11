@@ -51,9 +51,9 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
       std::cerr << "Message count must be >= 1 and size of messages must be >= 12.\n";
       return false;
     }
-    if (message_size > maidsafe::rudp::ManagedConnections::MaxMessageSize()) {
+    if (message_size > maidsafe::rudp::ManagedConnections::kMaxMessageSize()) {
       std::cerr << "Maximum message size is "
-                << maidsafe::rudp::ManagedConnections::MaxMessageSize() << std::endl;
+                << maidsafe::rudp::ManagedConnections::kMaxMessageSize() << std::endl;
       return false;
     }
     if (argc > 3) {
