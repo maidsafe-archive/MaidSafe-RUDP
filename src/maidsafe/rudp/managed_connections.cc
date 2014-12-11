@@ -209,6 +209,8 @@ int ManagedConnections::AttemptStartNewTransport(const std::vector<Endpoint>& bo
     LOG(kError) << "Failed to bootstrap managed connections.";
     return result;
   }
+
+  std::lock_guard<std::mutex> lock(mutex_);
   chosen_bootstrap_peer = chosen_bootstrap_node_id_;
   nat_type = nat_type_;
   return kSuccess;
@@ -248,9 +250,11 @@ ReturnCode ManagedConnections::StartNewTransport(NodeIdEndpointPairs bootstrap_p
       transport->Close();
       return setter.set_value(bootstrap_result);
     }
-
-    if (chosen_bootstrap_node_id_ == NodeId())
-      chosen_bootstrap_node_id_ = chosen_id;
+    {
+      lock_guard lock(mutex_);
+      if (chosen_bootstrap_node_id_ == NodeId())
+        chosen_bootstrap_node_id_ = chosen_id;
+    }
 
     if (!detail::IsValid(transport->external_endpoint()) && !external_address.is_unspecified()) {
       // Means this node's NAT is symmetric or unknown, so guess that it will be mapped to existing
