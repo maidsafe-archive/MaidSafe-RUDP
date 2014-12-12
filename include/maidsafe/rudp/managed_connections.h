@@ -42,7 +42,6 @@
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/contact.h"
-#include "maidsafe/rudp/return_codes.h"
 
 namespace maidsafe {
 
@@ -187,7 +186,7 @@ class ManagedConnections {
 
   bool ExistingConnectionAttempt(const NodeId& peer_id, EndpointPair& this_endpoint_pair) const;
   bool ExistingConnection(const NodeId& peer_id, EndpointPair& this_endpoint_pair,
-                          int& return_code);
+                          bool& connection_exists);
   bool SelectIdleTransport(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
   bool SelectAnyTransport(const NodeId& peer_id, EndpointPair& this_endpoint_pair);
   TransportPtr GetAvailableTransport() const;
@@ -256,7 +255,7 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
                                      Handler handler,
                                      Endpoint local_endpoint) {
   ClearConnectionsAndIdleTransports();
-  if (CheckBootstrappingParameters(bootstrap_list, listener, this_node_id) != kSuccess) {
+  if (CheckBootstrappingParameters(bootstrap_list, listener, this_node_id) != 0) {  // failure
     return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
                          Contact());
   }
@@ -264,7 +263,7 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
   this_node_id_ = this_node_id;
   keys_ = keys;
 
-  if (TryToDetermineLocalEndpoint(local_endpoint) != kSuccess) {
+  if (TryToDetermineLocalEndpoint(local_endpoint) != 0) {  // failure
     return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
                          Contact());
   }
@@ -321,9 +320,9 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
     }
 
     // Check for existing connection to peer.
-    int return_code(kSuccess);
-    if (ExistingConnection(peer_id, this_endpoint_pair, return_code)) {
-      if (return_code == kConnectionAlreadyExists) {
+    bool connection_exists(false);
+    if (ExistingConnection(peer_id, this_endpoint_pair, connection_exists)) {
+      if (connection_exists) {
         LOG(kError) << "A non-bootstrap managed connection from " << this_node_id_ << " to "
                     << peer_id << " already exists";
         return InvokeHandler(std::forward<Handler>(handler), RudpErrors::already_connected,
@@ -396,7 +395,7 @@ RemoveReturn<CompletionToken> ManagedConnections::Remove(const NodeId& peer_id,
                                                          CompletionToken&& token) {
   RemoveHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
-  asio_service_.service().post([=] {
+  asio_service_.service().post([=]() mutable {
     DoRemove(peer_id);
     handler(make_error_code(CommonErrors::success));
   });
@@ -410,7 +409,8 @@ SendReturn<CompletionToken> ManagedConnections::Send(const NodeId& peer_id,
   SendHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
   asio_service_.service().post([=]() mutable {
-      // FIXME: Can the const_cast be avoided?
+      // FIXME: Can the const_cast be avoided? For some reason, the
+      //        lambda creates a const copy of the message...
       DoSend(peer_id, std::move(const_cast<SendableMessage&>(message)), handler);
       });
   return result.get();

@@ -280,7 +280,7 @@ bool ManagedConnections::ExistingConnectionAttempt(const NodeId& peer_id,
 }
 
 bool ManagedConnections::ExistingConnection(const NodeId& peer_id, EndpointPair& this_endpoint_pair,
-                                            int& return_code) {
+                                            bool& connection_exists) {
   auto itr(connections_.find(peer_id));
   if (itr == connections_.end())
     return false;
@@ -306,12 +306,12 @@ bool ManagedConnections::ExistingConnection(const NodeId& peer_id, EndpointPair&
       std::unique_ptr<PendingConnection> connection(
           new PendingConnection(peer_id, (*itr).second, asio_service_.service()));
       AddPending(std::move(connection));
-      return_code = kBootstrapConnectionAlreadyExists;
+      connection_exists = false;
     } else {
-      return_code = kUnvalidatedConnectionAlreadyExists;
+      connection_exists = false;
     }
   } else {
-    return_code = kConnectionAlreadyExists;
+    connection_exists = true;
   }
   return true;
 }
