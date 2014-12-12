@@ -33,12 +33,12 @@
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
+#include "maidsafe/rudp/managed_connections.h"
 
 namespace maidsafe {
 
 namespace rudp {
 
-class ManagedConnections;
 struct Contact;
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
@@ -57,7 +57,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> & nodes,
 
 class Node {
  public:
-  typedef std::string message_t;
+  typedef std::vector<uint8_t>   message_t;
   typedef std::vector<message_t> messages_t;
 
  public:
@@ -77,7 +77,7 @@ class Node {
       return std::make_shared<asymm::PublicKey>(key_pair_.public_key);
   }
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
-  int GetReceivedMessageCount(const std::string& message) const;
+  int GetReceivedMessageCount(const message_t& message) const;
   void ResetData();
   std::vector<NodeId> GetConnectedNodeIds() { return connected_node_ids_; }
   void AddConnectedNodeId(const NodeId& connected_node_id) {
@@ -100,6 +100,8 @@ class Node {
   bool promised_;
   uint32_t total_message_count_expectation_;
   boost::promise<messages_t> message_promise_;
+
+  std::shared_ptr<ManagedConnections::Listener> bootstrap_listener_;
 };
 
 

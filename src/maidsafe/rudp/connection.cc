@@ -524,7 +524,7 @@ void Connection::HandleReadData(const ErrorCode& ec, size_t length) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped()) {
-      LOG(kError) << "Failed to read data.  Connection from " << *multiplexer_ << " to "
+      LOG(kError) << "peter Failed to read data.  Connection from " << *multiplexer_ << " to "
                   << socket_.PeerEndpoint() << " error - " << ec.message();
     }
 #endif
@@ -532,7 +532,7 @@ void Connection::HandleReadData(const ErrorCode& ec, size_t length) {
   }
 
   if (Stopped()) {
-    LOG(kError) << "Failed to read data.  Connection from " << *multiplexer_ << " to "
+    LOG(kError) << "peter Failed to read data.  Connection from " << *multiplexer_ << " to "
                 << socket_.PeerEndpoint() << " already stopped.";
     return DoClose(RudpErrors::not_connected);
   }
