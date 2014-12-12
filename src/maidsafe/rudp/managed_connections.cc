@@ -144,9 +144,6 @@ int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
   return kSuccess;
 }
 
-//int ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
-//                                                 const Endpoint& local_endpoint,
-//                                                 Contact& chosen_bootstrap_contact) {
 void ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
                                                  const Endpoint& local_endpoint,
                                                  const std::function<void(Error, const Contact&)>& handler) {
@@ -178,16 +175,10 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
     }
   }
 
-  //using lock_guard = std::lock_guard<std::mutex>;
-  //std::promise<ReturnCode> setter;
-  //auto getter = setter.get_future();
-
   auto on_bootstrap = [=](ReturnCode bootstrap_result, Contact chosen_contact) {
     if (bootstrap_result != kSuccess) {
-      //lock_guard lock(mutex_);
       transport->Close();
       return handler(RudpErrors::failed_to_bootstrap, chosen_contact);
-      //return setter.set_value(bootstrap_result);
     }
 
     if (!chosen_bootstrap_contact_.id.IsValid())
@@ -200,8 +191,6 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
           Endpoint(external_address, transport->local_endpoint().port()));
     }
 
-    //lock_guard guard(mutex_);
-    //return setter.set_value(kSuccess);
     if (bootstrap_result != kSuccess) {
       return handler(RudpErrors::failed_to_bootstrap, chosen_contact);
     }
@@ -222,12 +211,6 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
       std::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, args::_1, args::_2,
                 args::_3, args::_4),
       on_bootstrap);
-
-  //getter.wait();
-  //{ lock_guard guard(mutex_); }
-  //auto result = getter.get();
-
-  //return result;
 }
 
 void ManagedConnections::GetBootstrapEndpoints(BootstrapContacts& bootstrap_list,

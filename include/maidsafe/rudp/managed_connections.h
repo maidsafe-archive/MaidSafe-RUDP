@@ -268,8 +268,6 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
                          Contact());
   }
 
-  //Contact chosen_bootstrap_contact;
-
   AttemptStartNewTransport(bootstrap_list, local_endpoint,
       [=](Error error, Contact chosen_contact) mutable {
         if (!error) {
@@ -278,19 +276,8 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
 
         handler(error, chosen_contact);
       });
-  //if (AttemptStartNewTransport(bootstrap_list, local_endpoint, chosen_bootstrap_contact)
-  //    != kSuccess) {
-  //  return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
-  //                       Contact());
-  //}
-
-  //listener_ = listener;
-  //handler(Error(), chosen_bootstrap_contact);
 }
 
-//template <typename Handler>
-//void ManagedConnections::DoGetAvailableEndpoints(const NodeId& , Handler) {
-//}
 template <typename Handler>
 void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler handler) {
   // FIXME: Error codes
@@ -337,12 +324,6 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
       return handler(Error(), this_endpoint_pair);
   }
 
-  //if (/*ShouldStartNewTransport(peer.endpoint_pair) &&*/
-  //    StartNewTransport(BootstrapContacts(), Endpoint(local_ip_, 0)) != kSuccess) {
-  //  LOG(kError) << "Failed to start transport.";
-  //  return InvokeHandler(std::forward<Handler>(handler), error::no_descriptors, EndpointPair());
-  //  //return InvokeHandler(std::forward<Handler>(handler), make_error_code(CommonErrors::unknown), EndpointPair());
-  //}
   StartNewTransport(BootstrapContacts(), Endpoint(local_ip_, 0), [=](Error error, const Contact&) mutable {
       if (error) {
         return handler(error, EndpointPair());
@@ -360,26 +341,6 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
 
       handler(Error(), this_endpoint_pair);
       });
-
-  ////std::lock_guard<std::mutex> lock(mutex_);
-  //// Check again for an existing connection attempt in case it was added while mutex unlocked
-  //// during starting new transport.
-  //if (ExistingConnectionAttempt(peer_id, this_endpoint_pair)) {
-  //  LOG(kError) << "Connection attempt already in progress.";
-  //  return InvokeHandler(std::forward<Handler>(handler), make_error_code(RudpErrors::connection_already_in_progress),
-  //                       EndpointPair());
-  //}
-
-  //if (!SelectAnyTransport(peer_id, this_endpoint_pair)) {
-  //  LOG(kError) << "All connectable Transports are full.";
-  //  return InvokeHandler(std::forward<Handler>(handler), boost::asio::error::no_descriptors,
-  //                       EndpointPair());
-  //  //return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unable_to_handle_request,
-  //  //                     EndpointPair());
-  //}
-
-  //handler(Error(), this_endpoint_pair);
-  //handler(make_error_code(CommonErrors::success), this_endpoint_pair);
 }
 
 template <typename CompletionToken>

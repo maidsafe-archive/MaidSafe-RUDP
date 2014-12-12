@@ -126,10 +126,10 @@ class ManagedConnectionsFuncTest : public testing::Test {
         EXPECT_FALSE(true) << "Timed out on " << nodes_.at(i)->id();
       }
     }
-    //uint8_t ticking(0);
-    //while ((issued != finished) && (++ticking <(num_messages * nodes_.size())))
-    //  Sleep(std::chrono::seconds(1));
-    //EXPECT_EQ(issued, finished);
+    uint8_t ticking(0);
+    while ((issued != finished) && (++ticking <(num_messages * nodes_.size())))
+      Sleep(std::chrono::seconds(1));
+    EXPECT_EQ(issued, finished);
 
     //// Check send results
     //for (uint16_t i = 0; i != nodes_.size(); ++i) {
