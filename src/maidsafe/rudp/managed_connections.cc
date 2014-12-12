@@ -520,8 +520,8 @@ void ManagedConnections::OnMessageSlot(const NodeId& peer_id, const std::string&
 #endif
             asymm::Decrypt(asymm::CipherText(message), keys_.private_key).string());
     if (auto listener = listener_.lock()) {
-      listener->MessageReceived(
-          peer_id, std::vector<unsigned char>(std::begin(message), std::end(message)));
+      listener->MessageReceived(peer_id, std::vector<unsigned char>(std::begin(decrypted_message),
+                                                                    std::end(decrypted_message)));
     }
   } catch (const std::exception& e) {
     LOG(kError) << "Failed to decrypt message: " << e.what();
