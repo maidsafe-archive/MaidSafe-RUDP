@@ -194,7 +194,7 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
       //return setter.set_value(bootstrap_result);
     }
     {
-      lock_guard lock(mutex_);
+      std::lock_guard<std::mutex> lock(mutex_);
       if (chosen_bootstrap_contact_.id.IsValid())
         chosen_bootstrap_contact_ = chosen_contact;
     }
