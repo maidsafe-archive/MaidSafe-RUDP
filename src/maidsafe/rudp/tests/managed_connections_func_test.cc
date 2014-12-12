@@ -110,7 +110,6 @@ class ManagedConnectionsFuncTest : public testing::Test {
     // FIXME: Wait for the send futures somewhere below receiving.
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       vector<NodeId> peers(nodes_.at(i)->GetConnectedNodeIds());
-      LOG(kVerbose) << "peter " << nodes_.size() << " " << peers.size();
       ASSERT_EQ(nodes_.size() - 1, peers.size());
       for (uint16_t j = 0; j != peers.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
@@ -152,10 +151,6 @@ class ManagedConnectionsFuncTest : public testing::Test {
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       for (uint16_t j = 0; j != nodes_.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
-          //if (j != nodes_.size() - 1) {
-          //  EXPECT_EQ(kSuccess, send_results[i][j][k]) << "send_results[" << i << "][" << j << "]["
-          //                                             << k << "]: " << send_results[i][j][k];
-          //}
           if (i != j) {
             EXPECT_EQ(1U, nodes_.at(i)->GetReceivedMessageCount(sent_messages[j][k]))
                 << nodes_.at(i)->id() << " didn't receive";
