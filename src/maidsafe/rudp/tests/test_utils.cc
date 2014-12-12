@@ -28,7 +28,6 @@
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
 
-#include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/utils.h"
@@ -263,9 +262,11 @@ Contact Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoin
     }
   };
 
+  bootstrap_listener_ = std::make_shared<BootstrapListener>(*this);
+
   return managed_connections_->Bootstrap(
       bootstrap_endpoints,
-      std::make_shared<BootstrapListener>(*this),
+      bootstrap_listener_,
       node_id_,
       asymm::Keys{*private_key(), *public_key()},
       asio::use_future,

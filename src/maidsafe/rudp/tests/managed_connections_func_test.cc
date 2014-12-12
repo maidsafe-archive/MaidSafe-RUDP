@@ -40,6 +40,26 @@ namespace Asio = boost::asio;
 namespace bptime = boost::posix_time;
 namespace ip = Asio::ip;
 
+namespace std {
+std::ostream& operator<<(std::ostream& os, const std::vector<unsigned char>& data) {
+  bool is_printable(true);
+  for (const auto& elem : data) {
+    if (elem < 32) { is_printable = false; break; }
+  }
+
+  std::string str(data.begin(), data.end());
+
+  if (is_printable) {
+    os << "[vector: \"" << str.substr(0,30) << "\"]";
+  }
+  else {
+    os << "[vector: " << maidsafe::HexEncode(str.substr(0,30)) << "]";
+  }
+
+  return os;
+}
+} // std::namespace
+
 namespace maidsafe {
 
 namespace rudp {
@@ -55,6 +75,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
  protected:
   // Each node sending n messsages to all other connected nodes.
   void RunNetworkTest(uint8_t num_messages, int messages_size) {
+    LOG(kVerbose) << "peter RunNetworkTest";
     using std::vector;
 
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
@@ -79,13 +100,14 @@ class ManagedConnectionsFuncTest : public testing::Test {
     }
 
     // Sending messages
-    vector<vector<vector<std::error_code>>> send_results(
-        nodes_.size(),
-        vector<vector<std::error_code>>(nodes_.size() - 1,
-                                        vector<std::error_code>(num_messages, std::error_code())));
+    //vector<vector<vector<std::error_code>>> send_results(
+    //    nodes_.size(),
+    //    vector<vector<std::error_code>>(nodes_.size() - 1,
+    //                                    vector<std::error_code>(num_messages, std::error_code())));
 
     std::atomic<size_t> issued(0), finished(0);
 
+    // FIXME: Wait for the send futures somewhere below receiving.
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       vector<NodeId> peers(nodes_.at(i)->GetConnectedNodeIds());
       LOG(kVerbose) << "peter " << nodes_.size() << " " << peers.size();
@@ -94,14 +116,10 @@ class ManagedConnectionsFuncTest : public testing::Test {
         for (uint8_t k = 0; k != num_messages; ++k) {
           ++issued;
           Sleep(std::chrono::seconds(1));
-          //nodes_.at(i)->managed_connections()->Send(
-          //    peers.at(j), sent_messages[i][k],
-          //    [=, &send_results, &issued, &finished](int result_in) {
-          //      send_results[i][j][k] = result_in; ++finished; });
           try {
             nodes_.at(i)->managed_connections()->Send(
                 peers.at(j), sent_messages[i][k], asio::use_future).get();
-            LOG(kVerbose) << "peter sent " << nodes_.at(i)->id() << " " << nodes_.at(j)->id() << " " << peers.at(j);
+            LOG(kVerbose) << "peter sent " << nodes_.at(i)->id() << " " << nodes_.at(j)->id() << " " << peers.at(j) << " " << sent_messages[i][k];
           }
           catch (std::system_error e) {
             LOG(kVerbose) << "peter can't send " << nodes_.at(i)->id() << " " << nodes_.at(j)->id() << " " << e.what();
@@ -109,7 +127,6 @@ class ManagedConnectionsFuncTest : public testing::Test {
         }
       }
     }
-    LOG(kVerbose) << "peter RunNetworkTest";
 
     // Waiting for all results (promises)
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
@@ -126,26 +143,26 @@ class ManagedConnectionsFuncTest : public testing::Test {
         EXPECT_FALSE(true) << "Timed out on " << nodes_.at(i)->id();
       }
     }
-    uint8_t ticking(0);
-    while ((issued != finished) && (++ticking <(num_messages * nodes_.size())))
-      Sleep(std::chrono::seconds(1));
-    EXPECT_EQ(issued, finished);
+    //uint8_t ticking(0);
+    //while ((issued != finished) && (++ticking <(num_messages * nodes_.size())))
+    //  Sleep(std::chrono::seconds(1));
+    //EXPECT_EQ(issued, finished);
 
-    //// Check send results
-    //for (uint16_t i = 0; i != nodes_.size(); ++i) {
-    //  for (uint16_t j = 0; j != nodes_.size(); ++j) {
-    //    for (uint8_t k = 0; k != num_messages; ++k) {
-    //      if (j != nodes_.size() - 1) {
-    //        EXPECT_EQ(kSuccess, send_results[i][j][k]) << "send_results[" << i << "][" << j << "]["
-    //                                                   << k << "]: " << send_results[i][j][k];
-    //      }
-    //      if (i != j) {
-    //        EXPECT_EQ(1U, nodes_.at(i)->GetReceivedMessageCount(sent_messages[j][k]))
-    //            << nodes_.at(i)->id() << " didn't receive " << sent_messages[j][k].substr(0, 20);
-    //      }
-    //    }
-    //  }
-    //}
+    // Check send results
+    for (uint16_t i = 0; i != nodes_.size(); ++i) {
+      for (uint16_t j = 0; j != nodes_.size(); ++j) {
+        for (uint8_t k = 0; k != num_messages; ++k) {
+          //if (j != nodes_.size() - 1) {
+          //  EXPECT_EQ(kSuccess, send_results[i][j][k]) << "send_results[" << i << "][" << j << "]["
+          //                                             << k << "]: " << send_results[i][j][k];
+          //}
+          if (i != j) {
+            EXPECT_EQ(1U, nodes_.at(i)->GetReceivedMessageCount(sent_messages[j][k]))
+                << nodes_.at(i)->id() << " didn't receive";
+          }
+        }
+      }
+    }
   }
 
   std::vector<NodePtr> nodes_;

@@ -33,12 +33,12 @@
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
+#include "maidsafe/rudp/managed_connections.h"
 
 namespace maidsafe {
 
 namespace rudp {
 
-class ManagedConnections;
 struct Contact;
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
@@ -100,6 +100,8 @@ class Node {
   bool promised_;
   uint32_t total_message_count_expectation_;
   boost::promise<messages_t> message_promise_;
+
+  std::shared_ptr<ManagedConnections::Listener> bootstrap_listener_;
 };
 
 
