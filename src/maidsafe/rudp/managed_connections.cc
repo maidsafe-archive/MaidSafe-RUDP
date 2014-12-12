@@ -152,6 +152,8 @@ void ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& boots
                                                  const Endpoint& local_endpoint,
                                                  const std::function<void(Error, const Contact&)>& handler) {
   StartNewTransport(bootstrap_list, local_endpoint, handler);
+
+  std::lock_guard<std::mutex> lock(mutex_);
 }
 
 void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
@@ -191,9 +193,11 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
       return handler(RudpErrors::failed_to_bootstrap, chosen_contact);
       //return setter.set_value(bootstrap_result);
     }
-
-    if (!chosen_bootstrap_contact_.id.IsValid())
-      chosen_bootstrap_contact_ = chosen_contact;
+    {
+      lock_guard lock(mutex_);
+      if (chosen_bootstrap_contact_.id.IsValid())
+        chosen_bootstrap_contact_ = chosen_contact;
+    }
 
     if (!detail::IsValid(transport->external_endpoint()) && !external_address.is_unspecified()) {
       // Means this node's NAT is symmetric or unknown, so guess that it will be mapped to existing
