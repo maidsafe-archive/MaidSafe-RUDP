@@ -57,7 +57,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> & nodes,
 
 class Node {
  public:
-  typedef std::string message_t;
+  typedef std::vector<uint8_t>   message_t;
   typedef std::vector<message_t> messages_t;
 
  public:
@@ -77,7 +77,7 @@ class Node {
       return std::make_shared<asymm::PublicKey>(key_pair_.public_key);
   }
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
-  int GetReceivedMessageCount(const std::string& message) const;
+  int GetReceivedMessageCount(const message_t& message) const;
   void ResetData();
   std::vector<NodeId> GetConnectedNodeIds() { return connected_node_ids_; }
   void AddConnectedNodeId(const NodeId& connected_node_id) {

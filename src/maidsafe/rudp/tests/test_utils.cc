@@ -107,37 +107,17 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   endpoint_pair1 = endpoints1;
   Sleep(std::chrono::milliseconds(250));
 
-  //nodes[0]->managed_connections()->GetAvailableEndpoints(
-  //    nodes[1]->node_id(),
-  //    [](std::error_code, EndpointPair) {
-  //    });
-
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 9";
 
-  //EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-  //          nodes[0]->managed_connections()->GetAvailableEndpoints(
-  //              nodes[1]->node_id(), endpoint_pair1, endpoint_pair0, nat_type0));
-  // FIXME: Expect particular error
   EXPECT_ANY_THROW(nodes[0]->managed_connections()->GetAvailableEndpoints
                          (nodes[1]->node_id(), use_future).get());
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 10 ";
 
-  //EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-  //          nodes[1]->managed_connections()->GetAvailableEndpoints(
-  //              nodes[0]->node_id(), endpoint_pair0, endpoint_pair1, nat_type1));
-  // FIXME: Expect particular error
   EXPECT_ANY_THROW(nodes[1]->managed_connections()->GetAvailableEndpoints
                          (nodes[0]->node_id(), use_future).get());
 
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 11 ";
 
-  //auto futures0(nodes[0]->GetFutureForMessages(1));
-  //auto futures1(nodes[1]->GetFutureForMessages(1));
-  //LOG(kInfo) << "Calling Add from " << endpoints0.local << " to " << endpoints1.local;
-  //if (nodes[0]->managed_connections()->Add(nodes[1]->node_id(), endpoints1,
-  //                                         nodes[0]->validation_data()) != kSuccess) {
-  //  return testing::AssertionFailure() << "Node 0 failed to add Node 1";
-  //}
   EXPECT_THROW( nodes[0]->managed_connections()->Add(contacts[1], use_future).get()
               , system_error);
 
@@ -153,50 +133,6 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   nodes[1]->AddConnectedNodeId(nodes[0]->node_id());
 
   LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 12 ";
-  //boost::chrono::milliseconds timeout(Parameters::rendezvous_connect_timeout.total_milliseconds());
-  //if (futures0.wait_for(timeout) != boost::future_status::ready) {
-  //  return testing::AssertionFailure() << "Failed waiting for " << nodes[0]->id() << " to receive "
-  //                                     << nodes[1]->id() << "'s validation data.";
-  //}
-  //if (futures1.wait_for(timeout) != boost::future_status::ready) {
-  //  return testing::AssertionFailure() << "Failed waiting for " << nodes[1]->id() << " to receive "
-  //                                     << nodes[0]->id() << "'s validation data.";
-  //}
-  //auto messages0(futures0.get());
-  //auto messages1(futures1.get());
-  //if (messages0.size() != 1U) {
-  //  return testing::AssertionFailure() << nodes[0]->id() << " has " << messages0.size()
-  //                                     << " messages [should be 1].";
-  //}
-  //if (messages1.size() != 1U) {
-  //  return testing::AssertionFailure() << nodes[1]->id() << " has " << messages1.size()
-  //                                     << " messages [should be 1].";
-  //}
-  //if (messages0[0] != nodes[1]->validation_data()) {
-  //  return testing::AssertionFailure() << nodes[0]->id() << " has received " << nodes[1]->id()
-  //                                     << "'s validation data as " << messages0[0]
-  //                                     << " [should be \"" << nodes[1]->validation_data() << "\"].";
-  //}
-  //if (messages1[0] != nodes[0]->validation_data()) {
-  //  return testing::AssertionFailure() << nodes[1]->id() << " has received " << nodes[0]->id()
-  //                                     << "'s validation data as " << messages1[0]
-  //                                     << " [should be \"" << nodes[0]->validation_data() << "\"].";
-  //}
-  //Endpoint endpoint1, endpoint2;
-  //int result(
-  //    nodes[0]->managed_connections()->MarkConnectionAsValid(nodes[1]->node_id(), endpoint1));
-  //if (result != kSuccess) {
-  //  return testing::AssertionFailure() << nodes[0]->id() << " failed to mark connection to "
-  //                                     << nodes[1]->id() << " as valid.";
-  //}
-  //result = nodes[1]->managed_connections()->MarkConnectionAsValid(nodes[0]->node_id(), endpoint2);
-  //if (result != kSuccess) {
-  //  return testing::AssertionFailure() << nodes[1]->id() << " failed to mark connection to "
-  //                                     << nodes[0]->id() << " as valid.";
-  //}
-
-  //bootstrap_endpoints.push_back(endpoints0.local);
-  //bootstrap_endpoints.push_back(endpoints1.local);
   bootstrap_endpoints.push_back(contacts[0]);
   bootstrap_endpoints.push_back(contacts[1]);
   nodes[0]->ResetData();
@@ -205,135 +141,68 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   if (node_count > 2)
     LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
 
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 13 ";
   // Adding nodes to each other
   for (int i = 2; i != node_count; ++i) {
     Contact chosen_node_id;
     EXPECT_NO_THROW(chosen_node_id = nodes[i]->Bootstrap(bootstrap_endpoints));
 
-    LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 14 ";
     if (chosen_node_id.id == NodeId()) {
       return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->id();
     }
 
-    LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 15 ";
-    Contact empty_endpoint_pair, this_endpoint_pair, peer_endpoint_pair;
+    EndpointPair ith_endpoint_pair;
+    EndpointPair jth_endpoint_pair;
+
     //NatType nat_type;
     Sleep(std::chrono::milliseconds(250));
     for (int j(0); j != i; ++j) {
-      LOG(kInfo) << "Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();
+      LOG(kInfo) << "peter >>>>> Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();
       // Call GetAvailableEndpoint at each peer.
       nodes[i]->ResetData();
       nodes[j]->ResetData();
-    //  int result(nodes[i]->managed_connections()->GetAvailableEndpoint(
-    //      nodes[j]->node_id(), empty_endpoint_pair, this_endpoint_pair, nat_type));
-    //  if (result != kSuccess && result != kBootstrapConnectionAlreadyExists) {
-    //    return testing::AssertionFailure() << "GetAvailableEndpoint failed for " << nodes[i]->id()
-    //                                       << " with result " << result
-    //                                       << ".  Local: " << this_endpoint_pair.local
-    //                                       << "  External: " << this_endpoint_pair.external;
-    //  } else {
-    //    LOG(kInfo) << "GetAvailableEndpoint on " << nodes[i]->id() << " to " << nodes[j]->id()
-    //               << " with peer_id " << nodes[j]->debug_node_id() << " returned "
-    //               << this_endpoint_pair.external << " / " << this_endpoint_pair.local;
-    //  }
+
       try {
-        nodes[i]->managed_connections()->GetAvailableEndpoints(nodes[j]->node_id(), use_future).get();
+        ith_endpoint_pair = nodes[i]->managed_connections()->GetAvailableEndpoints(nodes[j]->node_id(), use_future).get();
+        LOG(kVerbose) << "peter Success";
       }
       catch(system_error e) {
         EXPECT_EQ(e.code(), RudpErrors::already_connected);
+        LOG(kVerbose) << "peter Error " << e.what();
       }
-      break; // TODO: Debug break
-    //  result = nodes[j]->managed_connections()->GetAvailableEndpoint(
-    //      nodes[i]->node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type);
-    //  if (result != kSuccess && result != kBootstrapConnectionAlreadyExists) {
-    //    return testing::AssertionFailure() << "GetAvailableEndpoint failed for " << nodes[j]->id()
-    //                                       << " with result " << result
-    //                                       << ".  Local: " << peer_endpoint_pair.local
-    //                                       << "  External: " << peer_endpoint_pair.external
-    //                                       << "  Peer: " << this_endpoint_pair.local;
-    //  } else {
-    //    LOG(kInfo) << "Calling GetAvailableEndpoint on " << nodes[j]->id() << " to "
-    //               << nodes[i]->id() << " with peer_endpoint " << this_endpoint_pair.local
-    //               << " returned " << peer_endpoint_pair.external << " / "
-    //               << peer_endpoint_pair.local;
-    //  }
 
-    //  // Call Add at each peer.
-    //  futures0 = nodes[i]->GetFutureForMessages(1);
-    //  futures1 = nodes[j]->GetFutureForMessages(1);
+      LOG(kInfo) << "peter >>>>> Starting attempt to connect " << nodes[j]->id() << " to " << nodes[i]->id();
+      try {
+        jth_endpoint_pair = nodes[j]->managed_connections()->GetAvailableEndpoints(nodes[i]->node_id(), use_future).get();
+        LOG(kVerbose) << "peter Success";
+      }
+      catch(system_error e) {
+        EXPECT_EQ(e.code(), RudpErrors::already_connected);
+        LOG(kVerbose) << "peter Error " << e.what();
+      }
 
-    //  LOG(kInfo) << "Calling Add from " << nodes[j]->id() << " on " << peer_endpoint_pair.local
-    //             << " to " << nodes[i]->id() << " on " << this_endpoint_pair.local;
-    //  result = nodes[j]->managed_connections()->Add(nodes[i]->node_id(), this_endpoint_pair,
-    //                                                nodes[j]->validation_data());
-    //  nodes[j]->AddConnectedNodeId(nodes[i]->node_id());
-    //  if (result != kSuccess) {
-    //    return testing::AssertionFailure() << "Add failed for " << nodes[j]->id() << " with result "
-    //                                       << result;
-    //  }
+      LOG(kInfo) << "peter >>>>> " << nodes[j]->id() << " Add " << nodes[i]->id();
+      auto i_add = nodes[i]->managed_connections()->Add
+                      ( Contact( nodes[j]->node_id(), jth_endpoint_pair, *nodes[j]->public_key())
+                      , use_future);
 
-    //  LOG(kInfo) << "Calling Add from " << nodes[i]->id() << " on " << this_endpoint_pair.local
-    //             << " to " << nodes[j]->id() << " on " << peer_endpoint_pair.local;
-    //  result = nodes[i]->managed_connections()->Add(nodes[j]->node_id(), peer_endpoint_pair,
-    //                                                nodes[i]->validation_data());
-    //  nodes[i]->AddConnectedNodeId(nodes[j]->node_id());
-    //  if (result != kSuccess) {
-    //    return testing::AssertionFailure() << "Add failed for " << nodes[i]->id() << " with result "
-    //                                       << result;
-    //  }
+      auto j_add = nodes[j]->managed_connections()->Add
+                      ( Contact( nodes[i]->node_id(), ith_endpoint_pair, *nodes[i]->public_key())
+                      , use_future);
 
-    //  // Check validation data was received correctly at each peer, and if so call
-    //  // MarkConnectionAsValid.
-    //  boost::chrono::milliseconds timeout(
-    //      Parameters::rendezvous_connect_timeout.total_milliseconds());
-    //  if (futures0.wait_for(timeout) != boost::future_status::ready) {
-    //    return testing::AssertionFailure() << "Failed waiting for " << nodes[i]->id()
-    //                                       << " to receive " << nodes[j]->id()
-    //                                       << "'s validation data.";
-    //  }
-    //  if (futures1.wait_for(timeout) != boost::future_status::ready) {
-    //    return testing::AssertionFailure() << "Failed waiting for " << nodes[j]->id()
-    //                                       << " to receive " << nodes[i]->id()
-    //                                       << "'s validation data.";
-    //  }
-    //  messages0 = futures0.get();
-    //  messages1 = futures1.get();
-    //  if (messages0.size() != 1U) {
-    //    return testing::AssertionFailure() << nodes[i]->id() << " has " << messages0.size()
-    //                                       << " messages [should be 1].";
-    //  }
-    //  if (messages1.size() != 1U) {
-    //    return testing::AssertionFailure() << nodes[j]->id() << " has " << messages1.size()
-    //                                       << " messages [should be 1].";
-    //  }
-    //  if (messages0[0] != nodes[j]->validation_data()) {
-    //    return testing::AssertionFailure() << nodes[i]->id() << " has received " << nodes[j]->id()
-    //                                       << "'s validation data as " << messages0[0]
-    //                                       << " [should be \"" << nodes[j]->validation_data()
-    //                                       << "\"].";
-    //  }
-    //  if (messages1[0] != nodes[i]->validation_data()) {
-    //    return testing::AssertionFailure() << nodes[j]->id() << " has received " << nodes[i]->id()
-    //                                       << "'s validation data as " << messages1[0]
-    //                                       << " [should be \"" << nodes[i]->validation_data()
-    //                                       << "\"].";
-    //  }
-    //  Endpoint endpoint1, endpoint2;
-    //  result =
-    //      nodes[i]->managed_connections()->MarkConnectionAsValid(nodes[j]->node_id(), endpoint1);
-    //  if (result != kSuccess) {
-    //    return testing::AssertionFailure() << nodes[i]->id() << " failed to mark connection to "
-    //                                       << nodes[j]->id() << " as valid.";
-    //  }
-    //  result =
-    //      nodes[j]->managed_connections()->MarkConnectionAsValid(nodes[i]->node_id(), endpoint2);
-    //  if (result != kSuccess) {
-    //    return testing::AssertionFailure() << nodes[j]->id() << " failed to mark connection to "
-    //                                       << nodes[i]->id() << " as valid.";
-    //  }
+      try {
+        i_add.get();
+        j_add.get();
+        LOG(kVerbose) << "peter Success";
+      }
+      catch(system_error e) {
+        EXPECT_EQ(e.code(), RudpErrors::already_connected);
+        LOG(kVerbose) << "peter Error " << e.what();
+      }
+
+      nodes[j]->AddConnectedNodeId(nodes[i]->node_id());
+      nodes[i]->AddConnectedNodeId(nodes[j]->node_id());
     }
-    bootstrap_endpoints.push_back(this_endpoint_pair);
+    bootstrap_endpoints.push_back(Contact(nodes[i]->node_id(), ith_endpoint_pair, *nodes[i]->public_key()));
   }
   return testing::AssertionSuccess();
 }
@@ -357,14 +226,12 @@ std::vector<NodeId> Node::connection_lost_node_ids() const {
   return connection_lost_node_ids_;
 }
 
-std::vector<std::string> Node::messages() const {
+Node::messages_t Node::messages() const {
   std::lock_guard<std::mutex> guard(mutex_);
   return messages_;
 }
 
 Contact Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint) {
-  //NatType nat_type(NatType::kUnknown);
-
   struct BootstrapListener : public ManagedConnections::Listener {
     Node& self;
 
@@ -382,7 +249,7 @@ Contact Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoin
       LOG(kInfo) << self.id() << " -- Received: " << (is_printable ? message_str.substr(0, 30)
                                                                    : HexEncode(message_str.substr(0, 15)));
       std::lock_guard<std::mutex> guard(self.mutex_);
-      self.messages_.emplace_back(message_str);
+      self.messages_.emplace_back(message);
       self.SetPromiseIfDone();
     }
 
@@ -403,35 +270,9 @@ Contact Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoin
       asymm::Keys{*private_key(), *public_key()},
       asio::use_future,
       local_endpoint).get();
-
-  //return managed_connections_->Bootstrap(
-  //    bootstrap_endpoints,
-  //    [this](const std::string & message) {
-  //      bool is_printable(true);
-  //      for (const auto& elem : message) {
-  //        if (elem < 32) {
-  //          is_printable = false;
-  //          break;
-  //        }
-  //      }
-  //      LOG(kInfo) << id() << " -- Received: " << (is_printable ? message.substr(0, 30)
-  //                                                              : HexEncode(message.substr(0, 15)));
-  //      std::lock_guard<std::mutex> guard(mutex_);
-  //      messages_.emplace_back(message);
-  //      SetPromiseIfDone();
-  //    },
-  //    [this](const NodeId & peer_id) {
-  //      LOG(kInfo) << id() << " -- Lost connection to " << DebugId(node_id_);
-  //      std::lock_guard<std::mutex> guard(mutex_);
-  //      connection_lost_node_ids_.emplace_back(peer_id);
-  //      connected_node_ids_.erase(
-  //          std::remove(connected_node_ids_.begin(), connected_node_ids_.end(), peer_id),
-  //          connected_node_ids_.end());
-  //    },
-  //    node_id_, private_key(), public_key(), chosen_bootstrap_contact, nat_type, local_endpoint);
 }
 
-int Node::GetReceivedMessageCount(const std::string& message) const {
+int Node::GetReceivedMessageCount(const message_t& message) const {
   std::lock_guard<std::mutex> guard(mutex_);
   return static_cast<int>(std::count(messages_.begin(), messages_.end(), message));
 }

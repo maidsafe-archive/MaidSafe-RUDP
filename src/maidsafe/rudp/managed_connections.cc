@@ -76,7 +76,6 @@ ManagedConnections::ManagedConnections()
       local_ip_(),
       nat_type_(maidsafe::make_unique<NatType>(NatType::kUnknown))
 {
-  LOG(kVerbose) << "peter ManagedConnections()";
 }
 
 ManagedConnections::~ManagedConnections() {
@@ -157,7 +156,6 @@ void ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& boots
 void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
                                           Endpoint local_endpoint,
                                           const std::function<void(Error, const Contact&)>& handler) {
-  LOG(kVerbose) << "peter " << this << " StartNewTrasport";
   TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, *nat_type_));
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
@@ -419,7 +417,6 @@ std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator
 }
 
 void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handler) {
-  LOG(kVerbose) << "peter DoAdd";
   if (peer.id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
     return handler(make_error_code(RudpErrors::operation_not_supported));
@@ -427,21 +424,19 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
 
   std::lock_guard<std::mutex> lock(mutex_);
 
-  LOG(kVerbose) << "peter DoAdd";
   auto itr(FindPendingTransportWithNodeId(peer.id));
   if (itr == pendings_.end()) {
     if (connections_.find(peer.id) != connections_.end()) {
-      LOG(kWarning) << "peter A managed connection from " << this_node_id_ << " to " << peer.id
+      LOG(kWarning) << "A managed connection from " << this_node_id_ << " to " << peer.id
                     << " already exists, and this node's chosen BootstrapID is "
                     << chosen_bootstrap_contact_.id;
       return handler(RudpErrors::already_connected);
     }
-    LOG(kError) << "peter No connection attempt from " << this_node_id_ << " to " << peer.id
+    LOG(kError) << "No connection attempt from " << this_node_id_ << " to " << peer.id
                 << " - ensure GetAvailableEndpoint has been called first.";
     return handler(make_error_code(RudpErrors::operation_not_supported));
   }
 
-  LOG(kVerbose) << "peter DoAdd";
   if ((*itr)->connecting) {
     LOG(kWarning) << "A connection attempt from " << this_node_id_ << " to " << peer.id
                   << " is already happening";
@@ -451,7 +446,6 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
   TransportPtr selected_transport((*itr)->pending_transport);
   (*itr)->connecting = true;
 
-  LOG(kVerbose) << "peter DoAdd";
   std::shared_ptr<detail::Connection> connection(selected_transport->GetConnection(peer.id));
   if (connection) {
     // If the connection exists, it should be a bootstrapping one.  If the peer used this node,
@@ -478,7 +472,6 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
     }
   }
 
-  LOG(kVerbose) << "peter DoAdd";
   selected_transport->Connect(std::move(peer.id), std::move(peer.endpoint_pair),
                               std::move(peer.public_key), handler);
 }

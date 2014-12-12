@@ -76,7 +76,7 @@ using SendHandler =
 
 template <typename CompletionToken>
 using SendReturn =
-    typename asio::async_result<typename SendHandler<CompletionToken>::type>::type;
+    typename asio::async_result<SendHandler<CompletionToken>>::type;
 
 
 

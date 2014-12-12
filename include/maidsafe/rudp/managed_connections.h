@@ -127,23 +127,6 @@ class ManagedConnections {
   template <typename CompletionToken>
   AddReturn<CompletionToken> Add(const Contact& peer, CompletionToken&& token);
 
-  //template <typename CompletionToken>
-  //typename boost::asio::async_result
-  //  < typename boost::asio::handler_type< CompletionToken
-  //                                      , void(boost::system::error_code)
-  //                                      >::type
-  //  >::type
-  //Add(const Contact& , CompletionToken&& token) {
-  //  namespace asio = boost::asio;
-  //  namespace system = boost::system;
-
-  //  using handler_type = typename asio::handler_type <CompletionToken, void(system::error_code)>::type;
-  //  handler_type handler(std::forward<decltype(token)>(token));
-  //  boost::asio::async_result<decltype(handler)> result(handler);
-  //  asio_service_.service().post([=]() mutable { handler(boost::asio::error::operation_aborted); LOG(kVerbose) << "peter handler called"; });
-  //  return result.get();
-  //}
-
   // Drops the connection with peer.
   template <typename CompletionToken>
   RemoveReturn<CompletionToken> Remove(const NodeId& peer_id, CompletionToken&& token);
@@ -152,7 +135,7 @@ class ManagedConnections {
   // is executed with input of kSuccess.  If there is no existing connection to peer_id,
   // kInvalidConnection is used.
   template <typename CompletionToken>
-  SendReturn<CompletionToken> Send(const NodeId& peer_id, SendableMessage&& message,
+  SendReturn<CompletionToken> Send(const NodeId& peer_id, const SendableMessage& message,
                                    CompletionToken&& token);
 
  private:
@@ -273,13 +256,11 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
                                      Handler handler,
                                      Endpoint local_endpoint) {
   ClearConnectionsAndIdleTransports();
-  LOG(kVerbose) << "peter ManagedConnections::DoBootstrap";
   if (CheckBootstrappingParameters(bootstrap_list, listener, this_node_id) != kSuccess) {
     return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
                          Contact());
   }
 
-  LOG(kVerbose) << "peter ManagedConnections::DoBootstrap";
   this_node_id_ = this_node_id;
   keys_ = keys;
 
@@ -288,7 +269,6 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
                          Contact());
   }
 
-  LOG(kVerbose) << "peter ManagedConnections::DoBootstrap";
   //Contact chosen_bootstrap_contact;
 
   AttemptStartNewTransport(bootstrap_list, local_endpoint,
@@ -301,12 +281,10 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
       });
   //if (AttemptStartNewTransport(bootstrap_list, local_endpoint, chosen_bootstrap_contact)
   //    != kSuccess) {
-  //  LOG(kVerbose) << "peter -----------";
   //  return InvokeHandler(std::forward<Handler>(handler), RudpErrors::failed_to_bootstrap,
   //                       Contact());
   //}
 
-  //LOG(kVerbose) << "peter -----------";
   //listener_ = listener;
   //handler(Error(), chosen_bootstrap_contact);
 }
@@ -427,11 +405,14 @@ RemoveReturn<CompletionToken> ManagedConnections::Remove(const NodeId& peer_id,
 
 template <typename CompletionToken>
 SendReturn<CompletionToken> ManagedConnections::Send(const NodeId& peer_id,
-                                                     SendableMessage&& message,
+                                                     const SendableMessage& message,
                                                      CompletionToken&& token) {
   SendHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
-  asio_service_.service().post([=] { DoSend(peer_id, std::move(message), handler); });
+  asio_service_.service().post([=]() mutable {
+      // FIXME: Can the const_cast be avoided?
+      DoSend(peer_id, std::move(const_cast<SendableMessage&>(message)), handler);
+      });
   return result.get();
 }
 

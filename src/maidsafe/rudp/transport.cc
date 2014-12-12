@@ -58,7 +58,6 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
       managed_connections_debug_printout_() {}
 
 Transport::~Transport() {
-  LOG(kVerbose) << "peter ~Transport " << this;
   Close();
 }
 
@@ -102,7 +101,6 @@ void Transport::Bootstrap(const BootstrapContacts& bootstrap_list, const NodeId&
 template<typename Handler /* void(ReturnCode, NodeId) */>
 void Transport::TryBootstrapping(const BootstrapContacts& bootstrap_list,
                                  bool bootstrap_off_existing_connection, Handler handler) {
-  LOG(kVerbose) << "peter " << this << " TryBootstrapping";
   bool try_connect(true);
   bptime::time_duration lifespan;
 
