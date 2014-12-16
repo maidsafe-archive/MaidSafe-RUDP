@@ -69,16 +69,19 @@ ConnectionManager::ConnectionManager(std::shared_ptr<Transport> transport,
   multiplexer_->dispatcher_.SetConnectionManager(this);
 }
 
-ConnectionManager::~ConnectionManager() { Close(); }
+ConnectionManager::~ConnectionManager() {
+  Close();
+}
 
 void ConnectionManager::Close() {
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto connection : connections_)
-      strand_.post(std::bind(&Connection::Close, connection));
+  std::lock_guard<std::mutex> lock(mutex_);
+
+  for (auto connection : connections_) {
+    strand_.post([connection]() {
+        connection->Close();
+        });
   }
-  // Ugly, but we must not reset dispatcher until he's done
-  while (multiplexer_->dispatcher_.use_count()) std::this_thread::yield();
+
   multiplexer_->dispatcher_.SetConnectionManager(nullptr);
 }
 
@@ -86,7 +89,7 @@ bool ConnectionManager::CanStartConnectingTo(NodeId peer_id, Endpoint peer_ep) c
   return std::find_if( being_connected_.begin()
                      , being_connected_.end()
                      , [&](const std::pair<NodeId, Endpoint>& pair) {
-                       if (peer_id.IsZero() || pair.first.IsZero() || peer_id == pair.first) {
+                       if (!peer_id.IsValid() || !pair.first.IsValid() || peer_id == pair.first) {
                          return pair.second == peer_ep;
                        }
                        return false;
@@ -97,7 +100,7 @@ void ConnectionManager::MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep) {
   auto j = being_connected_.begin();
   for (auto i = being_connected_.begin(); i != being_connected_.end(); i = j) {
     ++j;
-    if (peer_id.IsZero() || i->first.IsZero() || peer_id == i->first) {
+    if (!peer_id.IsValid() || !i->first.IsValid() || peer_id == i->first) {
       if (peer_ep == i->second) {
         being_connected_.erase(i);
       }
@@ -314,13 +317,13 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
     joining_connection->Close();
   } else {
     // Joining node is not already connected - start new bootstrap or temporary connection
-    if (auto t = transport_.lock()) {
+    if (auto transport = transport_.lock()) {
       Connect(
           handshake_packet.node_id(),
           endpoint, "", Parameters::bootstrap_connect_timeout,
           bootstrap_and_drop ? bptime::time_duration()
                              : Parameters::bootstrap_connection_lifespan,
-          t->MakeDefaultOnConnectHandler(),
+          transport->MakeDefaultOnConnectHandler(),
           nullptr);
     }
   }

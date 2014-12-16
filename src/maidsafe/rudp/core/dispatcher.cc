@@ -38,16 +38,14 @@ namespace rudp {
 
 namespace detail {
 
-Dispatcher::Dispatcher() : use_count_(std::make_shared<int>()),
-  connection_manager_(nullptr) {}
+Dispatcher::Dispatcher() : connection_manager_(nullptr) {}
 
 void Dispatcher::SetConnectionManager(ConnectionManager *connection_manager) {
   std::lock_guard<decltype(mutex_)> guard(mutex_);
-  connection_manager_ = std::move(connection_manager);
+  connection_manager_ = connection_manager;
 }
 
 uint32_t Dispatcher::AddSocket(Socket* socket) {
-  auto in_use(use_count_);
   ConnectionManager *connection_manager;
   {
     std::lock_guard<decltype(mutex_)> guard(mutex_);
@@ -57,7 +55,6 @@ uint32_t Dispatcher::AddSocket(Socket* socket) {
 }
 
 void Dispatcher::RemoveSocket(uint32_t id) {
-  auto in_use(use_count_);
   ConnectionManager *connection_manager;
   {
     std::lock_guard<decltype(mutex_)> guard(mutex_);
@@ -69,7 +66,6 @@ void Dispatcher::RemoveSocket(uint32_t id) {
 
 void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
                                    const ip::udp::endpoint& endpoint) {
-  auto in_use(use_count_);
   ConnectionManager* connection_manager;
   {
     std::lock_guard<decltype(mutex_)> guard(mutex_);
