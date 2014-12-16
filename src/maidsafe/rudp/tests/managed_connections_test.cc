@@ -25,6 +25,8 @@
 #include <limits>
 #include <vector>
 
+#include "asio/use_future.hpp"
+
 #ifndef WIN32
 extern "C" char** environ;
 #endif
@@ -92,96 +94,109 @@ namespace {
 //  return timeout;
 //}
 //
-//boost::chrono::milliseconds boost_rendezvous_connect_timeout() {
-//  static const boost::chrono::milliseconds timeout(
-//      Parameters::rendezvous_connect_timeout.total_milliseconds());
-//  return timeout;
-//}
+boost::chrono::milliseconds boost_rendezvous_connect_timeout() {
+  static const boost::chrono::milliseconds timeout(
+      Parameters::rendezvous_connect_timeout.total_milliseconds());
+  return timeout;
+}
 
 }  // unnamed namespace
 
-//class ManagedConnectionsTest : public testing::Test {
-// public:
-//  ManagedConnectionsTest()
-//      : node_(999),
-//        nodes_(),
-//        bootstrap_endpoints_(),
-//        do_nothing_on_message_([](const std::string&) {}),
-//#ifndef MAIDSAFE_APPLE
-//        do_nothing_on_connection_lost_([](const NodeId&) {}) {
-//  }
-//#else
-//        do_nothing_on_connection_lost_([](const NodeId&) {}),
-//        rlimit_() {
-//    SetNumberOfOpenFiles(2048);
-//  }
-//#endif
-//
-//  ~ManagedConnectionsTest() {
-//#ifdef MAIDSAFE_APPLE
-//    setrlimit(RLIMIT_NOFILE, &rlimit_);
-//#endif
-//  }
-//
-// protected:
-//  Node node_;
-//  std::vector<NodePtr> nodes_;
-//  std::vector<Endpoint> bootstrap_endpoints_;
-//  MessageReceivedFunctor do_nothing_on_message_;
-//  ConnectionLostFunctor do_nothing_on_connection_lost_;
-//
-//#ifdef MAIDSAFE_APPLE
-//  struct rlimit rlimit_;
-//
-//  void SetNumberOfOpenFiles(unsigned int open_files) {
-//    getrlimit(RLIMIT_NOFILE, &rlimit_);
-//    if (rlimit_.rlim_cur >= open_files)
-//      return;
-//
-//    struct rlimit limit;
-//    limit.rlim_cur = open_files;
-//    limit.rlim_max = open_files;
-//    setrlimit(RLIMIT_NOFILE, &limit);
-//  }
-//#endif
-//
-//  void BootstrapAndAdd(size_t index, NodeId& chosen_node, EndpointPair& this_endpoint_pair,
-//                       NatType& nat_type) {
-//    ASSERT_EQ(kSuccess,
-//              node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[index]), chosen_node));
-//    ASSERT_EQ(nodes_[index]->node_id(), chosen_node);
-//    Sleep(std::chrono::milliseconds(250));
-//    nodes_[index]->ResetData();
-//
-//    EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-//              node_.managed_connections()->GetAvailableEndpoint(
-//                  nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
-//    EndpointPair peer_endpoint_pair;
-//    EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-//              nodes_[index]->managed_connections()->GetAvailableEndpoint(
-//                  node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
-//    EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
-//    EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
-//
-//    auto peer_futures(nodes_[index]->GetFutureForMessages(1));
-//    auto this_node_futures(node_.GetFutureForMessages(1));
-//    EXPECT_EQ(kSuccess, nodes_[index]->managed_connections()->Add(
-//                            node_.node_id(), this_endpoint_pair, nodes_[index]->validation_data()));
-//    EXPECT_EQ(kSuccess, node_.managed_connections()->Add(
-//                            nodes_[index]->node_id(), peer_endpoint_pair, node_.validation_data()));
-//    ASSERT_EQ(boost::future_status::ready,
-//              peer_futures.wait_for(boost_rendezvous_connect_timeout()));
-//    auto peer_messages(peer_futures.get());
-//    ASSERT_EQ(boost::future_status::ready,
-//              this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
-//    auto this_node_messages(this_node_futures.get());
-//    ASSERT_EQ(1U, peer_messages.size());
-//    ASSERT_EQ(1U, this_node_messages.size());
-//    EXPECT_EQ(node_.validation_data(), peer_messages[0]);
-//    EXPECT_EQ(nodes_[index]->validation_data(), this_node_messages[0]);
-//  }
-//};
-//
+class ManagedConnectionsTest : public testing::Test {
+ public:
+  ManagedConnectionsTest()
+      : node_(999),
+        nodes_(),
+#ifndef MAIDSAFE_APPLE
+        bootstrap_endpoints_()
+        //do_nothing_on_message_([](const std::string&) {}),
+        //do_nothing_on_connection_lost_([](const NodeId&) {})
+  {
+  }
+#else
+        bootstrap_endpoints_(),
+        //do_nothing_on_message_([](const std::string&) {}),
+        //do_nothing_on_connection_lost_([](const NodeId&) {}),
+        rlimit_() {
+    SetNumberOfOpenFiles(2048);
+  }
+#endif
+
+  ~ManagedConnectionsTest() {
+#ifdef MAIDSAFE_APPLE
+    setrlimit(RLIMIT_NOFILE, &rlimit_);
+#endif
+  }
+
+ protected:
+  Node node_;
+  std::vector<NodePtr> nodes_;
+  std::vector<Contact> bootstrap_endpoints_;
+  //MessageReceivedFunctor do_nothing_on_message_;
+  //ConnectionLostFunctor do_nothing_on_connection_lost_;
+
+#ifdef MAIDSAFE_APPLE
+  struct rlimit rlimit_;
+
+  void SetNumberOfOpenFiles(unsigned int open_files) {
+    getrlimit(RLIMIT_NOFILE, &rlimit_);
+    if (rlimit_.rlim_cur >= open_files)
+      return;
+
+    struct rlimit limit;
+    limit.rlim_cur = open_files;
+    limit.rlim_max = open_files;
+    setrlimit(RLIMIT_NOFILE, &limit);
+  }
+#endif
+
+  void BootstrapAndAdd(size_t index, Contact& chosen_node, EndpointPair& this_endpoint_pair,
+                       NatType& /*nat_type*/) {
+    ASSERT_NO_THROW(chosen_node = node_.Bootstrap(bootstrap_endpoints_[index]));
+    ASSERT_EQ(nodes_[index]->node_id(), chosen_node.id);
+    Sleep(std::chrono::milliseconds(250));
+    nodes_[index]->ResetData();
+
+    try {
+      this_endpoint_pair = node_.managed_connections()->GetAvailableEndpoints(
+                             nodes_[index]->node_id(), asio::use_future).get();
+      GTEST_FAIL() << "Expecting exception thrown";
+    }
+    catch (std::system_error e) {
+      ASSERT_EQ(e.code(), RudpErrors::already_connected);
+    }
+
+    EndpointPair peer_endpoint_pair;
+    try {
+      peer_endpoint_pair = node_.managed_connections()->GetAvailableEndpoints(
+                             node_.node_id(), asio::use_future).get();
+      GTEST_FAIL() << "Expecting exception thrown";
+    }
+    catch (std::system_error e) {
+      ASSERT_EQ(e.code(), RudpErrors::already_connected);
+    }
+    EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+    EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+
+    auto peer_futures(nodes_[index]->GetFutureForMessages(1));
+    auto this_node_futures(node_.GetFutureForMessages(1));
+    EXPECT_NO_THROW(nodes_[index]->managed_connections()->Add(Contact(
+                            node_.node_id(), this_endpoint_pair, *node_.public_key()), asio::use_future).get());
+    EXPECT_NO_THROW(node_.managed_connections()->Add(Contact(
+                            nodes_[index]->node_id(), peer_endpoint_pair, *nodes_[index]->public_key()), asio::use_future).get());
+    ASSERT_EQ(boost::future_status::ready,
+              peer_futures.wait_for(boost_rendezvous_connect_timeout()));
+    auto peer_messages(peer_futures.get());
+    ASSERT_EQ(boost::future_status::ready,
+              this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
+    auto this_node_messages(this_node_futures.get());
+    ASSERT_EQ(1U, peer_messages.size());
+    ASSERT_EQ(1U, this_node_messages.size());
+    EXPECT_EQ(node_.validation_data(), peer_messages[0]);
+    EXPECT_EQ(nodes_[index]->validation_data(), this_node_messages[0]);
+  }
+};
+
 //TEST_F(ManagedConnectionsTest, BEH_API_kBootstrapConnectionAlreadyExists) {
 //  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 //  NodeId chosen_node;
@@ -217,12 +232,18 @@ namespace {
 //                nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
 //}
 //
-//TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
-//  int nodes(8 + RandomUint32() % 16);
-//  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, nodes));
-//}
-//
-//TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
+TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
+  int nodes(8 + RandomUint32() % 16);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, nodes));
+}
+
+TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
+  struct Listener : public ManagedConnections::Listener {
+    void MessageReceived(NodeId /*peer_id*/, ReceivedMessage /*message*/) override { }
+    void ConnectionLost(NodeId /*peer_id*/) override { }
+  };
+
+  auto listener = std::make_shared<Listener>();
 //  // All invalid
 //  NatType nat_type(NatType::kUnknown);
 //  NodeId chosen_bootstrap;
@@ -230,6 +251,15 @@ namespace {
 //            node_.managed_connections()->Bootstrap(
 //                std::vector<Endpoint>(), MessageReceivedFunctor(), ConnectionLostFunctor(),
 //                NodeId(), nullptr, nullptr, chosen_bootstrap, nat_type));
+    try {
+      node_.managed_connections()->Bootstrap(
+          std::vector<Contact>(), listener, NodeId(), asymm::Keys(), asio::use_future, Endpoint()).get();
+      GTEST_FAIL() << "Exception thrown was expected";
+    }
+    catch(std::system_error e) {
+      ASSERT_EQ(e.code(), RudpErrors::failed_to_bootstrap);
+    }
+
 //  // Empty bootstrap_endpoints
 //  EXPECT_EQ(kNoBootstrapEndpoints,
 //            node_.managed_connections()->Bootstrap(std::vector<Endpoint>(), do_nothing_on_message_,
@@ -307,7 +337,7 @@ namespace {
 //                          do_nothing_on_connection_lost_, node_.node_id(), node_.private_key(),
 //                          node_.public_key(), chosen_bootstrap, nat_type));
 //  EXPECT_FALSE(chosen_bootstrap.IsZero());
-//}
+}
 //
 //TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 //  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));

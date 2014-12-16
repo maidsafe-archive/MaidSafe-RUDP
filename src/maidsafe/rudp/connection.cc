@@ -303,7 +303,11 @@ bool Connection::Stopped() const { return (!transport_.lock() || !socket_.IsOpen
 bool Connection::TicksStopped() const { return (!transport_.lock() && !socket_.IsOpen()); }
 
 void Connection::StartTick() {
-  auto handler = strand_.wrap(std::bind(&Connection::HandleTick, shared_from_this()));
+  auto self = shared_from_this();
+  auto handler = [self](const ExtErrorCode&) {
+    self->HandleTick();
+  };
+
   socket_.AsyncTick(handler);
 }
 
@@ -354,8 +358,10 @@ void Connection::StartConnect(const asymm::PublicKey& peer_public_key,
     if (lifespan > bptime::time_duration()) {
       open_mode = Session::kBootstrapAndKeep;
       state_ = State::kBootstrapping;
-      lifespan_timer_.async_wait(
-          strand_.wrap(std::bind(&Connection::CheckLifespanTimeout, shared_from_this(), args::_1)));
+      auto self = shared_from_this();
+      lifespan_timer_.async_wait([self](const ErrorCode& error) {
+          self->CheckLifespanTimeout(error);
+          });
     } else {
       open_mode = Session::kBootstrapAndDrop;
       state_ = State::kTemporary;
@@ -403,8 +409,10 @@ void Connection::CheckLifespanTimeout(const ErrorCode& ec) {
       LOG(kInfo) << "Spuriously checking lifespan timeout of connection from " << *multiplexer_
                  << " to " << socket_.PeerEndpoint()
                  << "  Lifespan remaining: " << lifespan_timer_.expires_from_now();
-      lifespan_timer_.async_wait(
-          strand_.wrap(std::bind(&Connection::CheckLifespanTimeout, shared_from_this(), args::_1)));
+      auto self = shared_from_this();
+      lifespan_timer_.async_wait([self](const ErrorCode& e) {
+          self->CheckLifespanTimeout(e);
+          });
     }
   }
 }
@@ -524,7 +532,7 @@ void Connection::HandleReadData(const ErrorCode& ec, size_t length) {
   if (ec) {
 #ifndef NDEBUG
     if (!Stopped()) {
-      LOG(kError) << "peter Failed to read data.  Connection from " << *multiplexer_ << " to "
+      LOG(kError) << "Failed to read data.  Connection from " << *multiplexer_ << " to "
                   << socket_.PeerEndpoint() << " error - " << ec.message();
     }
 #endif
@@ -532,7 +540,7 @@ void Connection::HandleReadData(const ErrorCode& ec, size_t length) {
   }
 
   if (Stopped()) {
-    LOG(kError) << "peter Failed to read data.  Connection from " << *multiplexer_ << " to "
+    LOG(kError) << "Failed to read data.  Connection from " << *multiplexer_ << " to "
                 << socket_.PeerEndpoint() << " already stopped.";
     return DoClose(RudpErrors::not_connected);
   }
@@ -600,14 +608,21 @@ void Connection::HandleWrite(MessageSentFunctor message_sent_functor) {
 void Connection::StartProbing() {
   failed_probe_count_ = 0;
   probe_interval_timer_.expires_from_now(Parameters::keepalive_interval);
-  probe_interval_timer_.async_wait(
-      strand_.wrap(std::bind(&Connection::DoProbe, shared_from_this(), args::_1)));
+  auto self = shared_from_this();
+  probe_interval_timer_.async_wait([self](const ErrorCode& error) {
+      self->DoProbe(error);
+      });
 }
 
 void Connection::DoProbe(const ErrorCode& ec) {
   if ((Asio::error::operation_aborted != ec) && !Stopped()) {
-    socket_.AsyncProbe(
-        strand_.wrap(std::bind(&Connection::HandleProbe, shared_from_this(), args::_1)));
+    auto self = shared_from_this();
+
+    auto handle_probe = [self](const ErrorCode& error) mutable {
+      self->HandleProbe(error);
+    };
+
+    socket_.AsyncProbe(strand_.wrap(handle_probe));
   }
 }
 

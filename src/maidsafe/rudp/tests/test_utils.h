@@ -65,11 +65,12 @@ class Node {
   std::vector<NodeId> connection_lost_node_ids() const;
   messages_t messages() const;
   Contact Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint = Endpoint());
+  Contact Bootstrap(Contact bootstrap_endpoint, Endpoint local_endpoint = Endpoint());
   boost::future<messages_t> GetFutureForMessages(uint32_t message_count);
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
   std::string debug_node_id() const { return DebugId(node_id_); }
-  std::string validation_data() const { return validation_data_.string(); }
+  std::vector<uint8_t> validation_data() const { auto s = validation_data_.string(); return std::vector<uint8_t>(s.begin(), s.end()); }
   std::shared_ptr<asymm::PrivateKey> private_key() const {
       return std::make_shared<asymm::PrivateKey>(key_pair_.private_key);
   }
