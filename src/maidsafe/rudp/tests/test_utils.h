@@ -71,6 +71,7 @@ class Node {
   NodeId node_id() const { return node_id_; }
   std::string debug_node_id() const { return DebugId(node_id_); }
   std::vector<uint8_t> validation_data() const { auto s = validation_data_.string(); return std::vector<uint8_t>(s.begin(), s.end()); }
+  asymm::Keys keys() const { return key_pair_; }
   std::shared_ptr<asymm::PrivateKey> private_key() const {
       return std::make_shared<asymm::PrivateKey>(key_pair_.private_key);
   }

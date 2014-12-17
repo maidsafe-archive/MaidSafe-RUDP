@@ -316,7 +316,7 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
         return InvokeHandler(std::forward<Handler>(handler), RudpErrors::already_connected,
                              EndpointPair());
       } else {
-        return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unknown, EndpointPair());
+        return handler(Error(), this_endpoint_pair);
       }
     }
 

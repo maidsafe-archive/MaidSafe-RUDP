@@ -293,10 +293,8 @@ bool ManagedConnections::ExistingConnection(const NodeId& peer_id, EndpointPair&
       std::unique_ptr<PendingConnection> connection(
           new PendingConnection(peer_id, (*itr).second, asio_service_.service()));
       AddPending(std::move(connection));
-      connection_exists = false;
-    } else {
-      connection_exists = false;
     }
+    connection_exists = false;
   } else {
     connection_exists = true;
   }

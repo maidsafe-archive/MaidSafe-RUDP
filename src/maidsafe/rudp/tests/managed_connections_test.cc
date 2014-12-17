@@ -88,12 +88,12 @@ namespace {
 //  });
 //}
 //
-//std::chrono::milliseconds rendezvous_connect_timeout() {
-//  static const std::chrono::milliseconds timeout(
-//      Parameters::rendezvous_connect_timeout.total_milliseconds());
-//  return timeout;
-//}
-//
+std::chrono::milliseconds rendezvous_connect_timeout() {
+  static const std::chrono::milliseconds timeout(
+      Parameters::rendezvous_connect_timeout.total_milliseconds());
+  return timeout;
+}
+
 boost::chrono::milliseconds boost_rendezvous_connect_timeout() {
   static const boost::chrono::milliseconds timeout(
       Parameters::rendezvous_connect_timeout.total_milliseconds());
@@ -168,32 +168,44 @@ class ManagedConnectionsTest : public testing::Test {
 
     EndpointPair peer_endpoint_pair;
     try {
-      peer_endpoint_pair = node_.managed_connections()->GetAvailableEndpoints(
+      peer_endpoint_pair = nodes_[index]->managed_connections()->GetAvailableEndpoints(
                              node_.node_id(), asio::use_future).get();
       GTEST_FAIL() << "Expecting exception thrown";
     }
     catch (std::system_error e) {
-      ASSERT_EQ(e.code(), RudpErrors::already_connected);
+      ASSERT_EQ(e.code(), RudpErrors::already_connected) << "Exception: " << e.what();
     }
-    EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
-    EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+    //EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+    //EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
 
-    auto peer_futures(nodes_[index]->GetFutureForMessages(1));
-    auto this_node_futures(node_.GetFutureForMessages(1));
-    EXPECT_NO_THROW(nodes_[index]->managed_connections()->Add(Contact(
-                            node_.node_id(), this_endpoint_pair, *node_.public_key()), asio::use_future).get());
-    EXPECT_NO_THROW(node_.managed_connections()->Add(Contact(
-                            nodes_[index]->node_id(), peer_endpoint_pair, *nodes_[index]->public_key()), asio::use_future).get());
-    ASSERT_EQ(boost::future_status::ready,
-              peer_futures.wait_for(boost_rendezvous_connect_timeout()));
-    auto peer_messages(peer_futures.get());
-    ASSERT_EQ(boost::future_status::ready,
-              this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
-    auto this_node_messages(this_node_futures.get());
-    ASSERT_EQ(1U, peer_messages.size());
-    ASSERT_EQ(1U, this_node_messages.size());
-    EXPECT_EQ(node_.validation_data(), peer_messages[0]);
-    EXPECT_EQ(nodes_[index]->validation_data(), this_node_messages[0]);
+    //auto peer_futures(nodes_[index]->GetFutureForMessages(1));
+    //auto this_node_futures(node_.GetFutureForMessages(1));
+    try {
+      nodes_[index]->managed_connections()->Add(Contact(
+              node_.node_id(), this_endpoint_pair, *node_.public_key()), asio::use_future).get();
+    }
+    catch (std::system_error error) {
+      ASSERT_EQ(error.code(), RudpErrors::already_connected);
+    }
+
+    try {
+      node_.managed_connections()->Add(Contact(
+                            nodes_[index]->node_id(), peer_endpoint_pair, *nodes_[index]->public_key()), asio::use_future).get();
+    }
+    catch (std::system_error error) {
+      ASSERT_EQ(error.code(), RudpErrors::already_connected);
+    }
+
+    //ASSERT_EQ(boost::future_status::ready,
+    //          peer_futures.wait_for(boost_rendezvous_connect_timeout()));
+    //auto peer_messages(peer_futures.get());
+    //ASSERT_EQ(boost::future_status::ready,
+    //          this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
+    //auto this_node_messages(this_node_futures.get());
+    //ASSERT_EQ(1U, peer_messages.size());
+    //ASSERT_EQ(1U, this_node_messages.size());
+    //EXPECT_EQ(node_.validation_data(), peer_messages[0]);
+    //EXPECT_EQ(nodes_[index]->validation_data(), this_node_messages[0]);
   }
 };
 
@@ -232,10 +244,10 @@ class ManagedConnectionsTest : public testing::Test {
 //                nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
 //}
 //
-TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
-  int nodes(8 + RandomUint32() % 16);
-  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, nodes));
-}
+//TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
+//  int nodes(8 + RandomUint32() % 16);
+//  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, nodes));
+//}
 
 TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   struct Listener : public ManagedConnections::Listener {
@@ -266,7 +278,14 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
 //                                                   do_nothing_on_connection_lost_, node_.node_id(),
 //                                                   node_.private_key(), node_.public_key(),
 //                                                   chosen_bootstrap, nat_type));
+    try {
+      node_.managed_connections()->Bootstrap(std::vector<Contact>(), listener, NodeId(), node_.keys(), asio::use_future, Endpoint());
+    }
+    catch(std::system_error e) {
+      ASSERT_EQ(e.code(), RudpErrors::failed_to_bootstrap);
+    }
 //  // Unavailable bootstrap_endpoints
+//  // TODO
 //  {
 //    Asio::io_service io_service;
 //    boost::asio::ip::udp::socket tmp_socket(io_service, Endpoint(GetLocalIp(), 0));
@@ -338,76 +357,114 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
 //                          node_.public_key(), chosen_bootstrap, nat_type));
 //  EXPECT_FALSE(chosen_bootstrap.IsZero());
 }
-//
-//TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
-//  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
-//
-//  //  Before Bootstrapping
-//  EndpointPair this_endpoint_pair(Endpoint(ip::address::from_string("1.1.1.1"), 1025));
-//  NatType nat_type;
-//
-//  EXPECT_EQ(kNotBootstrapped,
-//            node_.managed_connections()->GetAvailableEndpoint(
-//                NodeId(NodeId::IdType::kRandomId), EndpointPair(), this_endpoint_pair, nat_type));
-//
-//  EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
-//  EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
-//
-//  this_endpoint_pair = EndpointPair(Endpoint(ip::address::from_string("1.1.1.1"), 1025));
-//  EndpointPair endpoint_pair(Endpoint(ip::address::from_string("1.2.3.4"), 1026));
-//
-//  EXPECT_EQ(kNotBootstrapped,
-//            node_.managed_connections()->GetAvailableEndpoint(
-//                NodeId(NodeId::IdType::kRandomId), endpoint_pair, this_endpoint_pair, nat_type));
-//
-//  EXPECT_EQ(EndpointPair(), this_endpoint_pair);
-//
-//  //  After Bootstrapping
-//  NodeId chosen_node;
-//  nat_type = NatType::kUnknown;
-//  EXPECT_EQ(kSuccess,
-//            node_.managed_connections()->Bootstrap(
-//                bootstrap_endpoints_, do_nothing_on_message_, do_nothing_on_connection_lost_,
-//                node_.node_id(), node_.private_key(), node_.public_key(), chosen_node, nat_type));
-//
-//  EXPECT_FALSE(chosen_node.IsZero());
-//
-//  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-//            node_.managed_connections()->GetAvailableEndpoint(chosen_node, EndpointPair(),
-//                                                              this_endpoint_pair, nat_type));
-//
-//  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
-//
-//  EndpointPair another_endpoint_pair;
-//
-//  EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-//                          NodeId(NodeId::IdType::kRandomId), EndpointPair(), another_endpoint_pair,
-//                          nat_type));
-//
-//  EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
-//  EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
-//}
-//
-//TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
-//  const int kNodeCount(8);
-//  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNodeCount));
-//
-//  std::string message("message1");
-//  NodeId chosen_node;
-//  EndpointPair this_endpoint_pair;
-//  NatType nat_type;
-//  BootstrapAndAdd(0, chosen_node, this_endpoint_pair, nat_type);
-//
-//  // Run GetAvailableEndpoint to add elements to pendings_.
-//  for (int i(1); i != kNodeCount; ++i) {
-//    EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-//                            nodes_[i]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
-//  }
+
+TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
+
+  struct Listener : public ManagedConnections::Listener {
+    void MessageReceived(NodeId /*peer_id*/, ReceivedMessage /*message*/) override { }
+    void ConnectionLost(NodeId /*peer_id*/) override { }
+  };
+
+  //  Before Bootstrapping
+  EndpointPair this_endpoint_pair(Endpoint(ip::address::from_string("1.1.1.1"), 1025));
+
+  // TODO?
+  //EXPECT_EQ(kNotBootstrapped,
+  //          node_.managed_connections()->GetAvailableEndpoint(
+  //              NodeId(NodeId::IdType::kRandomId), EndpointPair(), this_endpoint_pair, nat_type));
+
+  //EXPECT_EQ(Endpoint(), this_endpoint_pair.local);
+  //EXPECT_EQ(Endpoint(), this_endpoint_pair.external);
+
+  //this_endpoint_pair = EndpointPair(Endpoint(ip::address::from_string("1.1.1.1"), 1025));
+  //EndpointPair endpoint_pair(Endpoint(ip::address::from_string("1.2.3.4"), 1026));
+
+  //EXPECT_EQ(kNotBootstrapped,
+  //          node_.managed_connections()->GetAvailableEndpoint(
+  //              NodeId(NodeId::IdType::kRandomId), endpoint_pair, this_endpoint_pair, nat_type));
+
+  //EXPECT_EQ(EndpointPair(), this_endpoint_pair);
+
+  //  After Bootstrapping
+  Contact chosen_node;
+  //EXPECT_EQ(kSuccess,
+  //          node_.managed_connections()->Bootstrap(
+  //              bootstrap_endpoints_, do_nothing_on_message_, do_nothing_on_connection_lost_,
+  //              node_.node_id(), node_.private_key(), node_.public_key(), chosen_node, nat_type));
+  try {
+    chosen_node = node_.managed_connections()->Bootstrap
+                    ( bootstrap_endpoints_
+                    , std::make_shared<Listener>()
+                    , node_.node_id()
+                    , node_.keys()
+                    , asio::use_future, Endpoint()).get();
+  }
+  catch (std::system_error error) {
+    GTEST_FAIL() << "Failed to bootstrap";
+  }
+
+  EXPECT_TRUE(chosen_node.id.IsValid());
+
+  //EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+  //          node_.managed_connections()->GetAvailableEndpoint(chosen_node, EndpointPair(),
+  //                                                            this_endpoint_pair, nat_type));
+  try {
+    node_.managed_connections()->GetAvailableEndpoints(chosen_node.id, asio::use_future).get();
+    GTEST_FAIL() << "Expected to fail in GetAvailableEndpoints";
+  }
+  catch (std::system_error error) {
+    EXPECT_EQ(error.code(), RudpErrors::already_connected);
+  }
+
+  //EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+
+  EndpointPair another_endpoint_pair;
+
+  //EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
+  //                        NodeId(NodeId::IdType::kRandomId), EndpointPair(), another_endpoint_pair,
+  //                        nat_type));
+  try {
+    another_endpoint_pair = node_.managed_connections()->GetAvailableEndpoints
+                              ( NodeId(RandomString(NodeId::kSize))
+                              , asio::use_future
+                              ).get();
+  }
+  catch (std::system_error error) {
+    GTEST_FAIL() << "Did not expect exception in GetAvailableEndpoints";
+  }
+
+  EXPECT_TRUE(detail::IsValid(another_endpoint_pair.local));
+  EXPECT_NE(this_endpoint_pair.local, another_endpoint_pair.local);
+}
+
+TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
+  const int kNodeCount(8);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNodeCount));
+
+  std::string message("message1");
+  Contact chosen_node;
+  EndpointPair this_endpoint_pair;
+  NatType nat_type;
+  BootstrapAndAdd(0, chosen_node, this_endpoint_pair, nat_type);
+
+  // Run GetAvailableEndpoint to add elements to pendings_.
+  for (int i(1); i != kNodeCount; ++i) {
+    //EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
+    //                        nodes_[i]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
+    try {
+      this_endpoint_pair = node_.managed_connections()->GetAvailableEndpoints(
+          nodes_[i]->node_id(), asio::use_future).get();
+    }
+    catch (std::system_error error) {
+      GTEST_FAIL() << "GetAvailableEndpoints failed";
+    }
+  }
 //
 //  // Wait for rendezvous_connect_timeout + 500ms to clear the pendings, which should allow for
 //  // further GetAvailableEndpoint calls to be made. Intermediate calls should return with
 //  // kConnectAttemptAlreadyRunning.
-//  EndpointPair test_endpoint_pair;
+    EndpointPair test_endpoint_pair;
 //  for (int i(1); i != kNodeCount; ++i) {
 //    EXPECT_EQ(kConnectAttemptAlreadyRunning,
 //              node_.managed_connections()->GetAvailableEndpoint(
@@ -415,14 +472,30 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
 //    EXPECT_EQ(this_endpoint_pair.external, test_endpoint_pair.external);
 //    EXPECT_EQ(this_endpoint_pair.local, test_endpoint_pair.local);
 //  }
-//
-//  Sleep(rendezvous_connect_timeout() / 2);
-//
+    for (int i = 1; i != kNodeCount; ++i) {
+      try {
+        node_.managed_connections()->GetAvailableEndpoints(nodes_[i]->node_id(), asio::use_future).get();
+        GTEST_FAIL() << "GetAvailableEndpoints expected to fail";
+      }
+      catch (std::system_error error) {
+        ASSERT_EQ(error.code(), RudpErrors::connection_already_in_progress);
+      }
+    }
+
+    Sleep(rendezvous_connect_timeout() / 2);
+
 //  // Remove one from the pendings_ by calling Add to complete making the connection.
-//  const int kSelected((RandomUint32() % (kNodeCount - 1)) + 1);
+  const int kSelected((RandomUint32() % (kNodeCount - 1)) + 1);
 //  EndpointPair peer_endpoint_pair;
 //  EXPECT_EQ(kSuccess, nodes_[kSelected]->managed_connections()->GetAvailableEndpoint(
 //                          node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
+    try {
+      this_endpoint_pair = nodes_[kSelected]->managed_connections()->GetAvailableEndpoints(
+          node_.node_id(), asio::use_future).get();
+    }
+    catch (std::system_error error) {
+      GTEST_FAIL() << "Exception: " << error.what();
+    }
 //  EXPECT_EQ(kSuccess,
 //            nodes_[kSelected]->managed_connections()->Add(node_.node_id(), this_endpoint_pair,
 //                                                          nodes_[kSelected]->validation_data()));
@@ -440,15 +513,24 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
 //    }
 //  }
 //
-//  Sleep(rendezvous_connect_timeout() / 2 + std::chrono::milliseconds(500));
+  Sleep(rendezvous_connect_timeout() / 2 + std::chrono::milliseconds(500));
 //
 //  for (int i(1); i != kNodeCount; ++i) {
 //    EXPECT_EQ((i == kSelected ? kUnvalidatedConnectionAlreadyExists : kSuccess),
 //              node_.managed_connections()->GetAvailableEndpoint(
 //                  nodes_[i]->node_id(), EndpointPair(), test_endpoint_pair, nat_type));
 //  }
-//}
-//
+    for (int i = 1; i != kNodeCount; ++i) {
+      try {
+        node_.managed_connections()->GetAvailableEndpoints(
+            nodes_[i]->node_id(), asio::use_future).get();
+      }
+      catch (std::system_error error) {
+        GTEST_FAIL() << "Exception: " << error.what();
+      }
+    }
+}
+
 //TEST_F(ManagedConnectionsTest, BEH_API_Add) {
 //  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 //
