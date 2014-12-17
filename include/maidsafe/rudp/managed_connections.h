@@ -107,18 +107,9 @@ class ManagedConnections {
   // make a permanent connection to a successful bootstrap endpoint) it should be passed in.  If
   // peer_endpoint is a valid endpoint, it is checked against the current group of peers which have
   // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
-  //template <typename CompletionToken>
-  //GetAvailableEndpointsReturn<CompletionToken> GetAvailableEndpoints(const NodeId& peer_id,
-  //                                                                   CompletionToken&& token);
-
   template <typename CompletionToken>
-  GetAvailableEndpointsReturn<CompletionToken> GetAvailableEndpoints(
-      const NodeId& peer_id, CompletionToken&& token) {
-    GetAvailableEndpointsHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
-    asio::async_result<decltype(handler)> result(handler);
-    asio_service_.service().post([=] { DoGetAvailableEndpoints(peer_id, handler); });
-    return result.get();
-  }
+  GetAvailableEndpointsReturn<CompletionToken> GetAvailableEndpoints(const NodeId& peer_id,
+                                                                     CompletionToken&& token);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
   // runs its message_received_functor_ with the data.  All messages sent via this connection are
@@ -238,8 +229,11 @@ class ManagedConnections {
 
 template <typename CompletionToken>
 BootstrapReturn<CompletionToken> ManagedConnections::Bootstrap(
-    const BootstrapContacts& bootstrap_list, std::shared_ptr<Listener> listener,
-    const NodeId& this_node_id, const asymm::Keys& keys, CompletionToken&& token,
+    const BootstrapContacts& bootstrap_list,
+    std::shared_ptr<Listener> listener,
+    const NodeId& this_node_id,
+    const asymm::Keys& keys,
+    CompletionToken&& token,
     Endpoint local_endpoint) {
   BootstrapHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
@@ -278,12 +272,19 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
       });
 }
 
+template <typename CompletionToken>
+GetAvailableEndpointsReturn<CompletionToken> ManagedConnections::GetAvailableEndpoints(
+    const NodeId& peer_id, CompletionToken&& token) {
+  GetAvailableEndpointsHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
+  asio::async_result<decltype(handler)> result(handler);
+  asio_service_.service().post([=] { DoGetAvailableEndpoints(peer_id, handler); });
+  return result.get();
+}
+
 template <typename Handler>
 void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler handler) {
-  // FIXME: Error codes
   namespace error = boost::asio::error;
 
-  //using Handler = GetAvailableEndpointsHandler<CompletionToken>;
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
     return InvokeHandler(std::forward<Handler>(handler), RudpErrors::operation_not_supported,

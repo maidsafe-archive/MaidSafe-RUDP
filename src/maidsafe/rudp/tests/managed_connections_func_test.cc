@@ -99,30 +99,21 @@ class ManagedConnectionsFuncTest : public testing::Test {
       futures.emplace_back(node_ptr->GetFutureForMessages(messages_received_per_node));
     }
 
-    // Sending messages
-    //vector<vector<vector<std::error_code>>> send_results(
-    //    nodes_.size(),
-    //    vector<vector<std::error_code>>(nodes_.size() - 1,
-    //                                    vector<std::error_code>(num_messages, std::error_code())));
-
-    std::atomic<size_t> issued(0), finished(0);
-
     // FIXME: Wait for the send futures somewhere below receiving.
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       vector<NodeId> peers(nodes_.at(i)->GetConnectedNodeIds());
-      LOG(kVerbose) << "peter " << nodes_.size() << " " << peers.size();
       ASSERT_EQ(nodes_.size() - 1, peers.size());
       for (uint16_t j = 0; j != peers.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
-          ++issued;
           Sleep(std::chrono::seconds(1));
           try {
             nodes_.at(i)->managed_connections()->Send(
                 peers.at(j), sent_messages[i][k], asio::use_future).get();
-            LOG(kVerbose) << "peter sent " << nodes_.at(i)->id() << " " << nodes_.at(j)->id() << " " << peers.at(j) << " " << sent_messages[i][k];
           }
           catch (std::system_error e) {
-            LOG(kVerbose) << "peter can't send " << nodes_.at(i)->id() << " " << nodes_.at(j)->id() << " " << e.what();
+            LOG(kVerbose) << "Can't send "
+                          << nodes_.at(i)->id() << " " << nodes_.at(j)->id()
+                          << " " << e.what();
           }
         }
       }
@@ -143,19 +134,11 @@ class ManagedConnectionsFuncTest : public testing::Test {
         EXPECT_FALSE(true) << "Timed out on " << nodes_.at(i)->id();
       }
     }
-    //uint8_t ticking(0);
-    //while ((issued != finished) && (++ticking <(num_messages * nodes_.size())))
-    //  Sleep(std::chrono::seconds(1));
-    //EXPECT_EQ(issued, finished);
 
     // Check send results
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       for (uint16_t j = 0; j != nodes_.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
-          //if (j != nodes_.size() - 1) {
-          //  EXPECT_EQ(kSuccess, send_results[i][j][k]) << "send_results[" << i << "][" << j << "]["
-          //                                             << k << "]: " << send_results[i][j][k];
-          //}
           if (i != j) {
             EXPECT_EQ(1U, nodes_.at(i)->GetReceivedMessageCount(sent_messages[j][k]))
                 << nodes_.at(i)->id() << " didn't receive";

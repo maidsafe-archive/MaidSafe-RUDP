@@ -46,18 +46,16 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   using asio::use_future;
   using std::system_error;
 
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 1";
   if (node_count < 2)
     return testing::AssertionFailure() << "Network size must be greater than 1";
 
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 2";
+  LOG(kVerbose) << "peter ---------------------------------";
   nodes.clear();
   bootstrap_endpoints.clear();
   for (int i(0); i != node_count; ++i) {
     nodes.push_back(std::make_shared<Node>(i));
   }
 
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 3";
   // Setting up first two nodes
   EndpointPair endpoints0, endpoints1;
   endpoints0.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
@@ -67,55 +65,41 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
                        };
 
   Contact chosen_node_id, node1_chosen_bootstrap_contact;
-  //int result0(0);
 
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 4";
+  LOG(kVerbose) << "peter ---------------------------------";
   boost::thread thread([&] {
-    //chosen_node_id = nodes[0]->Bootstrap(std::vector<Endpoint>(1, endpoints1.local),
-    //                              chosen_node_id,
-    //                              endpoints0.local);
     EXPECT_NO_THROW(chosen_node_id
-                     = nodes[0]->Bootstrap(std::vector<Contact>(1, contacts[1]), endpoints0.local));
+                     = nodes[0]->Bootstrap(contacts[1], endpoints0.local));
   });
 
   EXPECT_NO_THROW(node1_chosen_bootstrap_contact
-                   = nodes[1]->Bootstrap(std::vector<Contact>(1, contacts[0]), endpoints1.local));
+                   = nodes[1]->Bootstrap(contacts[0], endpoints1.local));
 
-  //node1_chosen_bootstrap_contact = nodes[1]->Bootstrap(std::vector<Endpoint>(1, endpoints0.local),
-  //                                node1_chosen_bootstrap_contact,
-  //                                endpoints1.local);
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 4.5";
   thread.join();
 
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 5 ";
+  LOG(kVerbose) << "peter ---------------------------------";
+  // FIXME: Retry if either of the two ports had been taken.
   //if (result0 == kBindError || result1 == kBindError) {
   //  // The endpoints were taken by some other program, retry...
   //  return SetupNetwork(nodes, bootstrap_endpoints, node_count);
   //}
 
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 6 ";
   if (node1_chosen_bootstrap_contact.id != nodes[0]->node_id())
     return testing::AssertionFailure() << "Bootstrapping failed for Node 1.";
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 7";
+
   if (chosen_node_id.id != nodes[1]->node_id())
     return testing::AssertionFailure() << "Bootstrapping failed for Node 0.";
 
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 8";
+  LOG(kVerbose) << "peter ---------------------------------";
   EndpointPair endpoint_pair0, endpoint_pair1;
-  //NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
   endpoint_pair1 = endpoints1;
   Sleep(std::chrono::milliseconds(250));
 
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 9";
-
   EXPECT_ANY_THROW(nodes[0]->managed_connections()->GetAvailableEndpoints
                          (nodes[1]->node_id(), use_future).get());
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 10 ";
 
   EXPECT_ANY_THROW(nodes[1]->managed_connections()->GetAvailableEndpoints
                          (nodes[0]->node_id(), use_future).get());
-
-  LOG(kVerbose) << "peter aaaaaaaaaaaaaaaaaaaaaaa 11 ";
 
   EXPECT_THROW( nodes[0]->managed_connections()->Add(contacts[1], use_future).get()
               , system_error);
@@ -152,34 +136,31 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
     EndpointPair ith_endpoint_pair;
     EndpointPair jth_endpoint_pair;
 
+    LOG(kVerbose) << "peter ---------------------------------";
     //NatType nat_type;
     Sleep(std::chrono::milliseconds(250));
     for (int j(0); j != i; ++j) {
-      LOG(kInfo) << "peter >>>>> Starting attempt to connect " << nodes[i]->id() << " to " << nodes[j]->id();
       // Call GetAvailableEndpoint at each peer.
       nodes[i]->ResetData();
       nodes[j]->ResetData();
 
+      LOG(kVerbose) << "peter ---------------------------------";
       try {
         ith_endpoint_pair = nodes[i]->managed_connections()->GetAvailableEndpoints(nodes[j]->node_id(), use_future).get();
-        LOG(kVerbose) << "peter Success";
       }
       catch(system_error e) {
         EXPECT_EQ(e.code(), RudpErrors::already_connected);
-        LOG(kVerbose) << "peter Error " << e.what();
       }
 
-      LOG(kInfo) << "peter >>>>> Starting attempt to connect " << nodes[j]->id() << " to " << nodes[i]->id();
+      LOG(kVerbose) << "peter ---------------------------------";
       try {
         jth_endpoint_pair = nodes[j]->managed_connections()->GetAvailableEndpoints(nodes[i]->node_id(), use_future).get();
-        LOG(kVerbose) << "peter Success";
       }
       catch(system_error e) {
         EXPECT_EQ(e.code(), RudpErrors::already_connected);
-        LOG(kVerbose) << "peter Error " << e.what();
       }
 
-      LOG(kInfo) << "peter >>>>> " << nodes[j]->id() << " Add " << nodes[i]->id();
+      LOG(kVerbose) << "peter ---------------------------------";
       auto i_add = nodes[i]->managed_connections()->Add
                       ( Contact( nodes[j]->node_id(), jth_endpoint_pair, *nodes[j]->public_key())
                       , use_future);
@@ -191,11 +172,9 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
       try {
         i_add.get();
         j_add.get();
-        LOG(kVerbose) << "peter Success";
       }
       catch(system_error e) {
         EXPECT_EQ(e.code(), RudpErrors::already_connected);
-        LOG(kVerbose) << "peter Error " << e.what();
       }
 
       nodes[j]->AddConnectedNodeId(nodes[i]->node_id());
@@ -228,6 +207,10 @@ std::vector<NodeId> Node::connection_lost_node_ids() const {
 Node::messages_t Node::messages() const {
   std::lock_guard<std::mutex> guard(mutex_);
   return messages_;
+}
+
+Contact Node::Bootstrap(Contact bootstrap_endpoint, Endpoint local_endpoint) {
+  return Bootstrap(std::vector<Contact>(1, bootstrap_endpoint), local_endpoint);
 }
 
 Contact Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint) {
