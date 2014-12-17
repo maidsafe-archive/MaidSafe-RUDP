@@ -205,7 +205,9 @@ bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
 
   ConnectionPtr connection(*itr);
   lock.unlock();
-  strand_.dispatch([=] { connection->StartSending(message, handler); });
+  // using COW std::string will cause thread sanitizer warning of data racing
+  std::shared_ptr<std::string> message_ptr(new std::string(message.data(), message.size()));
+  strand_.dispatch([=] { connection->StartSending(*message_ptr, handler); });
   return true;
 }
 

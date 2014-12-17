@@ -117,9 +117,11 @@ void ManagedConnections::ClearConnectionsAndIdleTransports() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (!connections_.empty()) {
     for (auto connection_details : connections_) {
-      assert(connection_details.second->GetConnection(connection_details.first)->state() ==
-             detail::Connection::State::kBootstrapping);
-      connection_details.second->Close();
+      auto connection_ptr(connection_details.second->GetConnection(connection_details.first));
+      if (connection_ptr) {
+        assert(connection_ptr->state() == detail::Connection::State::kBootstrapping);
+        connection_details.second->Close();
+      }
     }
     connections_.clear();
   }
@@ -371,7 +373,8 @@ bool ManagedConnections::ShouldStartNewTransport(const EndpointPair& peer_endpoi
 }
 
 void ManagedConnections::AddPending(std::unique_ptr<PendingConnection> connection) {
-  NodeId peer_id(connection->node_id);
+  NodeId peer_id(connection->node_id.ToStringEncoded(NodeId::EncodingType::kHex),
+                 NodeId::EncodingType::kHex);
   pendings_.push_back(std::move(connection));
   pendings_.back()->timer.async_wait([peer_id, this](const boost::system::error_code& ec) {
     if (ec != boost::asio::error::operation_aborted) {
@@ -470,9 +473,12 @@ void ManagedConnections::DoRemove(const NodeId& peer_id) {
   }
 
   TransportPtr transport_to_close;
-
   {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (peer_id == this_node_id_) {
+      LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
+      return;
+    }
     auto itr(connections_.find(peer_id));
     if (itr == connections_.end()) {
       LOG(kWarning) << "Can't remove connection from " << this_node_id_ << " to " << peer_id
@@ -513,15 +519,15 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
 
 void ManagedConnections::OnMessageSlot(const NodeId& peer_id, const std::string& message) {
   try {
-    std::string decrypted_message(
+    std::shared_ptr<std::string> decrypted_message(new std::string(
 #ifdef TESTING
         !Parameters::rudp_encrypt ?
             message :
 #endif
-            asymm::Decrypt(asymm::CipherText(message), keys_.private_key).string());
+            asymm::Decrypt(asymm::CipherText(message), keys_.private_key).string()));
     if (auto listener = listener_.lock()) {
-      listener->MessageReceived(peer_id, std::vector<unsigned char>(std::begin(decrypted_message),
-                                                                    std::end(decrypted_message)));
+      listener->MessageReceived(peer_id, std::vector<unsigned char>(std::begin(*decrypted_message),
+                                                                    std::end(*decrypted_message)));
     }
   } catch (const std::exception& e) {
     LOG(kError) << "Failed to decrypt message: " << e.what();

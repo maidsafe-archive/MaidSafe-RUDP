@@ -255,7 +255,7 @@ void Connection::FinishSendAndQueueNext() {
 
 void Connection::DoStartSending(const SendRequest& request) {
   sending_ = true;
-  const auto& message_sent_functor = request.handler_;
+  auto message_sent_functor = request.handler_;
   MessageSentFunctor wrapped_functor([this, message_sent_functor](error_code result) {
     InvokeSentFunctor(message_sent_functor, result);
   });
