@@ -820,6 +820,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
 
 //  ASSERT_TRUE(wait_for_signals(1, 3));
   ASSERT_EQ(node_a.connection_lost_node_ids().size(), 1U);
+  //FIXME: Synchronization by sleep is evil.
+  Sleep(std::chrono::milliseconds(200));
   ASSERT_EQ(node_c.connection_lost_node_ids().size(), 1U);
   EXPECT_EQ(chosen_node.id, node_a.connection_lost_node_ids()[0]);
   EXPECT_EQ(node_c.managed_connections()->GetActiveConnectionCount(), 3);
@@ -914,76 +916,54 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
 //  EXPECT_TRUE(nodes_[0]->connection_lost_node_ids().empty());
 }
 
-//TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
-//  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
-//
-//  NodeId chosen_node;
-//  EXPECT_EQ(kSuccess,
-//            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-//  ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
-//  for (unsigned count(0);
-//       nodes_[0]->managed_connections()->GetActiveConnectionCount() < 2 && count < 10; ++count)
-//    Sleep(std::chrono::milliseconds(100));
-//  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
-//
-//  EndpointPair this_endpoint_pair, peer_endpoint_pair;
-//  NatType nat_type;
-//  EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-//                          nodes_[1]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
-//  EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->GetAvailableEndpoint(
-//                          node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
-//  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
-//  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
-//
-//  auto peer_futures(nodes_[1]->GetFutureForMessages(1));
-//  auto this_node_futures(node_.GetFutureForMessages(1));
-//  EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->Add(node_.node_id(), this_endpoint_pair,
-//                                                            nodes_[1]->validation_data()));
-//  EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(), peer_endpoint_pair,
-//                                                       node_.validation_data()));
-//  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost_rendezvous_connect_timeout()));
-//  auto peer_messages(peer_futures.get());
-//  ASSERT_EQ(boost::future_status::ready,
-//            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
-//  auto this_node_messages(this_node_futures.get());
-//  ASSERT_EQ(1U, peer_messages.size());
-//  ASSERT_EQ(1U, this_node_messages.size());
-//  EXPECT_EQ(node_.validation_data(), peer_messages[0]);
-//  EXPECT_EQ(nodes_[1]->validation_data(), this_node_messages[0]);
-//
-//  node_.ResetData();
-//  nodes_[1]->ResetData();
-//  static const int kRepeatCount = 10;
-//  std::atomic<int> result_arrived_count(0);
-//  std::atomic<int> result_of_send(kSuccess);
-//  std::promise<void> done_out;
-//  auto done_in = done_out.get_future();
-//
-//  using lock_guard = std::lock_guard<std::mutex>;
-//  std::mutex mutex;
-//
-//  MessageSentFunctor message_sent_functor([&](int result_in) {
-//    lock_guard guard(mutex);
-//    if (result_in != kSuccess)
-//      result_of_send = result_in;
-//    if (kRepeatCount == ++result_arrived_count)
-//      done_out.set_value();
-//  });
-//  peer_futures = nodes_[1]->GetFutureForMessages(kRepeatCount);
-//  const std::string kMessage(RandomAlphaNumericString(256 * 1024));
-//  for (int i(0); i != kRepeatCount; ++i)
-//    node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, message_sent_functor);
-//
-//  ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(60)));
-//  { lock_guard guard(mutex); }
-//
-//  EXPECT_EQ(kSuccess, result_of_send);
-//  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost::chrono::minutes(2)));
-//  peer_messages = peer_futures.get();
-//  ASSERT_EQ(static_cast<size_t>(kRepeatCount), peer_messages.size());
-//  for (auto peer_message : peer_messages)
-//    EXPECT_EQ(kMessage, peer_message);
-//}
+TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
+
+  Contact chosen_node;
+  ASSERT_NO_THROW(chosen_node = node_.Bootstrap(bootstrap_endpoints_[0]).get());
+  ASSERT_EQ(nodes_[0]->node_id(), chosen_node.id);
+  for (unsigned count(0);
+       nodes_[0]->managed_connections()->GetActiveConnectionCount() < 2 && count < 10; ++count)
+    Sleep(std::chrono::milliseconds(100));
+  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
+
+  EndpointPair this_endpoint_pair, peer_endpoint_pair;
+
+  ASSERT_NO_THROW(this_endpoint_pair = node_.GetAvailableEndpoints(nodes_[1]->node_id()).get());
+  ASSERT_NO_THROW(peer_endpoint_pair = nodes_[1]->GetAvailableEndpoints(node_.node_id()).get());
+
+  ASSERT_TRUE(detail::IsValid(this_endpoint_pair.local));
+  ASSERT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+
+  auto peer_futures(nodes_[1]->GetFutureForMessages(1));
+  auto this_node_futures(node_.GetFutureForMessages(1));
+
+  auto node_a_add = node_.Add(nodes_[1]->make_contact(peer_endpoint_pair)); 
+  auto node_b_add = nodes_[1]->Add(node_.make_contact(this_endpoint_pair));
+
+  ASSERT_NO_THROW(node_a_add.get());
+  ASSERT_NO_THROW(node_b_add.get());
+
+  node_.ResetData();
+  nodes_[1]->ResetData();
+  static const int kRepeatCount = 10;
+  std::atomic<int> result_arrived_count(0);
+  std::atomic<int> result_of_send(kSuccess);
+  std::promise<void> done_out;
+  auto done_in = done_out.get_future();
+
+  peer_futures = nodes_[1]->GetFutureForMessages(kRepeatCount);
+  const std::string message_str(RandomAlphaNumericString(256 * 1024));
+  Node::message_t message(message_str.begin(), message_str.end());
+
+  for (int i(0); i != kRepeatCount; ++i)
+    node_.managed_connections()->Send(nodes_[1]->node_id(), message, asio::use_future).get();
+
+  auto peer_messages = peer_futures.get();
+  ASSERT_EQ(static_cast<size_t>(kRepeatCount), peer_messages.size());
+  for (auto peer_message : peer_messages)
+    EXPECT_EQ(message, peer_message);
+}
 //
 //TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
 //  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
