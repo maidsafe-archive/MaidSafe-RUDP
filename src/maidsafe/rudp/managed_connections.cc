@@ -148,8 +148,6 @@ void ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& boots
                                                  const Endpoint& local_endpoint,
                                                  const std::function<void(Error, const Contact&)>& handler) {
   StartNewTransport(bootstrap_list, local_endpoint, handler);
-
-  std::lock_guard<std::mutex> lock(mutex_);
 }
 
 void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
@@ -404,7 +402,7 @@ std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator
 void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handler) {
   if (peer.id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
-    return handler(make_error_code(RudpErrors::operation_not_supported));
+    return handler(RudpErrors::operation_not_supported);
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
@@ -419,13 +417,13 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
     }
     LOG(kError) << "No connection attempt from " << this_node_id_ << " to " << peer.id
                 << " - ensure GetAvailableEndpoint has been called first.";
-    return handler(make_error_code(RudpErrors::operation_not_supported));
+    return handler(RudpErrors::operation_not_supported);
   }
 
   if ((*itr)->connecting) {
     LOG(kWarning) << "A connection attempt from " << this_node_id_ << " to " << peer.id
                   << " is already happening";
-    return handler(make_error_code(RudpErrors::connection_already_in_progress));
+    return handler(RudpErrors::connection_already_in_progress);
   }
 
   TransportPtr selected_transport((*itr)->pending_transport);
@@ -453,7 +451,7 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
                   << " already exists, and this node's chosen bootstrap ID is "
                   << chosen_bootstrap_contact_.id;
       pendings_.erase(itr);
-      return handler(make_error_code(RudpErrors::already_connected));
+      return handler(RudpErrors::already_connected);
     }
   }
 

@@ -287,24 +287,22 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
 
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
-    return InvokeHandler(std::forward<Handler>(handler), RudpErrors::operation_not_supported,
-                         EndpointPair());
+    return handler(RudpErrors::operation_not_supported, EndpointPair());
   }
 
   EndpointPair this_endpoint_pair;
   {
     std::lock_guard<std::mutex> lock(mutex_);
+
     if (connections_.empty() && idle_transports_.empty()) {
       LOG(kError) << "No running Transports.";
-      return InvokeHandler(std::forward<Handler>(handler), CommonErrors::unable_to_handle_request,
-                           EndpointPair());
+      return handler(CommonErrors::unable_to_handle_request, EndpointPair());
     }
 
     // Check for an existing connection attempt.
     if (ExistingConnectionAttempt(peer_id, this_endpoint_pair)) {
       LOG(kError) << "Connection attempt already in progress.";
-      return InvokeHandler(std::forward<Handler>(handler),
-                           RudpErrors::connection_already_in_progress, EndpointPair());
+      return handler(RudpErrors::connection_already_in_progress, EndpointPair());
     }
 
     // Check for existing connection to peer.
@@ -313,8 +311,7 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
       if (connection_exists) {
         LOG(kError) << "A non-bootstrap managed connection from " << this_node_id_ << " to "
                     << peer_id << " already exists";
-        return InvokeHandler(std::forward<Handler>(handler), RudpErrors::already_connected,
-                             EndpointPair());
+        return handler(RudpErrors::already_connected, EndpointPair());
       } else {
         return handler(Error(), this_endpoint_pair);
       }

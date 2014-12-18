@@ -60,8 +60,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   EndpointPair endpoints0, endpoints1;
   endpoints0.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   endpoints1.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
-  Contact contacts[] = { Contact(nodes[0]->node_id(), endpoints0.local, *nodes[0]->public_key())
-                       , Contact(nodes[1]->node_id(), endpoints1.local, *nodes[1]->public_key())
+  Contact contacts[] = { Contact(nodes[0]->node_id(), endpoints0.local, nodes[0]->public_key())
+                       , Contact(nodes[1]->node_id(), endpoints1.local, nodes[1]->public_key())
                        };
 
   Contact chosen_node_id, node1_chosen_bootstrap_contact;
@@ -162,11 +162,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
 
       LOG(kVerbose) << "peter ---------------------------------";
       auto i_add = nodes[i]->managed_connections()->Add
-                      ( Contact( nodes[j]->node_id(), jth_endpoint_pair, *nodes[j]->public_key())
+                      ( Contact( nodes[j]->node_id(), jth_endpoint_pair, nodes[j]->public_key())
                       , use_future);
 
       auto j_add = nodes[j]->managed_connections()->Add
-                      ( Contact( nodes[i]->node_id(), ith_endpoint_pair, *nodes[i]->public_key())
+                      ( Contact( nodes[i]->node_id(), ith_endpoint_pair, nodes[i]->public_key())
                       , use_future);
 
       try {
@@ -180,7 +180,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
       nodes[j]->AddConnectedNodeId(nodes[i]->node_id());
       nodes[i]->AddConnectedNodeId(nodes[j]->node_id());
     }
-    bootstrap_endpoints.push_back(Contact(nodes[i]->node_id(), ith_endpoint_pair, *nodes[i]->public_key()));
+    bootstrap_endpoints.push_back(Contact(nodes[i]->node_id(), ith_endpoint_pair, nodes[i]->public_key()));
   }
   return testing::AssertionSuccess();
 }
@@ -251,7 +251,7 @@ Contact Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoin
       bootstrap_endpoints,
       bootstrap_listener_,
       node_id_,
-      asymm::Keys{*private_key(), *public_key()},
+      keys(),
       asio::use_future,
       local_endpoint).get();
 }

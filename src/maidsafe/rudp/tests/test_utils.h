@@ -67,18 +67,21 @@ class Node {
   Contact Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint = Endpoint());
   Contact Bootstrap(Contact bootstrap_endpoint, Endpoint local_endpoint = Endpoint());
   boost::future<messages_t> GetFutureForMessages(uint32_t message_count);
+
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
   std::string debug_node_id() const { return DebugId(node_id_); }
-  std::vector<uint8_t> validation_data() const { auto s = validation_data_.string(); return std::vector<uint8_t>(s.begin(), s.end()); }
+
+  Contact make_contact(EndpointPair eps) const { return Contact{node_id_, eps, public_key()}; }
+  //std::vector<uint8_t> validation_data() const { auto s = validation_data_.string(); return std::vector<uint8_t>(s.begin(), s.end()); }
+
   asymm::Keys keys() const { return key_pair_; }
-  std::shared_ptr<asymm::PrivateKey> private_key() const {
-      return std::make_shared<asymm::PrivateKey>(key_pair_.private_key);
-  }
-  std::shared_ptr<asymm::PublicKey> public_key() const {
-      return std::make_shared<asymm::PublicKey>(key_pair_.public_key);
-  }
+
+  asymm::PrivateKey private_key() const { return key_pair_.private_key; }
+  asymm::PublicKey  public_key()  const { return key_pair_.public_key; }
+
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
+
   int GetReceivedMessageCount(const message_t& message) const;
   void ResetData();
   std::vector<NodeId> GetConnectedNodeIds() { return connected_node_ids_; }
