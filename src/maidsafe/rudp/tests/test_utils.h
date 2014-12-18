@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "asio/use_future.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/thread/future.hpp"
 
@@ -67,6 +68,14 @@ class Node {
   Contact Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint = Endpoint());
   Contact Bootstrap(Contact bootstrap_endpoint, Endpoint local_endpoint = Endpoint());
   boost::future<messages_t> GetFutureForMessages(uint32_t message_count);
+
+  std::future<EndpointPair> GetAvailableEndpoints(NodeId id) {
+    return managed_connections_->GetAvailableEndpoints(id, asio::use_future);
+  }
+
+  std::future<void> Add(const Contact& contact) {
+    return managed_connections_->Add(contact, asio::use_future);
+  }
 
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
