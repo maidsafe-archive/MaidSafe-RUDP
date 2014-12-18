@@ -957,7 +957,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   Node::message_t message(message_str.begin(), message_str.end());
 
   for (int i(0); i != kRepeatCount; ++i)
-    node_.managed_connections()->Send(nodes_[1]->node_id(), message, asio::use_future).get();
+    node_.Send(nodes_[1]->node_id(), message).get();
 
   auto peer_messages = peer_futures.get();
   ASSERT_EQ(static_cast<size_t>(kRepeatCount), peer_messages.size());
@@ -1020,7 +1020,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
   node_c.ResetData();
   // FIXME: This was 10000 but seems like this new api made sending a lot
   // slower, so I made it smaller for now.
-  static size_t kRepeatCount = 1024;
+  static size_t kRepeatCount = 256;
 #if defined(__has_feature)
 #if __has_feature(thread_sanitizer)
   // 2014-04-03 ned: Looks like above this we run into hard buffer limits in tsan
@@ -1043,7 +1043,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
 //  for (int i(0); i != kRepeatCount; ++i)
 //    node_.managed_connections()->Send(nodes_[1]->node_id(), kMessage, message_sent_functor);
   for (size_t i(0); i != kRepeatCount; ++i) {
-    node_.managed_connections()->Send(nodes_[1]->node_id(), message, asio::use_future).get();
+    node_.Send(nodes_[1]->node_id(), message).get();
   }
 
 //  ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(500)))
@@ -1088,77 +1088,74 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
 //
 //  std::shared_ptr<State> _state;
 //};
-//
-//TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
-//  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
-//
-//  // Before Bootstrap
-//  node_.managed_connections()->Send(nodes_[0]->node_id(), "message1", MessageSentFunctor());
-//  int millis = 1000;
-//
-//  FutureResult future_result;
-//
-//  node_.managed_connections()->Send(nodes_[0]->node_id(), "message2",
-//                                    future_result.MakeContinuation());
-//  ASSERT_TRUE(future_result.Wait(millis));
-//  EXPECT_EQ(kInvalidConnection, future_result.Result());
-//
-//  // Before Add
-//  // Sending to bootstrap peer should succeed, sending to any other should fail.
-//  NodeId chosen_node;
-//  EXPECT_EQ(kSuccess,
-//            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-//  ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
-//
-//  // Send to non-bootstrap peer
-//  node_.managed_connections()->Send(nodes_[1]->node_id(), "message3", MessageSentFunctor());
-//  node_.managed_connections()->Send(nodes_[1]->node_id(), "message4",
-//                                    future_result.MakeContinuation());
-//  ASSERT_TRUE(future_result.Wait(millis));
-//  EXPECT_EQ(kInvalidConnection, future_result.Result());
-//
-//  // Send to bootstrap peer
-//  nodes_[0]->ResetData();
-//  auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(2));
-//  node_.managed_connections()->Send(nodes_[0]->node_id(), "message5", MessageSentFunctor());
-//  node_.managed_connections()->Send(nodes_[0]->node_id(), "message6",
-//                                    future_result.MakeContinuation());
-//  ASSERT_TRUE(future_result.Wait(millis));
-//  EXPECT_EQ(kSuccess, future_result.Result());
-//  ASSERT_EQ(boost::future_status::ready,
-//            future_messages_at_peer.wait_for(boost::chrono::seconds(200)));
-//  auto messages(future_messages_at_peer.get());
-//  ASSERT_EQ(2U, messages.size());
-//  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message5"));
-//  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message6"));
-//
-//  // After Add
-//  nodes_[1]->ResetData();
-//  EndpointPair this_endpoint_pair, peer_endpoint_pair;
-//  NatType nat_type;
-//  EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-//                          nodes_[1]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
-//  EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->GetAvailableEndpoint(
-//                          node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
-//  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
-//  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
-//
-//  auto peer_futures(nodes_[1]->GetFutureForMessages(1));
-//  auto this_node_futures(node_.GetFutureForMessages(1));
-//  EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->Add(node_.node_id(), this_endpoint_pair,
-//                                                            nodes_[1]->validation_data()));
-//  EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(), peer_endpoint_pair,
-//                                                       node_.validation_data()));
-//  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost_rendezvous_connect_timeout()));
-//  auto peer_messages(peer_futures.get());
-//  ASSERT_EQ(boost::future_status::ready,
-//            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
-//  auto this_node_messages(this_node_futures.get());
+
+TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
+  using boost::chrono::seconds;
+
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
+
+  auto& node_a = node_;
+  auto& node_b = *nodes_[0];
+  auto& node_c = *nodes_[1];
+
+  // Before Bootstrap
+  node_a.Send(node_b.node_id(), "message1");
+  ASSERT_THROW_CODE(node_a.Send(node_b.node_id(), "message2").get(), RudpErrors::not_connected);
+
+  // Before Add
+  // Sending to bootstrap peer should succeed, sending to any other should fail.
+  Contact chosen_node;
+  ASSERT_NO_THROW(chosen_node = node_a.Bootstrap(bootstrap_endpoints_[0]).get());
+  ASSERT_EQ(node_b.node_id(), chosen_node.id);
+
+  // Send to non-bootstrap peer
+  auto send_msg3 = node_a.Send(node_c.node_id(), "message3");
+  auto send_msg4 = node_a.Send(node_c.node_id(), "message4");
+
+  ASSERT_THROW_CODE(send_msg3.get(), RudpErrors::not_connected);
+  ASSERT_THROW_CODE(send_msg4.get(), RudpErrors::not_connected);
+
+  // Send to bootstrap peer
+  node_b.ResetData();
+  auto future_messages_at_peer = node_b.GetFutureForMessages(2);
+  ASSERT_NO_THROW(node_a.Send(node_b.node_id(), "message5").get());
+  ASSERT_NO_THROW(node_a.Send(node_b.node_id(), "message6").get());
+  ASSERT_EQ(boost::future_status::ready, future_messages_at_peer.wait_for(seconds(200)));
+  auto messages = future_messages_at_peer.get();
+  ASSERT_EQ(2U, messages.size());
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message5")));
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message6")));
+
+  // After Add
+  node_c.ResetData();
+
+  EndpointPair node_a_eps, node_c_eps;
+
+  EXPECT_NO_THROW(node_a_eps = node_a.GetAvailableEndpoints(node_c.node_id()).get());
+  EXPECT_NO_THROW(node_c_eps = node_c.GetAvailableEndpoints(node_a.node_id()).get());
+
+  EXPECT_TRUE(detail::IsValid(node_a_eps.local));
+  EXPECT_TRUE(detail::IsValid(node_c_eps.local));
+
+  auto node_a_futures(node_a.GetFutureForMessages(1));
+  auto node_c_futures(node_c.GetFutureForMessages(1));
+
+  auto node_a_add = node_a.Add(node_c.make_contact(node_c_eps));
+  auto node_c_add = node_c.Add(node_a.make_contact(node_a_eps));
+
+  ASSERT_NO_THROW(node_a_add.get());
+  ASSERT_NO_THROW(node_c_add.get());
+
+//  ASSERT_EQ(boost::future_status::ready, node_c_futures.wait_for(boost_rendezvous_connect_timeout()));
+//  auto peer_messages(node_c_futures.get());
+//  ASSERT_EQ(boost::future_status::ready, node_a_futures.wait_for(boost_rendezvous_connect_timeout()));
+//  auto this_node_messages(node_a_futures.get());
 //  ASSERT_EQ(1U, peer_messages.size());
 //  ASSERT_EQ(1U, this_node_messages.size());
 //  EXPECT_EQ(node_.validation_data(), peer_messages[0]);
 //  EXPECT_EQ(nodes_[1]->validation_data(), this_node_messages[0]);
 //
+//// TODO:
 //  // Unavailable node id
 //  node_.ResetData();
 //  nodes_[1]->ResetData();
@@ -1168,89 +1165,73 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
 //                                    future_result.MakeContinuation());
 //  ASSERT_TRUE(future_result.Wait(millis));
 //  EXPECT_EQ(kInvalidConnection, future_result.Result());
-//
-//  // Valid Send from node_ to nodes_[1]
-//  node_.ResetData();
-//  nodes_[1]->ResetData();
-//  future_messages_at_peer = nodes_[1]->GetFutureForMessages(2);
-//  node_.managed_connections()->Send(nodes_[1]->node_id(), "message9", MessageSentFunctor());
-//  node_.managed_connections()->Send(nodes_[1]->node_id(), "message10",
-//                                    future_result.MakeContinuation());
-//  ASSERT_TRUE(future_result.Wait(millis));
-//  EXPECT_EQ(kSuccess, future_result.Result());
-//  ASSERT_EQ(boost::future_status::ready,
-//            future_messages_at_peer.wait_for(boost::chrono::seconds(200)));
-//  messages = future_messages_at_peer.get();
-//  ASSERT_EQ(2U, messages.size());
-//  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message9"));
-//  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message10"));
-//
-//  // Valid Send from nodes_[1] to node_
-//  node_.ResetData();
-//  nodes_[1]->ResetData();
-//  future_messages_at_peer = node_.GetFutureForMessages(2);
-//  nodes_[1]->managed_connections()->Send(node_.node_id(), "message11", MessageSentFunctor());
-//  nodes_[1]->managed_connections()->Send(node_.node_id(), "message12",
-//                                         future_result.MakeContinuation());
-//  ASSERT_TRUE(future_result.Wait(millis));
-//  EXPECT_EQ(kSuccess, future_result.Result());
-//  ASSERT_EQ(boost::future_status::ready,
-//            future_messages_at_peer.wait_for(boost::chrono::seconds(200)));
-//  messages = future_messages_at_peer.get();
-//  ASSERT_EQ(2U, messages.size());
-//  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message11"));
-//  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), "message12"));
-//
-//  // After Remove
-//  node_.ResetData();
-//  nodes_[0]->ResetData();
-//  node_.managed_connections()->Remove(nodes_[0]->node_id());
-//  int count(0);
-//  do {
-//    Sleep(std::chrono::milliseconds(100));
-//    ++count;
-//  } while ((node_.connection_lost_node_ids().empty() ||
-//            nodes_[0]->connection_lost_node_ids().empty() ||
-//            node_.managed_connections()->GetActiveConnectionCount() != 2) &&
-//           count != 10);
-//  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
-//  ASSERT_EQ(node_.connection_lost_node_ids().size(), 1U);
-//  ASSERT_EQ(nodes_[0]->connection_lost_node_ids().size(), 1U);
-//  EXPECT_EQ(node_.connection_lost_node_ids()[0], nodes_[0]->node_id());
-//
-//  node_.ResetData();
-//  nodes_[0]->ResetData();
-//  node_.managed_connections()->Send(nodes_[0]->node_id(), "message13", MessageSentFunctor());
-//  node_.managed_connections()->Send(nodes_[0]->node_id(), "message14",
-//                                    future_result.MakeContinuation());
-//  ASSERT_TRUE(future_result.Wait(millis));
-//  EXPECT_EQ(kInvalidConnection, future_result.Result());
-//
-//  // Valid large message
-//  node_.ResetData();
-//  nodes_[1]->ResetData();
-//  std::string sent_message(RandomString(ManagedConnections::MaxMessageSize()));
-//  future_messages_at_peer = node_.GetFutureForMessages(1);
-//  nodes_[1]->managed_connections()->Send(node_.node_id(), sent_message,
-//                                         future_result.MakeContinuation());
-//  ASSERT_TRUE(future_result.Wait(20000));
-//  EXPECT_EQ(kSuccess, future_result.Result());
-//  ASSERT_EQ(boost::future_status::ready,
-//            future_messages_at_peer.wait_for(boost::chrono::seconds(20)));
-//  messages = future_messages_at_peer.get();
-//  ASSERT_EQ(1U, messages.size());
-//  EXPECT_EQ(sent_message, messages[0]);
-//
-//  // Excessively large message
-//  node_.ResetData();
-//  nodes_[1]->ResetData();
-//  sent_message += "1";
-//  nodes_[1]->managed_connections()->Send(node_.node_id(), sent_message,
-//                                         future_result.MakeContinuation());
-//  ASSERT_TRUE(future_result.Wait(10000));
-//  EXPECT_EQ(kMessageTooLarge, future_result.Result());
-//}
-//
+
+  // Valid Send from node_ to nodes_[1]
+  node_a.ResetData();
+  node_c.ResetData();
+  future_messages_at_peer = node_c.GetFutureForMessages(2);
+  node_a.Send(node_c.node_id(), "message9").get();
+  node_a.Send(node_c.node_id(), "message10").get();
+  ASSERT_EQ(boost::future_status::ready, future_messages_at_peer.wait_for(seconds(200)));
+  messages = future_messages_at_peer.get();
+  ASSERT_EQ(2U, messages.size());
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message9")));
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message10")));
+
+  // Valid Send from nodes_[1] to node_
+  node_a.ResetData();
+  node_c.ResetData();
+  future_messages_at_peer = node_.GetFutureForMessages(2);
+  node_c.Send(node_a.node_id(), "message11").get();
+  node_c.Send(node_a.node_id(), "message12").get();
+  ASSERT_EQ(boost::future_status::ready, future_messages_at_peer.wait_for(seconds(200)));
+  messages = future_messages_at_peer.get();
+  ASSERT_EQ(2U, messages.size());
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message11")));
+  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message12")));
+
+  // After Remove
+  node_a.ResetData();
+  node_b.ResetData();
+  node_a.Remove(node_b.node_id()).get();
+  // FIXME: the Remove future should finish when the is removed.
+  int count(0);
+  do {
+    Sleep(std::chrono::milliseconds(100));
+    ++count;
+  } while ((node_a.connection_lost_node_ids().empty() ||
+            node_b.connection_lost_node_ids().empty() ||
+            node_a.managed_connections()->GetActiveConnectionCount() != 2) &&
+           count != 10);
+
+  EXPECT_EQ(node_b.GetActiveConnectionCount(), 2);
+  ASSERT_EQ(node_a.connection_lost_node_ids().size(), 1U);
+  ASSERT_EQ(node_b.connection_lost_node_ids().size(), 1U);
+  EXPECT_EQ(node_a.connection_lost_node_ids()[0], node_b.node_id());
+
+  node_a.ResetData();
+  node_b.ResetData();
+  ASSERT_THROW_CODE(node_a.Send(node_b.node_id(), "message13").get(), RudpErrors::not_connected);
+  ASSERT_THROW_CODE(node_a.Send(node_b.node_id(), "message14").get(), RudpErrors::not_connected);
+
+  // Valid large message
+  node_a.ResetData();
+  node_c.ResetData();
+  auto sent_message = Node::str_to_msg(RandomString(ManagedConnections::MaxMessageSize()));
+  future_messages_at_peer = node_.GetFutureForMessages(1);
+  node_c.Send(node_a.node_id(), sent_message).get();
+  ASSERT_EQ(boost::future_status::ready, future_messages_at_peer.wait_for(seconds(20)));
+  messages = future_messages_at_peer.get();
+  ASSERT_EQ(1U, messages.size());
+  EXPECT_EQ(sent_message, messages[0]);
+
+  // Excessively large message
+  node_a.ResetData();
+  node_c.ResetData();
+  sent_message.push_back('1');
+  ASSERT_THROW_CODE(node_c.Send(node_a.node_id(), sent_message).get(), RudpErrors::message_size);
+}
+
 //TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
 //  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 //
