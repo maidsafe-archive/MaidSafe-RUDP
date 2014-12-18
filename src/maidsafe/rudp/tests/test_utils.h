@@ -58,6 +58,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> & nodes,
 
 class Node {
  public:
+  using Contacts = std::vector<Contact>;
   typedef std::vector<uint8_t>   message_t;
   typedef std::vector<message_t> messages_t;
 
@@ -65,8 +66,8 @@ class Node {
   explicit Node(int id);
   std::vector<NodeId> connection_lost_node_ids() const;
   messages_t messages() const;
-  Contact Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint = Endpoint());
-  Contact Bootstrap(Contact bootstrap_endpoint, Endpoint local_endpoint = Endpoint());
+  std::future<Contact> Bootstrap(const Contacts&, Endpoint local_endpoint = Endpoint());
+  std::future<Contact> Bootstrap(Contact, Endpoint local_endpoint = Endpoint());
   boost::future<messages_t> GetFutureForMessages(uint32_t message_count);
 
   std::future<EndpointPair> GetAvailableEndpoints(NodeId id) {

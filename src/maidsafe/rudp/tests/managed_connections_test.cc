@@ -152,7 +152,7 @@ class ManagedConnectionsTest : public testing::Test {
 
   void BootstrapAndAdd(size_t index, Contact& chosen_node, EndpointPair& this_endpoint_pair,
                        NatType& /*nat_type*/) {
-    ASSERT_NO_THROW(chosen_node = node_.Bootstrap(bootstrap_endpoints_[index]));
+    ASSERT_NO_THROW(chosen_node = node_.Bootstrap(bootstrap_endpoints_[index]).get());
     ASSERT_EQ(nodes_[index]->node_id(), chosen_node.id);
     Sleep(std::chrono::milliseconds(250));
     nodes_[index]->ResetData();
@@ -539,7 +539,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   //EXPECT_EQ(kSuccess,
   //          node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
   try {
-    chosen_node = node_.Bootstrap(bootstrap_endpoints_[0]);
+    chosen_node = node_.Bootstrap(bootstrap_endpoints_[0]).get();
   }
   catch (std::system_error error) {
     GTEST_FAIL() << "Exception: " << error.what();
@@ -699,7 +699,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
   auto& node_c = *nodes_[1];
 
   try {
-    node_a.Bootstrap(bootstrap_endpoints_[0] /* node_b endpoint */);
+    node_a.Bootstrap(bootstrap_endpoints_[0] /* node_b endpoint */).get();
   }
   catch (std::system_error error) {
     GTEST_FAIL() << "Exception: " << error.what();
