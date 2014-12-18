@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "asio/use_future.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/thread/future.hpp"
 
@@ -57,6 +58,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> & nodes,
 
 class Node {
  public:
+  using Contacts = std::vector<Contact>;
   typedef std::vector<uint8_t>   message_t;
   typedef std::vector<message_t> messages_t;
 
@@ -64,20 +66,32 @@ class Node {
   explicit Node(int id);
   std::vector<NodeId> connection_lost_node_ids() const;
   messages_t messages() const;
-  Contact Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint = Endpoint());
-  Contact Bootstrap(Contact bootstrap_endpoint, Endpoint local_endpoint = Endpoint());
+  std::future<Contact> Bootstrap(const Contacts&, Endpoint local_endpoint = Endpoint());
+  std::future<Contact> Bootstrap(Contact, Endpoint local_endpoint = Endpoint());
   boost::future<messages_t> GetFutureForMessages(uint32_t message_count);
+
+  std::future<EndpointPair> GetAvailableEndpoints(NodeId id) {
+    return managed_connections_->GetAvailableEndpoints(id, asio::use_future);
+  }
+
+  std::future<void> Add(const Contact& contact) {
+    return managed_connections_->Add(contact, asio::use_future);
+  }
+
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
   std::string debug_node_id() const { return DebugId(node_id_); }
-  std::vector<uint8_t> validation_data() const { auto s = validation_data_.string(); return std::vector<uint8_t>(s.begin(), s.end()); }
-  std::shared_ptr<asymm::PrivateKey> private_key() const {
-      return std::make_shared<asymm::PrivateKey>(key_pair_.private_key);
-  }
-  std::shared_ptr<asymm::PublicKey> public_key() const {
-      return std::make_shared<asymm::PublicKey>(key_pair_.public_key);
-  }
+
+  Contact make_contact(EndpointPair eps) const { return Contact{node_id_, eps, public_key()}; }
+  //std::vector<uint8_t> validation_data() const { auto s = validation_data_.string(); return std::vector<uint8_t>(s.begin(), s.end()); }
+
+  asymm::Keys keys() const { return key_pair_; }
+
+  asymm::PrivateKey private_key() const { return key_pair_.private_key; }
+  asymm::PublicKey  public_key()  const { return key_pair_.public_key; }
+
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
+
   int GetReceivedMessageCount(const message_t& message) const;
   void ResetData();
   std::vector<NodeId> GetConnectedNodeIds() { return connected_node_ids_; }

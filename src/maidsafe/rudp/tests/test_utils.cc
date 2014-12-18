@@ -20,7 +20,6 @@
 
 #include <thread>
 #include <set>
-#include "asio/use_future.hpp"
 
 #include "boost/lexical_cast.hpp"
 #include "boost/date_time/posix_time/posix_time.hpp"
@@ -60,8 +59,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   EndpointPair endpoints0, endpoints1;
   endpoints0.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
   endpoints1.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
-  Contact contacts[] = { Contact(nodes[0]->node_id(), endpoints0.local, *nodes[0]->public_key())
-                       , Contact(nodes[1]->node_id(), endpoints1.local, *nodes[1]->public_key())
+  Contact contacts[] = { Contact(nodes[0]->node_id(), endpoints0.local, nodes[0]->public_key())
+                       , Contact(nodes[1]->node_id(), endpoints1.local, nodes[1]->public_key())
                        };
 
   Contact chosen_node_id, node1_chosen_bootstrap_contact;
@@ -69,11 +68,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   LOG(kVerbose) << "peter ---------------------------------";
   boost::thread thread([&] {
     EXPECT_NO_THROW(chosen_node_id
-                     = nodes[0]->Bootstrap(contacts[1], endpoints0.local));
+                     = nodes[0]->Bootstrap(contacts[1], endpoints0.local).get());
   });
 
   EXPECT_NO_THROW(node1_chosen_bootstrap_contact
-                   = nodes[1]->Bootstrap(contacts[0], endpoints1.local));
+                   = nodes[1]->Bootstrap(contacts[0], endpoints1.local).get());
 
   thread.join();
 
@@ -127,7 +126,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   // Adding nodes to each other
   for (int i = 2; i != node_count; ++i) {
     Contact chosen_node_id;
-    EXPECT_NO_THROW(chosen_node_id = nodes[i]->Bootstrap(bootstrap_endpoints));
+    EXPECT_NO_THROW(chosen_node_id = nodes[i]->Bootstrap(bootstrap_endpoints).get());
 
     if (chosen_node_id.id == NodeId()) {
       return testing::AssertionFailure() << "Bootstrapping failed for " << nodes[i]->id();
@@ -162,11 +161,11 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
 
       LOG(kVerbose) << "peter ---------------------------------";
       auto i_add = nodes[i]->managed_connections()->Add
-                      ( Contact( nodes[j]->node_id(), jth_endpoint_pair, *nodes[j]->public_key())
+                      ( Contact( nodes[j]->node_id(), jth_endpoint_pair, nodes[j]->public_key())
                       , use_future);
 
       auto j_add = nodes[j]->managed_connections()->Add
-                      ( Contact( nodes[i]->node_id(), ith_endpoint_pair, *nodes[i]->public_key())
+                      ( Contact( nodes[i]->node_id(), ith_endpoint_pair, nodes[i]->public_key())
                       , use_future);
 
       try {
@@ -180,7 +179,7 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
       nodes[j]->AddConnectedNodeId(nodes[i]->node_id());
       nodes[i]->AddConnectedNodeId(nodes[j]->node_id());
     }
-    bootstrap_endpoints.push_back(Contact(nodes[i]->node_id(), ith_endpoint_pair, *nodes[i]->public_key()));
+    bootstrap_endpoints.push_back(Contact(nodes[i]->node_id(), ith_endpoint_pair, nodes[i]->public_key()));
   }
   return testing::AssertionSuccess();
 }
@@ -209,11 +208,11 @@ Node::messages_t Node::messages() const {
   return messages_;
 }
 
-Contact Node::Bootstrap(Contact bootstrap_endpoint, Endpoint local_endpoint) {
+std::future<Contact> Node::Bootstrap(Contact bootstrap_endpoint, Endpoint local_endpoint) {
   return Bootstrap(std::vector<Contact>(1, bootstrap_endpoint), local_endpoint);
 }
 
-Contact Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint) {
+std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint) {
   struct BootstrapListener : public ManagedConnections::Listener {
     Node& self;
 
@@ -247,13 +246,12 @@ Contact Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoin
 
   bootstrap_listener_ = std::make_shared<BootstrapListener>(*this);
 
-  return managed_connections_->Bootstrap(
-      bootstrap_endpoints,
-      bootstrap_listener_,
-      node_id_,
-      asymm::Keys{*private_key(), *public_key()},
-      asio::use_future,
-      local_endpoint).get();
+  return managed_connections_->Bootstrap(bootstrap_endpoints,
+                                         bootstrap_listener_,
+                                         node_id_,
+                                         keys(),
+                                         asio::use_future,
+                                         local_endpoint);
 }
 
 int Node::GetReceivedMessageCount(const message_t& message) const {
