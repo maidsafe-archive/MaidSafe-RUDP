@@ -128,6 +128,10 @@ class ManagedConnections {
   SendReturn<CompletionToken> Send(const NodeId& peer_id, const SendableMessage& message,
                                    CompletionToken&& token);
 
+  // FIXME: This is currecntly required for tests, but even there it seems like
+  // a better solution should be used. So try to get rid of it. 
+  size_t GetActiveConnectionCount() const;
+
  private:
   using TransportPtr = std::shared_ptr<detail::Transport>;
   using ConnectionMap = std::map<NodeId, TransportPtr>;
@@ -399,6 +403,12 @@ void ManagedConnections::InvokeHandler(Handler&& handler, Error error, Arg&& arg
   assert(error);
   asio_service_.service().post(
       [handler, error, arg]() mutable { handler(error, arg); });
+}
+
+inline
+size_t ManagedConnections::GetActiveConnectionCount() const {
+  std::lock_guard<std::mutex> guard(mutex_);
+  return connections_.size();
 }
 
 }  // namespace rudp

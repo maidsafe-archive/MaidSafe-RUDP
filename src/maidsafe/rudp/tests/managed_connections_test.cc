@@ -61,6 +61,10 @@ extern "C" char** environ;
 #include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/utils.h"
 
+#define ASSERT_THROW_CODE(expr, CODE) \
+  try { expr; GTEST_FAIL() << "Expected to throw"; } \
+  catch (std::system_error e) { ASSERT_EQ(e.code(), CODE) << "Exception: " << e.what(); }
+
 namespace args = std::placeholders;
 namespace Asio = boost::asio;
 namespace bptime = boost::posix_time;
@@ -157,29 +161,19 @@ class ManagedConnectionsTest : public testing::Test {
     Sleep(std::chrono::milliseconds(250));
     nodes_[index]->ResetData();
 
-    try {
-      this_endpoint_pair = node_.managed_connections()->GetAvailableEndpoints(
-                             nodes_[index]->node_id(), asio::use_future).get();
-      GTEST_FAIL() << "Expecting exception thrown";
-    }
-    catch (std::system_error e) {
-      ASSERT_EQ(e.code(), RudpErrors::already_connected);
-    }
+    ASSERT_THROW_CODE
+      ( this_endpoint_pair = node_.GetAvailableEndpoints(nodes_[index]->node_id()).get()
+      , RudpErrors::already_connected);
 
     EndpointPair peer_endpoint_pair;
-    try {
-      peer_endpoint_pair = nodes_[index]->managed_connections()->GetAvailableEndpoints(
-                             node_.node_id(), asio::use_future).get();
-      GTEST_FAIL() << "Expecting exception thrown";
-    }
-    catch (std::system_error e) {
-      ASSERT_EQ(e.code(), RudpErrors::already_connected) << "Exception: " << e.what();
-    }
+
+    ASSERT_THROW_CODE
+      ( peer_endpoint_pair = nodes_[index]->GetAvailableEndpoints(node_.node_id()).get();
+      , RudpErrors::already_connected);
+
     //EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
     //EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
 
-    //auto peer_futures(nodes_[index]->GetFutureForMessages(1));
-    //auto this_node_futures(node_.GetFutureForMessages(1));
     try {
       nodes_[index]->managed_connections()->Add(Contact(
               node_.node_id(), this_endpoint_pair, node_.public_key()), asio::use_future).get();
@@ -195,17 +189,6 @@ class ManagedConnectionsTest : public testing::Test {
     catch (std::system_error error) {
       ASSERT_EQ(error.code(), RudpErrors::already_connected);
     }
-
-    //ASSERT_EQ(boost::future_status::ready,
-    //          peer_futures.wait_for(boost_rendezvous_connect_timeout()));
-    //auto peer_messages(peer_futures.get());
-    //ASSERT_EQ(boost::future_status::ready,
-    //          this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
-    //auto this_node_messages(this_node_futures.get());
-    //ASSERT_EQ(1U, peer_messages.size());
-    //ASSERT_EQ(1U, this_node_messages.size());
-    //EXPECT_EQ(node_.validation_data(), peer_messages[0]);
-    //EXPECT_EQ(nodes_[index]->validation_data(), this_node_messages[0]);
   }
 };
 
@@ -793,9 +776,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
   socket.Close();
   future.get();
 }
-//
-//TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
-//  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 4));
+
+TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 4));
 //  auto wait_for_signals([&](int node_index, unsigned active_connection_count) -> bool {
 //    int count(0);
 //    do {
@@ -809,41 +792,67 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
 //            !nodes_[node_index]->connection_lost_node_ids().empty());
 //  });
 //
-//  // Before Bootstrap
-//  node_.managed_connections()->Remove(nodes_[1]->node_id());
-//  ASSERT_TRUE(node_.connection_lost_node_ids().empty());
-//
-//  // Before Add
-//  NodeId chosen_node;
+  auto& node_a = node_;
+  auto& node_b = *nodes_[0];
+  auto& node_c = *nodes_[1];
+  //auto& node_d = *nodes_[2];
+  //auto& node_e = *nodes_[3];
+
+  // Before Bootstrap
+  node_a.Remove(node_b.node_id()).get();
+  ASSERT_TRUE(node_a.connection_lost_node_ids().empty());
+
+  // Before Add
+  Contact chosen_node;
 //  EXPECT_EQ(kSuccess,
 //            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[1]), chosen_node));
 //  EXPECT_EQ(nodes_[1]->node_id(), chosen_node);
-//  for (unsigned count(0);
-//       nodes_[1]->managed_connections()->GetActiveConnectionCount() < 4 && count < 10; ++count)
-//    Sleep(std::chrono::milliseconds(100));
-//  EXPECT_EQ(nodes_[1]->managed_connections()->GetActiveConnectionCount(), 4);
-//
-//  node_.managed_connections()->Remove(chosen_node);
+  ASSERT_NO_THROW(chosen_node = node_a.Bootstrap(bootstrap_endpoints_[1]).get());
+  ASSERT_EQ(node_c.node_id(), chosen_node.id);
+
+  for (unsigned count(0);
+       node_c.managed_connections()->GetActiveConnectionCount() < 4 && count < 10; ++count)
+    Sleep(std::chrono::milliseconds(100));
+
+  EXPECT_EQ(node_c.managed_connections()->GetActiveConnectionCount(), 4);
+
+  ASSERT_NO_THROW(node_a.Remove(chosen_node.id).get());
+
 //  ASSERT_TRUE(wait_for_signals(1, 3));
-//  ASSERT_EQ(node_.connection_lost_node_ids().size(), 1U);
-//  ASSERT_EQ(nodes_[1]->connection_lost_node_ids().size(), 1U);
-//  EXPECT_EQ(chosen_node, node_.connection_lost_node_ids()[0]);
-//  EXPECT_EQ(nodes_[1]->managed_connections()->GetActiveConnectionCount(), 3);
-//
-//  // After Add
+  ASSERT_EQ(node_a.connection_lost_node_ids().size(), 1U);
+  ASSERT_EQ(node_c.connection_lost_node_ids().size(), 1U);
+  EXPECT_EQ(chosen_node.id, node_a.connection_lost_node_ids()[0]);
+  EXPECT_EQ(node_c.managed_connections()->GetActiveConnectionCount(), 3);
+
+  // After Add
 //  EXPECT_EQ(kSuccess,
 //            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
 //  ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
-//  nodes_[0]->ResetData();
+  ASSERT_NO_THROW(chosen_node = node_a.Bootstrap(bootstrap_endpoints_[0]).get());
+  node_b.ResetData();
 //  EndpointPair this_endpoint_pair, peer_endpoint_pair;
 //  NatType nat_type;
-//  Sleep(std::chrono::milliseconds(250));
+  Sleep(std::chrono::milliseconds(250));
 //  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
 //            node_.managed_connections()->GetAvailableEndpoint(chosen_node, EndpointPair(),
 //                                                              this_endpoint_pair, nat_type));
+  try {
+    node_a.GetAvailableEndpoints(chosen_node.id).get();
+    GTEST_FAIL() << "Expected to throw";
+  }
+  catch (std::system_error error) {
+    ASSERT_EQ(error.code(), RudpErrors::already_connected);
+  }
 //  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
 //            nodes_[0]->managed_connections()->GetAvailableEndpoint(
 //                node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
+  try {
+    node_b.GetAvailableEndpoints(node_a.node_id()).get();
+    GTEST_FAIL() << "Expected to throw";
+  }
+  catch (std::system_error error) {
+    ASSERT_EQ(error.code(), RudpErrors::already_connected);
+  }
 //  EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
 //  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
 //
@@ -864,9 +873,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
 //  EXPECT_EQ(nodes_[0]->validation_data(), this_node_messages[0]);
 //  nodes_[0]->ResetData();
 //
-//  // Invalid NodeId
-//  node_.ResetData();
-//  nodes_[0]->ResetData();
+
+// FIXME: Reenable these tests? The Remove function currently always returns success.
+// Invalid NodeId
+//  node_a.ResetData();
+//  node_b.ResetData();
 //  node_.managed_connections()->Remove(NodeId());
 //  ASSERT_FALSE(wait_for_signals(0, 4));
 //  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 4);
@@ -901,8 +912,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
 //  EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 3);
 //  EXPECT_TRUE(node_.connection_lost_node_ids().empty());
 //  EXPECT_TRUE(nodes_[0]->connection_lost_node_ids().empty());
-//}
-//
+}
+
 //TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
 //  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 //
