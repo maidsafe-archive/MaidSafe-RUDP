@@ -1334,24 +1334,15 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
   Contact chosen_node;
-//  EXPECT_EQ(kSuccess,
-//            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-//  EXPECT_FALSE(chosen_node.IsZero());
   ASSERT_NO_THROW(chosen_node = node_.Bootstrap(bootstrap_endpoints_[0]).get());
   ASSERT_TRUE(detail::IsValid(chosen_node.endpoint_pair.local));
 
 //  FutureResult future_result;
-//  auto wait_millis = 1000;
-//
   node_.ResetData();
   nodes_[0]->ResetData();
   auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(1));
-//  node_.managed_connections()->Send(nodes_[0]->node_id(), "message01",
-//                                    future_result.MakeContinuation());
   node_.Send(nodes_[0]->node_id(), "message01").get();
 
-//  ASSERT_TRUE(future_result.Wait(wait_millis));
-//  EXPECT_EQ(kSuccess, future_result.Result());
   ASSERT_EQ(boost::future_status::ready, future_messages_at_peer.wait_for(boost::chrono::milliseconds(200)));
   auto messages = future_messages_at_peer.get();
   ASSERT_EQ(1U, messages.size());
@@ -1362,19 +1353,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   nodes_[0]->ResetData();
   future_messages_at_peer = node_.GetFutureForMessages(1);
   EndpointPair this_endpoint_pair;
-//  NatType nat_type;
-//  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-//            node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(), EndpointPair(),
-//                                                              this_endpoint_pair, nat_type));
   ASSERT_THROW_CODE(node_.GetAvailableEndpoints(nodes_[0]->node_id()).get(), RudpErrors::already_connected);
-//  nodes_[0]->managed_connections()->Send(node_.node_id(), "message02",
-//                                         future_result.MakeContinuation());
   nodes_[0]->Send(node_.node_id(), "message02").get();
 
-//  ASSERT_TRUE(future_result.Wait(wait_millis));
-//  EXPECT_EQ(kSuccess, future_result.Result());
-//  ASSERT_EQ(boost::future_status::ready,
-//            future_messages_at_peer.wait_for(boost::chrono::milliseconds(200)));
   messages = future_messages_at_peer.get();
   ASSERT_EQ(1U, messages.size());
   EXPECT_EQ(*messages.begin(), Node::str_to_msg("message02"));
@@ -1486,73 +1467,73 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
   }
 }
 
-//// Unfortunately disabled on Windows as ASIO and NT refuses to work well with anonymous pipe handles
-//// (think win32 exception throws in the kernel, you are about right)
-//#ifdef WIN32
-//struct input_watcher {
-//  typedef HANDLE native_handle_type;
-//};
-//#else
-//struct input_watcher {
-//  Asio::io_service& _service;
-//  Asio::posix::stream_descriptor _h;
-//
-// public:
-//  typedef Asio::posix::stream_descriptor::native_handle_type native_handle_type;
-//
-// private:
-//  Asio::deadline_timer _timer;
-//  std::unique_ptr<Asio::io_service::work> _work;
-//  void _init(bool doTimer) {
-//    _h.async_read_some(Asio::null_buffers(),
-//                       std::bind(&input_watcher::data_available, this, std::placeholders::_1));
-//    if (doTimer) {
-//      _timer.async_wait(std::bind(&input_watcher::timed_out, this, std::placeholders::_1));
-//    }
-//  }
-//
-// protected:
-//  virtual void data_available(const boost::system::error_code&) = 0;
-//  virtual void timed_out(const boost::system::error_code&) { cancel(); };
-//  input_watcher(Asio::io_service& service, native_handle_type h)
-//      : _service(service),
-//        _h(service, h),
-//        _timer(service),
-//        _work(maidsafe::make_unique<Asio::io_service::work>(service)) {
-//    _init(false);
-//  }
-//  input_watcher(Asio::io_service& service, native_handle_type h, boost::posix_time::ptime timeout)
-//      : _service(service),
-//        _h(service, h),
-//        _timer(service, timeout),
-//        _work(maidsafe::make_unique<Asio::io_service::work>(service)) {
-//    _init(true);
-//  }
-//  input_watcher(Asio::io_service& service, native_handle_type h,
-//                boost::posix_time::time_duration timeout)
-//      : _service(service),
-//        _h(service, h),
-//        _timer(service, timeout),
-//        _work(maidsafe::make_unique<Asio::io_service::work>(service)) {
-//    _init(true);
-//  }
-//
-// public:
-//  ~input_watcher() { _h.release(); }
-//  Asio::io_service& service() { return _service; }
-//  native_handle_type handle() { return _h.native(); }
-//  Asio::deadline_timer& timer() { return _timer; }
-//  void cancel() {
-//    _h.cancel();
-//    _timer.cancel();
-//    _work.reset();
-//  }
-//};
-//#endif
-//#ifdef _MSC_VER
-//#pragma warning(push)
-//#pragma warning(disable : 4706)  // assignment within conditional expression
-//#endif
+// Unfortunately disabled on Windows as ASIO and NT refuses to work well with anonymous pipe handles
+// (think win32 exception throws in the kernel, you are about right)
+#ifdef WIN32
+struct input_watcher {
+  typedef HANDLE native_handle_type;
+};
+#else
+struct input_watcher {
+  Asio::io_service& _service;
+  Asio::posix::stream_descriptor _h;
+
+ public:
+  typedef Asio::posix::stream_descriptor::native_handle_type native_handle_type;
+
+ private:
+  Asio::deadline_timer _timer;
+  std::unique_ptr<Asio::io_service::work> _work;
+  void _init(bool doTimer) {
+    _h.async_read_some(Asio::null_buffers(),
+                       std::bind(&input_watcher::data_available, this, std::placeholders::_1));
+    if (doTimer) {
+      _timer.async_wait(std::bind(&input_watcher::timed_out, this, std::placeholders::_1));
+    }
+  }
+
+ protected:
+  virtual void data_available(const boost::system::error_code&) = 0;
+  virtual void timed_out(const boost::system::error_code&) { cancel(); };
+  input_watcher(Asio::io_service& service, native_handle_type h)
+      : _service(service),
+        _h(service, h),
+        _timer(service),
+        _work(maidsafe::make_unique<Asio::io_service::work>(service)) {
+    _init(false);
+  }
+  input_watcher(Asio::io_service& service, native_handle_type h, boost::posix_time::ptime timeout)
+      : _service(service),
+        _h(service, h),
+        _timer(service, timeout),
+        _work(maidsafe::make_unique<Asio::io_service::work>(service)) {
+    _init(true);
+  }
+  input_watcher(Asio::io_service& service, native_handle_type h,
+                boost::posix_time::time_duration timeout)
+      : _service(service),
+        _h(service, h),
+        _timer(service, timeout),
+        _work(maidsafe::make_unique<Asio::io_service::work>(service)) {
+    _init(true);
+  }
+
+ public:
+  ~input_watcher() { _h.release(); }
+  Asio::io_service& service() { return _service; }
+  native_handle_type handle() { return _h.native(); }
+  Asio::deadline_timer& timer() { return _timer; }
+  void cancel() {
+    _h.cancel();
+    _timer.cancel();
+    _work.reset();
+  }
+};
+#endif
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4706)  // assignment within conditional expression
+#endif
 //TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
 //  const char* endpoints = std::getenv("MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS");
 //  if (endpoints) {
