@@ -125,6 +125,9 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
 
       try {
         ith_endpoint_pair = nodes[i]->GetAvailableEndpoints(nodes[j]->node_id()).get();
+        if (!detail::IsValid(ith_endpoint_pair.external)) {
+          ith_endpoint_pair.external = ith_endpoint_pair.local;
+        }
       }
       catch(system_error e) {
         EXPECT_EQ(e.code(), RudpErrors::already_connected);
@@ -132,6 +135,9 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
 
       try {
         jth_endpoint_pair = nodes[j]->GetAvailableEndpoints(nodes[i]->node_id()).get();
+        if (!detail::IsValid(jth_endpoint_pair.external)) {
+          jth_endpoint_pair.external = jth_endpoint_pair.local;
+        }
       }
       catch(system_error e) {
         EXPECT_EQ(e.code(), RudpErrors::already_connected);

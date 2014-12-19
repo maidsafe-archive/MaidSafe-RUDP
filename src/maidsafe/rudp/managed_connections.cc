@@ -144,12 +144,6 @@ int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
   return kSuccess;
 }
 
-void ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
-                                                 const Endpoint& local_endpoint,
-                                                 const std::function<void(Error, const Contact&)>& handler) {
-  StartNewTransport(bootstrap_list, local_endpoint, handler);
-}
-
 void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
                                           Endpoint local_endpoint,
                                           const std::function<void(Error, const Contact&)>& handler) {

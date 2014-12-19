@@ -167,11 +167,6 @@ class ManagedConnections {
 
   void ClearConnectionsAndIdleTransports();
   int TryToDetermineLocalEndpoint(Endpoint& local_endpoint);
-  //int AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
-  //                             const Endpoint& local_endpoint,Contact& chosen_bootstrap_contact);
-  void AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
-                               const Endpoint& local_endpoint,
-                               const std::function<void(Error, const Contact&)>&);
 
   void StartNewTransport(BootstrapContacts bootstrap_list, Endpoint local_endpoint,
                          const std::function<void(Error, const Contact&)>&);
@@ -266,7 +261,7 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
                          Contact());
   }
 
-  AttemptStartNewTransport(bootstrap_list, local_endpoint,
+  StartNewTransport(bootstrap_list, local_endpoint,
       [=](Error error, Contact chosen_contact) mutable {
         if (!error) {
           listener_ = listener;

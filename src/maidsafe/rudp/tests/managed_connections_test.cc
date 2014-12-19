@@ -1286,104 +1286,62 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
     EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), sent_messages[i]));
 }
 
-//TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
-//  const int kNetworkSize(21);
-//  ASSERT_LE(kNetworkSize, std::numeric_limits<int8_t>::max());
-//  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNetworkSize));
-//
-//  // Bootstrap off nodes_[kNetworkSize - 1]
-//  NodeId chosen_node;
-//  EXPECT_EQ(kSuccess,
-//            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[kNetworkSize - 1]),
-//                            chosen_node));
-//  ASSERT_EQ(nodes_[kNetworkSize - 1]->node_id(), chosen_node);
-//
-//  std::vector<NodeId> this_node_connections;
-//  // Connect node_ to all others
-//  for (int i(0); i != kNetworkSize - 1; ++i) {
-//    SCOPED_TRACE("Connecting to " + nodes_[i]->id());
-//    node_.ResetData();
-//    nodes_[i]->ResetData();
-//    EndpointPair this_endpoint_pair, peer_endpoint_pair;
-//    NatType nat_type;
-//    EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-//                            nodes_[i]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
-//    EXPECT_EQ(kSuccess, nodes_[i]->managed_connections()->GetAvailableEndpoint(
-//                            node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
-//    auto peer_futures(nodes_[i]->GetFutureForMessages(1));
-//    auto this_node_futures(node_.GetFutureForMessages(1));
-//    std::string validation_data_copy(nodes_[i]->validation_data());
-//    (void)validation_data_copy[0];  // workaround tsan warning (Niall)
-//    EXPECT_EQ(kSuccess, nodes_[i]->managed_connections()->Add(node_.node_id(), this_endpoint_pair,
-//                                                              validation_data_copy));
-//    EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[i]->node_id(), peer_endpoint_pair,
-//                                                         node_.validation_data()));
-//    ASSERT_EQ(boost::future_status::ready,
-//              peer_futures.wait_for(boost_rendezvous_connect_timeout()));
-//    auto peer_messages(peer_futures.get());
-//    ASSERT_EQ(boost::future_status::ready,
-//              this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
-//    auto this_node_messages(this_node_futures.get());
-//    ASSERT_EQ(1U, peer_messages.size());
-//    ASSERT_EQ(1U, this_node_messages.size());
-//    EXPECT_EQ(node_.validation_data(), peer_messages[0]);
-//    EXPECT_EQ(nodes_[i]->validation_data(), this_node_messages[0]);
-//    //    this_node_connections.push_back(this_endpoint_pair.local);
-//  }
-//
-//  // Prepare to send
-//  node_.ResetData();
-//  auto future_messages(node_.GetFutureForMessages(kNetworkSize - 1));
-//  std::vector<std::string> sent_messages;
-//  std::vector<int> result_of_sends(kNetworkSize, kConnectError);
-//  std::vector<MessageSentFunctor> message_sent_functors;
-//  std::atomic<int> result_arrived_count(0);
-//  std::shared_ptr<std::promise<void>> done_out = std::make_shared<std::promise<void>>();
-//  auto done_in = done_out->get_future();
-//  for (int i(0); i != kNetworkSize - 1; ++i) {
-//    SCOPED_TRACE("Preparing to send from " + nodes_[i]->id());
-//    nodes_[i]->ResetData();
-//    sent_messages.push_back(std::string(256 * 1024, 'A' + static_cast<int8_t>(i)));
-//    message_sent_functors.push_back([&, i, done_out](int result_in) mutable {
-//      result_of_sends[i] = result_in;
-//      if (kNetworkSize - 1 == ++result_arrived_count)
-//        done_out->set_value();
-//    });
-//  }
-//
-//  auto wait_for_result([&] {
-//    return std::future_status::timeout != done_in.wait_for(std::chrono::seconds(20)) &&
-//           result_arrived_count == kNetworkSize - 1;
-//  });
-//
-//  // Perform sends
-//  std::vector<std::thread> threads(kNetworkSize - 1);
-//  for (int i(0); i != kNetworkSize - 1; ++i) {
-//    threads[i] =
-//        std::move(std::thread(&ManagedConnections::Send, nodes_[i]->managed_connections().get(),
-//                              node_.node_id(), sent_messages[i], message_sent_functors[i]));
-//  }
-//  for (auto& thread : threads) {
-//    while (!thread.joinable()) {
-//      std::this_thread::sleep_for(std::chrono::milliseconds(50));
-//    }
-//    thread.join();
-//  }
-//
-//  // Assess results
-//  ASSERT_TRUE(wait_for_result());
-//  for (int i(0); i != kNetworkSize - 1; ++i) {
-//    SCOPED_TRACE("Assessing results of sending from " + nodes_[i]->id());
-//    EXPECT_EQ(kSuccess, result_of_sends[i]);
-//  }
-//  ASSERT_EQ(boost::future_status::ready,
-//            future_messages.wait_for(boost::chrono::seconds(10 * kNetworkSize)));
-//  auto messages(future_messages.get());
-//  ASSERT_EQ(kNetworkSize - 1, messages.size());
-//  for (int i(0); i != kNetworkSize - 1; ++i)
-//    EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), sent_messages[i]));
-//}
-//
+TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
+  using boost::chrono::seconds;
+  using std::vector;
+  using std::future;
+
+  const int kNetworkSize(4);
+  ASSERT_LE(kNetworkSize, std::numeric_limits<int8_t>::max());
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNetworkSize));
+
+  // Bootstrap off nodes_[kNetworkSize - 1]
+  Contact chosen_node;
+  chosen_node = node_.Bootstrap(bootstrap_endpoints_[kNetworkSize - 1]).get();
+  ASSERT_EQ(nodes_[kNetworkSize - 1]->node_id(), chosen_node.id);
+
+  vector<NodeId> this_node_connections;
+  // Connect node_ to all others
+  for (int i(0); i != kNetworkSize - 1; ++i) {
+    SCOPED_TRACE("Connecting to " + nodes_[i]->id());
+    node_.ResetData();
+    nodes_[i]->ResetData();
+    EndpointPair this_endpoint_pair, peer_endpoint_pair;
+
+    this_endpoint_pair = node_.GetAvailableEndpoints(nodes_[i]->node_id()).get();
+    peer_endpoint_pair = nodes_[i]->GetAvailableEndpoints(node_.node_id()).get();
+
+    auto this_node_add = node_.Add(nodes_[i]->make_contact(peer_endpoint_pair));
+    auto that_node_add = nodes_[i]->Add(node_.make_contact(this_endpoint_pair));
+
+    this_node_add.get();
+    that_node_add.get();
+  }
+
+  // Prepare to send
+  node_.ResetData();
+  auto future_messages(node_.GetFutureForMessages(kNetworkSize - 1));
+  vector<Node::message_t> sent_messages;
+  vector<future<void>> send_futures;
+
+  for (int i(0); i != kNetworkSize - 1; ++i) {
+    SCOPED_TRACE("Preparing to send from " + nodes_[i]->id());
+    nodes_[i]->ResetData();
+    auto message = Node::str_to_msg(std::string(256 * 1024, 'A' + static_cast<int8_t>(i)));
+    sent_messages.push_back(message);
+    send_futures.push_back(nodes_[i]->Send(node_.node_id(), message));
+  }
+
+  for (auto& future : send_futures) future.get();
+
+  // Assess results
+  ASSERT_EQ(boost::future_status::ready, future_messages.wait_for(seconds(10 * kNetworkSize)));
+  auto messages(future_messages.get());
+  ASSERT_EQ(kNetworkSize - 1, messages.size());
+  for (int i(0); i != kNetworkSize - 1; ++i)
+    EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), sent_messages[i]));
+}
+
 //TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
 //  Parameters::bootstrap_connection_lifespan = bptime::seconds(6);
 //  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));

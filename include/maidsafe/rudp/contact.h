@@ -87,6 +87,11 @@ struct Contact {
   asymm::PublicKey public_key;
 };
 
+inline
+std::ostream& operator<<(std::ostream& os, const Contact& c) {
+  return os << "(Contact " << c.id << " " << c.endpoint_pair << ")";
+}
+
 }  // namespace rudp
 
 }  // namespace maidsafe

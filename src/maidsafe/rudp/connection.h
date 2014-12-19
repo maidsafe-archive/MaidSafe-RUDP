@@ -118,7 +118,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
         : encrypted_data_(std::move(encrypted_data)), handler_(std::move(message_sent_functor)) {}
   };
 
-  void DoClose(const ExtErrorCode&);
+  void DoClose(const ExtErrorCode&, int debug_line_no);
 
   void DoStartConnecting(const NodeId& peer_node_id,
                          const boost::asio::ip::udp::endpoint& peer_endpoint,
