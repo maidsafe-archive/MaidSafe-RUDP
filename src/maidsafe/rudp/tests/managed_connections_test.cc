@@ -1194,7 +1194,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_a.ResetData();
   node_b.ResetData();
   node_a.Remove(node_b.node_id()).get();
-  // FIXME: the Remove future should finish when the is removed.
+  // FIXME: the Remove future should finish only after the node is removed.
   int count(0);
   do {
     Sleep(std::chrono::milliseconds(100));
@@ -1232,80 +1232,60 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_THROW_CODE(node_c.Send(node_a.node_id(), sent_message).get(), RudpErrors::message_size);
 }
 
-//TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
-//  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
-//
-//  // Bootstrap off nodes_[0]
-//  NodeId chosen_node;
-//  EXPECT_EQ(kSuccess,
-//            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[0]), chosen_node));
-//  ASSERT_EQ(nodes_[0]->node_id(), chosen_node);
-//
-//  // Connect node_ to nodes_[1]
-//  nodes_[1]->ResetData();
-//  EndpointPair this_endpoint_pair, peer_endpoint_pair;
-//  NatType nat_type;
-//  EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
-//                          nodes_[1]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
-//  EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->GetAvailableEndpoint(
-//                          node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
-//  auto peer_futures(nodes_[1]->GetFutureForMessages(1));
-//  auto this_node_futures(node_.GetFutureForMessages(1));
-//  EXPECT_EQ(kSuccess, nodes_[1]->managed_connections()->Add(node_.node_id(), this_endpoint_pair,
-//                                                            nodes_[1]->validation_data()));
-//  EXPECT_EQ(kSuccess, node_.managed_connections()->Add(nodes_[1]->node_id(), peer_endpoint_pair,
-//                                                       node_.validation_data()));
-//  ASSERT_EQ(boost::future_status::ready, peer_futures.wait_for(boost_rendezvous_connect_timeout()));
-//  auto peer_messages(peer_futures.get());
-//  ASSERT_EQ(boost::future_status::ready,
-//            this_node_futures.wait_for(boost_rendezvous_connect_timeout()));
-//  auto this_node_messages(this_node_futures.get());
-//  ASSERT_EQ(1U, peer_messages.size());
-//  ASSERT_EQ(1U, this_node_messages.size());
-//  EXPECT_EQ(node_.validation_data(), peer_messages[0]);
-//  EXPECT_EQ(nodes_[1]->validation_data(), this_node_messages[0]);
-//
-//  // Prepare to send
-//  node_.ResetData();
-//  nodes_[1]->ResetData();
-//  const int kMessageCount(10);
-//  ASSERT_LE(kMessageCount, std::numeric_limits<int8_t>::max());
-//  auto future_messages_at_peer(nodes_[1]->GetFutureForMessages(kMessageCount));
-//  std::vector<std::string> sent_messages;
-//  for (int8_t i(0); i != kMessageCount; ++i)
-//    sent_messages.push_back(std::string(256 * 1024, 'A' + i));
-//  std::atomic<int> result_arrived_count(0);
-//  std::atomic<int> result_of_send(kSuccess);
-//  std::promise<void> done_out;
-//
-//  using lock_guard = std::lock_guard<std::mutex>;
-//  std::mutex mutex;
-//
-//  auto done_in = done_out.get_future();
-//  MessageSentFunctor message_sent_functor([&](int result_in) {
-//    lock_guard guard(mutex);
-//    if (result_in != kSuccess)
-//      result_of_send = result_in;
-//    if (kMessageCount == ++result_arrived_count)
-//      done_out.set_value();
-//  });
-//
-//  // Send and assess results
-//  for (int i(0); i != kMessageCount; ++i) {
-//    node_.managed_connections()->Send(nodes_[1]->node_id(), sent_messages[i], message_sent_functor);
-//  }
-//  ASSERT_TRUE(std::future_status::timeout != done_in.wait_for(std::chrono::seconds(60)));
-//  { lock_guard guard(mutex); }
-//
-//  EXPECT_EQ(kSuccess, result_of_send);
-//  ASSERT_EQ(boost::future_status::ready,
-//            future_messages_at_peer.wait_for(boost::chrono::seconds(10 * kMessageCount)));
-//  auto messages(future_messages_at_peer.get());
-//  ASSERT_EQ(kMessageCount, messages.size());
-//  for (int i(0); i != kMessageCount; ++i)
-//    EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), sent_messages[i]));
-//}
-//
+TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
+  using boost::chrono::seconds;
+
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
+
+  auto& node_a = node_;
+  auto& node_b = *nodes_[0];
+  auto& node_c = *nodes_[1];
+
+  // Bootstrap off node_b
+  Contact chosen_node;
+  ASSERT_NO_THROW(chosen_node = node_a.Bootstrap(bootstrap_endpoints_[0]).get());
+  ASSERT_EQ(node_b.node_id(), chosen_node.id);
+
+  // Connect node_ to nodes_[1]
+  node_c.ResetData();
+  EndpointPair node_a_eps, node_c_eps;
+
+  ASSERT_NO_THROW(node_a_eps = node_a.GetAvailableEndpoints(node_c.node_id()).get());
+  ASSERT_NO_THROW(node_c_eps = node_c.GetAvailableEndpoints(node_a.node_id()).get());
+
+  auto node_a_add = node_a.Add(node_c.make_contact(node_c_eps));
+  auto node_c_add = node_c.Add(node_a.make_contact(node_a_eps));
+
+  ASSERT_NO_THROW(node_a_add.get());
+  ASSERT_NO_THROW(node_c_add.get());
+
+  // Prepare to send
+  node_a.ResetData();
+  node_c.ResetData();
+  const int kMessageCount(10);
+  ASSERT_LE(kMessageCount, std::numeric_limits<int8_t>::max());
+  auto recv_futures(node_c.GetFutureForMessages(kMessageCount));
+  std::vector<Node::message_t> sent_messages;
+  for (int8_t i(0); i != kMessageCount; ++i)
+    sent_messages.push_back(Node::str_to_msg(std::string(256 * 1024, 'A' + i)));
+
+  std::vector<std::future<void>> send_futures;
+
+  // Send and assess results
+  for (int i(0); i != kMessageCount; ++i) {
+    send_futures.push_back(node_a.Send(node_c.node_id(), sent_messages[i]));
+  }
+
+  for (auto& future : send_futures) future.get();
+
+  ASSERT_EQ(boost::future_status::ready, recv_futures.wait_for(seconds(10 * kMessageCount)));
+
+  auto messages(recv_futures.get());
+  ASSERT_EQ(kMessageCount, messages.size());
+  for (int i(0); i != kMessageCount; ++i)
+    EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), sent_messages[i]));
+}
+
 //TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
 //  const int kNetworkSize(21);
 //  ASSERT_LE(kNetworkSize, std::numeric_limits<int8_t>::max());
