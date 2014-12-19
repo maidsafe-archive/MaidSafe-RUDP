@@ -228,11 +228,11 @@ void Connection::StartSending(const std::string& data,
   }
 }
 
-void Connection::DoQueueSendRequest(SendRequest const request) {
+void Connection::DoQueueSendRequest(SendRequest request) {
   if (sending_) {
-    send_queue_.push(request);
+    send_queue_.push(std::move(request));
   } else {
-    DoStartSending(request);
+    DoStartSending(std::move(request));
   }
 }
 
