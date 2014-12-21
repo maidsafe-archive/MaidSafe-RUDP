@@ -76,7 +76,6 @@ ManagedConnections::ManagedConnections()
       local_ip_(),
       nat_type_(maidsafe::make_unique<NatType>(NatType::kUnknown))
 {
-  LOG(kVerbose) << "peter ManagedConnections()";
 }
 
 ManagedConnections::~ManagedConnections() {
@@ -145,19 +144,9 @@ int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
   return kSuccess;
 }
 
-//int ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
-//                                                 const Endpoint& local_endpoint,
-//                                                 Contact& chosen_bootstrap_contact) {
-void ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
-                                                 const Endpoint& local_endpoint,
-                                                 const std::function<void(Error, const Contact&)>& handler) {
-  StartNewTransport(bootstrap_list, local_endpoint, handler);
-}
-
 void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
                                           Endpoint local_endpoint,
                                           const std::function<void(Error, const Contact&)>& handler) {
-  LOG(kVerbose) << "peter " << this << " StartNewTrasport";
   TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, *nat_type_));
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
@@ -180,20 +169,16 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
     }
   }
 
-  //using lock_guard = std::lock_guard<std::mutex>;
-  //std::promise<ReturnCode> setter;
-  //auto getter = setter.get_future();
-
   auto on_bootstrap = [=](ReturnCode bootstrap_result, Contact chosen_contact) {
     if (bootstrap_result != kSuccess) {
-      //lock_guard lock(mutex_);
       transport->Close();
       return handler(RudpErrors::failed_to_bootstrap, chosen_contact);
-      //return setter.set_value(bootstrap_result);
     }
-
-    if (!chosen_bootstrap_contact_.id.IsValid())
-      chosen_bootstrap_contact_ = chosen_contact;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (chosen_bootstrap_contact_.id.IsValid())
+        chosen_bootstrap_contact_ = chosen_contact;
+    }
 
     if (!detail::IsValid(transport->external_endpoint()) && !external_address.is_unspecified()) {
       // Means this node's NAT is symmetric or unknown, so guess that it will be mapped to existing
@@ -202,8 +187,6 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
           Endpoint(external_address, transport->local_endpoint().port()));
     }
 
-    //lock_guard guard(mutex_);
-    //return setter.set_value(kSuccess);
     if (bootstrap_result != kSuccess) {
       return handler(RudpErrors::failed_to_bootstrap, chosen_contact);
     }
@@ -224,12 +207,6 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
       std::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, args::_1, args::_2,
                 args::_3, args::_4),
       on_bootstrap);
-
-  //getter.wait();
-  //{ lock_guard guard(mutex_); }
-  //auto result = getter.get();
-
-  //return result;
 }
 
 void ManagedConnections::GetBootstrapEndpoints(BootstrapContacts& bootstrap_list,
@@ -308,10 +285,8 @@ bool ManagedConnections::ExistingConnection(const NodeId& peer_id, EndpointPair&
       std::unique_ptr<PendingConnection> connection(
           new PendingConnection(peer_id, (*itr).second, asio_service_.service()));
       AddPending(std::move(connection));
-      connection_exists = false;
-    } else {
-      connection_exists = false;
     }
+    connection_exists = false;
   } else {
     connection_exists = true;
   }
@@ -419,39 +394,35 @@ std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator
 }
 
 void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handler) {
-  LOG(kVerbose) << "peter DoAdd";
   if (peer.id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
-    return handler(make_error_code(RudpErrors::operation_not_supported));
+    return handler(RudpErrors::operation_not_supported);
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
 
-  LOG(kVerbose) << "peter DoAdd";
   auto itr(FindPendingTransportWithNodeId(peer.id));
   if (itr == pendings_.end()) {
     if (connections_.find(peer.id) != connections_.end()) {
-      LOG(kWarning) << "peter A managed connection from " << this_node_id_ << " to " << peer.id
+      LOG(kWarning) << "A managed connection from " << this_node_id_ << " to " << peer.id
                     << " already exists, and this node's chosen BootstrapID is "
                     << chosen_bootstrap_contact_.id;
       return handler(RudpErrors::already_connected);
     }
-    LOG(kError) << "peter No connection attempt from " << this_node_id_ << " to " << peer.id
+    LOG(kError) << "No connection attempt from " << this_node_id_ << " to " << peer.id
                 << " - ensure GetAvailableEndpoint has been called first.";
-    return handler(make_error_code(RudpErrors::operation_not_supported));
+    return handler(RudpErrors::operation_not_supported);
   }
 
-  LOG(kVerbose) << "peter DoAdd";
   if ((*itr)->connecting) {
     LOG(kWarning) << "A connection attempt from " << this_node_id_ << " to " << peer.id
                   << " is already happening";
-    return handler(make_error_code(RudpErrors::connection_already_in_progress));
+    return handler(RudpErrors::connection_already_in_progress);
   }
 
   TransportPtr selected_transport((*itr)->pending_transport);
   (*itr)->connecting = true;
 
-  LOG(kVerbose) << "peter DoAdd";
   std::shared_ptr<detail::Connection> connection(selected_transport->GetConnection(peer.id));
   if (connection) {
     // If the connection exists, it should be a bootstrapping one.  If the peer used this node,
@@ -474,11 +445,10 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
                   << " already exists, and this node's chosen bootstrap ID is "
                   << chosen_bootstrap_contact_.id;
       pendings_.erase(itr);
-      return handler(make_error_code(RudpErrors::already_connected));
+      return handler(RudpErrors::already_connected);
     }
   }
 
-  LOG(kVerbose) << "peter DoAdd";
   selected_transport->Connect(std::move(peer.id), std::move(peer.endpoint_pair),
                               std::move(peer.public_key), handler);
 }
@@ -509,7 +479,7 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
                                 MessageSentFunctor handler) {
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
-    return handler(make_error_code(RudpErrors::operation_not_supported));
+    return handler(RudpErrors::operation_not_supported);
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
@@ -522,10 +492,10 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
   LOG(kError) << "Can't send from " << this_node_id_ << " to " << peer_id << " - not in map.";
   if (handler) {
     if (!connections_.empty() || !idle_transports_.empty()) {
-      handler(make_error_code(RudpErrors::not_connected));
+      handler(RudpErrors::not_connected);
     } else {
       // Probably haven't bootstrapped, so asio_service_ won't be running.
-      std::thread thread(handler, make_error_code(RudpErrors::not_connected));
+      std::thread thread(handler, RudpErrors::not_connected);
       thread.detach();
     }
   }
@@ -540,8 +510,8 @@ void ManagedConnections::OnMessageSlot(const NodeId& peer_id, const std::string&
 #endif
             asymm::Decrypt(asymm::CipherText(message), keys_.private_key).string());
     if (auto listener = listener_.lock()) {
-      listener->MessageReceived(
-          peer_id, std::vector<unsigned char>(std::begin(message), std::end(message)));
+      listener->MessageReceived(peer_id, std::vector<unsigned char>(std::begin(decrypted_message),
+                                                                    std::end(decrypted_message)));
     }
   } catch (const std::exception& e) {
     LOG(kError) << "Failed to decrypt message: " << e.what();

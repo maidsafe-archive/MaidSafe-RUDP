@@ -97,11 +97,11 @@ void Connection::Close() {
   auto self = shared_from_this();
 
   strand_.dispatch([self]() {
-      self->DoClose(RudpErrors::not_connected);
+      self->DoClose(RudpErrors::not_connected, __LINE__);
       });
 }
 
-void Connection::DoClose(const ExtErrorCode& error) {
+void Connection::DoClose(const ExtErrorCode& error, int /* debug_line_no */) {
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
@@ -110,7 +110,8 @@ void Connection::DoClose(const ExtErrorCode& error) {
     socket_.NotifyClose();
     socket_.AsyncFlush(strand_.wrap(std::bind(&Connection::DoClose,
                                               shared_from_this(),
-                                              RudpErrors::not_connected)));
+                                              RudpErrors::not_connected,
+                                              __LINE__)));
     transport->RemoveConnection(shared_from_this(), error == RudpErrors::timed_out);
     FireOnConnectFunctor(error);
     FireConnectionAddedFunctor(error);
@@ -192,7 +193,8 @@ void Connection::MarkAsDuplicateAndClose() {
   }
   strand_.dispatch(std::bind(&Connection::DoClose,
                              shared_from_this(),
-                             RudpErrors::not_connected));
+                             RudpErrors::not_connected,
+                             __LINE__));
 }
 
 std::function<void()> Connection::GetAndClearFailureFunctor() {
@@ -278,14 +280,14 @@ void Connection::CheckTimeout(const ErrorCode& ec) {
 
   // If the socket is closed, it means the connection has been shut down.
   if (!socket_.IsOpen())
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
 
   if (timer_.expires_from_now().is_negative()) {
     // Time has run out.
     LOG(kWarning) << "Failed to " << (timeout_state_ == TimeoutState::kClosing ? "dis" : "")
                   << "connect from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                   << " - timed out.";
-    return DoClose(RudpErrors::timed_out);
+    return DoClose(RudpErrors::timed_out, __LINE__);
   }
 
   // Keep processing timeouts until the socket is completely closed.
@@ -303,7 +305,11 @@ bool Connection::Stopped() const { return (!transport_.lock() || !socket_.IsOpen
 bool Connection::TicksStopped() const { return (!transport_.lock() && !socket_.IsOpen()); }
 
 void Connection::StartTick() {
-  auto handler = strand_.wrap(std::bind(&Connection::HandleTick, shared_from_this()));
+  auto self = shared_from_this();
+  auto handler = [self](const ExtErrorCode&) {
+    self->HandleTick();
+  };
+
   socket_.AsyncTick(handler);
 }
 
@@ -318,7 +324,8 @@ void Connection::HandleTick() {
   std::unique_lock<decltype(handle_tick_lock_)> lock(handle_tick_lock_, std::adopt_lock);
 
   if (!socket_.IsOpen())
-    return DoClose(state_ == State::kTemporary ? ExtErrorCode() : RudpErrors::not_connected);
+    return DoClose(state_ == State::kTemporary ? ExtErrorCode() : RudpErrors::not_connected,
+                   __LINE__);
 
   //  if (sending_) {
   //    uint32_t sent_length = socket_.SentLength();
@@ -334,11 +341,11 @@ void Connection::HandleTick() {
   //  }
 
   if (timeout_state_ == TimeoutState::kConnecting && !multiplexer_->IsOpen())
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
 
   // We need to keep ticking during a graceful shutdown.
   if (timeout_state_ == TimeoutState::kClosing && timer_.expires_from_now().is_negative())
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
 
   StartTick();
 }
@@ -354,8 +361,10 @@ void Connection::StartConnect(const asymm::PublicKey& peer_public_key,
     if (lifespan > bptime::time_duration()) {
       open_mode = Session::kBootstrapAndKeep;
       state_ = State::kBootstrapping;
-      lifespan_timer_.async_wait(
-          strand_.wrap(std::bind(&Connection::CheckLifespanTimeout, shared_from_this(), args::_1)));
+      auto self = shared_from_this();
+      lifespan_timer_.async_wait([self](const ErrorCode& error) {
+          self->CheckLifespanTimeout(error);
+          });
     } else {
       open_mode = Session::kBootstrapAndDrop;
       state_ = State::kTemporary;
@@ -389,22 +398,24 @@ void Connection::StartConnect(const asymm::PublicKey& peer_public_key,
 void Connection::CheckLifespanTimeout(const ErrorCode& ec) {
   if (ec && ec != Asio::error::operation_aborted) {
     LOG(kError) << "Connection lifespan check timeout error: " << ec.message();
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
   if (!socket_.IsOpen())
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
 
   if (lifespan_timer_.expires_from_now() != bptime::pos_infin) {
     if (lifespan_timer_.expires_at() <= Asio::deadline_timer::traits_type::now()) {
       LOG(kInfo) << "Closing connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                  << "  Lifespan remaining: " << lifespan_timer_.expires_from_now();
-      return DoClose(RudpErrors::not_connected);
+      return DoClose(RudpErrors::not_connected, __LINE__);
     } else {
       LOG(kInfo) << "Spuriously checking lifespan timeout of connection from " << *multiplexer_
                  << " to " << socket_.PeerEndpoint()
                  << "  Lifespan remaining: " << lifespan_timer_.expires_from_now();
-      lifespan_timer_.async_wait(
-          strand_.wrap(std::bind(&Connection::CheckLifespanTimeout, shared_from_this(), args::_1)));
+      auto self = shared_from_this();
+      lifespan_timer_.async_wait([self](const ErrorCode& e) {
+          self->CheckLifespanTimeout(e);
+          });
     }
   }
 }
@@ -423,7 +434,7 @@ void Connection::HandleConnect(const ErrorCode& ec, PingFunctor ping_functor) {
 #endif
     if (ping_functor)
       ping_functor(kPingFailed);
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
 
   if (Stopped()) {
@@ -435,7 +446,7 @@ void Connection::HandleConnect(const ErrorCode& ec, PingFunctor ping_functor) {
                     << " already stopped.";
 #endif
     }
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
 
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
@@ -449,7 +460,7 @@ void Connection::HandleConnect(const ErrorCode& ec, PingFunctor ping_functor) {
         [transport, self]() { self->FireConnectionAddedFunctor(ExtErrorCode()); });
   } else {
     LOG(kError) << "Pointer to Transport already destroyed.";
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
 
   timer_.expires_at(boost::posix_time::pos_infin);
@@ -463,7 +474,7 @@ void Connection::StartReadSize() {
   if (Stopped()) {
     LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                   << " already stopped.";
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
   receive_buffer_.clear();
   receive_buffer_.resize(sizeof(DataSize));
@@ -480,13 +491,13 @@ void Connection::HandleReadSize(const ErrorCode& ec) {
                     << socket_.PeerEndpoint() << " error - " << ec.message();
     }
 #endif
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
 
   if (Stopped()) {
     LOG(kWarning) << "Failed to read size.  Connection from " << *multiplexer_ << " to "
                   << socket_.PeerEndpoint() << " already stopped.";
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
 
   data_size_ =
@@ -497,7 +508,7 @@ void Connection::HandleReadSize(const ErrorCode& ec) {
   if (data_size_ > ManagedConnections::MaxMessageSize() + 1024) {
     LOG(kError) << "Won't receive a message of size " << data_size_ << " which is > "
                 << ManagedConnections::MaxMessageSize() + 1024 << ", closing.";
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
 
   data_received_ = 0;
@@ -509,7 +520,7 @@ void Connection::StartReadData() {
   if (Stopped()) {
     LOG(kWarning) << "Connection from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                   << " already stopped.";
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
   DataSize buffer_size = data_received_;
   buffer_size += std::min(socket_.BestReadBufferSize(), data_size_ - data_received_);
@@ -528,13 +539,13 @@ void Connection::HandleReadData(const ErrorCode& ec, size_t length) {
                   << socket_.PeerEndpoint() << " error - " << ec.message();
     }
 #endif
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
 
   if (Stopped()) {
     LOG(kError) << "Failed to read data.  Connection from " << *multiplexer_ << " to "
                 << socket_.PeerEndpoint() << " already stopped.";
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
 
   assert(static_cast<DataSize>(length) >= 0);
@@ -574,7 +585,7 @@ void Connection::StartWrite(const MessageSentFunctor& message_sent_functor) {
                 << " - connection stopped.";
     InvokeSentFunctor(message_sent_functor, make_error_code(RudpErrors::not_connected));
     FinishSendAndQueueNext();
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
   socket_.AsyncWrite(
       Asio::buffer(send_buffer_), message_sent_functor,
@@ -589,7 +600,7 @@ void Connection::HandleWrite(MessageSentFunctor message_sent_functor) {
     LOG(kError) << "Failed to write from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                 << " - connection stopped.";
     InvokeSentFunctor(message_sent_functor, make_error_code(RudpErrors::not_connected));
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
 
   //  LOG(kInfo) << boost::posix_time::microsec_clock::universal_time()
@@ -600,14 +611,21 @@ void Connection::HandleWrite(MessageSentFunctor message_sent_functor) {
 void Connection::StartProbing() {
   failed_probe_count_ = 0;
   probe_interval_timer_.expires_from_now(Parameters::keepalive_interval);
-  probe_interval_timer_.async_wait(
-      strand_.wrap(std::bind(&Connection::DoProbe, shared_from_this(), args::_1)));
+  auto self = shared_from_this();
+  probe_interval_timer_.async_wait([self](const ErrorCode& error) {
+      self->DoProbe(error);
+      });
 }
 
 void Connection::DoProbe(const ErrorCode& ec) {
   if ((Asio::error::operation_aborted != ec) && !Stopped()) {
-    socket_.AsyncProbe(
-        strand_.wrap(std::bind(&Connection::HandleProbe, shared_from_this(), args::_1)));
+    auto self = shared_from_this();
+
+    auto handle_probe = [self](const ErrorCode& error) mutable {
+      self->HandleProbe(error);
+    };
+
+    socket_.AsyncProbe(strand_.wrap(handle_probe));
   }
 }
 
@@ -627,7 +645,7 @@ void Connection::HandleProbe(const ErrorCode& ec) {
   } else {
     LOG(kWarning) << "Failed to probe from " << *multiplexer_ << " to " << socket_.PeerEndpoint()
                   << "   error - " << ec.message();
-    return DoClose(RudpErrors::not_connected);
+    return DoClose(RudpErrors::not_connected, __LINE__);
   }
 }
 

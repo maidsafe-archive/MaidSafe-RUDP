@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "asio/use_future.hpp"
 #include "boost/asio/ip/udp.hpp"
 #include "boost/thread/future.hpp"
 
@@ -33,12 +34,12 @@
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
+#include "maidsafe/rudp/managed_connections.h"
 
 namespace maidsafe {
 
 namespace rudp {
 
-class ManagedConnections;
 struct Contact;
 
 typedef boost::asio::ip::udp::endpoint Endpoint;
@@ -57,37 +58,73 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr> & nodes,
 
 class Node {
  public:
-  typedef std::string message_t;
+  using Contacts = std::vector<Contact>;
+  typedef std::vector<uint8_t>   message_t;
   typedef std::vector<message_t> messages_t;
 
  public:
   explicit Node(int id);
   std::vector<NodeId> connection_lost_node_ids() const;
   messages_t messages() const;
-  Contact Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint = Endpoint());
+  std::future<Contact> Bootstrap(const Contacts&, Endpoint local_endpoint = Endpoint());
+  std::future<Contact> Bootstrap(Contact, Endpoint local_endpoint = Endpoint());
   boost::future<messages_t> GetFutureForMessages(uint32_t message_count);
+
+  std::future<EndpointPair> GetAvailableEndpoints(NodeId id) {
+    return managed_connections_->GetAvailableEndpoints(id, asio::use_future);
+  }
+
+  std::future<void> Add(const Contact& contact) {
+    return managed_connections_->Add(contact, asio::use_future);
+  }
+
+  std::future<void> Remove(const NodeId& id) {
+    return managed_connections_->Remove(id, asio::use_future);
+  }
+
+  std::future<void> Send(const NodeId& id, const message_t& msg) {
+    return managed_connections_->Send(id, msg, asio::use_future);
+  }
+
+  std::future<void> Send(const NodeId& id, const std::string& msg) {
+    return managed_connections_->Send(id, message_t(msg.begin(), msg.end()), asio::use_future);
+  }
+
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
   std::string debug_node_id() const { return DebugId(node_id_); }
-  std::string validation_data() const { return validation_data_.string(); }
-  std::shared_ptr<asymm::PrivateKey> private_key() const {
-      return std::make_shared<asymm::PrivateKey>(key_pair_.private_key);
-  }
-  std::shared_ptr<asymm::PublicKey> public_key() const {
-      return std::make_shared<asymm::PublicKey>(key_pair_.public_key);
-  }
+
+  Contact make_contact(EndpointPair eps) const { return Contact{node_id_, eps, public_key()}; }
+
+  asymm::Keys keys() const { return key_pair_; }
+
+  asymm::PrivateKey private_key() const { return key_pair_.private_key; }
+  asymm::PublicKey  public_key()  const { return key_pair_.public_key; }
+
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
-  int GetReceivedMessageCount(const std::string& message) const;
+
+  int GetReceivedMessageCount(const message_t& message) const;
+
   void ResetData();
+
   std::vector<NodeId> GetConnectedNodeIds() { return connected_node_ids_; }
+
   void AddConnectedNodeId(const NodeId& connected_node_id) {
     connected_node_ids_.push_back(connected_node_id);
   }
 
+  static message_t str_to_msg(const std::string& str) {
+    return message_t(str.begin(), str.end());
+  }
+
+  size_t GetActiveConnectionCount() const {
+    return managed_connections_->GetActiveConnectionCount();
+  }
 
  private:
   void SetPromiseIfDone();
 
+ private:
   NodeId node_id_;
   std::string id_;
   asymm::Keys key_pair_;
@@ -100,6 +137,8 @@ class Node {
   bool promised_;
   uint32_t total_message_count_expectation_;
   boost::promise<messages_t> message_promise_;
+
+  std::shared_ptr<ManagedConnections::Listener> bootstrap_listener_;
 };
 
 
