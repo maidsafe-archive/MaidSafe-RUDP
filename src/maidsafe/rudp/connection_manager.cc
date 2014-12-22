@@ -44,7 +44,7 @@ namespace detail {
 
 namespace {
 
-typedef Asio::ip::udp::endpoint Endpoint;
+//typedef Asio::ip::udp::endpoint Endpoint;
 
 bool IsNormal(std::shared_ptr<Connection> connection) {
   return connection->state() == Connection::State::kPermanent ||

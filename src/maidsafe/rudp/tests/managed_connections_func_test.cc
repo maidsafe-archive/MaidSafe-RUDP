@@ -64,8 +64,6 @@ namespace maidsafe {
 
 namespace rudp {
 
-typedef Asio::ip::udp::endpoint Endpoint;
-
 namespace test {
 
 class ManagedConnectionsFuncTest : public testing::Test {

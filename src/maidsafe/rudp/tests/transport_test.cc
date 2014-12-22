@@ -34,8 +34,6 @@ namespace maidsafe {
 
 namespace rudp {
 
-typedef Asio::ip::udp::endpoint Endpoint;
-
 namespace detail {
 
 namespace test {

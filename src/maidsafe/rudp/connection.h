@@ -79,14 +79,14 @@ class Connection : public std::enable_shared_from_this<Connection> {
   // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
   // after lifespan has passed.
   void StartConnecting(const NodeId& peer_node_id,
-                       const boost::asio::ip::udp::endpoint& peer_endpoint,
+                       const asio::ip::udp::endpoint& peer_endpoint,
                        const asymm::PublicKey& peer_public_key,
                        ConnectionAddedFunctor connection_added_functor,
                        const boost::posix_time::time_duration& connect_attempt_timeout,
                        const boost::posix_time::time_duration& lifespan,
                        OnConnect on_connect,
                        const std::function<void()>& failure_functor);
-  void Ping(const NodeId& peer_node_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void Ping(const NodeId& peer_node_id, const asio::ip::udp::endpoint& peer_endpoint,
             const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   void StartSending(const std::string& data, const MessageSentFunctor& message_sent_functor);
@@ -98,12 +98,12 @@ class Connection : public std::enable_shared_from_this<Connection> {
   std::function<void()> GetAndClearFailureFunctor();
 
   // Get the remote endpoint offered for NAT detection.
-  boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
+  asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
   // Helpers for debugging
   boost::posix_time::time_duration ExpiresFromNow() const;
   std::string PeerDebugId() const;
 
-  boost::asio::ip::udp::endpoint PeerEndpoint() const { return peer_endpoint_; }
+  asio::ip::udp::endpoint PeerEndpoint() const { return peer_endpoint_; }
   NodeId PeerNodeId() const { return peer_node_id_; }
 
  private:
@@ -121,7 +121,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void DoClose(const ExtErrorCode&, int debug_line_no);
 
   void DoStartConnecting(const NodeId& peer_node_id,
-                         const boost::asio::ip::udp::endpoint& peer_endpoint,
+                         const asio::ip::udp::endpoint& peer_endpoint,
                          const asymm::PublicKey& peer_public_key,
                          ConnectionAddedFunctor connection_added_functor,
                          const boost::posix_time::time_duration& connect_attempt_timeout,
@@ -178,7 +178,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   uint32_t cookie_syn_;
   boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
   NodeId peer_node_id_;
-  boost::asio::ip::udp::endpoint peer_endpoint_;
+  asio::ip::udp::endpoint peer_endpoint_;
   ConnectionAddedFunctor connection_added_functor_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   DataSize data_size_, data_received_;

@@ -22,19 +22,13 @@
 #include <atomic>
 #include <functional>
 #include <map>
-#include <memory>
 #include <mutex>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "boost/asio/async_result.hpp"
 #include "boost/asio/deadline_timer.hpp"
-#include "boost/asio/ip/address.hpp"
-#include "boost/asio/ip/udp.hpp"
-#include "boost/date_time/posix_time/ptime.hpp"
-#include "boost/optional.hpp"
 
 #include "maidsafe/common/asio_service.h"
 #include "maidsafe/common/node_id.h"
@@ -172,7 +166,7 @@ class ManagedConnections {
                          const std::function<void(Error, const Contact&)>&);
 
   void GetBootstrapEndpoints(BootstrapContacts& bootstrap_list,
-                             boost::asio::ip::address& this_external_address);
+                             asio::ip::address& this_external_address);
 
   bool ExistingConnectionAttempt(const NodeId& peer_id, EndpointPair& this_endpoint_pair) const;
   bool ExistingConnection(const NodeId& peer_id, EndpointPair& this_endpoint_pair,
@@ -220,7 +214,7 @@ class ManagedConnections {
   std::vector<std::unique_ptr<PendingConnection>> pendings_;
   std::set<TransportPtr> idle_transports_;
   mutable std::mutex mutex_;
-  boost::asio::ip::address local_ip_;
+  asio::ip::address local_ip_;
   std::unique_ptr<NatType> nat_type_;
 };
 
@@ -282,8 +276,6 @@ GetAvailableEndpointsReturn<CompletionToken> ManagedConnections::GetAvailableEnd
 
 template <typename Handler>
 void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler handler) {
-  namespace error = boost::asio::error;
-
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
     return handler(RudpErrors::operation_not_supported, EndpointPair());

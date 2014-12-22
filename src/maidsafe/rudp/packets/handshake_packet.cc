@@ -26,8 +26,6 @@
 
 #include "maidsafe/common/log.h"
 
-namespace asio = boost::asio;
-
 namespace maidsafe {
 
 namespace rudp {
@@ -129,13 +127,13 @@ void HandshakePacket::SetPublicKey(const asymm::PublicKey& public_key) {
   public_key_ = public_key;
 }
 
-bool HandshakePacket::IsValid(const asio::const_buffer& buffer) {
+bool HandshakePacket::IsValid(const boost::asio::const_buffer& buffer) {
   // TODO(Fraser#5#): 2012-07-11 - If encoded public key size can be determined, change buffer size
   // check to:  == kMinPacketSize || == kMinPacketSize + key size.
-  return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) >= kMinPacketSize));
+  return (IsValidBase(buffer, kPacketType) && (boost::asio::buffer_size(buffer) >= kMinPacketSize));
 }
 
-bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
+bool HandshakePacket::Decode(const boost::asio::const_buffer& buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
     return false;
@@ -144,8 +142,8 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   if (!DecodeBase(buffer, kPacketType))
     return false;
 
-  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
-  size_t length = asio::buffer_size(buffer) - kHeaderSize;
+  const unsigned char* p = boost::asio::buffer_cast<const unsigned char*>(buffer);
+  size_t length = boost::asio::buffer_size(buffer) - kHeaderSize;
 
   p += kHeaderSize;
 
@@ -179,7 +177,7 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
 
   peer_endpoint_ = asio::ip::udp::endpoint(ip_address, port);
 
-  if (asio::buffer_size(buffer) != kMinPacketSize) {
+  if (boost::asio::buffer_size(buffer) != kMinPacketSize) {
     asymm::EncodedPublicKey encoded_public_key(std::string(p + 121, p + length));
     try {
       public_key_ = asymm::DecodeKey(encoded_public_key);
@@ -197,19 +195,19 @@ bool HandshakePacket::Decode(const asio::const_buffer& buffer) {
   return true;
 }
 
-size_t HandshakePacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
+size_t HandshakePacket::Encode(std::vector<boost::asio::mutable_buffer>& buffers) const {
   std::string encoded_public_key;
   if (asymm::ValidateKey(public_key_)) {
     encoded_public_key = asymm::EncodeKey(public_key_).string();
     // Refuse to encode if the output buffer is not big enough.
-    if (asio::buffer_size(buffers[0])
+    if (boost::asio::buffer_size(buffers[0])
         < kMinPacketSize + encoded_public_key.size()) {
       LOG(kError) << "Not enough space in buffer to encode public key.";
       return 0;
     }
   } else {
     // Refuse to encode if the output buffer is not big enough.
-    if (asio::buffer_size(buffers[0]) < kMinPacketSize)
+    if (boost::asio::buffer_size(buffers[0]) < kMinPacketSize)
       return 0;
   }
 
@@ -217,7 +215,7 @@ size_t HandshakePacket::Encode(std::vector<asio::mutable_buffer>& buffers) const
   if (EncodeBase(buffers) == 0)
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char*>(buffers[0]);
+  unsigned char* p = boost::asio::buffer_cast<unsigned char*>(buffers[0]);
   p += kHeaderSize;
 
   EncodeUint32(rudp_version_, p + 0);
@@ -235,7 +233,7 @@ size_t HandshakePacket::Encode(std::vector<asio::mutable_buffer>& buffers) const
   p[101] = ((nat_detection_port_ >> 8) & 0xff);
   p[102] = (nat_detection_port_ & 0xff);
 
-  boost::asio::ip::address_v6 ip_address;
+  asio::ip::address_v6 ip_address;
   if (peer_endpoint_.address().is_v4()) {
     ip_address = asio::ip::address_v6::v4_compatible(peer_endpoint_.address().to_v4());
   } else {

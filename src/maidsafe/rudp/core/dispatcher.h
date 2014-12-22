@@ -25,7 +25,7 @@
 #include <mutex>
 
 #include "boost/asio/buffer.hpp"
-#include "boost/asio/ip/udp.hpp"
+#include "asio/ip/udp.hpp"
 
 namespace maidsafe {
 
@@ -50,7 +50,7 @@ class Dispatcher {
 
   // Handle a new packet by dispatching to the appropriate socket.
   void HandleReceiveFrom(const boost::asio::const_buffer& data,
-                         const boost::asio::ip::udp::endpoint& endpoint);
+                         const asio::ip::udp::endpoint& endpoint);
 
  private:
   // Disallow copying and assignment.

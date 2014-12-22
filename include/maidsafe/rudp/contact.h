@@ -19,8 +19,6 @@
 #ifndef MAIDSAFE_RUDP_CONTACT_H_
 #define MAIDSAFE_RUDP_CONTACT_H_
 
-#include "boost/asio/ip/udp.hpp"
-
 #include "maidsafe/common/config.h"
 #include "maidsafe/common/rsa.h"
 

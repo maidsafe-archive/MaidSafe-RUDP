@@ -69,7 +69,7 @@ class NegativeAckPacket;
 
 class Socket {
  public:
-  using Endpoint = boost::asio::ip::udp::endpoint;
+  using Endpoint = asio::ip::udp::endpoint;
 
   Socket(Multiplexer& multiplexer, NatType& nat_type);  // NOLINT (Fraser)
   ~Socket();
