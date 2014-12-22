@@ -60,9 +60,6 @@ uint32_t Parameters::maximum_handshake_failures(40);
 Timeout Parameters::bootstrap_connection_lifespan(bptime::minutes(10));
 Timeout Parameters::disconnection_timeout(bptime::milliseconds(500));
 Parameters::ConnectionType Parameters::connection_type(Parameters::kWireless);
-#ifdef TESTING
-bool Parameters::rudp_encrypt(true);
-#endif
 
 }  // namespace rudp
 
