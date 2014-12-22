@@ -28,19 +28,19 @@ namespace maidsafe {
 
 namespace rudp {
 
-typedef boost::asio::ip::udp::endpoint Endpoint;
+typedef asio::ip::udp::endpoint Endpoint;
 
 namespace detail {
 
 namespace test {
 
 TEST(UtilsTest, BEH_EndpointIsValid) {
-  EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::address::from_string("1.1.1.1"), 1024)));
-  EXPECT_TRUE(IsValid(Endpoint(boost::asio::ip::address::from_string("1.1.1.1"), 1025)));
-  EXPECT_TRUE(IsValid(Endpoint(boost::asio::ip::address::from_string("1.1.1.1"), 49150)));
-  EXPECT_TRUE(IsValid(Endpoint(boost::asio::ip::address::from_string("1.1.1.1"), 65535)));
+  EXPECT_FALSE(IsValid(Endpoint(asio::ip::address::from_string("1.1.1.1"), 1024)));
+  EXPECT_TRUE(IsValid(Endpoint(asio::ip::address::from_string("1.1.1.1"), 1025)));
+  EXPECT_TRUE(IsValid(Endpoint(asio::ip::address::from_string("1.1.1.1"), 49150)));
+  EXPECT_TRUE(IsValid(Endpoint(asio::ip::address::from_string("1.1.1.1"), 65535)));
   //  EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::address::from_string("1.1.1.1"), 49151)));
-  EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::address::from_string("0.0.0.0"), 49150)));
+  EXPECT_FALSE(IsValid(Endpoint(asio::ip::address::from_string("0.0.0.0"), 49150)));
 
   boost::system::error_code error_code;
   try {
@@ -67,9 +67,9 @@ TEST(UtilsTest, BEH_EndpointIsValid) {
   error_code.clear();
 
   EXPECT_FALSE(IsValid(Endpoint()));
-  EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::udp::v4(), 1025)));
-  EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::udp::v6(), 1025)));
-  EXPECT_FALSE(IsValid(Endpoint(boost::asio::ip::address(), 1025)));
+  EXPECT_FALSE(IsValid(Endpoint(asio::ip::udp::v4(), 1025)));
+  EXPECT_FALSE(IsValid(Endpoint(asio::ip::udp::v6(), 1025)));
+  EXPECT_FALSE(IsValid(Endpoint(asio::ip::address(), 1025)));
 }
 
 }  // namespace test

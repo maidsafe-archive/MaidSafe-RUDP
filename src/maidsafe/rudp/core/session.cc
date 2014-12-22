@@ -40,9 +40,9 @@ namespace rudp {
 namespace detail {
 
 Session::Session(Peer& peer, TickTimer& tick_timer,
-                 boost::asio::ip::udp::endpoint& this_external_endpoint,
+                 asio::ip::udp::endpoint& this_external_endpoint,
                  std::mutex& this_external_endpoint_mutex,
-                 boost::asio::ip::udp::endpoint this_local_endpoint, NatType& nat_type)
+                 asio::ip::udp::endpoint this_local_endpoint, NatType& nat_type)
     : peer_(peer),
       tick_timer_(tick_timer),
       this_external_endpoint_(this_external_endpoint),
@@ -189,7 +189,7 @@ void Session::HandleHandshakeWhenHandshaking(const HandshakePacket& packet) {
   peer_.SetPublicKey(packet.PublicKey());
   if (packet.NatDetectionPort() != 0) {
     peer_nat_detection_endpoint_ =
-        boost::asio::ip::udp::endpoint(peer_.PeerEndpoint().address(), packet.NatDetectionPort());
+        asio::ip::udp::endpoint(peer_.PeerEndpoint().address(), packet.NatDetectionPort());
   }
 
   if (mode_ == kBootstrapAndDrop)
@@ -429,7 +429,7 @@ void Session::MakeNormal() { mode_ = kNormal; }
 
 Session::Mode Session::mode() const { return mode_; }
 
-boost::asio::ip::udp::endpoint Session::RemoteNatDetectionEndpoint() const {
+asio::ip::udp::endpoint Session::RemoteNatDetectionEndpoint() const {
   return peer_nat_detection_endpoint_;
 }
 

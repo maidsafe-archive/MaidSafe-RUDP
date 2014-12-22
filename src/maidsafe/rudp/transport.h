@@ -65,7 +65,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool)>
       OnConnectionLost;
 
-  using Endpoint          = boost::asio::ip::udp::endpoint;
+  using Endpoint          = asio::ip::udp::endpoint;
   using ConnectionPtr     = std::shared_ptr<Connection>;
   using ExtErrorCode      = std::error_code;
   using ErrorCode         = boost::system::error_code;

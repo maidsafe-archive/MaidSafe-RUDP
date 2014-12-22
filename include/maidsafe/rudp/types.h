@@ -34,7 +34,7 @@ namespace rudp {
 struct EndpointPair;
 struct Contact;
 
-using Endpoint = boost::asio::ip::udp::endpoint;
+using Endpoint = asio::ip::udp::endpoint;
 using SendableMessage = std::vector<unsigned char>;
 using ReceivedMessage = std::vector<unsigned char>;
 using error_code = std::error_code;

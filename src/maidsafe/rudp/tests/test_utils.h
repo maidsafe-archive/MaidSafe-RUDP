@@ -42,8 +42,6 @@ namespace rudp {
 
 struct Contact;
 
-typedef boost::asio::ip::udp::endpoint Endpoint;
-
 typedef std::shared_ptr<ManagedConnections> ManagedConnectionsPtr;
 
 

@@ -152,7 +152,7 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
 
   bool bootstrap_off_existing_connection(bootstrap_list.empty());
-  boost::asio::ip::address external_address;
+  asio::ip::address external_address;
   if (bootstrap_off_existing_connection)
     GetBootstrapEndpoints(bootstrap_list, external_address);
 
@@ -203,14 +203,23 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
         OnConnectionAddedSlot(peer_id, transport, temporary_connection,
                               is_duplicate_normal_connection);
       },
-      std::bind(&ManagedConnections::OnConnectionLostSlot, this, args::_1, args::_2, args::_3),
-      std::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, args::_1, args::_2,
-                args::_3, args::_4),
+      [this](const NodeId& peer_id, TransportPtr transport, bool temporary_connection, bool /* ? */) {
+        OnConnectionLostSlot(peer_id, transport, temporary_connection);
+      },
+      [this](const asio::ip::udp::endpoint& this_local_endpoint,
+             const NodeId& peer_id,
+             const asio::ip::udp::endpoint& peer_endpoint,
+             uint16_t& another_external_port) {
+        OnNatDetectionRequestedSlot(this_local_endpoint,
+                                    peer_id,
+                                    peer_endpoint,
+                                    another_external_port);
+      },
       on_bootstrap);
 }
 
 void ManagedConnections::GetBootstrapEndpoints(BootstrapContacts& bootstrap_list,
-                                               boost::asio::ip::address& this_external_address) {
+                                               asio::ip::address& this_external_address) {
   bool external_address_consistent(true);
   // Favour connections which are on a different network to this to allow calculation of the new
   // transport's external endpoint.
@@ -240,7 +249,7 @@ void ManagedConnections::GetBootstrapEndpoints(BootstrapContacts& bootstrap_list
     }
   }
   if (!external_address_consistent)
-    this_external_address = boost::asio::ip::address();
+    this_external_address = asio::ip::address();
   std::random_shuffle(bootstrap_list.begin(), bootstrap_list.end());
   std::random_shuffle(secondary_list.begin(), secondary_list.end());
   bootstrap_list.insert(bootstrap_list.end(), secondary_list.begin(), secondary_list.end());
