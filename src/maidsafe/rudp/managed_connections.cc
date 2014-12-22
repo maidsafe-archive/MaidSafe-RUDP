@@ -687,11 +687,7 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
   LOG(kVerbose) << "\n^^^^^^^^^^^^ OnMessageSlot ^^^^^^^^^^^^\n" + DebugString();
 
   try {
-    std::shared_ptr<std::string> decrypted_message(new std::string(
-#ifdef TESTING
-        !Parameters::rudp_encrypt ? message :
-#endif
-            asymm::Decrypt(asymm::CipherText(message), *private_key_).string()));
+    auto copied_message(std::make_shared<std::string>(message));
     MessageReceivedFunctor local_callback;
     {
       std::lock_guard<std::mutex> guard(callback_mutex_);
@@ -699,7 +695,7 @@ void ManagedConnections::OnMessageSlot(const std::string& message) {
     }
 
     if (local_callback) {
-      asio_service_.service().post([=] { local_callback(*decrypted_message); });
+      asio_service_.service().post([=] { local_callback(*copied_message); });
     }
   }
   catch (const std::exception& e) {
