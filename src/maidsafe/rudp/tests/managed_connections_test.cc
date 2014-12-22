@@ -161,16 +161,14 @@ class ManagedConnectionsTest : public testing::Test {
     //EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
 
     try {
-      nodes_[index]->managed_connections()->Add(Contact(
-              node_.node_id(), this_endpoint_pair, node_.public_key()), asio::use_future).get();
+      nodes_[index]->Add(node_.make_contact(this_endpoint_pair)).get();
     }
     catch (std::system_error error) {
       ASSERT_EQ(error.code(), RudpErrors::already_connected);
     }
 
     try {
-      node_.managed_connections()->Add(Contact(
-                            nodes_[index]->node_id(), peer_endpoint_pair, nodes_[index]->public_key()), asio::use_future).get();
+      node_.Add(nodes_[index]->make_contact(peer_endpoint_pair)).get();
     }
     catch (std::system_error error) {
       ASSERT_EQ(error.code(), RudpErrors::already_connected);
