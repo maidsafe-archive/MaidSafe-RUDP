@@ -146,12 +146,6 @@ int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
   return kSuccess;
 }
 
-void ManagedConnections::AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
-                                                 const Endpoint& local_endpoint,
-                                                 const std::function<void(Error, const Contact&)>& handler) {
-  StartNewTransport(bootstrap_list, local_endpoint, handler);
-}
-
 void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
                                           Endpoint local_endpoint,
                                           const std::function<void(Error, const Contact&)>& handler) {
@@ -491,7 +485,7 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
                                 MessageSentFunctor handler) {
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
-    return handler(make_error_code(RudpErrors::operation_not_supported));
+    return handler(RudpErrors::operation_not_supported);
   }
 
   std::lock_guard<std::mutex> lock(mutex_);
@@ -504,10 +498,10 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
   LOG(kError) << "Can't send from " << this_node_id_ << " to " << peer_id << " - not in map.";
   if (handler) {
     if (!connections_.empty() || !idle_transports_.empty()) {
-      handler(make_error_code(RudpErrors::not_connected));
+      handler(RudpErrors::not_connected);
     } else {
       // Probably haven't bootstrapped, so asio_service_ won't be running.
-      std::thread thread(handler, make_error_code(RudpErrors::not_connected));
+      std::thread thread(handler, RudpErrors::not_connected);
       thread.detach();
     }
   }

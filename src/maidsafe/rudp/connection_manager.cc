@@ -119,12 +119,12 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
   auto transport = transport_.lock();
 
   if (!transport) {
-    strand_.dispatch([handler] { handler(make_error_code(RudpErrors::failed_to_connect)); });
+    strand_.dispatch([handler] { handler(RudpErrors::failed_to_connect); });
     return strand_.dispatch([on_connect]() { on_connect(RudpErrors::shut_down, nullptr); });
   }
 
   if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
-    strand_.dispatch([handler] { handler(make_error_code(RudpErrors::failed_to_connect)); });
+    strand_.dispatch([handler] { handler(RudpErrors::failed_to_connect); });
     return strand_.dispatch([on_connect]() { on_connect(RudpErrors::already_started, nullptr); });
   }
 

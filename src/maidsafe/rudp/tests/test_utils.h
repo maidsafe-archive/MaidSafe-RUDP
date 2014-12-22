@@ -78,12 +78,23 @@ class Node {
     return managed_connections_->Add(contact, asio::use_future);
   }
 
+  std::future<void> Remove(const NodeId& id) {
+    return managed_connections_->Remove(id, asio::use_future);
+  }
+
+  std::future<void> Send(const NodeId& id, const message_t& msg) {
+    return managed_connections_->Send(id, msg, asio::use_future);
+  }
+
+  std::future<void> Send(const NodeId& id, const std::string& msg) {
+    return managed_connections_->Send(id, message_t(msg.begin(), msg.end()), asio::use_future);
+  }
+
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
   std::string debug_node_id() const { return DebugId(node_id_); }
 
   Contact make_contact(EndpointPair eps) const { return Contact{node_id_, eps, public_key()}; }
-  //std::vector<uint8_t> validation_data() const { auto s = validation_data_.string(); return std::vector<uint8_t>(s.begin(), s.end()); }
 
   asymm::Keys keys() const { return key_pair_; }
 
@@ -93,16 +104,27 @@ class Node {
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
 
   int GetReceivedMessageCount(const message_t& message) const;
+
   void ResetData();
+
   std::vector<NodeId> GetConnectedNodeIds() { return connected_node_ids_; }
+
   void AddConnectedNodeId(const NodeId& connected_node_id) {
     connected_node_ids_.push_back(connected_node_id);
   }
 
+  static message_t str_to_msg(const std::string& str) {
+    return message_t(str.begin(), str.end());
+  }
+
+  size_t GetActiveConnectionCount() const {
+    return managed_connections_->GetActiveConnectionCount();
+  }
 
  private:
   void SetPromiseIfDone();
 
+ private:
   NodeId node_id_;
   std::string id_;
   asymm::Keys key_pair_;

@@ -121,18 +121,24 @@ void Transport::TryBootstrapping(const BootstrapContacts& bootstrap_list,
   }
 #endif
 
-  auto on_bootstrap = [bootstrap_list, handler](const NodeId& peer_id) {
+  // We need to create this shared_ptr copy to preserve the existence
+  // of the list while ConnectToBootstrapEndpoint iterates through it.
+  // FIXME: Get the bootstrap_list as a rvalue ref and just move it
+  // to this newly created list.
+  auto peers_copy = std::make_shared<BootstrapContacts>(bootstrap_list);
+
+  auto on_bootstrap = [peers_copy, handler](const NodeId& peer_id) {
     if (peer_id.IsValid()) {
-      auto itr = std::find_if(std::begin(bootstrap_list), std::end(bootstrap_list),
+      auto itr = std::find_if(peers_copy->begin(), peers_copy->end(),
                               [&peer_id](const Contact& contact) { return contact.id == peer_id; });
-      assert(itr != std::end(bootstrap_list));
+      assert(itr != peers_copy->end());
       handler(kSuccess, *itr);
     } else {
       handler(kNotConnectable, Contact());
     }
   };
 
-  ConnectToBootstrapEndpoint(std::begin(bootstrap_list), std::end(bootstrap_list), lifespan,
+  ConnectToBootstrapEndpoint(peers_copy->begin(), peers_copy->end(), lifespan,
                              strand_.wrap(on_bootstrap));
 }
 

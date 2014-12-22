@@ -128,6 +128,10 @@ class ManagedConnections {
   SendReturn<CompletionToken> Send(const NodeId& peer_id, const SendableMessage& message,
                                    CompletionToken&& token);
 
+  // FIXME: This is currecntly required for tests, but even there it seems like
+  // a better solution should be used. So try to get rid of it. 
+  size_t GetActiveConnectionCount() const;
+
  private:
   using TransportPtr = std::shared_ptr<detail::Transport>;
   using ConnectionMap = std::map<NodeId, TransportPtr>;
@@ -163,11 +167,6 @@ class ManagedConnections {
 
   void ClearConnectionsAndIdleTransports();
   int TryToDetermineLocalEndpoint(Endpoint& local_endpoint);
-  //int AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
-  //                             const Endpoint& local_endpoint,Contact& chosen_bootstrap_contact);
-  void AttemptStartNewTransport(const BootstrapContacts& bootstrap_list,
-                               const Endpoint& local_endpoint,
-                               const std::function<void(Error, const Contact&)>&);
 
   void StartNewTransport(BootstrapContacts bootstrap_list, Endpoint local_endpoint,
                          const std::function<void(Error, const Contact&)>&);
@@ -262,7 +261,7 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
                          Contact());
   }
 
-  AttemptStartNewTransport(bootstrap_list, local_endpoint,
+  StartNewTransport(bootstrap_list, local_endpoint,
       [=](Error error, Contact chosen_contact) mutable {
         if (!error) {
           listener_ = listener;
@@ -399,6 +398,12 @@ void ManagedConnections::InvokeHandler(Handler&& handler, Error error, Arg&& arg
   assert(error);
   asio_service_.service().post(
       [handler, error, arg]() mutable { handler(error, arg); });
+}
+
+inline
+size_t ManagedConnections::GetActiveConnectionCount() const {
+  std::lock_guard<std::mutex> guard(mutex_);
+  return connections_.size();
 }
 
 }  // namespace rudp
