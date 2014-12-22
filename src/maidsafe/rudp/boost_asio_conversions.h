@@ -46,6 +46,7 @@ inline boost::asio::ip::address to_boost(const asio::ip::address& addr) {
   }
   else {
     assert(0 && "Unknown IP version");
+    return boost::asio::ip::address();
   }
 }
 
@@ -58,6 +59,7 @@ inline asio::ip::address from_boost(const boost::asio::ip::address& addr) {
   }
   else {
     assert(0 && "Unknown IP version");
+    return asio::ip::address();
   }
 }
 
