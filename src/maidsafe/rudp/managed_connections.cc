@@ -74,9 +74,7 @@ ManagedConnections::ManagedConnections()
       idle_transports_(),
       mutex_(),
       local_ip_(),
-      nat_type_(maidsafe::make_unique<NatType>(NatType::kUnknown))
-{
-}
+      nat_type_(maidsafe::make_unique<NatType>(NatType::kUnknown)) {}
 
 ManagedConnections::~ManagedConnections() {
   {
@@ -147,8 +145,8 @@ int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
 }
 
 void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
-                                          Endpoint local_endpoint,
-                                          const std::function<void(Error, const Contact&)>& handler) {
+    Endpoint local_endpoint,
+    const std::function<void(Error, const Contact&)>& handler) {
   TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, *nat_type_));
 
   transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
@@ -509,15 +507,10 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
 
 void ManagedConnections::OnMessageSlot(const NodeId& peer_id, const std::string& message) {
   try {
-    std::shared_ptr<std::string> decrypted_message(new std::string(
-#ifdef TESTING
-        !Parameters::rudp_encrypt ?
-            message :
-#endif
-            asymm::Decrypt(asymm::CipherText(message), keys_.private_key).string()));
+    auto copied_message(std::make_shared<std::string>(message));
     if (auto listener = listener_.lock()) {
-      listener->MessageReceived(peer_id, std::vector<unsigned char>(std::begin(*decrypted_message),
-                                                                    std::end(*decrypted_message)));
+      listener->MessageReceived(peer_id, std::vector<unsigned char>(std::begin(*copied_message),
+                                                                    std::end(*copied_message)));
     }
   } catch (const std::exception& e) {
     LOG(kError) << "Failed to decrypt message: " << e.what();

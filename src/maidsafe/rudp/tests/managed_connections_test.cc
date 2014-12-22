@@ -1006,7 +1006,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
   node_c.ResetData();
   // FIXME: This was 10000 but seems like this new api made sending a lot
   // slower, so I made it smaller for now.
-  static size_t kRepeatCount = 256;
+  static uint32_t kRepeatCount = 256;
 #if defined(__has_feature)
 #if __has_feature(thread_sanitizer)
   // 2014-04-03 ned: Looks like above this we run into hard buffer limits in tsan

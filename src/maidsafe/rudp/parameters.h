@@ -122,11 +122,6 @@ struct Parameters {
   };
   static ConnectionType connection_type;
 
-#ifdef TESTING
-  // Rudp Encryption switch
-  static bool rudp_encrypt;
-#endif
-
  private:
   // Disallow copying and assignment.
   Parameters(const Parameters&);
