@@ -88,7 +88,7 @@ class ManagedConnections {
   BootstrapReturn<CompletionToken> Bootstrap(const BootstrapContacts& bootstrap_list,
                                              std::shared_ptr<Listener> listener,
                                              const NodeId& this_node_id, const asymm::Keys& keys,
-                                             CompletionToken&& token,
+                                             const CompletionToken& token,
                                              Endpoint local_endpoint = Endpoint());
 
   // Returns a transport's EndpointPair and NatType.  Returns kNotBootstrapped if there are no
@@ -103,24 +103,24 @@ class ManagedConnections {
   // a temporary bootstrap connection, so that the appropriate transport's details can be returned.
   template <typename CompletionToken>
   GetAvailableEndpointsReturn<CompletionToken> GetAvailableEndpoints(const NodeId& peer_id,
-                                                                     CompletionToken&& token);
+                                                                     const CompletionToken& token);
 
   // Makes a new connection and sends the validation data (which cannot be empty) to the peer which
   // runs its message_received_functor_ with the data.  All messages sent via this connection are
   // encrypted for the peer.
   template <typename CompletionToken>
-  AddReturn<CompletionToken> Add(const Contact& peer, CompletionToken&& token);
+  AddReturn<CompletionToken> Add(const Contact& peer, const CompletionToken& token);
 
   // Drops the connection with peer.
   template <typename CompletionToken>
-  RemoveReturn<CompletionToken> Remove(const NodeId& peer_id, CompletionToken&& token);
+  RemoveReturn<CompletionToken> Remove(const NodeId& peer_id, const CompletionToken& token);
 
   // Sends the message to the peer.  If the message is sent successfully, the message_sent_functor
   // is executed with input of kSuccess.  If there is no existing connection to peer_id,
   // kInvalidConnection is used.
   template <typename CompletionToken>
   SendReturn<CompletionToken> Send(const NodeId& peer_id, const SendableMessage& message,
-                                   CompletionToken&& token);
+                                   const CompletionToken& token);
 
   // FIXME: This is currecntly required for tests, but even there it seems like
   // a better solution should be used. So try to get rid of it. 
@@ -226,7 +226,7 @@ BootstrapReturn<CompletionToken> ManagedConnections::Bootstrap(
     std::shared_ptr<Listener> listener,
     const NodeId& this_node_id,
     const asymm::Keys& keys,
-    CompletionToken&& token,
+    const CompletionToken& token,
     Endpoint local_endpoint) {
   BootstrapHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
@@ -267,7 +267,7 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
 
 template <typename CompletionToken>
 GetAvailableEndpointsReturn<CompletionToken> ManagedConnections::GetAvailableEndpoints(
-    const NodeId& peer_id, CompletionToken&& token) {
+    const NodeId& peer_id, const CompletionToken& token) {
   GetAvailableEndpointsHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
   asio_service_.service().post([=] { DoGetAvailableEndpoints(peer_id, handler); });
@@ -333,7 +333,7 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
 }
 
 template <typename CompletionToken>
-AddReturn<CompletionToken> ManagedConnections::Add(const Contact& peer, CompletionToken&& token) {
+AddReturn<CompletionToken> ManagedConnections::Add(const Contact& peer, const CompletionToken& token) {
   AddHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
   asio_service_.service().post([=]() mutable { DoAdd(peer, handler); });
@@ -342,7 +342,7 @@ AddReturn<CompletionToken> ManagedConnections::Add(const Contact& peer, Completi
 
 template <typename CompletionToken>
 RemoveReturn<CompletionToken> ManagedConnections::Remove(const NodeId& peer_id,
-                                                         CompletionToken&& token) {
+                                                         const CompletionToken& token) {
   RemoveHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
   asio_service_.service().post([=]() mutable {
@@ -355,7 +355,7 @@ RemoveReturn<CompletionToken> ManagedConnections::Remove(const NodeId& peer_id,
 template <typename CompletionToken>
 SendReturn<CompletionToken> ManagedConnections::Send(const NodeId& peer_id,
                                                      const SendableMessage& message,
-                                                     CompletionToken&& token) {
+                                                     const CompletionToken& token) {
   SendHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
   asio_service_.service().post([=]() mutable {
@@ -379,6 +379,8 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
 
 // GCC 4.8 still doesn't support passing variadic argument pack to
 // lambda functions.
+// TODO: It seems this function is only ever called from inside the io_service.
+// If so, there is no need to 'post' the handler.
 template <typename Handler>
 void ManagedConnections::InvokeHandler(Handler&& handler, Error error) {
   assert(error);

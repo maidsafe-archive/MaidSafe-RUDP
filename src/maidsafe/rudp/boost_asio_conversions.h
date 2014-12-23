@@ -30,11 +30,25 @@ inline asio::ip::address_v4 from_boost(const boost::asio::ip::address_v4& addr) 
 }
 
 inline boost::asio::ip::address_v6 to_boost(const asio::ip::address_v6& addr) {
-  return boost::asio::ip::address_v6(addr.to_bytes(), addr.scope_id());
+  boost::asio::ip::address_v6::bytes_type target;
+
+  auto source = addr.to_bytes();
+
+  for (std::size_t i = 0; i < std::tuple_size<decltype(target)>::value; ++i)
+    target.at(i) = source.at(i);
+
+  return boost::asio::ip::address_v6(target, addr.scope_id());
 }
 
 inline asio::ip::address_v6 from_boost(const boost::asio::ip::address_v6& addr) {
-  return asio::ip::address_v6(addr.to_bytes(), addr.scope_id());
+  asio::ip::address_v6::bytes_type target;
+
+  auto source = addr.to_bytes();
+
+  for (std::size_t i = 0; i < std::tuple_size<decltype(source)>::value; ++i)
+    target.at(i) = source.at(i);
+
+  return asio::ip::address_v6(target, addr.scope_id());
 }
 
 inline boost::asio::ip::address to_boost(const asio::ip::address& addr) {

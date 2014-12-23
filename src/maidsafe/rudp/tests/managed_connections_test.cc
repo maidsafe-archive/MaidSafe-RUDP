@@ -84,11 +84,11 @@ std::chrono::milliseconds rendezvous_connect_timeout() {
   return timeout;
 }
 
-boost::chrono::milliseconds boost_rendezvous_connect_timeout() {
-  static const boost::chrono::milliseconds timeout(
-      Parameters::rendezvous_connect_timeout.total_milliseconds());
-  return timeout;
-}
+//boost::chrono::milliseconds boost_rendezvous_connect_timeout() {
+//  static const boost::chrono::milliseconds timeout(
+//      Parameters::rendezvous_connect_timeout.total_milliseconds());
+//  return timeout;
+//}
 
 }  // unnamed namespace
 
@@ -211,10 +211,10 @@ class ManagedConnectionsTest : public testing::Test {
 //                nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
 //}
 //
-//TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
-//  int nodes(8 + RandomUint32() % 16);
-//  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, nodes));
-//}
+TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
+  int nodes(8 + RandomUint32() % 16);
+  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, nodes));
+}
 
 TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   struct Listener : public ManagedConnections::Listener {

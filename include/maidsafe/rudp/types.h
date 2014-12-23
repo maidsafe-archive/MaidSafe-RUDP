@@ -48,7 +48,7 @@ using BootstrapReturn = typename asio::async_result<BootstrapHandler<CompletionT
 
 template <typename CompletionToken>
 using GetAvailableEndpointsHandler =
-    typename asio::handler_type<CompletionToken, void(error_code, EndpointPair)>::type;
+    typename asio::handler_type<CompletionToken, void(EndpointPair)>::type;
 
 template <typename CompletionToken>
 using GetAvailableEndpointsReturn =
