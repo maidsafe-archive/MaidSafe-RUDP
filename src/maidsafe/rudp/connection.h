@@ -35,6 +35,7 @@
 
 #include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/transport.h"
+#include "maidsafe/rudp/types.h"
 
 namespace maidsafe {
 
@@ -65,9 +66,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
   };
 
   using ConnectionPtr = std::shared_ptr<Connection>;
-  using ExtErrorCode  = std::error_code;
-  using ErrorCode     = boost::system::error_code;
-  using OnConnect     = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using ExtErrorCode = std::error_code;
+  using ErrorCode = boost::system::error_code;
+  using OnConnect = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
 
   Connection(const std::shared_ptr<Transport>& transport,
              const boost::asio::io_service::strand& strand,
@@ -78,13 +79,11 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void Close();
   // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
   // after lifespan has passed.
-  void StartConnecting(const NodeId& peer_node_id,
-                       const asio::ip::udp::endpoint& peer_endpoint,
+  void StartConnecting(const NodeId& peer_node_id, const asio::ip::udp::endpoint& peer_endpoint,
                        const asymm::PublicKey& peer_public_key,
                        ConnectionAddedFunctor connection_added_functor,
                        const boost::posix_time::time_duration& connect_attempt_timeout,
-                       const boost::posix_time::time_duration& lifespan,
-                       OnConnect on_connect,
+                       const boost::posix_time::time_duration& lifespan, OnConnect on_connect,
                        const std::function<void()>& failure_functor);
   void Ping(const NodeId& peer_node_id, const asio::ip::udp::endpoint& peer_endpoint,
             const asymm::PublicKey& peer_public_key,
@@ -115,27 +114,26 @@ class Connection : public std::enable_shared_from_this<Connection> {
     MessageSentFunctor handler_;
 
     SendRequest(std::string encrypted_data,
-                std::function<void(int)> message_sent_functor)  // NOLINT (Dan)
+                std::function<void(error_code)> message_sent_functor)  // NOLINT (Dan)
 #if defined(__GLIBCXX__)
-//  && __GLIBCXX__ < date (date in format of 20141218 as the date of fix of COW string)
+        //  && __GLIBCXX__ < date (date in format of 20141218 as the date of fix of COW string)
         : encrypted_data_(encrypted_data.data(), encrypted_data.size()),
 #else
         : encrypted_data_(std::move(encrypted_data)),
 #endif
-          handler_(std::move(message_sent_functor)) {}
+          handler_(std::move(message_sent_functor)) {
+    }
   };
 
   void DoClose(const ExtErrorCode&, int debug_line_no);
 
-  void DoStartConnecting(const NodeId& peer_node_id,
-                         const asio::ip::udp::endpoint& peer_endpoint,
+  void DoStartConnecting(const NodeId& peer_node_id, const asio::ip::udp::endpoint& peer_endpoint,
                          const asymm::PublicKey& peer_public_key,
                          ConnectionAddedFunctor connection_added_functor,
                          const boost::posix_time::time_duration& connect_attempt_timeout,
                          const boost::posix_time::time_duration& lifespan,
                          const std::function<void(int)>& ping_functor,  // NOLINT (Fraser)
-                         const OnConnect& on_connect,
-                         const std::function<void()>& failure_functor);
+                         const OnConnect& on_connect, const std::function<void()>& failure_functor);
   void DoStartSending(SendRequest request);  // NOLINT (Fraser)
   void DoQueueSendRequest(SendRequest request);
   void FinishSendAndQueueNext();
@@ -192,11 +190,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   uint8_t failed_probe_count_;
   State state_;
   mutable std::mutex state_mutex_;
-  enum class TimeoutState {
-    kConnecting,
-    kConnected,
-    kClosing
-  } timeout_state_;
+  enum class TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
   bool sending_;
   std::function<void()> failure_functor_;
   std::queue<SendRequest> send_queue_;
