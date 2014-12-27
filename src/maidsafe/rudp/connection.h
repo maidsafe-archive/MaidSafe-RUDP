@@ -114,8 +114,15 @@ class Connection : public std::enable_shared_from_this<Connection> {
     std::string encrypted_data_;
     MessageSentFunctor handler_;
 
-    SendRequest(std::string encrypted_data, MessageSentFunctor message_sent_functor)
-        : encrypted_data_(std::move(encrypted_data)), handler_(std::move(message_sent_functor)) {}
+    SendRequest(std::string encrypted_data,
+                std::function<void(int)> message_sent_functor)  // NOLINT (Dan)
+#if defined(__GLIBCXX__)
+//  && __GLIBCXX__ < date (date in format of 20141218 as the date of fix of COW string)
+        : encrypted_data_(encrypted_data.data(), encrypted_data.size()),
+#else
+        : encrypted_data_(std::move(encrypted_data)),
+#endif
+          handler_(std::move(message_sent_functor)) {}
   };
 
   void DoClose(const ExtErrorCode&, int debug_line_no);
@@ -129,8 +136,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
                          const std::function<void(int)>& ping_functor,  // NOLINT (Fraser)
                          const OnConnect& on_connect,
                          const std::function<void()>& failure_functor);
-  void DoStartSending(SendRequest const& request);  // NOLINT (Fraser)
-  void DoQueueSendRequest(SendRequest const& request);
+  void DoStartSending(SendRequest request);  // NOLINT (Fraser)
+  void DoQueueSendRequest(SendRequest request);
   void FinishSendAndQueueNext();
 
   void CheckTimeout(const ErrorCode& ec);

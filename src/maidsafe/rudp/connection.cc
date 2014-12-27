@@ -236,11 +236,11 @@ void Connection::StartSending(const std::string& data,
   }
 }
 
-void Connection::DoQueueSendRequest(SendRequest const& request) {
+void Connection::DoQueueSendRequest(SendRequest request) {
   if (sending_) {
-    send_queue_.push(request);
+    send_queue_.push(std::move(request));
   } else {
-    DoStartSending(request);
+    DoStartSending(std::move(request));
   }
 }
 
@@ -253,7 +253,7 @@ void Connection::FinishSendAndQueueNext() {
   }
 }
 
-void Connection::DoStartSending(const SendRequest& request) {
+void Connection::DoStartSending(SendRequest request) {
   sending_ = true;
   auto message_sent_functor = request.handler_;
   MessageSentFunctor wrapped_functor([this, message_sent_functor](error_code result) {
