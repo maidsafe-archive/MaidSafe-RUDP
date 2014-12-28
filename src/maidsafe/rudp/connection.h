@@ -114,10 +114,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
     std::string encrypted_data_;
     MessageSentFunctor handler_;
 
-    SendRequest(std::string encrypted_data,
-                std::function<void(int)> message_sent_functor)  // NOLINT (Dan)
+    SendRequest(std::string encrypted_data, MessageSentFunctor message_sent_functor)
 #if defined(__GLIBCXX__)
-//  && __GLIBCXX__ < date (date in format of 20141218 as the date of fix of COW string)
+        //  && __GLIBCXX__ < date (date in format of 20141218 as the date of fix of COW string)
         : encrypted_data_(encrypted_data.data(), encrypted_data.size()),
 #else
         : encrypted_data_(std::move(encrypted_data)),

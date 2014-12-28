@@ -205,7 +205,7 @@ class ManagedConnections {
   template <typename Handler, typename Args>
   void InvokeHandler(Handler&&, Error, Args&&);
 
-  AsioService asio_service_;
+  BoostAsioService asio_service_;
   std::weak_ptr<Listener> listener_;
   NodeId this_node_id_;
   Contact chosen_bootstrap_contact_;

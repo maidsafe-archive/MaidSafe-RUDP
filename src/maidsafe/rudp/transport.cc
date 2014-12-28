@@ -44,7 +44,7 @@ namespace maidsafe {
 namespace rudp {
 namespace detail {
 
-Transport::Transport(AsioService& asio_service, NatType& nat_type)
+Transport::Transport(BoostAsioService& asio_service, NatType& nat_type)
     : asio_service_(asio_service),
       nat_type_(nat_type),
       strand_(asio_service.service()),
