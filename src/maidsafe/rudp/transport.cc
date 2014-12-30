@@ -192,8 +192,7 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
   connection_manager_->Connect(contact.id, contact.endpoint_pair.external, contact.public_key,
                                Parameters::bootstrap_connect_timeout, lifespan,
                                strand_.wrap(on_connect),
-                               strand_.wrap(DefaultOnCloseHandler()),
-                               nullptr);
+                               strand_.wrap(DefaultOnCloseHandler()));
 }
 
 template<typename Handler>
@@ -258,9 +257,9 @@ Transport::OnConnect Transport::DefaultOnConnectHandler() {
 Transport::OnClose Transport::DefaultOnCloseHandler() {
   std::weak_ptr<Transport> weak_self = shared_from_this();
 
-  return [weak_self](const ConnectionPtr& connection, bool timed_out) {
+  return [weak_self](const std::error_code& error, const ConnectionPtr& connection) {
     if (auto self = weak_self.lock()) {
-      self->RemoveConnection(connection, timed_out);
+      self->RemoveConnection(connection, error == RudpErrors::timed_out);
     }
   };
 }
@@ -273,7 +272,7 @@ void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoi
 
   auto default_on_connect = DefaultOnConnectHandler();
 
-  auto on_connect = [=](std::error_code error, std::shared_ptr<Connection> c) {
+  auto on_connect = [=](std::error_code error, ConnectionPtr c) {
     default_on_connect(error, c);
     handler(error);
   };
@@ -281,26 +280,27 @@ void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoi
   auto default_on_close = DefaultOnCloseHandler();
 
   if (IsValid(peer_endpoint_pair.external)) {
-    auto on_close = default_on_close;
+    OnConnect on_connect2 = on_connect;
 
     if (peer_endpoint_pair.local != peer_endpoint_pair.external) {
-      on_close = [=](ConnectionPtr connection, bool timed_out) {
-        if (!multiplexer_->IsOpen())
-          return default_on_close(connection, timed_out);
+      on_connect2 = [=](std::error_code error, ConnectionPtr c) {
+        if (!multiplexer_->IsOpen()) {
+          return on_connect(error, c);
+        }
 
         connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key,
                                      Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                     on_connect, default_on_close, nullptr);
+                                     on_connect, default_on_close);
       };
     }
 
     connection_manager_->Connect(peer_id, peer_endpoint_pair.external, peer_public_key,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                 on_connect, on_close, nullptr);
+                                 on_connect2, default_on_close);
   } else {
     connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                 on_connect, default_on_close, nullptr);
+                                 on_connect, default_on_close);
   }
 }
 
@@ -390,9 +390,6 @@ void Transport::DoSignalMessageReceived(const NodeId& peer_id, const std::string
 }
 
 void Transport::AddConnection(ConnectionPtr connection) {
-  // Discard failure_functor
-  connection->GetAndClearFailureFunctor();
-
   // For temporary connections, we only need to invoke on_connection_lost_ then finish.
   if (connection->state() != Connection::State::kTemporary) {
     auto result(connection_manager_->AddConnection(connection));
@@ -439,12 +436,6 @@ void Transport::AddConnection(ConnectionPtr connection) {
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
-  // If the connection has a failure_functor, invoke that, otherwise invoke on_connection_lost_.
-  auto failure_functor(connection->GetAndClearFailureFunctor());
-  if (failure_functor) {
-    return failure_functor();
-  }
-
   if (connection->state() != Connection::State::kDuplicate) {
     OnConnectionLost local_callback;
     {

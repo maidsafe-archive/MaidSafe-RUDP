@@ -68,7 +68,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   using ExtErrorCode  = std::error_code;
   using ErrorCode     = boost::system::error_code;
   using OnConnect     = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
-  using OnClose       = std::function<void(const ConnectionPtr&, bool)>;
+  using OnClose       = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
 
   Connection(const std::shared_ptr<Transport>& transport,
              const boost::asio::io_service::strand& strand,
@@ -85,8 +85,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
                        const boost::posix_time::time_duration& connect_attempt_timeout,
                        const boost::posix_time::time_duration& lifespan,
                        OnConnect on_connect,
-                       OnClose   on_close,
-                       const std::function<void()>& failure_functor);
+                       OnClose   on_close);
 
   void Ping(const NodeId& peer_node_id, const asio::ip::udp::endpoint& peer_endpoint,
             const asymm::PublicKey& peer_public_key,
@@ -98,7 +97,6 @@ class Connection : public std::enable_shared_from_this<Connection> {
   // pos_infin.
   void MakePermanent(bool validated);
   void MarkAsDuplicateAndClose();
-  std::function<void()> GetAndClearFailureFunctor();
 
   // Get the remote endpoint offered for NAT detection.
   asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
@@ -135,9 +133,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
                          const boost::posix_time::time_duration& connect_attempt_timeout,
                          const boost::posix_time::time_duration& lifespan,
                          const std::function<void(int)>& ping_functor,  // NOLINT (Fraser)
-                         const OnConnect& on_connect,
-                         const OnClose& on_close,
-                         const std::function<void()>& failure_functor);
+                         OnConnect on_connect,
+                         OnClose on_close);
+
   void DoStartSending(SendRequest request);  // NOLINT (Fraser)
   void DoQueueSendRequest(SendRequest request);
   void FinishSendAndQueueNext();
@@ -179,7 +177,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
                          const ExtErrorCode& error) const;
 
   void FireOnConnectFunctor(const ExtErrorCode&);
-  void FireOnCloseFunctor(bool timed_out);
+  void FireOnCloseFunctor(const ExtErrorCode&);
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;

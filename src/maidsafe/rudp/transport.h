@@ -70,7 +70,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   using ExtErrorCode      = std::error_code;
   using ErrorCode         = boost::system::error_code;
   using OnConnect         = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
-  using OnClose           = std::function<void(const ConnectionPtr&, bool)>;
+  using OnClose           = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
   using Duration          = boost::posix_time::time_duration;
   using OnNatDetected     = Session::OnNatDetectionRequested::slot_function_type;
   using OnBootstrap       = std::function<void(ReturnCode, Contact)>;

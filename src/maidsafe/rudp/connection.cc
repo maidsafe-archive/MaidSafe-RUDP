@@ -84,7 +84,6 @@ Connection::Connection(const std::shared_ptr<Transport>& transport,
       state_mutex_(),
       timeout_state_(TimeoutState::kConnecting),
       sending_(false),
-      failure_functor_(),
       send_queue_(),
       handle_tick_lock_() {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
@@ -112,7 +111,7 @@ void Connection::DoClose(const ExtErrorCode& error, int /* debug_line_no */) {
                                               shared_from_this(),
                                               RudpErrors::not_connected,
                                               __LINE__)));
-    FireOnCloseFunctor(error == RudpErrors::timed_out);
+    FireOnCloseFunctor(error);
     FireOnConnectFunctor(error);
     transport_.reset();
     sending_ = false;
@@ -131,22 +130,26 @@ void Connection::StartConnecting(const NodeId& peer_node_id,
                                  const asymm::PublicKey& peer_public_key,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan,
-                                 OnConnect on_connect, OnClose on_close,
-                                 const std::function<void()>& failure_functor) {
-  strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
-                             peer_endpoint, peer_public_key,
-                             connect_attempt_timeout, lifespan, PingFunctor(), on_connect, on_close,
-                             failure_functor));
+                                 OnConnect on_connect, OnClose on_close) {
+  auto self = shared_from_this();
+
+  strand_.dispatch([=]() {
+      self->DoStartConnecting(peer_node_id, peer_endpoint, peer_public_key, connect_attempt_timeout,
+                              lifespan, PingFunctor(), on_connect, on_close);
+      });
 }
 
 void Connection::Ping(const NodeId& peer_node_id,
                       const asio::ip::udp::endpoint& peer_endpoint,
                       const asymm::PublicKey& peer_public_key,
                       const PingFunctor& ping_functor) {
-  strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
-                             peer_endpoint, peer_public_key,
-                             Parameters::ping_timeout, bptime::time_duration(), ping_functor,
-                             OnConnect(), OnClose(), std::function<void()>()));
+  auto self = shared_from_this();
+
+  strand_.dispatch([=]() {
+      self->DoStartConnecting(peer_node_id, peer_endpoint, peer_public_key,
+                              Parameters::ping_timeout, bptime::time_duration(), ping_functor,
+                              OnConnect(), OnClose());
+      });
 }
 
 void Connection::DoStartConnecting(const NodeId& peer_node_id,
@@ -155,13 +158,11 @@ void Connection::DoStartConnecting(const NodeId& peer_node_id,
                                    const boost::posix_time::time_duration& connect_attempt_timeout,
                                    const boost::posix_time::time_duration& lifespan,
                                    const PingFunctor& ping_functor,
-                                   const OnConnect& on_connect, const OnClose& on_close,
-                                   const std::function<void()>& failure_functor) {
-  peer_node_id_    = peer_node_id;
-  peer_endpoint_   = peer_endpoint;
-  on_connect_      = std::move(on_connect);
-  on_close_        = std::move(on_close);
-  failure_functor_ = failure_functor;
+                                   OnConnect on_connect, OnClose on_close) {
+  peer_node_id_  = peer_node_id;
+  peer_endpoint_ = peer_endpoint;
+  on_connect_    = std::move(on_connect);
+  on_close_      = std::move(on_close);
 
   StartTick();
   StartConnect(peer_public_key, connect_attempt_timeout, lifespan, ping_functor);
@@ -194,16 +195,6 @@ void Connection::MarkAsDuplicateAndClose() {
                              shared_from_this(),
                              RudpErrors::not_connected,
                              __LINE__));
-}
-
-std::function<void()> Connection::GetAndClearFailureFunctor() {
-  if (std::shared_ptr<Transport> transport = transport_.lock()) {
-    std::function<void()> failure_functor;
-    failure_functor.swap(failure_functor_);
-    return failure_functor;
-  } else {
-    return std::function<void()>();
-  }
 }
 
 asio::ip::udp::endpoint Connection::RemoteNatDetectionEndpoint() const {
@@ -661,16 +652,16 @@ std::string Connection::PeerDebugId() const {
 void Connection::FireOnConnectFunctor(const ExtErrorCode& error) {
   if (on_connect_) {
     auto h(std::move(on_connect_));
-    on_connect_ = nullptr;
+    assert(!on_connect_);
     h(error, shared_from_this());
   }
 }
 
-void Connection::FireOnCloseFunctor(bool timed_out) {
+void Connection::FireOnCloseFunctor(const std::error_code& error) {
   if (on_close_) {
     auto h(std::move(on_close_));
-    on_close_ = nullptr;
-    h(shared_from_this(), timed_out);
+    assert(!on_close_);
+    h(error, shared_from_this());
   }
 }
 

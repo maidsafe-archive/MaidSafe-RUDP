@@ -112,7 +112,7 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
                                 const asymm::PublicKey& peer_public_key,
                                 const bptime::time_duration& connect_attempt_timeout,
                                 const bptime::time_duration& lifespan, OnConnect on_connect,
-                                OnClose on_close, const std::function<void()>& failure_functor) {
+                                OnClose on_close) {
   std::lock_guard<std::mutex> lock(mutex_);
 
   auto transport = transport_.lock();
@@ -129,20 +129,19 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
 
   auto connection = std::make_shared<Connection>(transport, strand_, multiplexer_);
 
-  auto on_close2 = [=](ConnectionPtr connection, bool timed_out) {
+  auto on_close2 = [=](const std::error_code& error, ConnectionPtr connection) {
     // The call to connection_manager_->RemoveConnection must come before the invocation of
     // on_connection_lost_ so that the transport can be assessed for IsIdle properly during the
     // execution of the functor.
     if (connection->state() != Connection::State::kTemporary)
       RemoveConnection(connection);
 
-    on_close(connection, timed_out);
+    on_close(error, connection);
   };
 
   connection->StartConnecting(peer_id, peer_endpoint, peer_public_key,
                               connect_attempt_timeout, lifespan,
-                              on_connect, on_close2,
-                              failure_functor);
+                              on_connect, on_close2);
 }
 
 int ConnectionManager::AddConnection(ConnectionPtr connection) {
@@ -334,8 +333,7 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
           bootstrap_and_drop ? bptime::time_duration()
                              : Parameters::bootstrap_connection_lifespan,
           transport->DefaultOnConnectHandler(),
-          transport->DefaultOnCloseHandler(),
-          nullptr);
+          transport->DefaultOnCloseHandler());
     }
   }
 }

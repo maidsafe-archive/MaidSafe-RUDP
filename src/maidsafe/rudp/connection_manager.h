@@ -71,8 +71,7 @@ class ConnectionManager {
                const asymm::PublicKey& peer_public_key,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan,
-               OnConnect, OnClose,
-               const std::function<void()>& failure_functor);
+               OnConnect, OnClose);
 
   int AddConnection(std::shared_ptr<Connection> connection);
   bool CloseConnection(const NodeId& peer_id);
