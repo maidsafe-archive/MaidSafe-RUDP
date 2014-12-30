@@ -438,9 +438,7 @@ void Connection::HandleConnect(const ErrorCode& ec, PingFunctor ping_functor) {
     peer_node_id_ = socket_.PeerNodeId();
     auto self = shared_from_this();
 
-    // FIXME: This is probably always executed right here (not posted).
-    transport->strand_.dispatch(
-        [transport, self]() { self->FireOnConnectFunctor(ExtErrorCode()); });
+    FireOnConnectFunctor(ExtErrorCode());
   } else {
     LOG(kError) << "Pointer to Transport already destroyed.";
     return DoClose(RudpErrors::not_connected, __LINE__);
