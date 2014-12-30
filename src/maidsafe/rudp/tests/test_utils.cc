@@ -88,8 +88,10 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   endpoint_pair1 = endpoints1;
   Sleep(std::chrono::milliseconds(250));
 
-  EXPECT_ANY_THROW(nodes[0]->GetAvailableEndpoints(nodes[1]->node_id()).get());
-  EXPECT_ANY_THROW(nodes[1]->GetAvailableEndpoints(nodes[0]->node_id()).get());
+  auto get_0 = nodes[0]->GetAvailableEndpoints(nodes[1]->node_id());
+  auto get_1 = nodes[1]->GetAvailableEndpoints(nodes[0]->node_id());
+  EXPECT_ANY_THROW(get_0.get());
+  EXPECT_ANY_THROW(get_1.get());
 
   EXPECT_THROW(nodes[0]->Add(contacts[1]).get(), system_error);
   nodes[0]->AddConnectedNodeId(nodes[1]->node_id());
@@ -123,8 +125,10 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
       nodes[i]->ResetData();
       nodes[j]->ResetData();
 
+      auto get_i = nodes[i]->GetAvailableEndpoints(nodes[j]->node_id());
+
       try {
-        ith_endpoint_pair = nodes[i]->GetAvailableEndpoints(nodes[j]->node_id()).get();
+        ith_endpoint_pair = get_i.get();
         if (!detail::IsValid(ith_endpoint_pair.external)) {
           ith_endpoint_pair.external = ith_endpoint_pair.local;
         }
@@ -133,8 +137,10 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
         EXPECT_EQ(e.code(), RudpErrors::already_connected);
       }
 
+      auto get_j = nodes[j]->GetAvailableEndpoints(nodes[i]->node_id());
+
       try {
-        jth_endpoint_pair = nodes[j]->GetAvailableEndpoints(nodes[i]->node_id()).get();
+        jth_endpoint_pair = get_j.get();
         if (!detail::IsValid(jth_endpoint_pair.external)) {
           jth_endpoint_pair.external = jth_endpoint_pair.local;
         }

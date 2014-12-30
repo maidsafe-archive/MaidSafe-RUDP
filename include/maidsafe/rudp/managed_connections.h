@@ -281,6 +281,7 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
     return handler(RudpErrors::operation_not_supported, EndpointPair());
   }
 
+  // FIXME: remove the lock.
   EndpointPair this_endpoint_pair;
   {
     std::lock_guard<std::mutex> lock(mutex_);
