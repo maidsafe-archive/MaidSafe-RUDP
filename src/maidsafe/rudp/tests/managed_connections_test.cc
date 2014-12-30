@@ -1398,7 +1398,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
       }
       bootstrap_endpoints_.push_back(boost::asio::ip::udp::endpoint(
           boost::asio::ip::address::from_string(std::string(s, colon - s)),
-          (uint16_t)atoi(colon + 1)));
+          static_cast<uint16_t>(atoi(colon + 1))));
       // std::cerr << "I have bootstrap endpoint " <<
       // bootstrap_endpoints_.back().address().to_string() << ":" <<
       // bootstrap_endpoints_.back().port() << std::endl;
@@ -1489,7 +1489,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
           EndpointPair peer_endpoint_pair;
           peer_endpoint_pair.local = boost::asio::ip::udp::endpoint(
               boost::asio::ip::address::from_string(std::string(colon1 + 1, colon2 - colon1 - 1)),
-              (uint16_t)atoi(colon2 + 1));
+              static_cast<uint16_t>(atoi(colon2 + 1)));
           auto fi = node.GetFutureForMessages(1);
           // std::cerr << my_id << ": Adding connection to node " <<
           // peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex)
@@ -1813,7 +1813,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
               }
               (first ? endpoint.local : endpoint.external)
                   .address(boost::asio::ip::address::from_string(std::string(s, colon - s)));
-              (first ? endpoint.local : endpoint.external).port((uint16_t)atoi(colon + 1));
+              (first ? endpoint.local : endpoint.external)
+                  .port(static_cast<uint16_t>(atoi(colon + 1)));
             }
             // std::cout << "Child " << a << " returns endpoints " << line.substr(10) << std::endl;
             return true;
