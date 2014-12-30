@@ -38,6 +38,7 @@
 #include "maidsafe/common/rsa.h"
 
 #include "maidsafe/rudp/types.h"
+#include "connection.h"
 
 namespace maidsafe {
 
@@ -46,7 +47,6 @@ namespace rudp {
 namespace detail {
 
 class Transport;
-class Connection;
 class Multiplexer;
 class Socket;
 class HandshakePacket;
@@ -56,7 +56,8 @@ class ConnectionManager {
   using Endpoint      = asio::ip::udp::endpoint;
   using ConnectionPtr = std::shared_ptr<Connection>;
   using ExtErrorCode  = std::error_code;
-  using OnConnect     = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using OnConnect     = Connection::OnConnect;
+  using OnClose       = Connection::OnClose;
 
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
@@ -69,7 +70,8 @@ class ConnectionManager {
   void Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                const asymm::PublicKey& peer_public_key,
                const boost::posix_time::time_duration& connect_attempt_timeout,
-               const boost::posix_time::time_duration& lifespan, OnConnect on_connect,
+               const boost::posix_time::time_duration& lifespan,
+               OnConnect, OnClose,
                const std::function<void()>& failure_functor);
 
   int AddConnection(std::shared_ptr<Connection> connection);

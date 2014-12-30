@@ -104,7 +104,7 @@ void Connection::Close() {
 void Connection::DoClose(const ExtErrorCode& error, int /* debug_line_no */) {
   probe_interval_timer_.cancel();
   lifespan_timer_.cancel();
-  if (std::shared_ptr<Transport> transport = transport_.lock()) {
+  if (auto transport = transport_.lock()) {
     // We're still connected to the transport. We need to detach and then start flushing the socket
     // to attempt a graceful closure.
     socket_.NotifyClose();
@@ -112,7 +112,7 @@ void Connection::DoClose(const ExtErrorCode& error, int /* debug_line_no */) {
                                               shared_from_this(),
                                               RudpErrors::not_connected,
                                               __LINE__)));
-    transport->RemoveConnection(shared_from_this(), error == RudpErrors::timed_out);
+    FireOnCloseFunctor(error == RudpErrors::timed_out);
     FireOnConnectFunctor(error);
     transport_.reset();
     sending_ = false;
@@ -131,11 +131,11 @@ void Connection::StartConnecting(const NodeId& peer_node_id,
                                  const asymm::PublicKey& peer_public_key,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan,
-                                 OnConnect on_connect,
+                                 OnConnect on_connect, OnClose on_close,
                                  const std::function<void()>& failure_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, peer_public_key,
-                             connect_attempt_timeout, lifespan, PingFunctor(), on_connect,
+                             connect_attempt_timeout, lifespan, PingFunctor(), on_connect, on_close,
                              failure_functor));
 }
 
@@ -146,7 +146,7 @@ void Connection::Ping(const NodeId& peer_node_id,
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
                              peer_endpoint, peer_public_key,
                              Parameters::ping_timeout, bptime::time_duration(), ping_functor,
-                             OnConnect(), std::function<void()>()));
+                             OnConnect(), OnClose(), std::function<void()>()));
 }
 
 void Connection::DoStartConnecting(const NodeId& peer_node_id,
@@ -155,11 +155,12 @@ void Connection::DoStartConnecting(const NodeId& peer_node_id,
                                    const boost::posix_time::time_duration& connect_attempt_timeout,
                                    const boost::posix_time::time_duration& lifespan,
                                    const PingFunctor& ping_functor,
-                                   const OnConnect& on_connect,
+                                   const OnConnect& on_connect, const OnClose& on_close,
                                    const std::function<void()>& failure_functor) {
-  peer_node_id_ = peer_node_id;
-  peer_endpoint_ = peer_endpoint;
-  on_connect_ = on_connect;
+  peer_node_id_    = peer_node_id;
+  peer_endpoint_   = peer_endpoint;
+  on_connect_      = std::move(on_connect);
+  on_close_        = std::move(on_close);
   failure_functor_ = failure_functor;
 
   StartTick();
@@ -662,6 +663,14 @@ void Connection::FireOnConnectFunctor(const ExtErrorCode& error) {
     auto h(std::move(on_connect_));
     on_connect_ = nullptr;
     h(error, shared_from_this());
+  }
+}
+
+void Connection::FireOnCloseFunctor(bool timed_out) {
+  if (on_close_) {
+    auto h(std::move(on_close_));
+    on_close_ = nullptr;
+    h(shared_from_this(), timed_out);
   }
 }
 

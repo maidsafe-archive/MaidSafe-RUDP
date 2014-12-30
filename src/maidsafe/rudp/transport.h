@@ -70,6 +70,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   using ExtErrorCode      = std::error_code;
   using ErrorCode         = boost::system::error_code;
   using OnConnect         = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using OnClose           = std::function<void(const ConnectionPtr&, bool)>;
   using Duration          = boost::posix_time::time_duration;
   using OnNatDetected     = Session::OnNatDetectionRequested::slot_function_type;
   using OnBootstrap       = std::function<void(ReturnCode, Contact)>;
@@ -164,9 +165,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void AddConnection(ConnectionPtr connection);
   void DoAddConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection, bool timed_out);
-  void DoRemoveConnection(ConnectionPtr connection, bool timed_out);
 
-  OnConnect MakeDefaultOnConnectHandler();
+  OnConnect DefaultOnConnectHandler();
+  OnClose   DefaultOnCloseHandler();
 
  private:
   BoostAsioService&                  asio_service_;

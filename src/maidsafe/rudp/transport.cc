@@ -169,7 +169,7 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
     return strand_.dispatch([handler]() mutable { handler(NodeId()); });
   }
 
-  auto default_on_connect = MakeDefaultOnConnectHandler();
+  auto default_on_connect = DefaultOnConnectHandler();
 
   auto on_connect = [this, handler, default_on_connect]
                     (const ExtErrorCode& error, const ConnectionPtr& connection) mutable {
@@ -191,7 +191,9 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
 
   connection_manager_->Connect(contact.id, contact.endpoint_pair.external, contact.public_key,
                                Parameters::bootstrap_connect_timeout, lifespan,
-                               strand_.wrap(on_connect), nullptr);
+                               strand_.wrap(on_connect),
+                               strand_.wrap(DefaultOnCloseHandler()),
+                               nullptr);
 }
 
 template<typename Handler>
@@ -240,7 +242,7 @@ void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint
                              peer_public_key, handler));
 }
 
-Transport::OnConnect Transport::MakeDefaultOnConnectHandler() {
+Transport::OnConnect Transport::DefaultOnConnectHandler() {
   std::weak_ptr<Transport> weak_self = shared_from_this();
 
   return [weak_self](const ExtErrorCode& error, const ConnectionPtr& connection) {  // NOLINT
@@ -253,36 +255,52 @@ Transport::OnConnect Transport::MakeDefaultOnConnectHandler() {
   };
 }
 
+Transport::OnClose Transport::DefaultOnCloseHandler() {
+  std::weak_ptr<Transport> weak_self = shared_from_this();
+
+  return [weak_self](const ConnectionPtr& connection, bool timed_out) {
+    if (auto self = weak_self.lock()) {
+      self->RemoveConnection(connection, timed_out);
+    }
+  };
+}
+
 void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
                           const asymm::PublicKey& peer_public_key,
                           ConnectionAddedFunctor handler) {
   if (!multiplexer_->IsOpen())
     return handler(make_error_code(RudpErrors::failed_to_connect));
 
-  auto default_on_connect = MakeDefaultOnConnectHandler();
+  auto default_on_connect = DefaultOnConnectHandler();
+
   auto on_connect = [=](std::error_code error, std::shared_ptr<Connection> c) {
     default_on_connect(error, c);
     handler(error);
   };
 
+  auto default_on_close = DefaultOnCloseHandler();
+
   if (IsValid(peer_endpoint_pair.external)) {
-    std::function<void()> failure_functor;
+    auto on_close = default_on_close;
+
     if (peer_endpoint_pair.local != peer_endpoint_pair.external) {
-      failure_functor = [=] {
+      on_close = [=](ConnectionPtr connection, bool timed_out) {
         if (!multiplexer_->IsOpen())
-          return handler(make_error_code(RudpErrors::failed_to_connect));
+          return default_on_close(connection, timed_out);
+
         connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key,
                                      Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                     on_connect, nullptr);
+                                     on_connect, default_on_close, nullptr);
       };
     }
+
     connection_manager_->Connect(peer_id, peer_endpoint_pair.external, peer_public_key,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                 on_connect, failure_functor);
+                                 on_connect, on_close, nullptr);
   } else {
     connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                 on_connect, nullptr);
+                                 on_connect, default_on_close, nullptr);
   }
 }
 
@@ -421,17 +439,6 @@ void Transport::AddConnection(ConnectionPtr connection) {
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
-  strand_.dispatch(
-      std::bind(&Transport::DoRemoveConnection, shared_from_this(), connection, timed_out));
-}
-
-void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
-  // The call to connection_manager_->RemoveConnection must come before the invocation of
-  // on_connection_lost_ so that the transport can be assessed for IsIdle properly during the
-  // execution of the functor.
-  if (connection->state() != Connection::State::kTemporary)
-    connection_manager_->RemoveConnection(connection);
-
   // If the connection has a failure_functor, invoke that, otherwise invoke on_connection_lost_.
   auto failure_functor(connection->GetAndClearFailureFunctor());
   if (failure_functor) {
