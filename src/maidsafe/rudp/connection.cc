@@ -75,7 +75,6 @@ Connection::Connection(const std::shared_ptr<Transport>& transport,
       lifespan_timer_(strand_.get_io_service()),
       peer_node_id_(),
       peer_endpoint_(),
-      connection_added_functor_(),
       send_buffer_(),
       receive_buffer_(),
       data_size_(0),
@@ -115,7 +114,6 @@ void Connection::DoClose(const ExtErrorCode& error, int /* debug_line_no */) {
                                               __LINE__)));
     transport->RemoveConnection(shared_from_this(), error == RudpErrors::timed_out);
     FireOnConnectFunctor(error);
-    FireConnectionAddedFunctor(error);
     transport_.reset();
     sending_ = false;
     std::queue<SendRequest>().swap(send_queue_);
@@ -131,13 +129,12 @@ void Connection::DoClose(const ExtErrorCode& error, int /* debug_line_no */) {
 void Connection::StartConnecting(const NodeId& peer_node_id,
                                  const asio::ip::udp::endpoint& peer_endpoint,
                                  const asymm::PublicKey& peer_public_key,
-                                 ConnectionAddedFunctor connection_added_functor,
                                  const boost::posix_time::time_duration& connect_attempt_timeout,
                                  const boost::posix_time::time_duration& lifespan,
                                  OnConnect on_connect,
                                  const std::function<void()>& failure_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
-                             peer_endpoint, peer_public_key, connection_added_functor,
+                             peer_endpoint, peer_public_key,
                              connect_attempt_timeout, lifespan, PingFunctor(), on_connect,
                              failure_functor));
 }
@@ -147,7 +144,7 @@ void Connection::Ping(const NodeId& peer_node_id,
                       const asymm::PublicKey& peer_public_key,
                       const PingFunctor& ping_functor) {
   strand_.dispatch(std::bind(&Connection::DoStartConnecting, shared_from_this(), peer_node_id,
-                             peer_endpoint, peer_public_key, ConnectionAddedFunctor(),
+                             peer_endpoint, peer_public_key,
                              Parameters::ping_timeout, bptime::time_duration(), ping_functor,
                              OnConnect(), std::function<void()>()));
 }
@@ -155,7 +152,6 @@ void Connection::Ping(const NodeId& peer_node_id,
 void Connection::DoStartConnecting(const NodeId& peer_node_id,
                                    const asio::ip::udp::endpoint& peer_endpoint,
                                    const asymm::PublicKey& peer_public_key,
-                                   ConnectionAddedFunctor connection_added_functor,
                                    const boost::posix_time::time_duration& connect_attempt_timeout,
                                    const boost::posix_time::time_duration& lifespan,
                                    const PingFunctor& ping_functor,
@@ -163,7 +159,6 @@ void Connection::DoStartConnecting(const NodeId& peer_node_id,
                                    const std::function<void()>& failure_functor) {
   peer_node_id_ = peer_node_id;
   peer_endpoint_ = peer_endpoint;
-  connection_added_functor_ = connection_added_functor;
   on_connect_ = on_connect;
   failure_functor_ = failure_functor;
 
@@ -454,8 +449,6 @@ void Connection::HandleConnect(const ErrorCode& ec, PingFunctor ping_functor) {
     // FIXME: This is probably always executed right here (not posted).
     transport->strand_.dispatch(
         [transport, self]() { self->FireOnConnectFunctor(ExtErrorCode()); });
-    transport->strand_.dispatch(
-        [transport, self]() { self->FireConnectionAddedFunctor(ExtErrorCode()); });
   } else {
     LOG(kError) << "Pointer to Transport already destroyed.";
     return DoClose(RudpErrors::not_connected, __LINE__);
@@ -669,14 +662,6 @@ void Connection::FireOnConnectFunctor(const ExtErrorCode& error) {
     auto h(std::move(on_connect_));
     on_connect_ = nullptr;
     h(error, shared_from_this());
-  }
-}
-
-void Connection::FireConnectionAddedFunctor(const ExtErrorCode& error) {
-  if (connection_added_functor_) {
-    auto functor(std::move(connection_added_functor_));
-    connection_added_functor_ = nullptr;
-    functor(error);
   }
 }
 

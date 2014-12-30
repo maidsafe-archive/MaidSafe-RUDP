@@ -190,7 +190,7 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
   };
 
   connection_manager_->Connect(contact.id, contact.endpoint_pair.external, contact.public_key,
-                               nullptr, Parameters::bootstrap_connect_timeout, lifespan,
+                               Parameters::bootstrap_connect_timeout, lifespan,
                                strand_.wrap(on_connect), nullptr);
 }
 
@@ -259,7 +259,11 @@ void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoi
   if (!multiplexer_->IsOpen())
     return handler(make_error_code(RudpErrors::failed_to_connect));
 
-  auto on_connect = MakeDefaultOnConnectHandler();
+  auto default_on_connect = MakeDefaultOnConnectHandler();
+  auto on_connect = [=](std::error_code error, std::shared_ptr<Connection> c) {
+    default_on_connect(error, c);
+    handler(error);
+  };
 
   if (IsValid(peer_endpoint_pair.external)) {
     std::function<void()> failure_functor;
@@ -267,16 +271,16 @@ void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoi
       failure_functor = [=] {
         if (!multiplexer_->IsOpen())
           return handler(make_error_code(RudpErrors::failed_to_connect));
-        connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key, handler,
+        connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key,
                                      Parameters::rendezvous_connect_timeout, bptime::pos_infin,
                                      on_connect, nullptr);
       };
     }
-    connection_manager_->Connect(peer_id, peer_endpoint_pair.external, peer_public_key, handler,
+    connection_manager_->Connect(peer_id, peer_endpoint_pair.external, peer_public_key,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
                                  on_connect, failure_functor);
   } else {
-    connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key, handler,
+    connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
                                  on_connect, nullptr);
   }

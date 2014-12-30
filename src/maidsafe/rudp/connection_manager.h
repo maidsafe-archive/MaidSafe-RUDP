@@ -68,7 +68,6 @@ class ConnectionManager {
 
   void Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                const asymm::PublicKey& peer_public_key,
-               ConnectionAddedFunctor handler,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan, OnConnect on_connect,
                const std::function<void()>& failure_functor);

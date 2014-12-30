@@ -110,7 +110,6 @@ void ConnectionManager::MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep) {
 
 void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                                 const asymm::PublicKey& peer_public_key,
-                                ConnectionAddedFunctor handler,
                                 const bptime::time_duration& connect_attempt_timeout,
                                 const bptime::time_duration& lifespan, OnConnect on_connect,
                                 const std::function<void()>& failure_functor) {
@@ -119,12 +118,10 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
   auto transport = transport_.lock();
 
   if (!transport) {
-    strand_.dispatch([handler] { handler(RudpErrors::failed_to_connect); });
     return strand_.dispatch([on_connect]() { on_connect(RudpErrors::shut_down, nullptr); });
   }
 
   if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
-    strand_.dispatch([handler] { handler(RudpErrors::failed_to_connect); });
     return strand_.dispatch([on_connect]() { on_connect(RudpErrors::already_started, nullptr); });
   }
 
@@ -132,7 +129,7 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
 
   auto connection = std::make_shared<Connection>(transport, strand_, multiplexer_);
 
-  connection->StartConnecting(peer_id, peer_endpoint, peer_public_key, handler,
+  connection->StartConnecting(peer_id, peer_endpoint, peer_public_key,
                               connect_attempt_timeout, lifespan, on_connect, failure_functor);
 }
 
@@ -321,7 +318,6 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
           handshake_packet.node_id(),
           endpoint,
           handshake_packet.PublicKey(),
-          [](ExtErrorCode) {},
           Parameters::bootstrap_connect_timeout,
           bootstrap_and_drop ? bptime::time_duration()
                              : Parameters::bootstrap_connection_lifespan,
