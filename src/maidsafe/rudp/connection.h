@@ -64,15 +64,17 @@ class Connection : public std::enable_shared_from_this<Connection> {
     kDuplicate,
   };
 
-  using ConnectionPtr = std::shared_ptr<Connection>;
-  using ExtErrorCode  = std::error_code;
-  using ErrorCode     = boost::system::error_code;
-  using OnConnect     = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
-  using OnClose       = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using ConnectionPtr     = std::shared_ptr<Connection>;
+  using ExtErrorCode      = std::error_code;
+  using ErrorCode         = boost::system::error_code;
+  using OnReceive         = std::function<void(const NodeId& peer_id, std::string message)>;
+  using OnConnect         = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using OnClose           = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
 
   Connection(const std::shared_ptr<Transport>& transport,
              const boost::asio::io_service::strand& strand,
-             std::shared_ptr<Multiplexer> multiplexer);
+             std::shared_ptr<Multiplexer> multiplexer,
+             OnReceive);
 
   detail::Socket& Socket();
 
@@ -202,8 +204,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
   std::queue<SendRequest> send_queue_;
   std::mutex handle_tick_lock_;
 
+  OnReceive on_message_received_;
   OnConnect on_connect_;
-  OnClose on_close_;
+  OnClose   on_close_;
 };
 
 template <typename Elem, typename Traits>

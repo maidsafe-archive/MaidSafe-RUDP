@@ -64,11 +64,12 @@ typedef std::function<void(int /*result*/)> PingFunctor;
 
 Connection::Connection(const std::shared_ptr<Transport>& transport,
                        const boost::asio::io_service::strand& strand,
-                       std::shared_ptr<Multiplexer> multiplexer)
+                       std::shared_ptr<Multiplexer> multiplexer,
+                       OnReceive on_message_received)
     : transport_(transport),
       strand_(strand),
       multiplexer_(std::move(multiplexer)),
-      socket_(*multiplexer_, transport->nat_type_),
+      socket_(*multiplexer_, transport->reference_to_nat_type()),
       cookie_syn_(0),
       timer_(strand_.get_io_service()),
       probe_interval_timer_(strand_.get_io_service()),
@@ -85,7 +86,8 @@ Connection::Connection(const std::shared_ptr<Transport>& transport,
       timeout_state_(TimeoutState::kConnecting),
       sending_(false),
       send_queue_(),
-      handle_tick_lock_() {
+      handle_tick_lock_(),
+      on_message_received_(on_message_received) {
   static_assert((sizeof(DataSize)) == 4, "DataSize must be 4 bytes.");
   timer_.expires_from_now(bptime::pos_infin);
 }
@@ -373,7 +375,7 @@ void Connection::StartConnect(const asymm::PublicKey& peer_public_key,
                                        strand_.wrap(handler),
                                        open_mode,
                                        cookie_syn_,
-                                       transport->on_nat_detection_requested_slot_);
+                                       transport->get_nat_detection_handler());
 
     timer_.expires_from_now(connect_attempt_timeout);
     timeout_state_ = TimeoutState::kConnecting;
@@ -533,20 +535,12 @@ void Connection::HandleReadData(const ErrorCode& ec, size_t length) {
   data_received_ += static_cast<DataSize>(length);
   if (data_received_ == data_size_) {
     if (std::shared_ptr<Transport> transport = transport_.lock()) {
-      transport->SignalMessageReceived(socket_.PeerNodeId(),
-                                       std::string(receive_buffer_.begin(), receive_buffer_.end()));
+      // The receive_buffer_ is cleared inside the StartReaddSize function.
+      std::string data(receive_buffer_.begin(), receive_buffer_.end());
       StartReadSize();
+      on_message_received_(socket_.PeerNodeId(), std::move(data));
     }
   } else {
-    // Need more data to complete the message.
-    //    if (length > 0)
-    //      timer_.expires_from_now(Parameters::speed_calculate_inverval);
-    //    // If transmission speed is too slow, the socket shall be forced closed
-    //    if (socket_.IsSlowTransmission(length)) {
-    //      LOG(kWarning) << "Connection to " << socket_.PeerEndpoint()
-    //                    << " has slow transmission - closing now.";
-    //      return DoClose();
-    //    }
     StartReadData();
   }
 }

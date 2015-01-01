@@ -61,14 +61,13 @@ class Transport : public std::enable_shared_from_this<Transport> {
   using ConnectionPtr     = std::shared_ptr<Connection>;
   using ExtErrorCode      = std::error_code;
   using ErrorCode         = boost::system::error_code;
+  using OnMessage         = std::function<void(const NodeId& peer_id, std::string message)>;
   using OnConnect         = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
   using OnClose           = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
   using Duration          = boost::posix_time::time_duration;
   using OnNatDetected     = Session::OnNatDetectionRequested::slot_function_type;
   using OnBootstrap       = std::function<void(ReturnCode, Contact)>;
   using BootstrapContacts = std::vector<Contact>;
-
-  typedef std::function<void(const NodeId& peer_id, const std::string&)> OnMessage;
 
   typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, ConnectionPtr)>
       OnConnectionAdded;
@@ -127,8 +126,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   NatType& reference_to_nat_type() { return nat_type_; }
   NodeId node_id() const;
+  const asymm::PublicKey& public_key() const;
+  OnNatDetected get_nat_detection_handler() const { return on_nat_detection_requested_slot_; }
 
-  friend class Connection;
   friend class ConnectionManager;
 
  private:
@@ -160,14 +160,11 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void StartDispatch();
   void HandleDispatch(const ExtErrorCode& ec);
 
-  const asymm::PublicKey& public_key() const;
-
-  void SignalMessageReceived(const NodeId& peer_id, const std::string& message);
-  void DoSignalMessageReceived(const NodeId& peer_id, const std::string& message);
   void AddConnection(ConnectionPtr connection);
   void DoAddConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection, bool timed_out);
 
+  OnMessage DefaultOnReceiveHandler();
   OnConnect DefaultOnConnectHandler();
   OnClose   DefaultOnCloseHandler();
 

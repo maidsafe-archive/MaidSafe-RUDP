@@ -241,6 +241,20 @@ void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint
                              peer_public_key, handler));
 }
 
+Transport::OnMessage Transport::DefaultOnReceiveHandler() {
+  std::weak_ptr<Transport> weak_self = shared_from_this();
+
+  return strand_.wrap([weak_self](const NodeId& peer_id, std::string message) {
+      auto self = weak_self.lock();
+
+      if (!self) return;
+      if (!self->on_message_) return;
+
+      auto handler = self->on_message_;
+      handler(peer_id, std::move(message));
+      });
+}
+
 Transport::OnConnect Transport::DefaultOnConnectHandler() {
   std::weak_ptr<Transport> weak_self = shared_from_this();
 
@@ -371,22 +385,6 @@ NodeId Transport::node_id() const { return connection_manager_->node_id(); }
 
 const asymm::PublicKey& Transport::public_key() const {
   return connection_manager_->public_key();
-}
-
-void Transport::SignalMessageReceived(const NodeId& peer_id, const std::string& message) {
-  // Dispatch the message outside the strand.
-  strand_.get_io_service().post(
-      std::bind(&Transport::DoSignalMessageReceived, shared_from_this(), peer_id, message));
-}
-
-void Transport::DoSignalMessageReceived(const NodeId& peer_id, const std::string& message) {
-  OnMessage local_callback;
-  {
-    std::lock_guard<std::mutex> guard(callback_mutex_);
-    local_callback = on_message_;
-  }
-  if (local_callback)
-    local_callback(peer_id, message);
 }
 
 void Transport::AddConnection(ConnectionPtr connection) {

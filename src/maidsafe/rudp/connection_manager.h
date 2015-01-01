@@ -56,6 +56,7 @@ class ConnectionManager {
   using Endpoint      = asio::ip::udp::endpoint;
   using ConnectionPtr = std::shared_ptr<Connection>;
   using ExtErrorCode  = std::error_code;
+  using OnReceive     = Connection::OnReceive;
   using OnConnect     = Connection::OnConnect;
   using OnClose       = Connection::OnClose;
 

@@ -111,8 +111,8 @@ void ConnectionManager::MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep) {
 void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                                 const asymm::PublicKey& peer_public_key,
                                 const bptime::time_duration& connect_attempt_timeout,
-                                const bptime::time_duration& lifespan, OnConnect on_connect,
-                                OnClose on_close) {
+                                const bptime::time_duration& lifespan,
+                                OnConnect on_connect, OnClose on_close) {
   std::lock_guard<std::mutex> lock(mutex_);
 
   auto transport = transport_.lock();
@@ -127,7 +127,10 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
 
   being_connected_.insert(std::make_pair(peer_id, peer_endpoint));
 
-  auto connection = std::make_shared<Connection>(transport, strand_, multiplexer_);
+  auto connection = std::make_shared<Connection>(transport,
+                                                 strand_,
+                                                 multiplexer_,
+                                                 transport->DefaultOnReceiveHandler());
 
   auto on_close2 = [=](const std::error_code& error, ConnectionPtr connection) {
     // The call to connection_manager_->RemoveConnection must come before the invocation of
@@ -195,7 +198,8 @@ void ConnectionManager::Ping(const NodeId& peer_id, const Endpoint& peer_endpoin
                              const std::function<void(int)>& ping_functor) {  // NOLINT (Fraser)
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     assert(ping_functor);
-    ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
+    ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_,
+                                                          transport->DefaultOnReceiveHandler()));
     connection->Ping(peer_id, peer_endpoint, peer_public_key, ping_functor);
   } else {
     assert(0 && "Transport already closed");

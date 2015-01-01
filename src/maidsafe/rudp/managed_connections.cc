@@ -531,9 +531,10 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
   }
 }
 
-void ManagedConnections::OnMessageSlot(const NodeId& peer_id, const std::string& message) {
+void ManagedConnections::OnMessageSlot(const NodeId& peer_id, std::string message) {
   try {
-    auto copied_message(std::make_shared<std::string>(message));
+    // FIXME: Why do we make the copy?
+    auto copied_message(std::make_shared<std::string>(std::move(message)));
     if (auto listener = listener_.lock()) {
       listener->MessageReceived(peer_id, std::vector<unsigned char>(std::begin(*copied_message),
                                                                     std::end(*copied_message)));
