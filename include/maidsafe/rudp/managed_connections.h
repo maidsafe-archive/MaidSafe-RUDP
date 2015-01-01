@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "boost/asio/deadline_timer.hpp"
+#include "boost/asio/strand.hpp"
 
 #include "maidsafe/common/asio_service.h"
 #include "maidsafe/common/node_id.h"
@@ -45,6 +46,7 @@ enum class NatType : char;
 
 namespace detail {
 class Transport;
+class Connection;
 }  // namespace detail
 
 #ifdef TESTING
@@ -56,7 +58,8 @@ extern void SetDebugPacketLossRate(double constant, double bursty);
 // template <typename Alloc = kernel_side_allocator>
 class ManagedConnections {
  public:
-  using Error = rudp::error_code;
+  using Error         = rudp::error_code;
+  using ConnectionPtr = std::shared_ptr<detail::Connection>;
 
   class Listener {
    public:
@@ -150,10 +153,8 @@ class ManagedConnections {
 
   void DoRemove(const NodeId& peer_id);
 
-  template <typename CompletionToken>
-  void DoSend(const NodeId& peer_id, SendableMessage&& message,
-              SendHandler<CompletionToken> handler);
-
+  //template <typename CompletionToken>
+  //void DoSend(const NodeId& peer_id, SendableMessage&& message, SendHandler<CompletionToken> handler);
   void DoSend(const NodeId& peer_id, SendableMessage&& message, MessageSentFunctor handler);
 
   int CheckBootstrappingParameters(const BootstrapContacts& bootstrap_list,
@@ -186,7 +187,7 @@ class ManagedConnections {
   void OnMessageSlot(const NodeId& peer_id, const std::string& message);
   void OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,
                              bool temporary_connection,
-                             std::atomic<bool>& is_duplicate_normal_connection);
+                             ConnectionPtr);
   void OnConnectionLostSlot(const NodeId& peer_id, TransportPtr transport,
                             bool temporary_connection);
   // This signal is fired by Session when a connecting peer requests to use this peer for NAT
@@ -206,6 +207,8 @@ class ManagedConnections {
   void InvokeHandler(Handler&&, Error, Args&&);
 
   BoostAsioService asio_service_;
+  boost::asio::io_service::strand strand_;
+
   std::weak_ptr<Listener> listener_;
   NodeId this_node_id_;
   Contact chosen_bootstrap_contact_;
@@ -218,8 +221,6 @@ class ManagedConnections {
   std::unique_ptr<NatType> nat_type_;
 };
 
-
-
 template <typename CompletionToken>
 BootstrapReturn<CompletionToken> ManagedConnections::Bootstrap(
     const BootstrapContacts& bootstrap_list,
@@ -230,7 +231,7 @@ BootstrapReturn<CompletionToken> ManagedConnections::Bootstrap(
     Endpoint local_endpoint) {
   BootstrapHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
-  asio_service_.service().post(
+  strand_.dispatch(
       [=] { DoBootstrap(bootstrap_list, listener, this_node_id, keys, handler, local_endpoint); });
   return result.get();
 }
@@ -270,7 +271,7 @@ GetAvailableEndpointsReturn<CompletionToken> ManagedConnections::GetAvailableEnd
     const NodeId& peer_id, const CompletionToken& token) {
   GetAvailableEndpointsHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
-  asio_service_.service().post([=] { DoGetAvailableEndpoints(peer_id, handler); });
+  strand_.dispatch([=]() { DoGetAvailableEndpoints(peer_id, handler); });
   return result.get();
 }
 
@@ -337,7 +338,7 @@ template <typename CompletionToken>
 AddReturn<CompletionToken> ManagedConnections::Add(const Contact& peer, const CompletionToken& token) {
   AddHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
-  asio_service_.service().post([=]() mutable { DoAdd(peer, handler); });
+  strand_.dispatch([=]() mutable { DoAdd(peer, handler); });
   return result.get();
 }
 
@@ -346,7 +347,8 @@ RemoveReturn<CompletionToken> ManagedConnections::Remove(const NodeId& peer_id,
                                                          const CompletionToken& token) {
   RemoveHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
-  asio_service_.service().post([=]() mutable {
+  strand_.dispatch([=]() mutable {
+    // FIXME: The handler should be called only after the peer has been removed.
     DoRemove(peer_id);
     handler(make_error_code(CommonErrors::success));
   });
@@ -359,7 +361,7 @@ SendReturn<CompletionToken> ManagedConnections::Send(const NodeId& peer_id,
                                                      const CompletionToken& token) {
   SendHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
-  asio_service_.service().post([=]() mutable {
+  strand_.dispatch([=]() mutable {
       // FIXME: Can the const_cast be avoided? For some reason, the
       //        lambda creates a const copy of the message...
       DoSend(peer_id, std::move(const_cast<SendableMessage&>(message)), handler);
@@ -367,16 +369,16 @@ SendReturn<CompletionToken> ManagedConnections::Send(const NodeId& peer_id,
   return result.get();
 }
 
-template <typename CompletionToken>
-void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message,
-            SendHandler<CompletionToken> handler) {
-  DoSend(peer_id, std::move(message), [=](Error error_code) {
-    if (error_code)
-      this->InvokeHandler(handler, error_code);
-    else  // success case
-      handler(error_code);
-  });
-}
+//template <typename CompletionToken>
+//void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message,
+//            SendHandler<CompletionToken> handler) {
+//  DoSend(peer_id, std::move(message), [=](Error error_code) {
+//    if (error_code)
+//      this->InvokeHandler(handler, error_code);
+//    else  // success case
+//      handler(error_code);
+//  });
+//}
 
 // GCC 4.8 still doesn't support passing variadic argument pack to
 // lambda functions.

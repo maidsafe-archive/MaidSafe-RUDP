@@ -407,7 +407,7 @@ void Transport::AddConnection(ConnectionPtr connection) {
   LOG(kSuccess) << "Successfully made " << connection->state() << " connection from "
                 << ThisDebugId() << " to " << connection->PeerDebugId();
 
-  std::atomic<bool> is_duplicate_normal_connection(false);
+  //std::atomic<bool> is_duplicate_normal_connection(false);
   OnConnectionAdded local_callback;
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
@@ -416,13 +416,8 @@ void Transport::AddConnection(ConnectionPtr connection) {
   if (local_callback) {
     local_callback(connection->Socket().PeerNodeId(), shared_from_this(),
                    connection->state() == Connection::State::kTemporary,
-                   is_duplicate_normal_connection);
+                   connection);
 
-    if (is_duplicate_normal_connection) {
-      LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
-                  << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
-      connection->MarkAsDuplicateAndClose();
-    }
   }
 
 #ifndef NDEBUG

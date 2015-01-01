@@ -57,14 +57,6 @@ class Socket;
 
 class Transport : public std::enable_shared_from_this<Transport> {
  public:
-  typedef std::function<void(const NodeId& peer_id, const std::string&)> OnMessage;
-
-  typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, std::atomic<bool> &)>
-      OnConnectionAdded;
-
-  typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool)>
-      OnConnectionLost;
-
   using Endpoint          = asio::ip::udp::endpoint;
   using ConnectionPtr     = std::shared_ptr<Connection>;
   using ExtErrorCode      = std::error_code;
@@ -75,6 +67,14 @@ class Transport : public std::enable_shared_from_this<Transport> {
   using OnNatDetected     = Session::OnNatDetectionRequested::slot_function_type;
   using OnBootstrap       = std::function<void(ReturnCode, Contact)>;
   using BootstrapContacts = std::vector<Contact>;
+
+  typedef std::function<void(const NodeId& peer_id, const std::string&)> OnMessage;
+
+  typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, ConnectionPtr)>
+      OnConnectionAdded;
+
+  typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool)>
+      OnConnectionLost;
 
  public:
   Transport(BoostAsioService& asio_service, NatType& nat_type_);
