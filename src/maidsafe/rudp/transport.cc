@@ -61,13 +61,15 @@ Transport::~Transport() {
   Close();
 }
 
-void Transport::Bootstrap(const BootstrapContacts& bootstrap_list, const NodeId& this_node_id,
+void Transport::Bootstrap(BootstrapContacts&& bootstrap_list, const NodeId& this_node_id,
                           const asymm::PublicKey& this_public_key, Endpoint local_endpoint,
                           bool bootstrap_off_existing_connection, OnMessage on_message_slot,
                           OnConnectionAdded on_connection_added_slot,
                           OnConnectionLost on_connection_lost_slot,
                           const OnNatDetected& on_nat_detection_requested_slot,
                           OnBootstrap on_bootstrap) {
+  using std::move;
+
   assert(on_nat_detection_requested_slot);
   assert(!multiplexer_->IsOpen());
 
@@ -83,9 +85,9 @@ void Transport::Bootstrap(const BootstrapContacts& bootstrap_list, const NodeId&
   // already been executed at that point in time.
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
-    on_message_ = std::move(on_message_slot);
-    on_connection_added_ = std::move(on_connection_added_slot);
-    on_connection_lost_ = std::move(on_connection_lost_slot);
+    on_message_          = move(on_message_slot);
+    on_connection_added_ = move(on_connection_added_slot);
+    on_connection_lost_  = move(on_connection_lost_slot);
   }
 
   on_nat_detection_requested_slot_ = on_nat_detection_requested_slot;
@@ -95,12 +97,13 @@ void Transport::Bootstrap(const BootstrapContacts& bootstrap_list, const NodeId&
 
   StartDispatch();
 
-  TryBootstrapping(bootstrap_list, bootstrap_off_existing_connection, on_bootstrap);
+  TryBootstrapping(move(bootstrap_list), bootstrap_off_existing_connection, on_bootstrap);
 }
 
 template<typename Handler /* void(ReturnCode, NodeId) */>
-void Transport::TryBootstrapping(const BootstrapContacts& bootstrap_list,
-                                 bool bootstrap_off_existing_connection, Handler handler) {
+void Transport::TryBootstrapping(BootstrapContacts&& bootstrap_list,
+                                 bool bootstrap_off_existing_connection,
+                                 Handler handler) {
   bool try_connect(true);
   bptime::time_duration lifespan;
 
@@ -121,24 +124,23 @@ void Transport::TryBootstrapping(const BootstrapContacts& bootstrap_list,
   }
 #endif
 
-  // We need to create this shared_ptr copy to preserve the existence
-  // of the list while ConnectToBootstrapEndpoint iterates through it.
-  // FIXME: Get the bootstrap_list as a rvalue ref and just move it
-  // to this newly created list.
-  auto peers_copy = std::make_shared<BootstrapContacts>(bootstrap_list);
+  // We need to move the list into this shared_ptr to preserve its existence
+  // while ConnectToBootstrapEndpoint iterates through it.
+  auto bootstrap_list_ptr = std::make_shared<BootstrapContacts>(std::move(bootstrap_list));
 
-  auto on_bootstrap = [peers_copy, handler](const NodeId& peer_id) {
+  auto on_bootstrap = [bootstrap_list_ptr, handler](const NodeId& peer_id) {
     if (peer_id.IsValid()) {
-      auto itr = std::find_if(peers_copy->begin(), peers_copy->end(),
+      auto itr = std::find_if(bootstrap_list_ptr->begin(), bootstrap_list_ptr->end(),
                               [&peer_id](const Contact& contact) { return contact.id == peer_id; });
-      assert(itr != peers_copy->end());
+      assert(itr != bootstrap_list_ptr->end());
       handler(kSuccess, *itr);
     } else {
       handler(kNotConnectable, Contact());
     }
   };
 
-  ConnectToBootstrapEndpoint(peers_copy->begin(), peers_copy->end(), lifespan,
+  ConnectToBootstrapEndpoint(bootstrap_list_ptr->begin(), bootstrap_list_ptr->end(),
+                             lifespan,
                              strand_.wrap(on_bootstrap));
 }
 

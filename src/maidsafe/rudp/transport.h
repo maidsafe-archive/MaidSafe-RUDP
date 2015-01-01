@@ -80,7 +80,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   virtual ~Transport();
 
-  void Bootstrap(const BootstrapContacts& bootstrap_list,
+  void Bootstrap(BootstrapContacts&&      bootstrap_list,
                  const NodeId&            this_node_id,
                  const asymm::PublicKey&  this_public_key,
                  Endpoint                 local_endpoint,
@@ -139,7 +139,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   typedef std::shared_ptr<ConnectionManager> ConnectionManagerPtr;
 
   template<typename Handler>
-  void TryBootstrapping(const BootstrapContacts& bootstrap_list,
+  void TryBootstrapping(BootstrapContacts&& bootstrap_list,
                         bool bootstrap_off_existing_connection,
                         Handler);
 

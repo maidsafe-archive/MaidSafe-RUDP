@@ -209,7 +209,7 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
   };
 
   transport->Bootstrap(
-      bootstrap_list, this_node_id_, keys_.public_key, local_endpoint,
+      std::move(bootstrap_list), this_node_id_, keys_.public_key, local_endpoint,
       bootstrap_off_existing_connection,
       strand_.wrap(std::bind(&ManagedConnections::OnMessageSlot, this, args::_1, args::_2)),
       strand_.wrap([this](const NodeId& peer_id,
