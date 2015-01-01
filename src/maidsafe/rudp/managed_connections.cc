@@ -73,13 +73,18 @@ ManagedConnections::ManagedConnections()
       connections_(),
       pendings_(),
       idle_transports_(),
-      mutex_(),
       local_ip_(),
       nat_type_(maidsafe::make_unique<NatType>(NatType::kUnknown)) {}
 
 ManagedConnections::~ManagedConnections() {
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
+  using lock_guard = std::lock_guard<std::mutex>;
+
+  std::mutex mutex;
+
+  std::promise<void> promise;
+  auto future = promise.get_future();
+
+  strand_.dispatch([&]() {
     for (auto connection_details : connections_)
       connection_details.second->Close();
     connections_.clear();
@@ -89,7 +94,14 @@ ManagedConnections::~ManagedConnections() {
     for (auto idle_transport : idle_transports_)
       idle_transport->Close();
     idle_transports_.clear();
-  }
+
+    lock_guard lock(mutex);
+    promise.set_value();
+  });
+
+  future.get();
+  { lock_guard lock(mutex); }
+
   asio_service_.Stop();
 }
 
@@ -382,11 +394,11 @@ void ManagedConnections::AddPending(std::unique_ptr<PendingConnection> connectio
   NodeId peer_id(connection->node_id.ToStringEncoded(NodeId::EncodingType::kHex),
                  NodeId::EncodingType::kHex);
   pendings_.push_back(std::move(connection));
-  pendings_.back()->timer.async_wait([peer_id, this](const boost::system::error_code& ec) {
+  pendings_.back()->timer.async_wait(strand_.wrap([peer_id, this](const boost::system::error_code& ec) {
     if (ec != boost::asio::error::operation_aborted) {
       RemovePending(peer_id);
     }
-  });
+  }));
 }
 
 void ManagedConnections::RemovePending(const NodeId& peer_id) {
@@ -499,14 +511,15 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
     return handler(RudpErrors::operation_not_supported);
   }
 
-  std::lock_guard<std::mutex> lock(mutex_);
   auto itr(connections_.find(peer_id));
   if (itr != connections_.end()) {
     if (itr->second->Send(peer_id, std::string(std::begin(message), std::end(message)), handler)) {
       return;
     }
   }
+
   LOG(kError) << "Can't send from " << this_node_id_ << " to " << peer_id << " - not in map.";
+
   if (handler) {
     if (!connections_.empty() || !idle_transports_.empty()) {
       handler(RudpErrors::not_connected);

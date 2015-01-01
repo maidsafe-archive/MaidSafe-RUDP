@@ -125,6 +125,9 @@ class Transport : public std::enable_shared_from_this<Transport> {
   std::string ThisDebugId() const;
   void SetManagedConnectionsDebugPrintout(std::function<std::string()> functor);
 
+  NatType& reference_to_nat_type() { return nat_type_; }
+  NodeId node_id() const;
+
   friend class Connection;
   friend class ConnectionManager;
 
@@ -157,7 +160,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void StartDispatch();
   void HandleDispatch(const ExtErrorCode& ec);
 
-  NodeId node_id() const;
   const asymm::PublicKey& public_key() const;
 
   void SignalMessageReceived(const NodeId& peer_id, const std::string& message);
