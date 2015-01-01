@@ -61,7 +61,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   using ConnectionPtr     = std::shared_ptr<Connection>;
   using ExtErrorCode      = std::error_code;
   using ErrorCode         = boost::system::error_code;
-  using OnMessage         = std::function<void(const NodeId& peer_id, std::string message)>;
+  using OnMessage         = std::function<void(const NodeId& peer_id, std::vector<uint8_t>)>;
   using OnConnect         = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
   using OnClose           = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
   using Duration          = boost::posix_time::time_duration;
@@ -80,16 +80,16 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   virtual ~Transport();
 
-  void Bootstrap(const BootstrapContacts&          bootstrap_list,
-                 const NodeId&                     this_node_id,
+  void Bootstrap(const BootstrapContacts& bootstrap_list,
+                 const NodeId&            this_node_id,
                  const asymm::PublicKey&  this_public_key,
-                 Endpoint                          local_endpoint,
-                 bool                              bootstrap_off_existing_connection,
-                 OnMessage                         on_message_slot,
-                 OnConnectionAdded                 on_connection_added_slot,
-                 OnConnectionLost                  on_connection_lost_slot,
-                 const OnNatDetected&              on_nat_detection_requested_slot,
-                 OnBootstrap                       on_bootstrap);
+                 Endpoint                 local_endpoint,
+                 bool                     bootstrap_off_existing_connection,
+                 OnMessage                on_message_slot,
+                 OnConnectionAdded        on_connection_added_slot,
+                 OnConnectionLost         on_connection_lost_slot,
+                 const OnNatDetected&     on_nat_detection_requested_slot,
+                 OnBootstrap              on_bootstrap);
 
   void Close();
 

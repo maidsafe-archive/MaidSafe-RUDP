@@ -531,17 +531,10 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
   }
 }
 
-void ManagedConnections::OnMessageSlot(const NodeId& peer_id, std::string message) {
-  try {
-    // FIXME: Why do we make the copy?
-    auto copied_message(std::make_shared<std::string>(std::move(message)));
-    if (auto listener = listener_.lock()) {
-      listener->MessageReceived(peer_id, std::vector<unsigned char>(std::begin(*copied_message),
-                                                                    std::end(*copied_message)));
-    }
-  } catch (const std::exception& e) {
-    LOG(kError) << "Failed to decrypt message: " << e.what();
-  }
+void ManagedConnections::OnMessageSlot(const NodeId& peer_id, std::vector<uint8_t> message) {
+  auto listener = listener_.lock();
+  if (!listener) return;
+  listener->MessageReceived(peer_id, message);
 }
 
 void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,

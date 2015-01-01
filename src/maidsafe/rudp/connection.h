@@ -67,7 +67,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   using ConnectionPtr     = std::shared_ptr<Connection>;
   using ExtErrorCode      = std::error_code;
   using ErrorCode         = boost::system::error_code;
-  using OnReceive         = std::function<void(const NodeId& peer_id, std::string message)>;
+  using OnReceive         = std::function<void(const NodeId& peer_id, std::vector<uint8_t>)>;
   using OnConnect         = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
   using OnClose           = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
 

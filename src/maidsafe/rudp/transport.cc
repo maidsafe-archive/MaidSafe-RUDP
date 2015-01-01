@@ -244,7 +244,7 @@ void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint
 Transport::OnMessage Transport::DefaultOnReceiveHandler() {
   std::weak_ptr<Transport> weak_self = shared_from_this();
 
-  return strand_.wrap([weak_self](const NodeId& peer_id, std::string message) {
+  return strand_.wrap([weak_self](const NodeId& peer_id, std::vector<uint8_t> message) {
       auto self = weak_self.lock();
 
       if (!self) return;

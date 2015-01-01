@@ -536,7 +536,7 @@ void Connection::HandleReadData(const ErrorCode& ec, size_t length) {
   if (data_received_ == data_size_) {
     if (std::shared_ptr<Transport> transport = transport_.lock()) {
       // The receive_buffer_ is cleared inside the StartReaddSize function.
-      std::string data(receive_buffer_.begin(), receive_buffer_.end());
+      auto data(std::move(receive_buffer_));
       StartReadSize();
       on_message_received_(socket_.PeerNodeId(), std::move(data));
     }

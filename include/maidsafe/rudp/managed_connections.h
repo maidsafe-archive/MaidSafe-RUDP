@@ -182,7 +182,7 @@ class ManagedConnections {
   std::vector<std::unique_ptr<PendingConnection>>::iterator FindPendingTransportWithNodeId(
       const NodeId& peer_id);
 
-  void OnMessageSlot(const NodeId& peer_id, std::string message);
+  void OnMessageSlot(const NodeId& peer_id, std::vector<uint8_t> message);
   void OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,
                              bool temporary_connection,
                              ConnectionPtr);
