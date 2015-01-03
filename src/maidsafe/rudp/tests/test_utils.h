@@ -35,6 +35,7 @@
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/managed_connections.h"
+#include "maidsafe/rudp/async_queue.h"
 
 namespace maidsafe {
 
@@ -63,7 +64,7 @@ class Node {
  public:
   explicit Node(int id);
   std::vector<NodeId> connection_lost_node_ids() const;
-  messages_t messages() const;
+  //messages_t messages() const;
   std::future<Contact> Bootstrap(const Contacts&, Endpoint local_endpoint = Endpoint());
   std::future<Contact> Bootstrap(Contact, Endpoint local_endpoint = Endpoint());
   boost::future<messages_t> GetFutureForMessages(uint32_t message_count);
@@ -87,6 +88,8 @@ class Node {
   std::future<void> Send(const NodeId& id, const std::string& msg) {
     return managed_connections_->Send(id, message_t(msg.begin(), msg.end()), asio::use_future);
   }
+
+  std::future<message_t> Receive() { return message_queue_.async_pop(asio::use_future); }
 
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
@@ -119,6 +122,8 @@ class Node {
     return managed_connections_->GetActiveConnectionCount();
   }
 
+  async_queue<std::error_code, message_t>& message_queue() { return message_queue_; }
+
  private:
   void SetPromiseIfDone();
 
@@ -131,6 +136,7 @@ class Node {
   std::vector<NodeId> connection_lost_node_ids_;
   std::vector<NodeId> connected_node_ids_;
   messages_t messages_;
+  async_queue<std::error_code, message_t> message_queue_;
   ManagedConnectionsPtr managed_connections_;
   bool promised_;
   uint32_t total_message_count_expectation_;

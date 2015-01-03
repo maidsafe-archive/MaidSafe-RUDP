@@ -189,10 +189,10 @@ std::vector<NodeId> Node::connection_lost_node_ids() const {
   return connection_lost_node_ids_;
 }
 
-Node::messages_t Node::messages() const {
-  std::lock_guard<std::mutex> guard(mutex_);
-  return messages_;
-}
+//Node::messages_t Node::messages() const {
+//  std::lock_guard<std::mutex> guard(mutex_);
+//  return messages_;
+//}
 
 std::future<Contact> Node::Bootstrap(Contact bootstrap_endpoint, Endpoint local_endpoint) {
   return Bootstrap(Contacts{bootstrap_endpoint}, local_endpoint);
@@ -215,8 +215,12 @@ std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpo
       std::string message_str(message.begin(), message.end());
       LOG(kInfo) << self.id() << " -- Received: " << (is_printable ? message_str.substr(0, 30)
                                                                    : HexEncode(message_str.substr(0, 15)));
+      self.message_queue_.push(std::error_code(), message);
+
+      // FIXME: This shall become redundant (use the message_queue_ instead)
       std::lock_guard<std::mutex> guard(self.mutex_);
       self.messages_.emplace_back(message);
+
       self.SetPromiseIfDone();
     }
 

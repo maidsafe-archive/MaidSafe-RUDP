@@ -73,12 +73,11 @@ class ManagedConnectionsFuncTest : public testing::Test {
  protected:
   // Each node sending n messsages to all other connected nodes.
   void RunNetworkTest(uint8_t num_messages, int messages_size) {
-    LOG(kVerbose) << "peter RunNetworkTest";
     using std::vector;
 
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
     vector<Node::messages_t> sent_messages;
-    vector<boost::future<Node::messages_t>> futures;
+    vector<vector<std::future<Node::message_t>>> rx_futures;
 
     // Generate_messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
@@ -86,7 +85,6 @@ class ManagedConnectionsFuncTest : public testing::Test {
       std::string message_prefix(std::string("Msg from ") + nodes_[i]->id() + " ");
       for (uint8_t j = 0; j != num_messages; ++j) {
         auto message = message_prefix + std::string(messages_size - message_prefix.size(), 'A' + j);
-
         sent_messages[i].push_back(Node::message_t(message.begin(), message.end()));
       }
     }
@@ -94,7 +92,10 @@ class ManagedConnectionsFuncTest : public testing::Test {
     // Get futures for messages from individual nodes
     for (auto node_ptr : nodes_) {
       node_ptr->ResetData();
-      futures.emplace_back(node_ptr->GetFutureForMessages(messages_received_per_node));
+      rx_futures.emplace_back();
+      for (unsigned int i = 0; i < messages_received_per_node; ++i) {
+        rx_futures.back().emplace_back(node_ptr->message_queue().async_pop(asio::use_future));
+      }
     }
 
     // FIXME: Wait for the send futures somewhere below receiving.
@@ -103,33 +104,25 @@ class ManagedConnectionsFuncTest : public testing::Test {
       ASSERT_EQ(nodes_.size() - 1, peers.size());
       for (uint16_t j = 0; j != peers.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
-          Sleep(std::chrono::seconds(1));
-          try {
-            nodes_.at(i)->managed_connections()->Send(
-                peers.at(j), sent_messages[i][k], asio::use_future).get();
-          }
-          catch (std::system_error e) {
-            LOG(kVerbose) << "Can't send "
-                          << nodes_.at(i)->id() << " " << nodes_.at(j)->id()
-                          << " " << e.what();
-          }
+          ASSERT_NO_THROW(nodes_.at(i)->Send(peers.at(j), sent_messages[i][k]).get())
+             << "Can't send " << nodes_.at(i)->id() << " " << nodes_.at(j)->id();
         }
       }
     }
 
     // Waiting for all results (promises)
-    for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      boost::chrono::seconds timeout(
+    for (size_t i = 0; i != nodes_.size(); ++i) {
+      // FIXME: This needs a comment.
+      std::chrono::seconds timeout(
           (i == 0 ? num_messages * nodes_.size()
                   : (nodes_.size() - i))
           * (messages_size > (128 * 1024) ? messages_size / (128 * 1024) 
                                           : 1));
 
-      if (futures.at(i).wait_for(timeout) == boost::future_status::ready) {
-        auto messages(futures.at(i).get());
-        EXPECT_FALSE(messages.empty()) << "Something";
-      } else {
-        EXPECT_FALSE(true) << "Timed out on " << nodes_.at(i)->id();
+      for (auto& future : rx_futures.at(i)) {
+        ASSERT_EQ(future.wait_for(timeout), std::future_status::ready);
+        auto message = std::move(future.get());
+        ASSERT_FALSE(message.empty()) << "Received an empty message";
       }
     }
 

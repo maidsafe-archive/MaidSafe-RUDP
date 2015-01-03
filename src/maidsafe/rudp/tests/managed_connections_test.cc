@@ -937,6 +937,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   auto done_in = done_out.get_future();
 
   peer_futures = nodes_[1]->GetFutureForMessages(kRepeatCount);
+
   const std::string message_str(RandomAlphaNumericString(256 * 1024));
   Node::message_t message(message_str.begin(), message_str.end());
 
@@ -1040,38 +1041,6 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
     EXPECT_EQ(message, peer_message);
   }
 }
-
-//struct FutureResult {
-//  struct State {
-//    std::promise<int> promise;
-//    std::future<int> future;
-//
-//    State() : future(promise.get_future()) {}
-//  };
-//
-//  std::function<void(int /* result */)> MakeContinuation() {
-//    _state = std::make_shared<State>();
-//
-//    auto state_copy = _state;
-//    return [state_copy](int result) {  // NOLINT
-//      state_copy->promise.set_value(result);
-//    };
-//  }
-//
-//  bool Wait(int millis) {
-//    auto duration = std::chrono::milliseconds(millis);
-//
-//    if (_state->future.wait_for(duration) == std::future_status::timeout) {
-//      return false;
-//    }
-//
-//    return true;
-//  }
-//
-//  int Result() const { return _state->future.get(); }
-//
-//  std::shared_ptr<State> _state;
-//};
 
 TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   using boost::chrono::seconds;

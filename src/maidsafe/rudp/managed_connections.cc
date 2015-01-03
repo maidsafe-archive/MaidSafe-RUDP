@@ -163,7 +163,7 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
     const std::function<void(Error, const Contact&)>& handler) {
   assert(strand_.running_in_this_thread());
 
-  TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, *nat_type_));
+  auto transport = std::make_shared<detail::Transport>(asio_service_, *nat_type_);
 
   //transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
   transport->SetManagedConnectionsDebugPrintout([this]() { return "FIXME"; });
