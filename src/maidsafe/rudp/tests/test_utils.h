@@ -64,10 +64,8 @@ class Node {
  public:
   explicit Node(int id);
   std::vector<NodeId> connection_lost_node_ids() const;
-  //messages_t messages() const;
   std::future<Contact> Bootstrap(const Contacts&, Endpoint local_endpoint = Endpoint());
   std::future<Contact> Bootstrap(Contact, Endpoint local_endpoint = Endpoint());
-  boost::future<messages_t> GetFutureForMessages(uint32_t message_count);
 
   std::future<EndpointPair> GetAvailableEndpoints(NodeId id) {
     return managed_connections_->GetAvailableEndpoints(id, asio::use_future);
@@ -125,22 +123,15 @@ class Node {
   async_queue<std::error_code, message_t>& message_queue() { return message_queue_; }
 
  private:
-  void SetPromiseIfDone();
-
- private:
   NodeId node_id_;
   std::string id_;
   asymm::Keys key_pair_;
-  NonEmptyString validation_data_;
   mutable std::mutex mutex_;
   std::vector<NodeId> connection_lost_node_ids_;
   std::vector<NodeId> connected_node_ids_;
   messages_t messages_;
   async_queue<std::error_code, message_t> message_queue_;
   ManagedConnectionsPtr managed_connections_;
-  bool promised_;
-  uint32_t total_message_count_expectation_;
-  boost::promise<messages_t> message_promise_;
 
   std::shared_ptr<ManagedConnections::Listener> bootstrap_listener_;
 };

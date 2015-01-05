@@ -94,6 +94,8 @@ std::chrono::milliseconds rendezvous_connect_timeout() {
   return timeout;
 }
 
+static NodeId random_node_id() { return NodeId(RandomString(NodeId::kSize)); }
+
 //boost::chrono::milliseconds boost_rendezvous_connect_timeout() {
 //  static const boost::chrono::milliseconds timeout(
 //      Parameters::rendezvous_connect_timeout.total_milliseconds());
@@ -332,8 +334,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 
   //  Before Bootstrapping
   EndpointPair this_endpoint_pair(Endpoint(ip::address::from_string("1.1.1.1"), 1025));
-
-  auto random_node_id = []() { return NodeId(RandomString(NodeId::kSize)); };
 
   ASSERT_THROW_CODE(get_within(node_.GetAvailableEndpoints(random_node_id()), seconds(10)),
                     CommonErrors::unable_to_handle_request);
@@ -897,18 +897,18 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_NO_THROW(get_within(node_a_add, seconds(10)));
   ASSERT_NO_THROW(get_within(node_c_add, seconds(10)));
 
-//// TODO:
-//  // Unavailable node id
-//  node_.ResetData();
-//  nodes_[1]->ResetData();
-//  node_.managed_connections()->Send(NodeId(NodeId::IdType::kRandomId), "message7",
-//                                    MessageSentFunctor());
-//  node_.managed_connections()->Send(NodeId(NodeId::IdType::kRandomId), "message8",
-//                                    future_result.MakeContinuation());
-//  ASSERT_TRUE(future_result.Wait(millis));
-//  EXPECT_EQ(kInvalidConnection, future_result.Result());
+// TODO:
+  // Unavailable node id
+  node_a.ResetData();
+  node_c.ResetData();
 
-  // Valid Send from node_ to nodes_[1]
+  ASSERT_THROW_CODE(get_within(node_a.Send(random_node_id(), "message7"), seconds(10)),
+                    RudpErrors::not_connected);
+
+  ASSERT_THROW_CODE(get_within(node_a.Send(random_node_id(), "message8"), seconds(10)),
+                    RudpErrors::not_connected);
+
+  // Valid Send from node_a to node_c
   node_a.Send(node_c.node_id(), "message9").get();
   node_a.Send(node_c.node_id(), "message10").get();
 
@@ -923,12 +923,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   // Valid Send from nodes_[1] to node_
   node_a.ResetData();
   node_c.ResetData();
-  auto future_messages_at_peer = node_.GetFutureForMessages(2);
   node_c.Send(node_a.node_id(), "message11").get();
   node_c.Send(node_a.node_id(), "message12").get();
-  ASSERT_EQ(boost::future_status::ready, future_messages_at_peer.wait_for(boost::chrono::seconds(200)));
-  messages = future_messages_at_peer.get();
-  ASSERT_EQ(2U, messages.size());
+  messages.push_back(std::move(get_within(node_a.Receive(), seconds(100))));
+  messages.push_back(std::move(get_within(node_a.Receive(), seconds(100))));
   EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message11")));
   EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message12")));
 
@@ -960,12 +958,8 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_a.ResetData();
   node_c.ResetData();
   auto sent_message = Node::str_to_msg(RandomString(ManagedConnections::MaxMessageSize()));
-  future_messages_at_peer = node_.GetFutureForMessages(1);
   node_c.Send(node_a.node_id(), sent_message).get();
-  ASSERT_EQ(boost::future_status::ready, future_messages_at_peer.wait_for(boost::chrono::seconds(20)));
-  messages = future_messages_at_peer.get();
-  ASSERT_EQ(1U, messages.size());
-  EXPECT_EQ(sent_message, messages[0]);
+  EXPECT_EQ(sent_message, get_within(node_a.Receive(), seconds(20)));
 
   // Excessively large message
   node_a.ResetData();
@@ -975,7 +969,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
-  using boost::chrono::seconds;
+  using std::chrono::seconds;
 
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
@@ -1006,7 +1000,6 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   node_c.ResetData();
   const int kMessageCount(10);
   ASSERT_LE(kMessageCount, std::numeric_limits<int8_t>::max());
-  auto recv_futures(node_c.GetFutureForMessages(kMessageCount));
   std::vector<Node::message_t> sent_messages;
   for (int8_t i(0); i != kMessageCount; ++i)
     sent_messages.push_back(Node::str_to_msg(std::string(256 * 1024, 'A' + i)));
@@ -1020,12 +1013,14 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
 
   for (auto& future : send_futures) future.get();
 
-  ASSERT_EQ(boost::future_status::ready, recv_futures.wait_for(seconds(10 * kMessageCount)));
+  std::vector<Node::message_t> received_messages;
+  for (int i(0); i != kMessageCount; ++i) {
+    ASSERT_NO_THROW(received_messages.push_back(get_within(node_c.Receive(), seconds(10))));
+  }
 
-  auto messages(recv_futures.get());
-  ASSERT_EQ(kMessageCount, messages.size());
-  for (int i(0); i != kMessageCount; ++i)
-    EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), sent_messages[i]));
+  for (int i(0); i != kMessageCount; ++i) {
+    EXPECT_NE(received_messages.end(), std::find(received_messages.begin(), received_messages.end(), sent_messages[i]));
+  }
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
@@ -1088,6 +1083,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
+  using std::chrono::seconds;
 
   Parameters::bootstrap_connection_lifespan = bptime::seconds(6);
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
@@ -1096,28 +1092,23 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   ASSERT_NO_THROW(chosen_node = node_.Bootstrap(bootstrap_endpoints_[0]).get());
   ASSERT_TRUE(detail::IsValid(chosen_node.endpoint_pair.local));
 
-//  FutureResult future_result;
-  node_.ResetData();
-  nodes_[0]->ResetData();
-  auto future_messages_at_peer(nodes_[0]->GetFutureForMessages(1));
-  node_.Send(nodes_[0]->node_id(), "message01").get();
+  auto& node_a = node_;
+  auto& node_b = *nodes_[0];
 
-  ASSERT_EQ(boost::future_status::ready, future_messages_at_peer.wait_for(boost::chrono::milliseconds(200)));
-  auto messages = future_messages_at_peer.get();
-  ASSERT_EQ(1U, messages.size());
-  EXPECT_EQ(*messages.begin(), Node::str_to_msg("message01"));
+  //  FutureResult future_result;
+  node_a.ResetData();
+  node_b.ResetData();
+  Node::message_t sent_msg = Node::str_to_msg("message01");
+  node_a.Send(node_b.node_id(), sent_msg).get();
+  ASSERT_EQ(get_within(node_b.Receive(), seconds(200)), sent_msg);
 
-  // Send within bootstrap_disconnection_timeout period from nodes_[0] to node_
-  node_.ResetData();
-  nodes_[0]->ResetData();
-  future_messages_at_peer = node_.GetFutureForMessages(1);
-  EndpointPair this_endpoint_pair;
-  ASSERT_THROW_CODE(node_.GetAvailableEndpoints(nodes_[0]->node_id()).get(), RudpErrors::already_connected);
-  nodes_[0]->Send(node_.node_id(), "message02").get();
-
-  messages = future_messages_at_peer.get();
-  ASSERT_EQ(1U, messages.size());
-  EXPECT_EQ(*messages.begin(), Node::str_to_msg("message02"));
+  // Send within bootstrap_disconnection_timeout period from node_b to node_a
+  node_a.ResetData();
+  node_b.ResetData();
+  ASSERT_THROW_CODE(node_.GetAvailableEndpoints(node_b.node_id()).get(), RudpErrors::already_connected);
+  sent_msg = Node::str_to_msg("message02");
+  node_b.Send(node_.node_id(), sent_msg).get();
+  ASSERT_EQ(get_within(node_a.Receive(), seconds(100)), sent_msg);
 
 // TODO: I think the below code no longer applies with the new API.
 // If I understand it correctly a bootstrapped node no longer needs to be

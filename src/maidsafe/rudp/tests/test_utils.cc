@@ -174,15 +174,12 @@ Node::Node(int id)
     : node_id_(RandomString(NodeId::kSize)),
       id_("Node " + boost::lexical_cast<std::string>(id)),
       key_pair_(asymm::GenerateKeyPair()),
-      validation_data_(id_ + "'s validation data"),
       mutex_(),
       connection_lost_node_ids_(),
       connected_node_ids_(),
       messages_(),
-      managed_connections_(new ManagedConnections),
-      promised_(false),
-      total_message_count_expectation_(0),
-      message_promise_() {}
+      managed_connections_(new ManagedConnections)
+      {}
 
 std::vector<NodeId> Node::connection_lost_node_ids() const {
   std::lock_guard<std::mutex> guard(mutex_);
@@ -221,7 +218,7 @@ std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpo
       std::lock_guard<std::mutex> guard(self.mutex_);
       self.messages_.emplace_back(message);
 
-      self.SetPromiseIfDone();
+      //self.SetPromiseIfDone();
     }
 
     void ConnectionLost(NodeId peer_id) override {
@@ -253,26 +250,26 @@ void Node::ResetData() {
   std::lock_guard<std::mutex> guard(mutex_);
   connection_lost_node_ids_.clear();
   messages_.clear();
-  total_message_count_expectation_ = 0;
+  //total_message_count_expectation_ = 0;
 }
 
-boost::future<Node::messages_t> Node::GetFutureForMessages(uint32_t message_count) {
-  std::lock_guard<std::mutex> guard(mutex_);
-  assert(message_count > 0);
-  total_message_count_expectation_ = message_count;
-  promised_ = true;
-  boost::promise<messages_t> message_promise;
-  message_promise_.swap(message_promise);
-  return message_promise_.get_future();
-}
+//boost::future<Node::messages_t> Node::GetFutureForMessages(uint32_t message_count) {
+//  std::lock_guard<std::mutex> guard(mutex_);
+//  assert(message_count > 0);
+//  total_message_count_expectation_ = message_count;
+//  promised_ = true;
+//  boost::promise<messages_t> message_promise;
+//  message_promise_.swap(message_promise);
+//  return message_promise_.get_future();
+//}
 
-void Node::SetPromiseIfDone() {
-  if (promised_ && messages_.size() >= total_message_count_expectation_) {
-    message_promise_.set_value(messages_);
-    promised_ = false;
-    total_message_count_expectation_ = 0;
-  }
-}
+//void Node::SetPromiseIfDone() {
+//  if (promised_ && messages_.size() >= total_message_count_expectation_) {
+//    message_promise_.set_value(messages_);
+//    promised_ = false;
+//    total_message_count_expectation_ = 0;
+//  }
+//}
 
 }  // namespace test
 
