@@ -246,6 +246,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   catch(std::system_error e) {
     ASSERT_EQ(e.code(), RudpErrors::failed_to_bootstrap);
   }
+  // TODO
   // Unavailable bootstrap_endpoints
  // {
  //   Asio::io_service io_service;
@@ -258,7 +259,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
  //                           node_.private_key(), node_.public_key(), chosen_bootstrap, nat_type));
  // }
 //  // Unavailable bootstrap_endpoints with kLivePort
-  // TODO
 //  {
 //    // The tmp_socket opens the kLivePort to make sure no other program using RUDP
 //    // on this test PC is using it. Though, if some other test PC is using the port
@@ -435,112 +435,108 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Add) {
+  using std::chrono::seconds;
+
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
   // Valid bootstrap
   Contact chosen_node;
-  try {
-    chosen_node = node_.Bootstrap(bootstrap_endpoints_[0]).get();
-  }
-  catch (std::system_error error) {
-    GTEST_FAIL() << "Exception: " << error.what();
-  }
 
+  ASSERT_NO_THROW(chosen_node = get_within(node_.Bootstrap(bootstrap_endpoints_[0]), seconds(10)));
   ASSERT_TRUE(chosen_node.id.IsValid());
+
   Sleep(std::chrono::milliseconds(250));
 
-//// FIXME: Do we need to test the same thing in so many tests? I.e.
-////        testing whether a connection already exists is tested multiple
-////        times in the tests above. IMO it just makes other tests less
-////        readable.
-//  nodes_[0]->ResetData();
-//  EndpointPair peer_endpoint_pair0, peer_endpoint_pair2, this_endpoint_pair0, this_endpoint_pair1,
-//      this_endpoint_pair2;
-//  NatType nat_type0(NatType::kUnknown), nat_type1(NatType::kUnknown);
-//  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-//            node_.managed_connections()->GetAvailableEndpoint(nodes_[0]->node_id(), EndpointPair(),
-//                                                              this_endpoint_pair0, nat_type1));
-//  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-//            nodes_[0]->managed_connections()->GetAvailableEndpoint(
-//                node_.node_id(), this_endpoint_pair0, peer_endpoint_pair0, nat_type0));
+  auto& node_a = node_;
+  auto& node_b = *nodes_[0];
+  auto& node_c = *nodes_[1];
+  auto& node_d = *nodes_[2];
+
+
+  node_b.ResetData();
+
+  ASSERT_THROW_CODE(get_within(node_a.GetAvailableEndpoints(node_b.node_id()), seconds(10)),
+                    RudpErrors::already_connected); 
+  ASSERT_THROW_CODE(get_within(node_b.GetAvailableEndpoints(node_a.node_id()), seconds(10)),
+                    RudpErrors::already_connected); 
+
+// It used to be possible to check the endpoint even if already_connected error happened,
+// that is no longer the case though.
 //  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair0.local));
 //  EXPECT_TRUE(detail::IsValid(this_endpoint_pair0.local));
-//
-//  // Case: Own NodeId
-//  EXPECT_EQ(kOwnId, node_.managed_connections()->Add(node_.node_id(), EndpointPair(),
-//                                                     node_.validation_data()));
+
+  // Case: Own NodeId
+  // FIXME: This used the valid endpoint from above, but we no longer get it, so either
+  // remove the test or get a valid endpoint to node_a.
+  try {
+    get_within(node_a.Add(node_a.make_contact(EndpointPair())), seconds(10));
+    GTEST_FAIL() << "Expected to throw exception";
+  }
+  catch (std::system_error error) {
+    EXPECT_EQ(error.code(), RudpErrors::operation_not_supported);
+  }
+
+  // Case: Empty endpoint
+  try {
+    get_within(node_a.Add(node_a.make_contact(EndpointPair())), seconds(10));
+    GTEST_FAIL() << "Expected to throw exception";
+  }
+  catch (std::system_error error) {
+    EXPECT_EQ(error.code(), RudpErrors::operation_not_supported);
+  }
+
+  {
+    // Case: Non-existent endpoint
+    EndpointPair random_peer_endpoint;
+    random_peer_endpoint.local    = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
+    random_peer_endpoint.external = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
+
     try {
-      node_.managed_connections()->Add(Contact{node_.node_id(), Endpoint(), node_.public_key()}, asio::use_future).get();
-      GTEST_FAIL() << "Expected to throw exception";
+      get_within(node_a.GetAvailableEndpoints(node_c.node_id()), seconds(10));
     }
     catch (std::system_error error) {
-      EXPECT_EQ(error.code(), RudpErrors::operation_not_supported);
+      GTEST_FAIL() << "Exception: " << error.what(); 
     }
 
-    // Case: Empty endpoint
     try {
-      node_.managed_connections()->Add(Contact{node_.node_id(), Endpoint(), node_.public_key()}, asio::use_future).get();
-      GTEST_FAIL() << "Expected to throw exception";
+      get_within(node_a.Add(node_c.make_contact(random_peer_endpoint)),
+                 10 * rendezvous_connect_timeout());;
+      GTEST_FAIL() << "Expected to throw";
     }
     catch (std::system_error error) {
-      EXPECT_EQ(error.code(), RudpErrors::operation_not_supported);
+      ASSERT_EQ(error.code(), RudpErrors::timed_out) << "Exception: " << error.what(); 
+    }
+  }
+
+  {
+    // Case: Success
+    node_a.ResetData();
+    node_d.ResetData();
+
+    EndpointPair a_eps, d_eps;
+
+    try {
+      a_eps = node_a.managed_connections()->GetAvailableEndpoints(
+          node_d.node_id(), asio::use_future).get();
+
+      d_eps = node_d.managed_connections()->GetAvailableEndpoints(
+          node_a.node_id(), asio::use_future).get();
+    }
+    catch (std::system_error error) {
+      GTEST_FAIL() << "Exception: " << error.what(); 
     }
 
-    {
-      // Case: Non-existent endpoint
-      EndpointPair random_peer_endpoint;
-      random_peer_endpoint.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
-      random_peer_endpoint.external = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
+    auto a_add = node_a.managed_connections()->Add(node_d.make_contact(d_eps), asio::use_future);
+    auto d_add = node_d.managed_connections()->Add(node_a.make_contact(a_eps), asio::use_future);
 
-      try {
-        node_.managed_connections()->GetAvailableEndpoints(
-          nodes_[1]->node_id(), asio::use_future).get();
-      }
-      catch (std::system_error error) {
-        GTEST_FAIL() << "Exception: " << error.what(); 
-      }
-
-      try {
-        node_.managed_connections()->Add(nodes_[1]->make_contact(random_peer_endpoint), asio::use_future).get();
-        GTEST_FAIL() << "Expected to throw";
-      }
-      catch (std::system_error error) {
-        ASSERT_EQ(error.code(), RudpErrors::timed_out) << "Exception: " << error.what(); 
-      }
+    try {
+      a_add.get();
+      d_add.get();
     }
-
-    {
-      // Case: Success
-      auto& node_a = node_;
-      auto& node_b = *nodes_[2];
-
-      node_a.ResetData();
-      node_b.ResetData();
-
-      EndpointPair a_eps, b_eps;
-
-      try {
-        a_eps = node_a.managed_connections()->GetAvailableEndpoints(
-            node_b.node_id(), asio::use_future).get();
-
-        b_eps = node_b.managed_connections()->GetAvailableEndpoints(
-            node_a.node_id(), asio::use_future).get();
-      }
-      catch (std::system_error error) {
-        GTEST_FAIL() << "Exception: " << error.what(); 
-      }
-
-      auto a_add = node_a.managed_connections()->Add(node_b.make_contact(b_eps), asio::use_future);
-      auto b_add = node_b.managed_connections()->Add(node_a.make_contact(a_eps), asio::use_future);
-
-      try {
-        a_add.get();
-        b_add.get();
-      }
-      catch (std::system_error error) {
-        GTEST_FAIL() << "Exception: " << error.what();
-      }
+    catch (std::system_error error) {
+      GTEST_FAIL() << "Exception: " << error.what();
     }
+  }
 }
 
 void DispatchHandler(const std::error_code& ec, std::shared_ptr<detail::Multiplexer> muxer) {
