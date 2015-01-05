@@ -16,7 +16,6 @@
     See the Licences for the specific language governing permissions and limitations relating to
     use of the MaidSafe Software.                                                                 */
 
-#include "maidsafe/rudp/managed_connections.h"
 
 #include <atomic>
 #include <chrono>
@@ -26,6 +25,8 @@
 #include <vector>
 
 #include "asio/use_future.hpp"
+#include "maidsafe/rudp/managed_connections.h"
+#include "maidsafe/rudp/tests/histogram.h"
 
 #ifndef WIN32
 extern "C" char** environ;
@@ -56,6 +57,7 @@ extern "C" char** environ;
 #include "maidsafe/rudp/core/session.h"
 #include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/tests/test_utils.h"
+#include "maidsafe/rudp/tests/get_within.h"
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/connection_manager.h"
 #include "maidsafe/rudp/transport.h"
@@ -69,6 +71,8 @@ namespace args = std::placeholders;
 namespace Asio = boost::asio;
 namespace bptime = boost::posix_time;
 namespace ip = asio::ip;
+using seconds      = std::chrono::seconds;
+using milliseconds = std::chrono::milliseconds;
 
 namespace maidsafe {
 
@@ -78,29 +82,13 @@ namespace test {
 
 namespace {
 
-template<class FutureT>
-auto get_within(FutureT&& future, std::chrono::steady_clock::duration duration)
-    -> decltype(future.get()) {
-  if (future.wait_for(duration) == std::future_status::ready) {
-    return future.get();
-  } else {
-    throw std::system_error(asio::error::timed_out);
-  }
-}
-
-std::chrono::milliseconds rendezvous_connect_timeout() {
-  static const std::chrono::milliseconds timeout(
+milliseconds rendezvous_connect_timeout() {
+  static const milliseconds timeout(
       Parameters::rendezvous_connect_timeout.total_milliseconds());
   return timeout;
 }
 
 static NodeId random_node_id() { return NodeId(RandomString(NodeId::kSize)); }
-
-//boost::chrono::milliseconds boost_rendezvous_connect_timeout() {
-//  static const boost::chrono::milliseconds timeout(
-//      Parameters::rendezvous_connect_timeout.total_milliseconds());
-//  return timeout;
-//}
 
 }  // unnamed namespace
 
@@ -150,8 +138,9 @@ class ManagedConnectionsTest : public testing::Test {
                        NatType& /*nat_type*/) {
     ASSERT_NO_THROW(chosen_node = node_.Bootstrap(bootstrap_endpoints_[index]).get());
     ASSERT_EQ(nodes_[index]->node_id(), chosen_node.id);
-    Sleep(std::chrono::milliseconds(250));
-    nodes_[index]->ResetData();
+
+    // FIXME: Remove sync by sleep.
+    Sleep(milliseconds(250));
 
     ASSERT_THROW_CODE
       ( this_endpoint_pair = node_.GetAvailableEndpoints(nodes_[index]->node_id()).get()
@@ -323,8 +312,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
-  using std::chrono::seconds;
-
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
   struct Listener : public ManagedConnections::Listener {
@@ -375,8 +362,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
-  using std::chrono::seconds;
-
   const int kNodeCount(8);
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNodeCount));
 
@@ -422,7 +407,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
   }
 
   // FIXME: Don't sync by sleep.
-  Sleep(rendezvous_connect_timeout() / 2 + std::chrono::milliseconds(500));
+  Sleep(rendezvous_connect_timeout() / 2 + milliseconds(500));
 
   for (int i = 1; i != kNodeCount; ++i) {
     try {
@@ -435,8 +420,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_PendingConnectionsPruning) {
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Add) {
-  using std::chrono::seconds;
-
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
   // Valid bootstrap
@@ -445,25 +428,22 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   ASSERT_NO_THROW(chosen_node = get_within(node_.Bootstrap(bootstrap_endpoints_[0]), seconds(10)));
   ASSERT_TRUE(chosen_node.id.IsValid());
 
-  Sleep(std::chrono::milliseconds(250));
+  Sleep(milliseconds(250));
 
   auto& node_a = node_;
   auto& node_b = *nodes_[0];
   auto& node_c = *nodes_[1];
   auto& node_d = *nodes_[2];
 
-
-  node_b.ResetData();
-
   ASSERT_THROW_CODE(get_within(node_a.GetAvailableEndpoints(node_b.node_id()), seconds(10)),
                     RudpErrors::already_connected); 
   ASSERT_THROW_CODE(get_within(node_b.GetAvailableEndpoints(node_a.node_id()), seconds(10)),
                     RudpErrors::already_connected); 
 
-// It used to be possible to check the endpoint even if already_connected error happened,
-// that is no longer the case though.
-//  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair0.local));
-//  EXPECT_TRUE(detail::IsValid(this_endpoint_pair0.local));
+  // It used to be possible to check the endpoint even if already_connected error happened,
+  // that is no longer the case though.
+  //  EXPECT_TRUE(detail::IsValid(peer_endpoint_pair0.local));
+  //  EXPECT_TRUE(detail::IsValid(this_endpoint_pair0.local));
 
   // Case: Own NodeId
   // FIXME: This used the valid endpoint from above, but we no longer get it, so either
@@ -509,10 +489,6 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   }
 
   {
-    // Case: Success
-    node_a.ResetData();
-    node_d.ResetData();
-
     EndpointPair a_eps, d_eps;
 
     try {
@@ -547,25 +523,20 @@ void DispatchHandler(const std::error_code& ec, std::shared_ptr<detail::Multiple
 TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
-  // Bootstrap node_ off nodes_[0]
-  Contact chosen_node;
-
   auto& node_a = node_;
-  auto& node_b = *nodes_[0];
   auto& node_c = *nodes_[1];
 
+  // Bootstrap node_a off nodes_[0]
+  Contact chosen_node;
+
   try {
-    node_a.Bootstrap(bootstrap_endpoints_[0] /* node_b endpoint */).get();
+    node_a.Bootstrap(bootstrap_endpoints_[0]).get();
   }
   catch (std::system_error error) {
     GTEST_FAIL() << "Exception: " << error.what();
   }
 
-  // Connect node_ to nodes_[1]
-  node_a.ResetData();
-  node_b.ResetData();
-  node_c.ResetData();
-
+  // Connect node_a to node_c
   auto get_eps_a = node_a.GetAvailableEndpoints(node_c.node_id());
   auto get_eps_c = node_c.GetAvailableEndpoints(node_a.node_id());
 
@@ -619,16 +590,13 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
                       detail::Session::kBootstrapAndKeep, 0, on_nat_detection_requested_slot);
 
   auto future(std::async(std::launch::async, [&io_service]() { io_service.run_one(); }));
-  Sleep(std::chrono::milliseconds(500));
+  Sleep(milliseconds(500));
   EXPECT_FALSE(socket.IsConnected());
   socket.Close();
   future.get();
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
-  using std::chrono::seconds;
-  using std::chrono::milliseconds;
-
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 4));
 
   auto wait_for_signals([&](int node_index, unsigned active_connection_count) -> bool {
@@ -660,7 +628,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
 
   for (unsigned count(0);
        node_c.managed_connections()->GetActiveConnectionCount() < 4 && count < 10; ++count)
-    Sleep(std::chrono::milliseconds(100));
+    Sleep(milliseconds(100));
 
   EXPECT_EQ(node_c.managed_connections()->GetActiveConnectionCount(), 4);
 
@@ -669,7 +637,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   ASSERT_TRUE(wait_for_signals(1, 3));
   ASSERT_EQ(node_a.connection_lost_node_ids().size(), 1U);
   //FIXME: Don't sync by sleep.
-  Sleep(std::chrono::milliseconds(200));
+  Sleep(milliseconds(200));
   ASSERT_EQ(node_c.connection_lost_node_ids().size(), 1U);
   EXPECT_EQ(chosen_node.id, node_a.connection_lost_node_ids()[0]);
   EXPECT_EQ(node_c.managed_connections()->GetActiveConnectionCount(), 3);
@@ -677,9 +645,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   // After Add
   ASSERT_NO_THROW(chosen_node = get_within(node_a.Bootstrap(bootstrap_endpoints_[0]), seconds(10)));
   ASSERT_EQ(node_b.node_id(), chosen_node.id);
-  node_b.ResetData();
+  node_b.ResetLostConnections();
 
-  Sleep(std::chrono::milliseconds(250));
+  Sleep(milliseconds(250));
 
   try {
     get_within(node_a.GetAvailableEndpoints(chosen_node.id), seconds(10));
@@ -698,8 +666,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   }
 
   // Invalid NodeId
-  node_a.ResetData();
-  node_b.ResetData();
+  node_a.ResetLostConnections();
+  node_b.ResetLostConnections();
   node_a.Remove(NodeId()).get();
   ASSERT_FALSE(wait_for_signals(0, 4));
   EXPECT_EQ(node_b.GetActiveConnectionCount(), 4);
@@ -707,8 +675,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   EXPECT_TRUE(node_b.connection_lost_node_ids().empty());
 
   // Unknown endpoint
-  node_a.ResetData();
-  node_b.ResetData();
+  node_a.ResetLostConnections();
+  node_b.ResetLostConnections();
   node_a.Remove(node_d.node_id()).get();
   ASSERT_FALSE(wait_for_signals(2, 3));
   EXPECT_EQ(node_d.GetActiveConnectionCount(), 3);
@@ -716,8 +684,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   EXPECT_TRUE(node_d.connection_lost_node_ids().empty());
 
   // Valid
-  node_a.ResetData();
-  node_b.ResetData();
+  node_a.ResetLostConnections();
+  node_b.ResetLostConnections();
   node_a.Remove(node_b.node_id()).get();
   ASSERT_TRUE(wait_for_signals(0, 3));
   EXPECT_EQ(node_b.GetActiveConnectionCount(), 3);
@@ -727,8 +695,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
   EXPECT_EQ(node_b.connection_lost_node_ids()[0], node_a.node_id());
 
   // Already removed endpoint
-  node_a.ResetData();
-  node_b.ResetData();
+  node_a.ResetLostConnections();
+  node_b.ResetLostConnections();
   node_a.Remove(node_b.node_id()).get();
   ASSERT_FALSE(wait_for_signals(0, 3));
   EXPECT_EQ(node_b.GetActiveConnectionCount(), 3);
@@ -744,7 +712,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   ASSERT_EQ(nodes_[0]->node_id(), chosen_node.id);
   for (unsigned count(0);
        nodes_[0]->managed_connections()->GetActiveConnectionCount() < 2 && count < 10; ++count)
-    Sleep(std::chrono::milliseconds(100));
+    Sleep(milliseconds(100));
   EXPECT_EQ(nodes_[0]->managed_connections()->GetActiveConnectionCount(), 2);
 
   EndpointPair this_endpoint_pair, peer_endpoint_pair;
@@ -792,7 +760,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
 
   for (unsigned count(0);
        node_b.managed_connections()->GetActiveConnectionCount() < 2 && count < 10; ++count)
-    Sleep(std::chrono::milliseconds(100));
+    Sleep(milliseconds(100));
 
   EXPECT_EQ(node_b.managed_connections()->GetActiveConnectionCount(), 2);
 
@@ -810,8 +778,6 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
   EXPECT_NO_THROW(node_a_add.get());
   EXPECT_NO_THROW(node_c_add.get());
 
-  node_a.ResetData();
-  node_c.ResetData();
   // FIXME: This was 10000 but seems like this new api made sending a lot
   // slower, so I made it smaller for now.
   static uint32_t kRepeatCount = 256;
@@ -822,7 +788,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
 #endif
 #endif
 
-  const Node::message_t message(Node::str_to_msg(RandomAlphaNumericString(1024)));
+  auto message = Node::str_to_msg(RandomAlphaNumericString(1024));
 
   for (size_t i(0); i != kRepeatCount; ++i) {
     node_a.Send(node_c.node_id(), message).get();
@@ -837,8 +803,6 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ManyTimesSimpleSend) {
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
-  using std::chrono::seconds;
-
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 3));
 
   auto& node_a = node_;
@@ -868,18 +832,16 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
     ASSERT_NO_THROW(get_within(node_a.Send(node_b.node_id(), "message5"), seconds(1)));
     ASSERT_NO_THROW(get_within(node_a.Send(node_b.node_id(), "message6"), seconds(1)));
 
-    std::vector<Node::message_t> messages;
+    Histogram<Node::message_t> messages;
 
-    ASSERT_NO_THROW(messages.push_back(std::move(get_within(node_b.Receive(), seconds(10)))));
-    ASSERT_NO_THROW(messages.push_back(std::move(get_within(node_b.Receive(), seconds(10)))));
+    ASSERT_NO_THROW(messages.insert(get_within(node_b.Receive(), seconds(10))));
+    ASSERT_NO_THROW(messages.insert(get_within(node_b.Receive(), seconds(10))));
 
-    EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message5")));
-    EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message6")));
+    EXPECT_EQ(messages.count(Node::str_to_msg("message5")), 1);
+    EXPECT_EQ(messages.count(Node::str_to_msg("message6")), 1);
   }
 
   // After Add
-  node_c.ResetData();
-
   EndpointPair node_a_eps, node_c_eps;
 
   ASSERT_NO_THROW(node_a_eps = node_a.GetAvailableEndpoints(node_c.node_id()).get());
@@ -888,20 +850,13 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_TRUE(detail::IsValid(node_a_eps.local));
   ASSERT_TRUE(detail::IsValid(node_c_eps.local));
 
-  //auto node_a_future = node_a.Receive();
-  //auto node_c_future = node_c.Receive();
-
   auto node_a_add = node_a.Add(node_c.make_contact(node_c_eps));
   auto node_c_add = node_c.Add(node_a.make_contact(node_a_eps));
 
   ASSERT_NO_THROW(get_within(node_a_add, seconds(10)));
   ASSERT_NO_THROW(get_within(node_c_add, seconds(10)));
 
-// TODO:
   // Unavailable node id
-  node_a.ResetData();
-  node_c.ResetData();
-
   ASSERT_THROW_CODE(get_within(node_a.Send(random_node_id(), "message7"), seconds(10)),
                     RudpErrors::not_connected);
 
@@ -912,32 +867,30 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   node_a.Send(node_c.node_id(), "message9").get();
   node_a.Send(node_c.node_id(), "message10").get();
 
-  std::vector<Node::message_t> messages;
+  Histogram<Node::message_t> messages;
 
-  ASSERT_NO_THROW(messages.push_back(std::move(get_within(node_c.Receive(), seconds(10)))));
-  ASSERT_NO_THROW(messages.push_back(std::move(get_within(node_c.Receive(), seconds(10)))));
+  ASSERT_NO_THROW(messages.insert(std::move(get_within(node_c.Receive(), seconds(10)))));
+  ASSERT_NO_THROW(messages.insert(std::move(get_within(node_c.Receive(), seconds(10)))));
 
-  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message9")));
-  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message10")));
+  EXPECT_EQ(messages.count(Node::str_to_msg("message9")), 1);
+  EXPECT_EQ(messages.count(Node::str_to_msg("message10")), 1);
 
-  // Valid Send from nodes_[1] to node_
-  node_a.ResetData();
-  node_c.ResetData();
+  // Valid Send from node_c to node_a
   node_c.Send(node_a.node_id(), "message11").get();
   node_c.Send(node_a.node_id(), "message12").get();
-  messages.push_back(std::move(get_within(node_a.Receive(), seconds(100))));
-  messages.push_back(std::move(get_within(node_a.Receive(), seconds(100))));
-  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message11")));
-  EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), Node::str_to_msg("message12")));
+  messages.insert(get_within(node_a.Receive(), seconds(100)));
+  messages.insert(get_within(node_a.Receive(), seconds(100)));
+  EXPECT_EQ(messages.count(Node::str_to_msg("message11")), 1);
+  EXPECT_EQ(messages.count(Node::str_to_msg("message12")), 1);
 
   // After Remove
-  node_a.ResetData();
-  node_b.ResetData();
+  node_a.ResetLostConnections();
+  node_b.ResetLostConnections();
   node_a.Remove(node_b.node_id()).get();
   // FIXME: the Remove future should finish only after the node is removed.
   int count(0);
   do {
-    Sleep(std::chrono::milliseconds(100));
+    Sleep(milliseconds(100));
     ++count;
   } while ((node_a.connection_lost_node_ids().empty() ||
             node_b.connection_lost_node_ids().empty() ||
@@ -949,28 +902,20 @@ TEST_F(ManagedConnectionsTest, FUNC_API_Send) {
   ASSERT_EQ(node_b.connection_lost_node_ids().size(), 1U);
   EXPECT_EQ(node_a.connection_lost_node_ids()[0], node_b.node_id());
 
-  node_a.ResetData();
-  node_b.ResetData();
   ASSERT_THROW_CODE(node_a.Send(node_b.node_id(), "message13").get(), RudpErrors::not_connected);
   ASSERT_THROW_CODE(node_a.Send(node_b.node_id(), "message14").get(), RudpErrors::not_connected);
 
   // Valid large message
-  node_a.ResetData();
-  node_c.ResetData();
   auto sent_message = Node::str_to_msg(RandomString(ManagedConnections::MaxMessageSize()));
   node_c.Send(node_a.node_id(), sent_message).get();
   EXPECT_EQ(sent_message, get_within(node_a.Receive(), seconds(20)));
 
   // Excessively large message
-  node_a.ResetData();
-  node_c.ResetData();
   sent_message.push_back('1');
   ASSERT_THROW_CODE(node_c.Send(node_a.node_id(), sent_message).get(), RudpErrors::message_size);
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
-  using std::chrono::seconds;
-
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
   auto& node_a = node_;
@@ -982,8 +927,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   ASSERT_NO_THROW(chosen_node = node_a.Bootstrap(bootstrap_endpoints_[0]).get());
   ASSERT_EQ(node_b.node_id(), chosen_node.id);
 
-  // Connect node_ to nodes_[1]
-  node_c.ResetData();
+  // Connect node_a to node_c
   EndpointPair node_a_eps, node_c_eps;
 
   ASSERT_NO_THROW(node_a_eps = node_a.GetAvailableEndpoints(node_c.node_id()).get());
@@ -996,11 +940,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
   ASSERT_NO_THROW(node_c_add.get());
 
   // Prepare to send
-  node_a.ResetData();
-  node_c.ResetData();
   const int kMessageCount(10);
   ASSERT_LE(kMessageCount, std::numeric_limits<int8_t>::max());
   std::vector<Node::message_t> sent_messages;
+
   for (int8_t i(0); i != kMessageCount; ++i)
     sent_messages.push_back(Node::str_to_msg(std::string(256 * 1024, 'A' + i)));
 
@@ -1013,18 +956,18 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelSend) {
 
   for (auto& future : send_futures) future.get();
 
-  std::vector<Node::message_t> received_messages;
+  Histogram<Node::message_t> received_messages;
+
   for (int i(0); i != kMessageCount; ++i) {
-    ASSERT_NO_THROW(received_messages.push_back(get_within(node_c.Receive(), seconds(10))));
+    ASSERT_NO_THROW(received_messages.insert(get_within(node_c.Receive(), seconds(10))));
   }
 
   for (int i(0); i != kMessageCount; ++i) {
-    EXPECT_NE(received_messages.end(), std::find(received_messages.begin(), received_messages.end(), sent_messages[i]));
+    EXPECT_EQ(received_messages.count(sent_messages[i]), 1);
   }
 }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
-  using boost::chrono::seconds;
   using std::vector;
   using std::future;
 
@@ -1033,16 +976,12 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, kNetworkSize));
 
   // Bootstrap off nodes_[kNetworkSize - 1]
-  Contact chosen_node;
-  chosen_node = node_.Bootstrap(bootstrap_endpoints_[kNetworkSize - 1]).get();
+  Contact chosen_node = node_.Bootstrap(bootstrap_endpoints_[kNetworkSize - 1]).get();
   ASSERT_EQ(nodes_[kNetworkSize - 1]->node_id(), chosen_node.id);
 
-  vector<NodeId> this_node_connections;
   // Connect node_ to all others
   for (int i(0); i != kNetworkSize - 1; ++i) {
     SCOPED_TRACE("Connecting to " + nodes_[i]->id());
-    node_.ResetData();
-    nodes_[i]->ResetData();
     EndpointPair this_endpoint_pair, peer_endpoint_pair;
 
     this_endpoint_pair = node_.GetAvailableEndpoints(nodes_[i]->node_id()).get();
@@ -1072,19 +1011,18 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ParallelReceive) {
   for (auto& future : send_futures) future.get();
 
   // Assess results
-  std::vector<Node::message_t> messages;
+  Histogram<Node::message_t> messages;
+
   for (auto& future : recv_futures) {
-    ASSERT_EQ(future.wait_for(std::chrono::seconds(10)), std::future_status::ready);
-    messages.push_back(std::move(future.get()));
+    messages.insert(get_within(future, seconds(10)));
   }
 
-  for (const auto& sent_msg : sent_messages)
-    EXPECT_NE(messages.end(), std::find(messages.begin(), messages.end(), sent_msg));
+  for (const auto& sent_msg : sent_messages) {
+    EXPECT_EQ(messages.count(sent_msg), 1);
+  }
 }
 
 TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
-  using std::chrono::seconds;
-
   Parameters::bootstrap_connection_lifespan = bptime::seconds(6);
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
@@ -1096,15 +1034,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   auto& node_b = *nodes_[0];
 
   //  FutureResult future_result;
-  node_a.ResetData();
-  node_b.ResetData();
   Node::message_t sent_msg = Node::str_to_msg("message01");
   node_a.Send(node_b.node_id(), sent_msg).get();
   ASSERT_EQ(get_within(node_b.Receive(), seconds(200)), sent_msg);
 
   // Send within bootstrap_disconnection_timeout period from node_b to node_a
-  node_a.ResetData();
-  node_b.ResetData();
   ASSERT_THROW_CODE(node_.GetAvailableEndpoints(node_b.node_id()).get(), RudpErrors::already_connected);
   sent_msg = Node::str_to_msg("message02");
   node_b.Send(node_.node_id(), sent_msg).get();
@@ -1118,16 +1052,16 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
 //  // Sleep for bootstrap_disconnection_timeout to allow connection to timeout and close
 //  node_.ResetData();
 //  nodes_[0]->ResetData();
-//  Sleep(std::chrono::milliseconds(Parameters::bootstrap_connection_lifespan.total_milliseconds()));
+//  Sleep(milliseconds(Parameters::bootstrap_connection_lifespan.total_milliseconds()));
 //  std::cerr << "----------------------- " << __LINE__ << "\n";
 //  int count(0);
 //  do {
-//    Sleep(std::chrono::milliseconds(100));
+//    Sleep(milliseconds(100));
 //    ++count;
 //  } while (
 //      (node_.connection_lost_node_ids().empty() || nodes_[0]->connection_lost_node_ids().empty()) &&
 //      count != 10);
-//  Sleep(std::chrono::milliseconds(100));
+//  Sleep(milliseconds(100));
 //  ASSERT_EQ(1, node_.connection_lost_node_ids().size());
 //  ASSERT_EQ(nodes_[0]->connection_lost_node_ids().size(), 1U);
 //  EXPECT_EQ(node_.connection_lost_node_ids()[0], nodes_[0]->node_id());
@@ -1158,10 +1092,10 @@ TEST_F(ManagedConnectionsTest, FUNC_API_ConcurrentGetAvailablesAndAdds) {
 
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
 
-   auto GetFuture = [](vector<NodePtr>& nodes, int x, int y) {
+  auto GetFuture = [](vector<NodePtr>& nodes, int x, int y) {
     return std::async([&nodes, x, y ]() -> pair<bool, string> {
       boost::this_thread::disable_interruption disable_interruption;
-      Sleep(std::chrono::milliseconds(RandomUint32() % 100));
+      Sleep(milliseconds(RandomUint32() % 100));
       auto debug_msg = string("GetAvailableEndpoint on ")
                      + nodes[x]->id() + " for " + nodes[y]->id();
       try {
@@ -1325,7 +1259,7 @@ struct input_watcher {
 //    std::thread sender_thread([&] {
 //      static std::string bleh(1500, 'n');
 //      while (!sender_thread_done) {
-//        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+//        std::this_thread::sleep_for(milliseconds(20));
 //        std::lock_guard<decltype(lock)> g(lock);
 //        if (peer_node_ids_idx < peer_node_ids.size()) {
 //          node.managed_connections()->Send(peer_node_ids[peer_node_ids_idx], bleh,

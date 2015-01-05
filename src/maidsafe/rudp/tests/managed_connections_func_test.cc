@@ -33,6 +33,8 @@
 
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/tests/test_utils.h"
+#include "maidsafe/rudp/tests/get_within.h"
+#include "maidsafe/rudp/tests/histogram.h"
 #include "maidsafe/rudp/utils.h"
 
 namespace args = std::placeholders;
@@ -78,10 +80,11 @@ class ManagedConnectionsFuncTest : public testing::Test {
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
     vector<Node::messages_t> sent_messages;
     vector<vector<std::future<Node::message_t>>> rx_futures;
+    vector<Histogram<Node::message_t>> message_histograms(nodes_.size());
 
     // Generate_messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      sent_messages.push_back(Node::messages_t());
+      sent_messages.emplace_back();
       std::string message_prefix(std::string("Msg from ") + nodes_[i]->id() + " ");
       for (uint8_t j = 0; j != num_messages; ++j) {
         auto message = message_prefix + std::string(messages_size - message_prefix.size(), 'A' + j);
@@ -91,10 +94,9 @@ class ManagedConnectionsFuncTest : public testing::Test {
 
     // Get futures for messages from individual nodes
     for (auto node_ptr : nodes_) {
-      node_ptr->ResetData();
       rx_futures.emplace_back();
       for (unsigned int i = 0; i < messages_received_per_node; ++i) {
-        rx_futures.back().emplace_back(node_ptr->message_queue().async_pop(asio::use_future));
+        rx_futures.back().emplace_back(node_ptr->Receive());
       }
     }
 
@@ -120,9 +122,9 @@ class ManagedConnectionsFuncTest : public testing::Test {
                                           : 1));
 
       for (auto& future : rx_futures.at(i)) {
-        ASSERT_EQ(future.wait_for(timeout), std::future_status::ready);
-        auto message = std::move(future.get());
+        auto message = get_within(future, timeout);
         ASSERT_FALSE(message.empty()) << "Received an empty message";
+        message_histograms[i].insert(std::move(message));
       }
     }
 
@@ -131,7 +133,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
       for (uint16_t j = 0; j != nodes_.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
           if (i != j) {
-            EXPECT_EQ(1U, nodes_.at(i)->GetReceivedMessageCount(sent_messages[j][k]))
+            EXPECT_EQ(message_histograms[i].count(sent_messages[j][k]), 1)
                 << nodes_.at(i)->id() << " didn't receive";
           }
         }

@@ -101,8 +101,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
 
   bootstrap_endpoints.push_back(contacts[0]);
   bootstrap_endpoints.push_back(contacts[1]);
-  nodes[0]->ResetData();
-  nodes[1]->ResetData();
+  nodes[0]->ResetLostConnections();
+  nodes[1]->ResetLostConnections();
 
   if (node_count > 2)
     LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
@@ -122,9 +122,6 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
     Sleep(std::chrono::milliseconds(250));
     for (int j(0); j != i; ++j) {
       // Call GetAvailableEndpoint at each peer.
-      nodes[i]->ResetData();
-      nodes[j]->ResetData();
-
       auto get_i = nodes[i]->GetAvailableEndpoints(nodes[j]->node_id());
 
       try {
@@ -177,19 +174,12 @@ Node::Node(int id)
       mutex_(),
       connection_lost_node_ids_(),
       connected_node_ids_(),
-      messages_(),
-      managed_connections_(new ManagedConnections)
-      {}
+      managed_connections_(new ManagedConnections) {}
 
 std::vector<NodeId> Node::connection_lost_node_ids() const {
   std::lock_guard<std::mutex> guard(mutex_);
   return connection_lost_node_ids_;
 }
-
-//Node::messages_t Node::messages() const {
-//  std::lock_guard<std::mutex> guard(mutex_);
-//  return messages_;
-//}
 
 std::future<Contact> Node::Bootstrap(Contact bootstrap_endpoint, Endpoint local_endpoint) {
   return Bootstrap(Contacts{bootstrap_endpoint}, local_endpoint);
@@ -213,12 +203,6 @@ std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpo
       LOG(kInfo) << self.id() << " -- Received: " << (is_printable ? message_str.substr(0, 30)
                                                                    : HexEncode(message_str.substr(0, 15)));
       self.message_queue_.push(std::error_code(), message);
-
-      // FIXME: This shall become redundant (use the message_queue_ instead)
-      std::lock_guard<std::mutex> guard(self.mutex_);
-      self.messages_.emplace_back(message);
-
-      //self.SetPromiseIfDone();
     }
 
     void ConnectionLost(NodeId peer_id) override {
@@ -241,35 +225,10 @@ std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpo
                                          local_endpoint);
 }
 
-int Node::GetReceivedMessageCount(const message_t& message) const {
-  std::lock_guard<std::mutex> guard(mutex_);
-  return static_cast<int>(std::count(messages_.begin(), messages_.end(), message));
-}
-
-void Node::ResetData() {
+void Node::ResetLostConnections() {
   std::lock_guard<std::mutex> guard(mutex_);
   connection_lost_node_ids_.clear();
-  messages_.clear();
-  //total_message_count_expectation_ = 0;
 }
-
-//boost::future<Node::messages_t> Node::GetFutureForMessages(uint32_t message_count) {
-//  std::lock_guard<std::mutex> guard(mutex_);
-//  assert(message_count > 0);
-//  total_message_count_expectation_ = message_count;
-//  promised_ = true;
-//  boost::promise<messages_t> message_promise;
-//  message_promise_.swap(message_promise);
-//  return message_promise_.get_future();
-//}
-
-//void Node::SetPromiseIfDone() {
-//  if (promised_ && messages_.size() >= total_message_count_expectation_) {
-//    message_promise_.set_value(messages_);
-//    promised_ = false;
-//    total_message_count_expectation_ = 0;
-//  }
-//}
 
 }  // namespace test
 

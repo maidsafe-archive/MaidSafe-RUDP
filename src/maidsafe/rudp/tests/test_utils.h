@@ -102,9 +102,7 @@ class Node {
 
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
 
-  int GetReceivedMessageCount(const message_t& message) const;
-
-  void ResetData();
+  void ResetLostConnections();
 
   std::vector<NodeId> GetConnectedNodeIds() { return connected_node_ids_; }
 
@@ -120,8 +118,6 @@ class Node {
     return managed_connections_->GetActiveConnectionCount();
   }
 
-  async_queue<std::error_code, message_t>& message_queue() { return message_queue_; }
-
  private:
   NodeId node_id_;
   std::string id_;
@@ -129,7 +125,6 @@ class Node {
   mutable std::mutex mutex_;
   std::vector<NodeId> connection_lost_node_ids_;
   std::vector<NodeId> connected_node_ids_;
-  messages_t messages_;
   async_queue<std::error_code, message_t> message_queue_;
   ManagedConnectionsPtr managed_connections_;
 
