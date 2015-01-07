@@ -324,7 +324,7 @@ bool Transport::CloseConnection(const NodeId& peer_id) {
   return connection_manager_->CloseConnection(peer_id);
 }
 
-bool Transport::Send(const NodeId& peer_id, const std::string& message,
+void Transport::Send(const NodeId& peer_id, const std::string& message,
                      const MessageSentFunctor& message_sent_functor) {
   return connection_manager_->Send(peer_id, message, message_sent_functor);
 }

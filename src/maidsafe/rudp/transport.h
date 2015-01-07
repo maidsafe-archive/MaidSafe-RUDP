@@ -100,7 +100,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   // itself from ManagedConnections which will cause it to be destroyed.
   bool CloseConnection(const NodeId& peer_id);
 
-  bool Send(const NodeId& peer_id, const std::string& message,
+  void Send(const NodeId& peer_id, const std::string& message,
             const MessageSentFunctor& message_sent_functor);
 
   void Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,

@@ -83,7 +83,7 @@ class ConnectionManager {
             const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
-  bool Send(const NodeId& peer_id, const std::string& message,
+  void Send(const NodeId& peer_id, const std::string& message,
             const MessageSentFunctor& handler);
 
   // This node's endpoint as viewed by peer

@@ -206,13 +206,13 @@ void ConnectionManager::Ping(const NodeId& peer_id, const Endpoint& peer_endpoin
   }
 }
 
-bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
+void ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
                              const MessageSentFunctor& handler) {
   std::unique_lock<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
     LOG(kWarning) << kThisNodeId_ << " Not currently connected to " << peer_id;
-    return false;
+    return strand_.dispatch([=]() { handler(RudpErrors::not_connected); });
   }
 
   ConnectionPtr connection(*itr);
@@ -220,7 +220,6 @@ bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
   // using COW std::string will cause thread sanitizer warning of data racing
   std::shared_ptr<std::string> message_ptr(new std::string(message.data(), message.size()));
   strand_.dispatch([=] { connection->StartSending(*message_ptr, handler); });
-  return true;
 }
 
 Socket* ConnectionManager::GetSocket(const Asio::const_buffer& data, const Endpoint& endpoint) {

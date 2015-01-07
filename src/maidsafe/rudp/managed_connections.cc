@@ -513,22 +513,11 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
 
   auto itr(connections_.find(peer_id));
   if (itr != connections_.end()) {
-    if (itr->second->Send(peer_id, std::string(std::begin(message), std::end(message)), handler)) {
-      return;
-    }
+    itr->second->Send(peer_id, std::string(std::begin(message), std::end(message)), handler);
   }
 
   LOG(kError) << "Can't send from " << this_node_id_ << " to " << peer_id << " - not in map.";
-
-  if (handler) {
-    if (!connections_.empty() || !idle_transports_.empty()) {
-      handler(RudpErrors::not_connected);
-    } else {
-      // Probably haven't bootstrapped, so asio_service_ won't be running.
-      std::thread thread(handler, RudpErrors::not_connected);
-      thread.detach();
-    }
-  }
+  handler(RudpErrors::not_connected);
 }
 
 void ManagedConnections::OnMessageSlot(const NodeId& peer_id, std::vector<uint8_t> message) {
