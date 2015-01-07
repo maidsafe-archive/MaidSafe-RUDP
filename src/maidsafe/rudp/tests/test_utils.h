@@ -83,8 +83,9 @@ class Node {
     return managed_connections_->Send(id, msg, asio::use_future);
   }
 
-  std::future<void> Send(const NodeId& id, const std::string& msg) {
-    return managed_connections_->Send(id, message_t(msg.begin(), msg.end()), asio::use_future);
+  std::future<void> Send(const NodeId& id, const std::string& str) {
+    message_t msg(str.begin(), str.end());
+    return managed_connections_->Send(id, std::move(msg), asio::use_future);
   }
 
   std::future<message_t> Receive() { return message_queue_.async_pop(asio::use_future); }
