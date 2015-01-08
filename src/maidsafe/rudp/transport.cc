@@ -54,8 +54,7 @@ Transport::Transport(BoostAsioService& asio_service, NatType& nat_type)
       on_message_(),
       on_connection_added_(),
       on_connection_lost_(),
-      on_nat_detection_requested_slot_(),
-      managed_connections_debug_printout_() {}
+      on_nat_detection_requested_slot_() {}
 
 Transport::~Transport() {
   Close();
@@ -198,9 +197,9 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
 }
 
 template<typename Handler>
-void Transport::DetectNatType( NodeId const& peer_id
-                             , const asymm::PublicKey& peer_public_key
-                             , Handler handler) {
+void Transport::DetectNatType(NodeId const&           peer_id,
+                              const asymm::PublicKey& peer_public_key,
+                              Handler                 handler) {
   Endpoint nat_detection_endpoint(connection_manager_->RemoteNatDetectionEndpoint(peer_id));
 
   if (!IsValid(nat_detection_endpoint)) {
@@ -407,7 +406,6 @@ void Transport::AddConnection(ConnectionPtr connection) {
   LOG(kSuccess) << "Successfully made " << connection->state() << " connection from "
                 << ThisDebugId() << " to " << connection->PeerDebugId();
 
-  //std::atomic<bool> is_duplicate_normal_connection(false);
   OnConnectionAdded local_callback;
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
@@ -417,15 +415,12 @@ void Transport::AddConnection(ConnectionPtr connection) {
     local_callback(connection->Socket().PeerNodeId(), shared_from_this(),
                    connection->state() == Connection::State::kTemporary,
                    connection);
-
   }
 
 #ifndef NDEBUG
   std::string s("\n++++++++++++++++++++++++\nAdded ");
   s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
   s += ThisDebugId() + " to " + connection->PeerDebugId() + '\n';
-  if (managed_connections_debug_printout_)
-    s += managed_connections_debug_printout_();
   LOG(kVerbose) << s;
 #endif
 }
@@ -460,10 +455,6 @@ std::string Transport::DebugString() const {
   s += boost::lexical_cast<std::string>(nat_type_) + '\n';
   s += connection_manager_->DebugString();
   return s;
-}
-
-void Transport::SetManagedConnectionsDebugPrintout(std::function<std::string()> functor) {
-  managed_connections_debug_printout_ = functor;
 }
 
 }  // namespace detail

@@ -165,9 +165,6 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
 
   auto transport = std::make_shared<detail::Transport>(asio_service_, *nat_type_);
 
-  //transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
-  transport->SetManagedConnectionsDebugPrintout([this]() { return "FIXME"; });
-
   bool bootstrap_off_existing_connection(bootstrap_list.empty());
   asio::ip::address external_address;
   if (bootstrap_off_existing_connection)
@@ -218,7 +215,8 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
                           ConnectionPtr connection) mutable {
         OnConnectionAddedSlot(peer_id, transport, temporary_connection, connection);
       }),
-      strand_.wrap([this](const NodeId& peer_id, TransportPtr transport, bool temporary_connection, bool /* ? */) {
+      strand_.wrap([this](const NodeId& peer_id, TransportPtr transport,
+                          bool temporary_connection, bool /* ? */) {
         OnConnectionLostSlot(peer_id, transport, temporary_connection);
       }),
       // FIXME: This function doesn't seem to be used.
@@ -394,11 +392,12 @@ void ManagedConnections::AddPending(std::unique_ptr<PendingConnection> connectio
   NodeId peer_id(connection->node_id.ToStringEncoded(NodeId::EncodingType::kHex),
                  NodeId::EncodingType::kHex);
   pendings_.push_back(std::move(connection));
-  pendings_.back()->timer.async_wait(strand_.wrap([peer_id, this](const boost::system::error_code& ec) {
-    if (ec != boost::asio::error::operation_aborted) {
-      RemovePending(peer_id);
-    }
-  }));
+  pendings_.back()->timer.async_wait
+    (strand_.wrap([peer_id, this](const boost::system::error_code& ec) {
+      if (ec != boost::asio::error::operation_aborted) {
+        RemovePending(peer_id);
+      }
+    }));
 }
 
 void ManagedConnections::RemovePending(const NodeId& peer_id) {
@@ -518,16 +517,6 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
 
   LOG(kError) << "Can't send from " << this_node_id_ << " to " << peer_id << " - not in map.";
   handler(RudpErrors::not_connected);
-
-  //if (handler) {
-  //  if (!connections_.empty() || !idle_transports_.empty()) {
-  //    handler(RudpErrors::not_connected);
-  //  } else {
-  //    // Probably haven't bootstrapped, so asio_service_ won't be running.
-  //    std::thread thread(handler, RudpErrors::not_connected);
-  //    thread.detach();
-  //  }
-  //}
 }
 
 void ManagedConnections::OnMessageSlot(const NodeId& peer_id, std::vector<uint8_t> message) {
@@ -637,40 +626,6 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
   // This node doesn't care about the Ping result, but Ping should not be given a NULL functor.
   assert(0 && "FIXME: valid public key");
   (*itr).second->Ping(peer_id, peer_endpoint, asymm::PublicKey(), [](int) {});  // NOLINT (Fraser)
-}
-
-std::string ManagedConnections::DebugString() const {
-  assert(strand_.running_in_this_thread());
-
-  // Not interested in the log once accumulated enough connections
-  if (connections_.size() > 8)
-    return "";
-
-  //  std::string s = "This node's peer connections:\n";
-  std::set<TransportPtr> transports;
-  for (auto connection : connections_) {
-    transports.insert(connection.second);
-    //     s += '\t' + DebugId(connection.first).substr(0, 7) + '\n';
-  }
-
-  std::string s = "This node's own transports and their peer connections:\n";
-  for (auto transport : transports)
-    s += transport->DebugString();
-
-  s += "\nThis node's idle transports:\n";
-  for (auto idle_transport : idle_transports_)
-    s += idle_transport->DebugString();
-
-  s += "\nThis node's pending connections:\n";
-  for (auto& pending : pendings_) {
-    s += "\tPending to peer " + DebugId(pending->node_id).substr(0, 7);
-    s += " on this node's transport ";
-    s += boost::lexical_cast<std::string>(pending->pending_transport->external_endpoint()) + " / ";
-    s += boost::lexical_cast<std::string>(pending->pending_transport->local_endpoint()) + '\n';
-  }
-  s += "\n\n";
-
-  return s;
 }
 
 }  // namespace rudp

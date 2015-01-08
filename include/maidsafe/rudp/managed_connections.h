@@ -196,8 +196,6 @@ class ManagedConnections {
 
   void UpdateIdleTransports(const TransportPtr&);
 
-  std::string DebugString() const;
-
   BoostAsioService asio_service_;
   boost::asio::io_service::strand strand_;
 

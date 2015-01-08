@@ -122,7 +122,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   std::string DebugString() const;
   std::string ThisDebugId() const;
-  void SetManagedConnectionsDebugPrintout(std::function<std::string()> functor);
 
   NatType& reference_to_nat_type() { return nat_type_; }
   NodeId node_id() const;
@@ -180,8 +179,6 @@ class Transport : public std::enable_shared_from_this<Transport> {
   OnConnectionAdded on_connection_added_;
   OnConnectionLost  on_connection_lost_;
   OnNatDetected     on_nat_detection_requested_slot_;
-
-  std::function<std::string()> managed_connections_debug_printout_;
 };
 
 typedef std::shared_ptr<Transport> TransportPtr;

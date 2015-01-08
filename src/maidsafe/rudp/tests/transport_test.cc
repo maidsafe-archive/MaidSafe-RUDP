@@ -115,7 +115,8 @@ class RudpTransportTest : public testing::Test {
       recv_queue.push(std::move(message));
     }
 
-    void OnConnectionAddedSlot(const NodeId&, TransportPtr /*transport*/, bool, Transport::ConnectionPtr) {
+    void OnConnectionAddedSlot(const NodeId&, TransportPtr /*transport*/, bool,
+                               Transport::ConnectionPtr) {
     }
 
     void OnConnectionLostSlot(const NodeId& peer, TransportPtr /*transport*/, bool, bool) {
@@ -177,9 +178,9 @@ class RudpTransportTest : public testing::Test {
   std::vector<std::shared_ptr<TestPeer> > transports_;
   uint16_t network_size_;
   bptime::time_duration kTimeOut_;
- };
+};
 
- TEST_F(RudpTransportTest, BEH_Connection) {
+TEST_F(RudpTransportTest, BEH_Connection) {
   ConnectTestPeers();
 
   std::string msg_content(RandomString(256));
@@ -226,11 +227,11 @@ TEST_F(RudpTransportTest, BEH_DropConnection) {
   EXPECT_EQ(lost_node, dropped_node);
 
   std::string msg_content("testing msg from node 0");
-  
+
   PromiseHandler promise;
-  
+
   transports_[0]->transport->Send(dropped_node, msg_content, promise);
-  
+
   try {
     get_within(promise.get_future(), to_std(kTimeOut_));
     GTEST_FAIL() << "Expected to throw";

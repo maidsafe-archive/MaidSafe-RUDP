@@ -52,15 +52,14 @@ std::ostream& operator<<(std::ostream& os, const std::vector<unsigned char>& dat
   std::string str(data.begin(), data.end());
 
   if (is_printable) {
-    os << "[vector: \"" << str.substr(0,30) << "\"]";
-  }
-  else {
-    os << "[vector: " << maidsafe::HexEncode(str.substr(0,30)) << "]";
+    os << "[vector: \"" << str.substr(0, 30) << "\"]";
+  } else {
+    os << "[vector: " << maidsafe::HexEncode(str.substr(0, 30)) << "]";
   }
 
   return os;
 }
-} // std::namespace
+} // namespace std
 
 namespace maidsafe {
 
@@ -112,7 +111,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
           catch (const std::system_error& err) {
             GTEST_FAIL() <<
               "Can't send " << nodes_.at(i)->id() << " " << nodes_.at(j)->id() << "\n"
-              "Exception: " << err.what(); 
+              "Exception: " << err.what();
           }
         }
       }
@@ -124,7 +123,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
       std::chrono::seconds timeout(
           (i == 0 ? num_messages * nodes_.size()
                   : (nodes_.size() - i))
-          * (messages_size > (128 * 1024) ? messages_size / (128 * 1024) 
+          * (messages_size > (128 * 1024) ? messages_size / (128 * 1024)
                                           : 1));
 
       for (auto& future : rx_futures.at(i)) {

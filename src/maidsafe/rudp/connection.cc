@@ -40,8 +40,6 @@
 #include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/boost_asio_conversions.h"
 
-//namespace Asio = boost::asio;
-//namespace ip = Asio::ip;
 namespace bptime = boost::posix_time;
 namespace args = std::placeholders;
 
