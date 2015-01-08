@@ -513,7 +513,7 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
 
   auto itr(connections_.find(peer_id));
   if (itr != connections_.end()) {
-    itr->second->Send(peer_id, std::string(std::begin(message), std::end(message)), handler);
+    return itr->second->Send(peer_id, std::string(std::begin(message), std::end(message)), handler);
   }
 
   LOG(kError) << "Can't send from " << this_node_id_ << " to " << peer_id << " - not in map.";
