@@ -126,7 +126,7 @@ class ManagedConnections {
                                    const CompletionToken& token);
 
   // FIXME: This is currecntly required by tests, but even there it seems like
-  // a better solution should be used. So try to get rid of it. 
+  // a better solution should be used. So try to get rid of it.
   size_t GetActiveConnectionCount();
 
  private:
@@ -298,7 +298,9 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
   if (SelectIdleTransport(peer_id, this_endpoint_pair))
     return handler(Error(), this_endpoint_pair);
 
-  StartNewTransport(BootstrapContacts(), Endpoint(local_ip_, 0), [=](Error error, const Contact&) mutable {
+  StartNewTransport(BootstrapContacts(),
+                    Endpoint(local_ip_, 0),
+                    [=](Error error, const Contact&) mutable {
       if (error) {
         return handler(error, EndpointPair());
       }
@@ -318,7 +320,8 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
 }
 
 template <typename CompletionToken>
-AddReturn<CompletionToken> ManagedConnections::Add(const Contact& peer, const CompletionToken& token) {
+AddReturn<CompletionToken> ManagedConnections::Add(const Contact& peer,
+                                                   const CompletionToken& token) {
   AddHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
   strand_.dispatch([=]() mutable { DoAdd(peer, handler); });

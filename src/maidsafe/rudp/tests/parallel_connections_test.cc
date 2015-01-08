@@ -89,8 +89,7 @@ class ParallelConnectionsTest : public testing::Test {
 // FIXME: Why do we do this apple stuff?
 #ifndef MAIDSAFE_APPLE
         bootstrap_endpoints_()
-  {
-  }
+  { }
 #else
         bootstrap_endpoints_(),
         rlimit_() {
@@ -204,8 +203,8 @@ TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnectionsWorker) 
       abort();
     }
     asio::ip::udp::endpoint endpoint
-      ( asio::ip::address::from_string(std::string(s, colon - s))
-      , (uint16_t)atoi(colon + 1));
+      (asio::ip::address::from_string(std::string(s, colon - s)),
+       (uint16_t)atoi(colon + 1));
 
     // FIXME: Real values for NodeId and public key.
     bootstrap_endpoints_.push_back(Contact(NodeId(), endpoint, asymm::PublicKey()));
@@ -264,8 +263,6 @@ TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnectionsWorker) 
         NodeId peer_node_id(line.substr(14), NodeId::EncodingType::kHex);
 
         EndpointPair empty_endpoint_pair, this_endpoint_pair;
-        //NatType nat_type;
-
         // std::cerr << my_id << ": Getting available endpoint for " <<
         // peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
 //        EXPECT_EQ(kSuccess, node.managed_connections()->GetAvailableEndpoint(
@@ -342,18 +339,18 @@ TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnections) {
   };
 
   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
-  native_string endpoints(
 #ifdef WIN32
-      L"MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS="
+  native_string endpoints(
+      L"MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
 #else
-      "MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS="
+  native_string endpoints(
+      "MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
 #endif
-  );
   for (auto& i : bootstrap_endpoints_) {
     auto temp = i.endpoint_pair.local.address().to_string();
 #ifdef WIN32
-    endpoints.append(native_string(temp.begin(), temp.end()) + L":" + std::to_wstring(i.endpoint_pair.local.port()) +
-                     L";");
+    endpoints.append(native_string(temp.begin(), temp.end()) +
+                     L":" + std::to_wstring(i.endpoint_pair.local.port()) + L";");
 #else
     endpoints.append(temp + ":" + std::to_string(i.endpoint_pair.local.port()) + ";");
 #endif

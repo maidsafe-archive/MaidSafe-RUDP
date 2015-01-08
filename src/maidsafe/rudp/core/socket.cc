@@ -261,7 +261,8 @@ void Socket::ProcessFlush() {
   }
 }
 
-void Socket::HandleReceiveFrom(const Asio::const_buffer& data, const asio::ip::udp::endpoint& endpoint) {
+void Socket::HandleReceiveFrom(const Asio::const_buffer&      data,
+                               const asio::ip::udp::endpoint& endpoint) {
   if (endpoint == peer_.PeerEndpoint()) {
     // TODO(Team): Surely this can be templetised somehow to avoid all the obejct creation
     DataPacket data_packet;

@@ -43,23 +43,23 @@ namespace bptime = boost::posix_time;
 namespace ip = Asio::ip;
 
 namespace std {
-std::ostream& operator<<(std::ostream& os, const std::vector<unsigned char>& data) {
-  bool is_printable(true);
-  for (const auto& elem : data) {
-    if (elem < 32) { is_printable = false; break; }
+  std::ostream& operator<<(std::ostream& os, const std::vector<unsigned char>& data) {
+    bool is_printable(true);
+    for (const auto& elem : data) {
+      if (elem < 32) { is_printable = false; break; }
+    }
+
+    std::string str(data.begin(), data.end());
+
+    if (is_printable) {
+      os << "[vector: \"" << str.substr(0, 30) << "\"]";
+    } else {
+      os << "[vector: " << maidsafe::HexEncode(str.substr(0, 30)) << "]";
+    }
+
+    return os;
   }
-
-  std::string str(data.begin(), data.end());
-
-  if (is_printable) {
-    os << "[vector: \"" << str.substr(0, 30) << "\"]";
-  } else {
-    os << "[vector: " << maidsafe::HexEncode(str.substr(0, 30)) << "]";
-  }
-
-  return os;
-}
-} // namespace std
+}  // namespace std
 
 namespace maidsafe {
 

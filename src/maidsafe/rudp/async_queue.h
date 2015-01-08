@@ -16,50 +16,48 @@
     See the Licences for the specific language governing permissions and limitations relating to
     use of the MaidSafe Software.                                                                 */
 
-#ifndef _MAIDSAFE_RUDP_ASYNC_QUEUE_H_
-#define _MAIDSAFE_RUDP_ASYNC_QUEUE_H_
+#ifndef MAIDSAFE_RUDP_ASYNC_QUEUE_H_
+#define MAIDSAFE_RUDP_ASYNC_QUEUE_H_
 
 #include <mutex>
+#include <queue>
 #include "asio/async_result.hpp"
 
 namespace maidsafe {
 
 namespace __detail {
-  namespace helper
-  {
+  namespace helper {
     template <int... Is>
     struct index {};
-  
+
     template <int N, int... Is>
     struct gen_seq : gen_seq<N - 1, N - 1, Is...> {};
-  
+
     template <int... Is>
     struct gen_seq<0, Is...> : index<Is...> {};
   }
-  
+
   template <class F, typename... Args, int... Is>
   inline constexpr auto
   apply_tuple(F&& f, const std::tuple<Args...>& tup, helper::index<Is...>)
-    -> decltype(f(std::get<Is>(tup)...))
-  {
+    -> decltype(f(std::get<Is>(tup)...)) {
     return f(std::get<Is>(tup)...);
   }
-  
+
   template <class F, typename... Args>
   inline constexpr auto
   apply_tuple(F&& f, const std::tuple<Args...>& tup)
-    -> decltype(apply_tuple(f, tup, helper::gen_seq<sizeof...(Args)>{}))
-  {
+    -> decltype(apply_tuple(f, tup, helper::gen_seq<sizeof...(Args)>{})) {
     return apply_tuple( std::forward<F>(f), tup
                       , helper::gen_seq<sizeof...(Args)>{});
   }
-} // __detail namespace
+}  // namespace __detail
 
 template<class... Args> class async_queue {
   using handler_type = std::function<void(Args...)>;
   using tuple_type   = std::tuple<Args...>;
 
-public:
+ public:
   template<class... Params>
   void push(Params&&... args) {
     handler_type handler;
@@ -113,12 +111,12 @@ public:
     return result.get();
   }
 
-private:
+ private:
   std::mutex               mutex;
   std::queue<handler_type> handlers;
   std::queue<tuple_type>   values;
 };
 
-} // maidsafe namespace
+}  // namespace maidsafe
 
-#endif // ifndef _MAIDSAFE_RUDP_ASYNC_QUEUE_H_
+#endif  // MAIDSAFE_RUDP_ASYNC_QUEUE_H_

@@ -17,7 +17,7 @@
     use of the MaidSafe Software.                                                                 */
 
 #include <vector>
-#include <asio/use_future.hpp>
+#include <asio/use_future.hpp> // NOLINT
 
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/test.h"

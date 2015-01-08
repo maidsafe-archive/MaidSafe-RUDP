@@ -38,7 +38,7 @@
 #include "maidsafe/common/rsa.h"
 
 #include "maidsafe/rudp/types.h"
-#include "connection.h"
+#include "connection.h" // NOLINT
 
 namespace maidsafe {
 

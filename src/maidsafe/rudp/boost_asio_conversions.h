@@ -54,11 +54,9 @@ inline asio::ip::address_v6 from_boost(const boost::asio::ip::address_v6& addr) 
 inline boost::asio::ip::address to_boost(const asio::ip::address& addr) {
   if (addr.is_v4()) {
     return boost::asio::ip::address(to_boost(addr.to_v4()));
-  }
-  else if (addr.is_v6()) {
+  } else if (addr.is_v6()) {
     return boost::asio::ip::address(to_boost(addr.to_v6()));
-  }
-  else {
+  } else {
     assert(0 && "Unknown IP version");
     return boost::asio::ip::address();
   }
@@ -67,11 +65,9 @@ inline boost::asio::ip::address to_boost(const asio::ip::address& addr) {
 inline asio::ip::address from_boost(const boost::asio::ip::address& addr) {
   if (addr.is_v4()) {
     return asio::ip::address(from_boost(addr.to_v4()));
-  }
-  else if (addr.is_v6()) {
+  } else if (addr.is_v6()) {
     return asio::ip::address(from_boost(addr.to_v6()));
-  }
-  else {
+  } else {
     assert(0 && "Unknown IP version");
     return asio::ip::address();
   }
@@ -85,7 +81,7 @@ inline asio::ip::udp::endpoint from_boost(const boost::asio::ip::udp::endpoint& 
   return asio::ip::udp::endpoint(from_boost(e.address()), e.port());
 }
 
+}  // namespace rudp
+}  // namespace maidsafe
 
-}} // namespace maidsafe::rudp
-
-#endif // ifndef MAIDSAFE_RUDP_BOOST_ASIO_CONVERSIONS_H_
+#endif  // MAIDSAFE_RUDP_BOOST_ASIO_CONVERSIONS_H_

@@ -272,7 +272,7 @@ Transport::OnConnect Transport::DefaultOnConnectHandler() {
 Transport::OnClose Transport::DefaultOnCloseHandler() {
   std::weak_ptr<Transport> weak_self = shared_from_this();
 
-  return [weak_self](const std::error_code& error, const ConnectionPtr& connection) {
+  return [weak_self](const std::error_code& error, const ConnectionPtr& connection) { // NOLINT
     if (auto self = weak_self.lock()) {
       self->RemoveConnection(connection, error == RudpErrors::timed_out);
     }

@@ -100,8 +100,7 @@ class ManagedConnectionsTest : public testing::Test {
         nodes_(),
 #ifndef MAIDSAFE_APPLE
         bootstrap_endpoints_()
-  {
-  }
+  { }
 #else
         bootstrap_endpoints_(),
         rlimit_() {
@@ -144,17 +143,19 @@ class ManagedConnectionsTest : public testing::Test {
     Sleep(milliseconds(250));
 
     ASSERT_THROW_CODE
-      ( this_endpoint_pair = node_.GetAvailableEndpoints(nodes_[index]->node_id()).get()
-      , RudpErrors::already_connected);
+      (this_endpoint_pair = node_.GetAvailableEndpoints(nodes_[index]->node_id()).get(),
+       RudpErrors::already_connected);
 
     EndpointPair peer_endpoint_pair;
 
     ASSERT_THROW_CODE
-      ( peer_endpoint_pair = nodes_[index]->GetAvailableEndpoints(node_.node_id()).get();
-      , RudpErrors::already_connected);
+      (peer_endpoint_pair = nodes_[index]->GetAvailableEndpoints(node_.node_id()).get(),
+       RudpErrors::already_connected);
 
-    //EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
-    //EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
+    // This was possible with the previous API (to get the endpoint pair even in case
+    // of error). Not sure if it's to be re-enabled.
+    // EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+    // EXPECT_TRUE(detail::IsValid(peer_endpoint_pair.local));
 
     try {
       nodes_[index]->Add(node_.make_contact(this_endpoint_pair)).get();
@@ -172,40 +173,43 @@ class ManagedConnectionsTest : public testing::Test {
   }
 };
 
-//TEST_F(ManagedConnectionsTest, BEH_API_kBootstrapConnectionAlreadyExists) {
-//  ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
-//  NodeId chosen_node;
-//  EndpointPair this_endpoint_pair, peer_endpoint_pair;
-//  NatType nat_type;
-//  size_t index(1);
+// FIXME: I added an extra function to managed connections for this test
+// but it was removed when we switched to the new API. Not sure if the
+// test should be re'enabled.
+// TEST_F(ManagedConnectionsTest, BEH_API_kBootstrapConnectionAlreadyExists) {
+//   ASSERT_TRUE(SetupNetwork(nodes_, bootstrap_endpoints_, 2));
+//   NodeId chosen_node;
+//   EndpointPair this_endpoint_pair, peer_endpoint_pair;
+//   NatType nat_type;
+//   size_t index(1);
 //
-//  using lock_guard = std::lock_guard<std::mutex>;
-//  std::mutex mutex;
-//  std::promise<void> promise;
-//  auto future = promise.get_future();
+//   using lock_guard = std::lock_guard<std::mutex>;
+//   std::mutex mutex;
+//   std::promise<void> promise;
+//   auto future = promise.get_future();
 //
-//  nodes_[index]->managed_connections()->SetConnectionAddedFunctor([&](NodeId) {
-//    lock_guard guard(mutex);
-//    promise.set_value();
-//  });
+//   nodes_[index]->managed_connections()->SetConnectionAddedFunctor([&](NodeId) {
+//     lock_guard guard(mutex);
+//     promise.set_value();
+//   });
 //
-//  ASSERT_EQ(kSuccess,
-//            node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[index]), chosen_node));
+//   ASSERT_EQ(kSuccess,
+//             node_.Bootstrap(std::vector<Endpoint>(1, bootstrap_endpoints_[index]), chosen_node));
 //
-//  // When the above bootstrap function finishes, the node 'node_' knows it is connected
-//  // to node 'nodes_[index]' but not the other way around. For that we need to
-//  // wait till the ConnectionAddedFunctor is executed inside node 'nodes_[index]'.
-//  future.wait();
-//  { lock_guard guard(mutex); }
+//   // When the above bootstrap function finishes, the node 'node_' knows it is connected
+//   // to node 'nodes_[index]' but not the other way around. For that we need to
+//   // wait till the ConnectionAddedFunctor is executed inside node 'nodes_[index]'.
+//   future.wait();
+//   { lock_guard guard(mutex); }
 //
-//  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-//            nodes_[index]->managed_connections()->GetAvailableEndpoint(
-//                node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
+//   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+//             nodes_[index]->managed_connections()->GetAvailableEndpoint(
+//                 node_.node_id(), this_endpoint_pair, peer_endpoint_pair, nat_type));
 //
-//  EXPECT_EQ(kBootstrapConnectionAlreadyExists,
-//            node_.managed_connections()->GetAvailableEndpoint(
-//                nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
-//}
+//   EXPECT_EQ(kBootstrapConnectionAlreadyExists,
+//             node_.managed_connections()->GetAvailableEndpoint(
+//                 nodes_[index]->node_id(), EndpointPair(), this_endpoint_pair, nat_type));
+// }
 
 TEST_F(ManagedConnectionsTest, FUNC_API_RandomSizeSetup) {
   int nodes(8 + RandomUint32() % 16);
@@ -223,7 +227,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
   // All invalid
   try {
     node_.managed_connections()->Bootstrap(
-        std::vector<Contact>(), listener, NodeId(), asymm::Keys(), asio::use_future, Endpoint()).get();
+        std::vector<Contact>(), listener, NodeId(),
+        asymm::Keys(), asio::use_future, Endpoint()).get();
     GTEST_FAIL() << "Exception thrown was expected";
   }
   catch(std::system_error e) {
@@ -232,24 +237,25 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
 
   // Empty bootstrap_endpoints
   try {
-    node_.managed_connections()->Bootstrap(std::vector<Contact>(), listener, NodeId(), node_.keys(), asio::use_future, Endpoint()).get();
+    node_.managed_connections()->Bootstrap(std::vector<Contact>(),
+        listener, NodeId(), node_.keys(), asio::use_future, Endpoint()).get();
     GTEST_FAIL() << "Expected exception";
   }
   catch(std::system_error e) {
     ASSERT_EQ(e.code(), RudpErrors::failed_to_bootstrap);
   }
-  // TODO
+  // TODO(PeterJ)
   // Unavailable bootstrap_endpoints
- // {
- //   Asio::io_service io_service;
- //   boost::asio::ip::udp::socket tmp_socket(io_service, Endpoint(GetLocalIp(), 0));
- //   int16_t some_used_port = tmp_socket.local_endpoint().port();
+  // {
+  //   Asio::io_service io_service;
+  //   boost::asio::ip::udp::socket tmp_socket(io_service, Endpoint(GetLocalIp(), 0));
+  //   int16_t some_used_port = tmp_socket.local_endpoint().port();
 
- //   EXPECT_NE(kSuccess, node_.managed_connections()->Bootstrap(
- //                           std::vector<Endpoint>(1, Endpoint(GetLocalIp(), some_used_port)),
- //                           do_nothing_on_message_, do_nothing_on_connection_lost_, node_.node_id(),
- //                           node_.private_key(), node_.public_key(), chosen_bootstrap, nat_type));
- // }
+  //   EXPECT_NE(kSuccess, node_.managed_connections()->Bootstrap(
+  //                       std::vector<Endpoint>(1, Endpoint(GetLocalIp(), some_used_port)),
+  //                       do_nothing_on_message_, do_nothing_on_connection_lost_, node_.node_id(),
+  //                       node_.private_key(), node_.public_key(), chosen_bootstrap, nat_type));
+  // }
 //  // Unavailable bootstrap_endpoints with kLivePort
 //  {
 //    // The tmp_socket opens the kLivePort to make sure no other program using RUDP
@@ -271,10 +277,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
 //
 //  // Invalid MessageReceivedFunctor
 //  EXPECT_EQ(kInvalidParameter,
-//            node_.managed_connections()->Bootstrap(bootstrap_endpoints_, MessageReceivedFunctor(),
-//                                                   do_nothing_on_connection_lost_, node_.node_id(),
-//                                                   node_.private_key(), node_.public_key(),
-//                                                   chosen_bootstrap, nat_type));
+//      node_.managed_connections()->Bootstrap(bootstrap_endpoints_, MessageReceivedFunctor(),
+//                                             do_nothing_on_connection_lost_, node_.node_id(),
+//                                             node_.private_key(), node_.public_key(),
+//                                             chosen_bootstrap, nat_type));
 //  // Invalid ConnectionLostFunctor
 //  EXPECT_EQ(kInvalidParameter, node_.managed_connections()->Bootstrap(
 //                                   bootstrap_endpoints_, do_nothing_on_message_,
@@ -331,11 +337,11 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
 
   try {
     chosen_node = node_.managed_connections()->Bootstrap
-                    ( bootstrap_endpoints_
-                    , std::make_shared<Listener>()
-                    , node_.node_id()
-                    , node_.keys()
-                    , asio::use_future, Endpoint()).get();
+                    (bootstrap_endpoints_,
+                     std::make_shared<Listener>(),
+                     node_.node_id(),
+                     node_.keys(),
+                     asio::use_future, Endpoint()).get();
   }
   catch (std::system_error error) {
     GTEST_FAIL() << "Failed to bootstrap";
@@ -351,7 +357,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_GetAvailableEndpoint) {
     ASSERT_EQ(error.code(), RudpErrors::already_connected);
   }
 
-  //EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
+  // FIXME: It was previously possible to get the endpoint pair
+  // but it is longer the case. Wonder whether it should be re-enabled?
+  // EXPECT_TRUE(detail::IsValid(this_endpoint_pair.local));
 
   EndpointPair another_endpoint_pair;
 
@@ -437,9 +445,9 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
   auto& node_d = *nodes_[2];
 
   ASSERT_THROW_CODE(get_within(node_a.GetAvailableEndpoints(node_b.node_id()), seconds(10)),
-                    RudpErrors::already_connected); 
+                    RudpErrors::already_connected);
   ASSERT_THROW_CODE(get_within(node_b.GetAvailableEndpoints(node_a.node_id()), seconds(10)),
-                    RudpErrors::already_connected); 
+                    RudpErrors::already_connected);
 
   // It used to be possible to check the endpoint even if already_connected error happened,
   // that is no longer the case though.
@@ -476,7 +484,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
       get_within(node_a.GetAvailableEndpoints(node_c.node_id()), seconds(10));
     }
     catch (std::system_error error) {
-      GTEST_FAIL() << "Exception: " << error.what(); 
+      GTEST_FAIL() << "Exception: " << error.what();
     }
 
     try {
@@ -485,7 +493,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
       GTEST_FAIL() << "Expected to throw";
     }
     catch (std::system_error error) {
-      ASSERT_EQ(error.code(), RudpErrors::timed_out) << "Exception: " << error.what(); 
+      ASSERT_EQ(error.code(), RudpErrors::timed_out) << "Exception: " << error.what();
     }
   }
 
@@ -500,7 +508,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
           node_a.node_id(), asio::use_future).get();
     }
     catch (std::system_error error) {
-      GTEST_FAIL() << "Exception: " << error.what(); 
+      GTEST_FAIL() << "Exception: " << error.what();
     }
 
     auto a_add = node_a.managed_connections()->Add(node_d.make_contact(d_eps), asio::use_future);
@@ -637,7 +645,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_Remove) {
 
   ASSERT_TRUE(wait_for_signals(1, 3));
   ASSERT_EQ(node_a.connection_lost_node_ids().size(), 1U);
-  //FIXME: Don't sync by sleep.
+  // FIXME: Don't sync by sleep.
   Sleep(milliseconds(200));
   ASSERT_EQ(node_c.connection_lost_node_ids().size(), 1U);
   EXPECT_EQ(chosen_node.id, node_a.connection_lost_node_ids()[0]);
@@ -724,7 +732,7 @@ TEST_F(ManagedConnectionsTest, BEH_API_SimpleSend) {
   ASSERT_TRUE(detail::IsValid(this_endpoint_pair.local));
   ASSERT_TRUE(detail::IsValid(peer_endpoint_pair.local));
 
-  auto node_a_add = node_.Add(nodes_[1]->make_contact(peer_endpoint_pair)); 
+  auto node_a_add = node_.Add(nodes_[1]->make_contact(peer_endpoint_pair));
   auto node_b_add = nodes_[1]->Add(node_.make_contact(this_endpoint_pair));
 
   ASSERT_NO_THROW(node_a_add.get());
@@ -1040,12 +1048,13 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
   ASSERT_EQ(get_within(node_b.Receive(), seconds(200)), sent_msg);
 
   // Send within bootstrap_disconnection_timeout period from node_b to node_a
-  ASSERT_THROW_CODE(node_.GetAvailableEndpoints(node_b.node_id()).get(), RudpErrors::already_connected);
+  ASSERT_THROW_CODE(node_.GetAvailableEndpoints(node_b.node_id()).get(),
+                    RudpErrors::already_connected);
   sent_msg = Node::str_to_msg("message02");
   node_b.Send(node_.node_id(), sent_msg).get();
   ASSERT_EQ(get_within(node_a.Receive(), seconds(100)), sent_msg);
 
-// TODO: I think the below code no longer applies with the new API.
+// TODO(PeterJ): I think the below code no longer applies with the new API.
 // If I understand it correctly a bootstrapped node no longer needs to be
 // added using the Add function so it is no longer the case that it
 // will be removed if Add is not called.
@@ -1060,7 +1069,8 @@ TEST_F(ManagedConnectionsTest, BEH_API_BootstrapTimeout) {
 //    Sleep(milliseconds(100));
 //    ++count;
 //  } while (
-//      (node_.connection_lost_node_ids().empty() || nodes_[0]->connection_lost_node_ids().empty()) &&
+//      (node_.connection_lost_node_ids().empty()
+//       || nodes_[0]->connection_lost_node_ids().empty()) &&
 //      count != 10);
 //  Sleep(milliseconds(100));
 //  ASSERT_EQ(1, node_.connection_lost_node_ids().size());

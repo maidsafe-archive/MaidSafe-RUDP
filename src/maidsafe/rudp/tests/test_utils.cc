@@ -73,10 +73,10 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   EXPECT_NO_THROW(node1_chosen_bootstrap_contact = node_1_bootstrap.get());
 
   // FIXME: Retry if either of the two ports had been taken.
-  //if (result0 == kBindError || result1 == kBindError) {
-  //  // The endpoints were taken by some other program, retry...
-  //  return SetupNetwork(nodes, bootstrap_endpoints, node_count);
-  //}
+  // if (result0 == kBindError || result1 == kBindError) {
+  //   // The endpoints were taken by some other program, retry...
+  //   return SetupNetwork(nodes, bootstrap_endpoints, node_count);
+  // }
 
   if (node1_chosen_bootstrap_contact.id != nodes[0]->node_id())
     return testing::AssertionFailure() << "Bootstrapping failed for Node 1.";
@@ -185,11 +185,12 @@ std::future<Contact> Node::Bootstrap(Contact bootstrap_endpoint, Endpoint local_
   return Bootstrap(Contacts{bootstrap_endpoint}, local_endpoint);
 }
 
-std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint) {
+std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints,
+                                     Endpoint                    local_endpoint) {
   struct BootstrapListener : public ManagedConnections::Listener {
     Node& self;
 
-    BootstrapListener(Node& self) : self(self) {}
+    explicit BootstrapListener(Node& self) : self(self) {}
 
     void MessageReceived(NodeId /*peer_id*/, ReceivedMessage message) override {
       bool is_printable(true);
@@ -200,8 +201,9 @@ std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpo
         }
       }
       std::string message_str(message.begin(), message.end());
-      LOG(kInfo) << self.id() << " -- Received: " << (is_printable ? message_str.substr(0, 30)
-                                                                   : HexEncode(message_str.substr(0, 15)));
+      LOG(kInfo) << self.id() << " -- Received: "
+                 << (is_printable ? message_str.substr(0, 30)
+                                  : HexEncode(message_str.substr(0, 15)));
       self.message_queue_.push(std::error_code(), message);
     }
 

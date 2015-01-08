@@ -16,8 +16,8 @@
     See the Licences for the specific language governing permissions and limitations relating to
     use of the MaidSafe Software.                                                                 */
 
-#ifndef __MAIDSAFE_TEST_HISTOGRAM_H_
-#define __MAIDSAFE_TEST_HISTOGRAM_H_
+#ifndef MAIDSAFE_RUDP_TESTS_HISTOGRAM_H_
+#define MAIDSAFE_RUDP_TESTS_HISTOGRAM_H_
 
 #include <map>
 
@@ -48,5 +48,5 @@ typename Histogram<T>::CounterType Histogram<T>::count(const T& arg) const {
   return i->second;
 }
 
-#endif //ifndef __MAIDSAFE_TEST_HISTOGRAM_H_
+#endif  // MAIDSAFE_RUDP_TESTS_HISTOGRAM_H_
 
