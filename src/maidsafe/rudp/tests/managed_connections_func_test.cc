@@ -106,8 +106,14 @@ class ManagedConnectionsFuncTest : public testing::Test {
       ASSERT_EQ(nodes_.size() - 1, peers.size());
       for (uint16_t j = 0; j != peers.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
-          ASSERT_NO_THROW(nodes_.at(i)->Send(peers.at(j), sent_messages[i][k]).get())
-             << "Can't send " << nodes_.at(i)->id() << " " << nodes_.at(j)->id();
+          try {
+            nodes_.at(i)->Send(peers.at(j), sent_messages[i][k]).get();
+          }
+          catch (const std::system_error& err) {
+            GTEST_FAIL() <<
+              "Can't send " << nodes_.at(i)->id() << " " << nodes_.at(j)->id() << "\n"
+              "Exception: " << err.what(); 
+          }
         }
       }
     }
