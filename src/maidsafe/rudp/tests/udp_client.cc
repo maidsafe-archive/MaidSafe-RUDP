@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     char reply[kMaxLength];
     do {
       std::string msg(maidsafe::RandomString(msg_size));
-      char *request = (char*)msg.c_str();  // NOLINT
+      char *request = const_cast<char*>(msg.c_str());  // NOLINT
       auto start_time(bptime::microsec_clock::universal_time());
 //       std::cout << "sending started at : " << start_time << std::endl;
       s.send_to(boost::asio::buffer(request, msg_size), *iterator);
