@@ -17,12 +17,14 @@
     use of the MaidSafe Software.                                                                 */
 
 
+#include <type_traits>
 #include <atomic>
 #include <chrono>
 #include <future>
 #include <functional>
 #include <limits>
 #include <vector>
+#include <sstream>
 
 #include "asio/use_future.hpp"
 #include "maidsafe/rudp/managed_connections.h"
@@ -86,7 +88,7 @@ class ParallelConnectionsTest : public testing::Test {
   ParallelConnectionsTest()
       : node_(999),
         nodes_(),
-// FIXME: Why do we do this apple stuff?
+// FIXME: Explain why we do this apple stuff?
 #ifndef MAIDSAFE_APPLE
         bootstrap_endpoints_()
   { }
@@ -191,27 +193,136 @@ struct input_watcher {
 #pragma warning(push)
 #pragma warning(disable : 4706)  // assignment within conditional expression
 #endif
-TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnectionsWorker) {
+
+using sstream = std::stringstream;
+
+template<class T>
+static std::string to_string(const std::vector<T>& v) {
+  return std::string(v.begin(), v.end());
+}
+
+// Poor man's LL parser (not sure whether I can use boost spirit).
+static char parse_one_of(sstream& ss, std::string allowed) {
+  sstream::int_type result = ss.peek();
+
+  if (result == sstream::traits_type::eof()) {
+    throw std::runtime_error("expected one of \"" + allowed + "\" got eof");
+  }
+
+  if (allowed.find(result) == std::string::npos) {
+    throw std::runtime_error("expected one of \"" + allowed + "\" got " +
+                             static_cast<char>(result));
+  }
+
+  ss.get();
+
+  return result;
+}
+
+template<class P>
+static std::vector<typename std::result_of<P(sstream&)>::type>
+parse_kleene(sstream& ss, const P& p) {
+  std::vector<typename std::result_of<P(sstream&)>::type> result;
+
+  try {
+    while (true) { result.push_back(p(ss)); }
+  } catch(...) {}
+
+  return result;
+}
+
+static std::vector<char> parse_hex(sstream& ss) {
+  auto chars = parse_kleene(ss, [&](sstream& ss)
+                                { return parse_one_of(ss, "0123456789abcdefABCDEF"); });
+  return std::vector<char>(chars.begin(), chars.end());
+}
+
+static uint16_t parse_port(sstream& ss) {
+  auto chars = parse_kleene(ss, [&](sstream& ss) { return parse_one_of(ss, "0123456789"); });
+  return atoi(std::string(chars.begin(), chars.end()).c_str());
+}
+
+static asio::ip::address parse_address(sstream& ss) {
+  auto parser = [&](sstream& ss) { return parse_one_of(ss, "0123456789."); };
+  return asio::ip::address::from_string(to_string(parse_kleene(ss, parser)));
+}
+
+static NodeId parse_node_id(sstream& ss) {
+  return NodeId(HexDecode(to_string(parse_hex(ss))));
+}
+
+static asymm::PublicKey parse_public_key(sstream& ss) {
+  auto decoded = HexDecode(to_string(parse_hex(ss)));
+  return Parse<asymm::PublicKey>(std::vector<unsigned char>(decoded.begin(), decoded.end()));
+}
+
+static asio::ip::udp::endpoint parse_endpoint(sstream& ss) {
+  auto addr = parse_address(ss);
+  parse_one_of(ss, ":");
+  auto port = parse_port(ss);
+  return asio::ip::udp::endpoint(addr, port);
+}
+
+static Contact parse_contact(sstream& ss) {
+  auto node_id  = parse_node_id(ss);
+  parse_one_of(ss, ":");
+  auto endpoint = parse_endpoint(ss);
+  parse_one_of(ss, ":");
+  auto public_key = parse_public_key(ss);
+  return Contact(node_id, endpoint, public_key);
+}
+
+static std::string serialize(const asio::ip::udp::endpoint& e) {
+  return e.address().to_string() + ":" + std::to_string(e.port());
+}
+
+static std::string serialize(const NodeId& id) {
+  return HexEncode(id.string());
+}
+
+static std::string serialize(const asymm::PublicKey& key) {
+  return HexEncode(to_string(Serialise(key)));
+}
+
+static std::string serialize(const Contact& c) {
+  auto node_id     = serialize(c.id);
+  auto endpoint    = serialize(c.endpoint_pair.local);
+  auto public_key  = serialize(c.public_key);
+  auto contact_str = node_id + ":" + endpoint + ":" + public_key + ";";
+  return contact_str;
+}
+
+static std::string serialize(const EndpointPair& eps) {
+  return serialize(eps.local) + "," + serialize(eps.external);
+}
+
+static EndpointPair parse_endpoint_pair(sstream& ss) {
+  auto local = parse_endpoint(ss);
+  parse_one_of(ss, ",");
+  auto external = parse_endpoint(ss);
+  return EndpointPair(local, external);
+}
+
+static std::vector<Contact> parse_contacts(sstream& ss) {
+  return parse_kleene(ss, [&](sstream& ss) {
+      auto contact = parse_contact(ss);
+      parse_one_of(ss, ";");
+      return contact;
+      });
+}
+
+
+TEST_F(ParallelConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
   const char* endpoints = std::getenv("MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS");
   if (!endpoints) { return; }
 
-  bootstrap_endpoints_.clear();
-  for (const char* s = endpoints, * e = endpoints - 1; (s = e + 1, e = strchr(s, ';'));) {
-    const char* colon = strchr(s, ':');
-    if (!colon || colon > e) {
-      std::cout << "ERROR: Couldn't parse " << endpoints << " so exiting." << std::endl;
-      abort();
-    }
-    asio::ip::udp::endpoint endpoint
-      (asio::ip::address::from_string(std::string(s, colon - s)),
-       (uint16_t)atoi(colon + 1));
-
-    // FIXME: Real values for NodeId and public key.
-    bootstrap_endpoints_.push_back(Contact(NodeId(), endpoint, asymm::PublicKey()));
-    // std::cerr << "I have bootstrap endpoint " <<
-    // bootstrap_endpoints_.back().address().to_string() << ":" <<
-    // bootstrap_endpoints_.back().port() << std::endl;
+  try {
+    std::stringstream ss(endpoints);
+    bootstrap_endpoints_ = parse_contacts(ss);
+  } catch (const std::exception& e) {
+    GTEST_FAIL() << "Problem parsing contacts: " << e.what();
   }
+
   std::string line;
   do {
     if (!std::getline(std::cin, line)) {
@@ -223,31 +334,37 @@ TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnectionsWorker) 
     line.resize(line.size() - 1);
   const size_t my_id = atoi(line.substr(9).c_str());
   Node node(static_cast<int>(my_id));
-  std::cout << "NODE_ID: " << node.node_id().ToStringEncoded(NodeId::EncodingType::kHex)
-            << std::endl;
+
+  std::cout << "NODE_ID: " << serialize(node.node_id()) << ","
+                           << serialize(node.public_key()) << std::endl;
+
   NodeId peer_node_id;
   Contact chosen_node;
-//  ASSERT_EQ(kSuccess, node.Bootstrap(bootstrap_endpoints_, chosen_node_id));
-  ASSERT_NO_THROW(chosen_node = get_within(node.Bootstrap(bootstrap_endpoints_), seconds(10)));
+  ASSERT_NO_THROW(chosen_node = get_within(node.Bootstrap(bootstrap_endpoints_), seconds(30)));
 
   std::atomic<bool> sender_thread_done(false);
   std::mutex lock;
-//  Asio::io_service service;
   std::vector<NodeId> peer_node_ids;
   size_t peer_node_ids_idx = 0, messages_sent = 0;
   std::thread sender_thread([&] {
     static std::string bleh(1500, 'n');
     while (!sender_thread_done) {
+      // FIXME: Why sleep?
       std::this_thread::sleep_for(milliseconds(20));
       std::lock_guard<decltype(lock)> g(lock);
       if (peer_node_ids_idx < peer_node_ids.size()) {
-        ASSERT_NO_THROW(get_within(node.Send(peer_node_ids[peer_node_ids_idx], bleh), seconds(10)));
+        try {
+          get_within(node.Send(peer_node_ids[peer_node_ids_idx], bleh), minutes(10));
+        } catch (const std::exception& e) {
+          GTEST_FAIL() << "Failed sending: " << e.what();
+        }
         ++messages_sent;
       }
       if (++peer_node_ids_idx >= peer_node_ids.size())
         peer_node_ids_idx = 0;
     }
   });
+
   try {
     for (;;) {
       if (!std::getline(std::cin, line)) {
@@ -263,49 +380,19 @@ TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnectionsWorker) 
         NodeId peer_node_id(line.substr(14), NodeId::EncodingType::kHex);
 
         EndpointPair empty_endpoint_pair, this_endpoint_pair;
-        // std::cerr << my_id << ": Getting available endpoint for " <<
-        // peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
-//        EXPECT_EQ(kSuccess, node.managed_connections()->GetAvailableEndpoint(
-//                                peer_node_id, empty_endpoint_pair, this_endpoint_pair, nat_type));
+
         ASSERT_NO_THROW(this_endpoint_pair
             = get_within(node.GetAvailableEndpoints(peer_node_id), seconds(10)));
 
-        std::cout << "ENDPOINT: "
-                  << this_endpoint_pair.local.address().to_string() + ":" +
-                         std::to_string(this_endpoint_pair.local.port()) + ";"
-                  << this_endpoint_pair.external.address().to_string() + ":" +
-                         std::to_string(this_endpoint_pair.external.port()) + ";" << std::endl;
-        // std::cerr << my_id << ": Endpoint obtained (" << this_endpoint_pair.local.port() << ")"
-        // << std::endl;
+        std::cout << "ENDPOINT: " << serialize(this_endpoint_pair) << std::endl;
       } else if (!line.compare(0, 8, "CONNECT:")) {
-        const char* colon1 = strchr(line.c_str(), ';');
-        if (!colon1) {
-          std::cout << "ERROR: Couldn't parse " << line << " so exiting." << std::endl;
-          abort();
-        }
-        const char* colon2 = strchr(colon1 + 1, ':');
-        if (!colon2) {
-          std::cout << "ERROR: Couldn't parse " << line << " so exiting." << std::endl;
-          abort();
-        }
-        const char* colon3 = strchr(colon2 + 1, ';');
-        if (!colon3) {
-          std::cout << "ERROR: Couldn't parse " << line << " so exiting." << std::endl;
-          abort();
-        }
-        NodeId peer_node_id(std::string(line.c_str() + 9, colon1 - line.c_str() - 9),
-                            NodeId::EncodingType::kHex);
-        EndpointPair peer_endpoint_pair;
-        peer_endpoint_pair.local = asio::ip::udp::endpoint(
-            asio::ip::address::from_string(std::string(colon1 + 1, colon2 - colon1 - 1)),
-            (uint16_t)atoi(colon2 + 1));
-        // FIXME: Valid public key
-        Contact peer_contact(peer_node_id, peer_endpoint_pair, asymm::PublicKey());
-        ASSERT_NO_THROW(get_within(node.Add(peer_contact), minutes(2)));
-        std::cout << "CONNECTED: " << peer_node_id.ToStringEncoded(NodeId::EncodingType::kHex)
-                  << std::endl;
+        std::stringstream ss(line.substr(9));
+        Contact peer_contact;
+        ASSERT_NO_THROW(peer_contact = parse_contact(ss));
+        get_within(node.Add(peer_contact), minutes(1));
+        std::cout << "CONNECTED: " << serialize(peer_contact.id) << std::endl;
         std::lock_guard<decltype(lock)> g(lock);
-        peer_node_ids.push_back(peer_node_id);
+        peer_node_ids.push_back(peer_contact.id);
       } else if (!line.compare(0, 5, "STATS")) {
         std::lock_guard<decltype(lock)> g(lock);
         std::cout << "STATS: " << messages_sent << std::endl;
@@ -318,7 +405,7 @@ TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnectionsWorker) 
   sender_thread.join();
 }
 
-TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnections) {
+TEST_F(ParallelConnectionsTest, FUNC_API_500ParallelConnections) {
   size_t node_count = 23, messages_sent_count = 100000;
   const char* node_count_env = std::getenv("MAIDSAFE_RUDP_TEST_PARALLEL_CONNECTIONS_NODE_COUNT");
   if (node_count_env)
@@ -347,13 +434,8 @@ TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnections) {
       "MAIDSAFE_RUDP_PARALLEL_CONNECTIONS_BOOTSTRAP_ENDPOINTS=");
 #endif
   for (auto& i : bootstrap_endpoints_) {
-    auto temp = i.endpoint_pair.local.address().to_string();
-#ifdef WIN32
-    endpoints.append(native_string(temp.begin(), temp.end()) +
-                     L":" + std::to_wstring(i.endpoint_pair.local.port()) + L";");
-#else
-    endpoints.append(temp + ":" + std::to_string(i.endpoint_pair.local.port()) + ";");
-#endif
+    auto contact = serialize(i);
+    endpoints.append(native_string(contact.begin(), contact.end()));
   }
   std::vector<native_string> env{endpoints};
 // Boost.Process won't inherit environment at the same time as do custom env,
@@ -481,7 +563,9 @@ TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnections) {
     // connections
     std::vector<std::pair<size_t, size_t>> execution_order;
     std::vector<NodeId> child_nodeids;
+    std::vector<asymm::PublicKey> child_nodekeys;
     child_nodeids.reserve(node_count);
+    child_nodekeys.reserve(node_count);
     for (size_t n = 0; n < node_count; n++) {
       boost::iostreams::stream<boost::iostreams::file_descriptor_source>& is = *childpipes[n].first;
       for (;;) {
@@ -498,15 +582,15 @@ TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnections) {
           return;
         }
         if (!line.compare(0, 8, "NODE_ID:")) {
-          // std::cout << "Child " << n << " returns node id " << line.substr(9) << std::endl;
-          child_nodeids.push_back(NodeId(line.substr(9), NodeId::EncodingType::kHex));
+          std::stringstream ss(line.substr(9));
+          child_nodeids.push_back(parse_node_id(ss));
+          parse_one_of(ss, ",");
+          child_nodekeys.push_back(parse_public_key(ss));
           break;
         } else if (line[0] != '[' && !strstr(line.c_str(), "Google Test filter")) {
           std::cout << "Child " << n << " sends me unknown line '" << line << "'" << std::endl;
         }
       }
-      // std::cout << "Child " << n << " has node id " <<
-      //  child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << std::endl;
       for (size_t i = 0; i < n; i++) {
         execution_order.push_back(std::make_pair(n, i));
       }
@@ -605,19 +689,13 @@ TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnections) {
             return false;
           }
           if (!line.compare(0, 9, "ENDPOINT:")) {
-            bool first = true;
-            for (const char* s, * e = line.c_str() + 9; (s = e + 1, e = strchr(s, ';'));
-                 first = false) {
-              const char* colon = strchr(s, ':');
-              if (!colon || colon > e) {
-                std::cout << "ERROR: Couldn't parse " << line << " so exiting." << std::endl;
-                abort();
-              }
-              (first ? endpoint.local : endpoint.external)
-                  .address(asio::ip::address::from_string(std::string(s, colon - s)));
-              (first ? endpoint.local : endpoint.external).port((uint16_t)atoi(colon + 1));
+            try {
+              std::stringstream ss(line.substr(10));
+              endpoint = parse_endpoint_pair(ss);
+            } catch (const std::exception& e) {
+              std::cerr << "ERROR: Couldn't parse " << line << " so exiting: " << e.what();
+              return false;
             }
-            // std::cout << "Child " << a << " returns endpoints " << line.substr(10) << std::endl;
             return true;
           } else if (line[0] != '[') {
             std::cout << "Child " << a << " sends me unknown line '" << line << "'\n";
@@ -635,16 +713,14 @@ TEST_F(ParallelConnectionsTest, DISABLED_FUNC_API_500ParallelConnections) {
       }
       child_endpoints[n][i * 2 + 1] = endpoint;
 
-      os1 << "CONNECT: " << child_nodeids[i].ToStringEncoded(NodeId::EncodingType::kHex) << ";"
-          << child_endpoints[n][i * 2 + 1].local.address().to_string() + ":"
-          << child_endpoints[n][i * 2 + 1].local.port() << ";" << std::endl;
-      os2 << "CONNECT: " << child_nodeids[n].ToStringEncoded(NodeId::EncodingType::kHex) << ";"
-          << child_endpoints[n][i * 2].local.address().to_string() + ":"
-          << child_endpoints[n][i * 2].local.port() << ";" << std::endl;
+      Contact c1(child_nodeids[i], child_endpoints[n][i*2+1], child_nodekeys[i]);
+      Contact c2(child_nodeids[n], child_endpoints[n][i*2],   child_nodekeys[n]);
+      os1 << "CONNECT: " << serialize(c1) << std::endl;
+      os2 << "CONNECT: " << serialize(c2) << std::endl;
+
       auto drain_connect = [&](size_t a) {
         boost::iostreams::stream<boost::iostreams::file_descriptor_source>& is =
             *childpipes[a].first;
-        // std::cout << "drain_connect(" << a << ")" << std::endl;
         for (;;) {
           std::string line;
           if (!getline(is, is->handle(), line)) {
