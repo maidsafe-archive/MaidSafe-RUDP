@@ -66,11 +66,10 @@ void tick_handler(const std::error_code& ec, Socket* sock) {
 }
 
 void handler1(const bs::error_code& ec, bs::error_code* out_ec) {
-  std::cout << "handler1 " << ec.message() << "\n";
   *out_ec = ec;
 }
 
-TEST(SocketTest, DISABLED_BEH_Socket) {
+TEST(SocketTest, BEH_Socket) {
   using Endpoint = asio::ip::udp::endpoint;
 
   Asio::io_service io_service;
@@ -132,12 +131,9 @@ TEST(SocketTest, DISABLED_BEH_Socket) {
                              std::bind(&handler1, args::_1, &server_ec), Session::kNormal, 0,
                              on_nat_detection_requested_slot);
 
-  std::cout << "running...\n";
   do {
     io_service.run_one();
-    std::cout << "ran one\n";
   } while (server_ec == Asio::error::would_block || client_ec == Asio::error::would_block);
-  std::cout << "done running\n";
 
   ASSERT_TRUE(!server_ec);
   ASSERT_TRUE(server_socket.IsOpen());
@@ -178,7 +174,7 @@ TEST(SocketTest, DISABLED_BEH_Socket) {
   ASSERT_TRUE(!client_ec);
 }
 
-TEST(SocketTest, DISABLED_BEH_AsyncProbe) {
+TEST(SocketTest, BEH_AsyncProbe) {
   using Endpoint = asio::ip::udp::endpoint;
 
   Asio::io_service io_service;

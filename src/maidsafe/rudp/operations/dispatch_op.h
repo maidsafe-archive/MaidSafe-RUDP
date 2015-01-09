@@ -70,7 +70,7 @@ class DispatchOp {
           socket_.receive_from(boost::asio::buffer(buffer_), sender_endpoint_, 0, local_ec);
     }
 
-    handler_(std::make_error_code(static_cast<std::errc>(local_ec.value())));
+    handler_(std::make_error_code(static_cast<std::errc>(ec.value())));
   }
 
   friend void* asio_handler_allocate(size_t n, DispatchOp* op) {
