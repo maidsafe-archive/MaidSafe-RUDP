@@ -58,7 +58,7 @@ extern void SetDebugPacketLossRate(double constant, double bursty);
 // template <typename Alloc = kernel_side_allocator>
 class ManagedConnections {
  public:
-  using Error         = rudp::error_code;
+  using Error = rudp::error_code;
   using ConnectionPtr = std::shared_ptr<detail::Connection>;
 
   class Listener {
@@ -143,8 +143,8 @@ class ManagedConnections {
 
   template <typename Handler>
   void DoBootstrap(const BootstrapContacts& bootstrap_list, std::shared_ptr<Listener> listener,
-                   const NodeId& this_node_id, const asymm::Keys& keys,
-                   Handler handler, Endpoint local_endpoint);
+                   const NodeId& this_node_id, const asymm::Keys& keys, Handler handler,
+                   Endpoint local_endpoint);
 
   template <typename Handler>
   void DoGetAvailableEndpoints(const NodeId& peer_id, Handler handler);
@@ -184,8 +184,7 @@ class ManagedConnections {
 
   void OnMessageSlot(const NodeId& peer_id, std::vector<uint8_t> message);
   void OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,
-                             bool temporary_connection,
-                             ConnectionPtr);
+                             bool temporary_connection, ConnectionPtr);
   void OnConnectionLostSlot(const NodeId& peer_id, TransportPtr transport,
                             bool temporary_connection);
   // This signal is fired by Session when a connecting peer requests to use this peer for NAT
@@ -196,7 +195,7 @@ class ManagedConnections {
 
   void UpdateIdleTransports(const TransportPtr&);
 
-  BoostAsioService asio_service_;
+  AsioService asio_service_;
   boost::asio::io_service::strand strand_;
 
   std::weak_ptr<Listener> listener_;
@@ -212,11 +211,8 @@ class ManagedConnections {
 
 template <typename CompletionToken>
 BootstrapReturn<CompletionToken> ManagedConnections::Bootstrap(
-    const BootstrapContacts& bootstrap_list,
-    std::shared_ptr<Listener> listener,
-    const NodeId& this_node_id,
-    const asymm::Keys& keys,
-    const CompletionToken& token,
+    const BootstrapContacts& bootstrap_list, std::shared_ptr<Listener> listener,
+    const NodeId& this_node_id, const asymm::Keys& keys, const CompletionToken& token,
     Endpoint local_endpoint) {
   BootstrapHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
@@ -228,8 +224,7 @@ BootstrapReturn<CompletionToken> ManagedConnections::Bootstrap(
 template <typename Handler>
 void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
                                      std::shared_ptr<Listener> listener, const NodeId& this_node_id,
-                                     const asymm::Keys& keys,
-                                     Handler handler,
+                                     const asymm::Keys& keys, Handler handler,
                                      Endpoint local_endpoint) {
   ClearConnectionsAndIdleTransports();
   if (CheckBootstrappingParameters(bootstrap_list, listener, this_node_id) != 0) {  // failure
@@ -244,13 +239,13 @@ void ManagedConnections::DoBootstrap(const BootstrapContacts& bootstrap_list,
   }
 
   StartNewTransport(bootstrap_list, local_endpoint,
-      [=](Error error, Contact chosen_contact) mutable {
-        if (!error) {
-          listener_ = listener;
-        }
+                    [=](Error error, Contact chosen_contact) mutable {
+    if (!error) {
+      listener_ = listener;
+    }
 
-        handler(error, chosen_contact);
-      });
+    handler(error, chosen_contact);
+  });
 }
 
 template <typename CompletionToken>
@@ -298,25 +293,24 @@ void ManagedConnections::DoGetAvailableEndpoints(const NodeId& peer_id, Handler 
   if (SelectIdleTransport(peer_id, this_endpoint_pair))
     return handler(Error(), this_endpoint_pair);
 
-  StartNewTransport(BootstrapContacts(),
-                    Endpoint(local_ip_, 0),
-                    [=](Error error, const Contact&) mutable {
-      if (error) {
-        return handler(error, EndpointPair());
-      }
+  StartNewTransport(BootstrapContacts(), Endpoint(local_ip_, 0),
+                    [=](Error error, const Contact&)mutable {
+    if (error) {
+      return handler(error, EndpointPair());
+    }
 
-      if (ExistingConnectionAttempt(peer_id, this_endpoint_pair)) {
-        LOG(kError) << "Connection attempt already in progress.";
-        return handler(RudpErrors::connection_already_in_progress, EndpointPair());
-      }
+    if (ExistingConnectionAttempt(peer_id, this_endpoint_pair)) {
+      LOG(kError) << "Connection attempt already in progress.";
+      return handler(RudpErrors::connection_already_in_progress, EndpointPair());
+    }
 
-      if (!SelectAnyTransport(peer_id, this_endpoint_pair)) {
-        LOG(kError) << "All connectable Transports are full.";
-        return handler(CommonErrors::unable_to_handle_request, EndpointPair());
-      }
+    if (!SelectAnyTransport(peer_id, this_endpoint_pair)) {
+      LOG(kError) << "All connectable Transports are full.";
+      return handler(CommonErrors::unable_to_handle_request, EndpointPair());
+    }
 
-      handler(Error(), this_endpoint_pair);
-      });
+    handler(Error(), this_endpoint_pair);
+  });
 }
 
 template <typename CompletionToken>
@@ -348,15 +342,14 @@ SendReturn<CompletionToken> ManagedConnections::Send(const NodeId& peer_id,
   SendHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
   strand_.dispatch([=]() mutable {
-      // FIXME: Can the const_cast be avoided? For some reason, the
-      //        lambda creates a const copy of the message...
-      DoSend(peer_id, std::move(const_cast<SendableMessage&>(message)), handler);
-      });
+    // FIXME: Can the const_cast be avoided? For some reason, the
+    //        lambda creates a const copy of the message...
+    DoSend(peer_id, std::move(const_cast<SendableMessage&>(message)), handler);
+  });
   return result.get();
 }
 
-inline
-size_t ManagedConnections::GetActiveConnectionCount() {
+inline size_t ManagedConnections::GetActiveConnectionCount() {
   using lock_guard = std::lock_guard<std::mutex>;
 
   std::mutex mutex;
@@ -364,9 +357,9 @@ size_t ManagedConnections::GetActiveConnectionCount() {
   auto future = promise.get_future();
 
   strand_.dispatch([&]() {
-      lock_guard lock(mutex);
-      promise.set_value(connections_.size());
-      });
+    lock_guard lock(mutex);
+    promise.set_value(connections_.size());
+  });
 
   size_t retval = future.get();
   { lock_guard lock(mutex); }
