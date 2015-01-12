@@ -201,7 +201,7 @@ static std::string to_string(const std::vector<T>& v) {
   return std::string(v.begin(), v.end());
 }
 
-// Poor man's LL parser (not sure whether I can use boost spirit).
+// Poor man's LL parser.
 static char parse_one_of(sstream& ss, std::string allowed) {
   sstream::int_type result = ss.peek();
 
@@ -232,14 +232,13 @@ parse_kleene(sstream& ss, const P& p) {
 }
 
 static std::vector<char> parse_hex(sstream& ss) {
-  auto chars = parse_kleene(ss, [&](sstream& ss)
-                                { return parse_one_of(ss, "0123456789abcdefABCDEF"); });
-  return std::vector<char>(chars.begin(), chars.end());
+  return parse_kleene(ss, [&](sstream& ss)
+                             { return parse_one_of(ss, "0123456789abcdefABCDEF"); });
 }
 
 static uint16_t parse_port(sstream& ss) {
   auto chars = parse_kleene(ss, [&](sstream& ss) { return parse_one_of(ss, "0123456789"); });
-  return atoi(std::string(chars.begin(), chars.end()).c_str());
+  return atoi(to_string(chars).c_str());
 }
 
 static asio::ip::address parse_address(sstream& ss) {
