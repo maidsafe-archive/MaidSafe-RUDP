@@ -25,24 +25,45 @@
 #include <functional>
 #include <vector>
 
+#include "asio/use_future.hpp"
+
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/tests/test_utils.h"
+#include "maidsafe/rudp/tests/get_within.h"
+#include "maidsafe/rudp/tests/histogram.h"
 #include "maidsafe/rudp/utils.h"
 
 namespace args = std::placeholders;
-namespace asio = boost::asio;
+namespace Asio = boost::asio;
 namespace bptime = boost::posix_time;
-namespace ip = asio::ip;
+namespace ip = Asio::ip;
+
+namespace std {
+  std::ostream& operator<<(std::ostream& os, const std::vector<unsigned char>& data) {
+    bool is_printable(true);
+    for (const auto& elem : data) {
+      if (elem < 32) { is_printable = false; break; }
+    }
+
+    std::string str(data.begin(), data.end());
+
+    if (is_printable) {
+      os << "[vector: \"" << str.substr(0, 30) << "\"]";
+    } else {
+      os << "[vector: " << maidsafe::HexEncode(str.substr(0, 30)) << "]";
+    }
+
+    return os;
+  }
+}  // namespace std
 
 namespace maidsafe {
 
 namespace rudp {
-
-typedef boost::asio::ip::udp::endpoint Endpoint;
 
 namespace test {
 
@@ -53,75 +74,72 @@ class ManagedConnectionsFuncTest : public testing::Test {
  protected:
   // Each node sending n messsages to all other connected nodes.
   void RunNetworkTest(uint8_t num_messages, int messages_size) {
+    using std::vector;
+
     uint16_t messages_received_per_node = num_messages * (network_size_ - 1);
-    std::vector<Node::messages_t> sent_messages;
-    std::vector<boost::future<Node::messages_t>> futures;
+    vector<Node::messages_t> sent_messages;
+    vector<vector<std::future<Node::message_t>>> rx_futures;
+    vector<Histogram<Node::message_t>> message_histograms(nodes_.size());
 
     // Generate_messages
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      sent_messages.push_back(Node::messages_t());
+      sent_messages.emplace_back();
       std::string message_prefix(std::string("Msg from ") + nodes_[i]->id() + " ");
       for (uint8_t j = 0; j != num_messages; ++j) {
-        sent_messages[i].push_back(message_prefix +
-                                   std::string(messages_size - message_prefix.size(), 'A' + j));
+        auto message = message_prefix + std::string(messages_size - message_prefix.size(), 'A' + j);
+        sent_messages[i].push_back(Node::message_t(message.begin(), message.end()));
       }
     }
 
     // Get futures for messages from individual nodes
     for (auto node_ptr : nodes_) {
-      node_ptr->ResetData();
-      futures.emplace_back(node_ptr->GetFutureForMessages(messages_received_per_node));
+      rx_futures.emplace_back();
+      for (unsigned int i = 0; i < messages_received_per_node; ++i) {
+        rx_futures.back().emplace_back(node_ptr->Receive());
+      }
     }
 
-    // Sending messages
-    std::vector<std::vector<std::vector<int>>> send_results(
-        nodes_.size(), std::vector<std::vector<int>>(
-                           nodes_.size() - 1, std::vector<int>(num_messages, kReturnCodeLimit)));
-    std::atomic<size_t> issued(0), finished(0);
-
+    // FIXME: Wait for the send futures somewhere below receiving.
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      std::vector<NodeId> peers(nodes_.at(i)->GetConnectedNodeIds());
+      vector<NodeId> peers(nodes_.at(i)->GetConnectedNodeIds());
       ASSERT_EQ(nodes_.size() - 1, peers.size());
       for (uint16_t j = 0; j != peers.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
-          ++issued;
-          Sleep(std::chrono::seconds(1));
-          nodes_.at(i)->managed_connections()->Send(
-              peers.at(j), sent_messages[i][k],
-              [=, &send_results, &issued, &finished](int result_in) {
-                send_results[i][j][k] = result_in; ++finished; });
+          try {
+            nodes_.at(i)->Send(peers.at(j), sent_messages[i][k]).get();
+          }
+          catch (const std::system_error& err) {
+            GTEST_FAIL() <<
+              "Can't send " << nodes_.at(i)->id() << " " << nodes_.at(j)->id() << "\n"
+              "Exception: " << err.what();
+          }
         }
       }
     }
 
     // Waiting for all results (promises)
-    for (uint16_t i = 0; i != nodes_.size(); ++i) {
-      boost::chrono::seconds timeout(
-          (i == 0 ? num_messages * nodes_.size() : (nodes_.size() - i)) *
-          (messages_size > (128 * 1024) ? messages_size / (128 * 1024) : 1));
-      if (futures.at(i).wait_for(timeout) == boost::future_status::ready) {
-        auto messages(futures.at(i).get());
-        EXPECT_FALSE(messages.empty()) << "Something";
-      } else {
-        EXPECT_FALSE(true) << "Timed out on " << nodes_.at(i)->id();
+    for (size_t i = 0; i != nodes_.size(); ++i) {
+      // FIXME: This needs a comment.
+      std::chrono::seconds timeout(
+          (i == 0 ? num_messages * nodes_.size()
+                  : (nodes_.size() - i))
+          * (messages_size > (128 * 1024) ? messages_size / (128 * 1024)
+                                          : 1));
+
+      for (auto& future : rx_futures.at(i)) {
+        auto message = get_within(future, timeout);
+        ASSERT_FALSE(message.empty()) << "Received an empty message";
+        message_histograms[i].insert(std::move(message));
       }
     }
-    uint8_t ticking(0);
-    while ((issued != finished) && (++ticking <(num_messages * nodes_.size())))
-      Sleep(std::chrono::seconds(1));
-    EXPECT_EQ(issued, finished);
 
     // Check send results
     for (uint16_t i = 0; i != nodes_.size(); ++i) {
       for (uint16_t j = 0; j != nodes_.size(); ++j) {
         for (uint8_t k = 0; k != num_messages; ++k) {
-          if (j != nodes_.size() - 1) {
-            EXPECT_EQ(kSuccess, send_results[i][j][k]) << "send_results[" << i << "][" << j << "]["
-                                                       << k << "]: " << send_results[i][j][k];
-          }
           if (i != j) {
-            EXPECT_EQ(1U, nodes_.at(i)->GetReceivedMessageCount(sent_messages[j][k]))
-                << nodes_.at(i)->id() << " didn't receive " << sent_messages[j][k].substr(0, 20);
+            EXPECT_EQ(message_histograms[i].count(sent_messages[j][k]), 1)
+                << nodes_.at(i)->id() << " didn't receive";
           }
         }
       }
@@ -129,7 +147,7 @@ class ManagedConnectionsFuncTest : public testing::Test {
   }
 
   std::vector<NodePtr> nodes_;
-  std::vector<Endpoint> bootstrap_endpoints_;
+  std::vector<Contact> bootstrap_endpoints_;
   uint16_t network_size_;
 
  private:

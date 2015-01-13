@@ -47,14 +47,14 @@ class TickOp {
       : handler_(other.handler_), socket_(other.socket_), tick_timer_(other.tick_timer_) {}
 
   void operator()(boost::system::error_code) {
-    boost::system::error_code ec;
+    std::error_code ec;
     if (socket_.IsOpen()) {
       if (tick_timer_.Expired()) {
         tick_timer_.Reset();
         DispatchTick(socket_);
       }
     } else {
-      ec = boost::asio::error::operation_aborted;
+      ec = RudpErrors::operation_aborted;
     }
     handler_(ec);
   }

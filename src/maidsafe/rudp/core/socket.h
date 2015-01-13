@@ -69,7 +69,7 @@ class NegativeAckPacket;
 
 class Socket {
  public:
-  using Endpoint = boost::asio::ip::udp::endpoint;
+  using Endpoint = asio::ip::udp::endpoint;
 
   Socket(Multiplexer& multiplexer, NatType& nat_type);  // NOLINT (Fraser)
   ~Socket();
@@ -129,17 +129,18 @@ class Socket {
   // expires.
   template <typename ConnectHandler>
   uint32_t AsyncConnect(const NodeId& this_node_id,
-                        std::shared_ptr<asymm::PublicKey> this_public_key,
+                        const asymm::PublicKey& this_public_key,
                         const Endpoint& remote,
                         const NodeId& peer_node_id,
+                        const asymm::PublicKey& peer_public_key,
                         ConnectHandler handler,
                         Session::Mode open_mode,
                         uint32_t cookie_syn,
                         Session::OnNatDetectionRequested::slot_type on_nat_detection_requested) {
     ConnectOp<ConnectHandler> op(handler, waiting_connect_ec_);
     waiting_connect_.async_wait(op);
-    return StartConnect(this_node_id, this_public_key, remote, peer_node_id, open_mode, cookie_syn,
-                        on_nat_detection_requested);
+    return StartConnect(this_node_id, this_public_key, remote, peer_node_id, peer_public_key,
+                        open_mode, cookie_syn, on_nat_detection_requested);
   }
 
   // Initiate an asynchronous operation to write data. The operation will
@@ -149,8 +150,7 @@ class Socket {
   // been acknowledged by the peer.
   template <typename WriteHandler>
   void AsyncWrite(const boost::asio::const_buffer& data,
-                  const std::function<void(int)>& message_sent_functor,  // NOLINT (Fraser)
-                  WriteHandler handler) {
+                  const MessageSentFunctor& message_sent_functor, WriteHandler handler) {
     WriteOp<WriteHandler> op(handler, waiting_write_ec_, waiting_write_bytes_transferred_);
     waiting_write_.async_wait(op);
     StartWrite(data, message_sent_functor);
@@ -192,7 +192,7 @@ class Socket {
   Endpoint ThisEndpoint() const;
 
   // Public key of remote peer, used to encrypt all outgoing messages on this socket
-  std::shared_ptr<asymm::PublicKey> PeerPublicKey() const;
+  const asymm::PublicKey& PeerPublicKey() const;
 
   friend class Dispatcher;
 
@@ -202,15 +202,15 @@ class Socket {
   Socket& operator=(const Socket&);
 
   uint32_t StartConnect(const NodeId& this_node_id,
-                        std::shared_ptr<asymm::PublicKey> this_public_key,
+                        const asymm::PublicKey& this_public_key,
                         const Endpoint& remote,
                         const NodeId& peer_node_id,
+                        const asymm::PublicKey& peer_public_key,
                         Session::Mode open_mode,
                         uint32_t cookie_syn,
                         const Session::OnNatDetectionRequested::slot_type&);
 
-  void StartWrite(const boost::asio::const_buffer& data,
-                  const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
+  void StartWrite(const boost::asio::const_buffer& data, const MessageSentFunctor& handler);
   void ProcessWrite();
   void StartRead(const boost::asio::mutable_buffer& data, size_t transfer_at_least);
   void ProcessRead();
@@ -282,7 +282,7 @@ class Socket {
   boost::system::error_code waiting_write_ec_;
   size_t waiting_write_bytes_transferred_;
   uint32_t waiting_write_message_number_;
-  std::map<uint32_t, std::function<void(int)>> message_sent_functors_;  // NOLINT (Fraser)
+  std::map<uint32_t, MessageSentFunctor> message_sent_functors_;
 
   // This class allows only one outstanding asynchronous read operation at a
   // time. The following data members store the pending read, its associated

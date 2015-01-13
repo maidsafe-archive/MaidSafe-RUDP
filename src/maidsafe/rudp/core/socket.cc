@@ -39,8 +39,7 @@
 #include "maidsafe/rudp/packets/negative_ack_packet.h"
 #include "maidsafe/rudp/packets/shutdown_packet.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
+namespace Asio = boost::asio;
 namespace bs = boost::system;
 namespace bptime = boost::posix_time;
 namespace args = std::placeholders;
@@ -88,15 +87,15 @@ Socket::Socket(Multiplexer& multiplexer, NatType& nat_type)  // NOLINT (Fraser)
 Socket::~Socket() {
   if (IsOpen())
     dispatcher_.RemoveSocket(session_.Id());
-  for (auto message_sent_functor : message_sent_functors_)
-    message_sent_functor.second(kConnectionClosed);
+  for (auto& message_sent_functor : message_sent_functors_)
+    message_sent_functor.second(make_error_code(RudpErrors::not_connected));
 }
 
 uint32_t Socket::Id() const { return session_.Id(); }
 
 int32_t Socket::BestReadBufferSize() const { return congestion_control_.BestReadBufferSize(); }
 
-ip::udp::endpoint Socket::PeerEndpoint() const { return peer_.PeerEndpoint(); }
+asio::ip::udp::endpoint Socket::PeerEndpoint() const { return peer_.PeerEndpoint(); }
 
 uint32_t Socket::PeerSocketId() const { return peer_.SocketId(); }
 
@@ -106,14 +105,14 @@ bool Socket::IsOpen() const { return session_.IsOpen(); }
 
 bool Socket::IsConnected() const { return session_.IsConnected(); }
 
-void Socket::UpdatePeerEndpoint(const ip::udp::endpoint& remote) {
+void Socket::UpdatePeerEndpoint(const asio::ip::udp::endpoint& remote) {
   peer_.SetPeerGuessedPort();
   peer_.SetPeerEndpoint(remote);
 }
 
 uint16_t Socket::PeerGuessedPort() const { return peer_.PeerGuessedPort(); }
 
-ip::udp::endpoint Socket::RemoteNatDetectionEndpoint() const {
+asio::ip::udp::endpoint Socket::RemoteNatDetectionEndpoint() const {
   return session_.RemoteNatDetectionEndpoint();
 }
 
@@ -124,7 +123,7 @@ void Socket::NotifyClose() {
 
 void Socket::Close() {
   waiting_connect_ec_ =
-      session_.IsConnected() ? boost::system::error_code() : asio::error::operation_aborted;
+      session_.IsConnected() ? boost::system::error_code() : Asio::error::operation_aborted;
   if (session_.IsOpen()) {
     sender_.NotifyClose();
     congestion_control_.OnClose();
@@ -134,28 +133,30 @@ void Socket::Close() {
   peer_.SetSocketId(0);
   tick_timer_.Cancel();
   waiting_connect_.cancel();
-  waiting_write_ec_ = asio::error::operation_aborted;
+  waiting_write_ec_ = Asio::error::operation_aborted;
   waiting_write_bytes_transferred_ = 0;
   waiting_write_.cancel();
-  waiting_read_ec_ = asio::error::operation_aborted;
+  waiting_read_ec_ = Asio::error::operation_aborted;
   waiting_read_bytes_transferred_ = 0;
   waiting_read_.cancel();
-  waiting_flush_ec_ = asio::error::operation_aborted;
+  waiting_flush_ec_ = Asio::error::operation_aborted;
   waiting_flush_.cancel();
-  waiting_probe_ec_ = asio::error::shut_down;
+  waiting_probe_ec_ = Asio::error::shut_down;
   waiting_probe_.cancel();
 }
 
 uint32_t Socket::StartConnect(
     const NodeId& this_node_id,
-    std::shared_ptr<asymm::PublicKey> this_public_key,
-    const ip::udp::endpoint& remote,
+    const asymm::PublicKey& this_public_key,
+    const asio::ip::udp::endpoint& remote,
     const NodeId& peer_node_id,
+    const asymm::PublicKey& peer_public_key,
     Session::Mode open_mode,
     uint32_t cookie_syn,
     const Session::OnNatDetectionRequested::slot_type& on_nat_detection_requested) {
   peer_.SetPeerEndpoint(remote);
   peer_.set_node_id(peer_node_id);
+  peer_.SetPublicKey(peer_public_key);
   peer_.SetSocketId(0);  // Assigned when handshake response is received.
   return session_.Open(dispatcher_.AddSocket(this), this_node_id, this_public_key,
                        sender_.GetNextPacketSequenceNumber(), open_mode, cookie_syn,
@@ -163,9 +164,9 @@ uint32_t Socket::StartConnect(
 }
 
 void Socket::StartProbe() {
-  waiting_probe_ec_ = asio::error::operation_aborted;
+  waiting_probe_ec_ = Asio::error::operation_aborted;
   if (!session_.IsConnected()) {
-    waiting_probe_ec_ = boost::asio::error::not_connected;
+    waiting_probe_ec_ = Asio::error::not_connected;
     waiting_probe_.cancel();
     waiting_keepalive_sequence_number_ = 0;
     return;
@@ -174,15 +175,14 @@ void Socket::StartProbe() {
   keepalive_packet.SetDestinationSocketId(peer_.SocketId());
   keepalive_packet.SetSequenceNumber(waiting_keepalive_sequence_number_);
   if (kSuccess != sender_.SendKeepalive(keepalive_packet)) {
-    waiting_probe_ec_ = boost::asio::error::try_again;
+    waiting_probe_ec_ = Asio::error::try_again;
     waiting_probe_.cancel();
   }
 }
 
-void Socket::StartWrite(const asio::const_buffer& data,
-                        const std::function<void(int)>& message_sent_functor) {  // NOLINT (Fraser)
+void Socket::StartWrite(const Asio::const_buffer& data, const MessageSentFunctor& handler) {
   // Check for a no-op write.
-  if (asio::buffer_size(data) == 0) {
+  if (Asio::buffer_size(data) == 0) {
     waiting_write_ec_.clear();
     waiting_write_.cancel();
     return;
@@ -194,13 +194,13 @@ void Socket::StartWrite(const asio::const_buffer& data,
   waiting_write_buffer_ = data;
   waiting_write_bytes_transferred_ = 0;
   ++waiting_write_message_number_;
-  message_sent_functors_[waiting_write_message_number_] = message_sent_functor;
+  message_sent_functors_[waiting_write_message_number_] = handler;
   ProcessWrite();
 }
 
 void Socket::ProcessWrite() {
   // There's only a waiting write if the write buffer is non-empty.
-  if (asio::buffer_size(waiting_write_buffer_) == 0)
+  if (Asio::buffer_size(waiting_write_buffer_) == 0)
     return;
 
   // Copy whatever data we can into the write buffer.
@@ -209,16 +209,16 @@ void Socket::ProcessWrite() {
   waiting_write_bytes_transferred_ += length;
   // If we have finished writing all of the data then it's time to trigger the write's completion
   // handler.
-  if (asio::buffer_size(waiting_write_buffer_) == 0) {
+  if (Asio::buffer_size(waiting_write_buffer_) == 0) {
     // The write is done. Trigger the write's completion handler.
     waiting_write_ec_.clear();
     waiting_write_.cancel();
   }
 }
 
-void Socket::StartRead(const asio::mutable_buffer& data, size_t transfer_at_least) {
+void Socket::StartRead(const Asio::mutable_buffer& data, size_t transfer_at_least) {
   // Check for a no-read write.
-  if (asio::buffer_size(data) == 0) {
+  if (Asio::buffer_size(data) == 0) {
     waiting_read_ec_.clear();
     waiting_read_.cancel();
     return;
@@ -234,7 +234,7 @@ void Socket::StartRead(const asio::mutable_buffer& data, size_t transfer_at_leas
 
 void Socket::ProcessRead() {
   // There's only a waiting read if the read buffer is non-empty.
-  if (asio::buffer_size(waiting_read_buffer_) == 0)
+  if (Asio::buffer_size(waiting_read_buffer_) == 0)
     return;
 
   // Copy whatever data we can into the read buffer.
@@ -244,7 +244,7 @@ void Socket::ProcessRead() {
 
   // If we have filled the buffer, or read more than the minimum number of bytes required, then it's
   // time to trigger the read's completion handler.
-  if (asio::buffer_size(waiting_read_buffer_) == 0 ||
+  if (Asio::buffer_size(waiting_read_buffer_) == 0 ||
       waiting_read_bytes_transferred_ >= waiting_read_transfer_at_least_) {
     // the read is done. Trigger the read's completion handler.
     waiting_read_ec_.clear();
@@ -261,7 +261,8 @@ void Socket::ProcessFlush() {
   }
 }
 
-void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::endpoint& endpoint) {
+void Socket::HandleReceiveFrom(const Asio::const_buffer&      data,
+                               const asio::ip::udp::endpoint& endpoint) {
   if (endpoint == peer_.PeerEndpoint()) {
     // TODO(Team): Surely this can be templetised somehow to avoid all the obejct creation
     DataPacket data_packet;
@@ -365,7 +366,7 @@ void Socket::HandleAck(const AckPacket& packet) {
       if (itr == message_sent_functors_.end()) {
         LOG(kError) << "Lost sent functor for message " << num;
       } else {
-        (*itr).second(kSuccess);
+        (*itr).second(error_code());
         message_sent_functors_.erase(itr);
       }
     }
@@ -403,9 +404,9 @@ void Socket::HandleTick() {
 
 void Socket::MakeNormal() { session_.MakeNormal(); }
 
-ip::udp::endpoint Socket::ThisEndpoint() const { return peer_.ThisEndpoint(); }
+asio::ip::udp::endpoint Socket::ThisEndpoint() const { return peer_.ThisEndpoint(); }
 
-std::shared_ptr<asymm::PublicKey> Socket::PeerPublicKey() const { return peer_.public_key(); }
+const asymm::PublicKey& Socket::PeerPublicKey() const { return peer_.public_key(); }
 
 }  // namespace detail
 

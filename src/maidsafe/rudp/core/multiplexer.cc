@@ -35,8 +35,8 @@
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace asio = boost::asio;
-namespace ip = boost::asio::ip;
+namespace Asio = boost::asio;
+namespace ip = Asio::ip;
 namespace bs = boost::system;
 
 namespace maidsafe {
@@ -45,7 +45,7 @@ namespace rudp {
 
 namespace detail {
 
-Multiplexer::Multiplexer(asio::io_service& asio_service)
+Multiplexer::Multiplexer(Asio::io_service& asio_service)
     : socket_(asio_service),
       sender_endpoint_(),
       dispatcher_(),
@@ -104,7 +104,7 @@ void Multiplexer::deallocate_dma_buffer_(unsigned char *buf, size_t len) {
 }
 #endif
 
-ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
+ReturnCode Multiplexer::Open(const asio::ip::udp::endpoint& endpoint) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (socket_.is_open()) {
     LOG(kWarning) << "Multiplexer already open.";
@@ -114,7 +114,7 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
   assert(!endpoint.address().is_unspecified());
 
   bs::error_code ec;
-  socket_.open(endpoint.protocol(), ec);
+  socket_.open(to_boost(endpoint).protocol(), ec);
 
   if (ec) {
     LOG(kError) << "Multiplexer socket opening error while attempting on " << endpoint
@@ -133,12 +133,12 @@ ReturnCode Multiplexer::Open(const ip::udp::endpoint& endpoint) {
 
   if (endpoint.port() == 0U) {
     // Try to bind to Resilience port first. If this fails, just fall back to port 0 (i.e. any port)
-    socket_.bind(ip::udp::endpoint(endpoint.address(), ManagedConnections::kResiliencePort()), ec);
+    socket_.bind(boost::asio::ip::udp::endpoint(to_boost(endpoint.address()), kLivePort), ec);
     if (!ec)
       return kSuccess;
   }
 
-  socket_.bind(endpoint, ec);
+  socket_.bind(to_boost(endpoint), ec);
   if (ec) {
     LOG(kError) << "Multiplexer socket binding error while attempting on " << endpoint
                 << "  Error: " << ec.value();
@@ -160,23 +160,23 @@ void Multiplexer::Close() {
   if (ec)
     LOG(kWarning) << "Multiplexer closing error: " << ec.message();
   assert(!socket_.is_open());
-  external_endpoint_ = ip::udp::endpoint();
-  best_guess_external_endpoint_ = ip::udp::endpoint();
+  external_endpoint_ = asio::ip::udp::endpoint();
+  best_guess_external_endpoint_ = asio::ip::udp::endpoint();
 }
 
-ip::udp::endpoint Multiplexer::local_endpoint() const {
+asio::ip::udp::endpoint Multiplexer::local_endpoint() const {
   boost::system::error_code ec;
   std::lock_guard<std::mutex> lock(mutex_);
-  ip::udp::endpoint local_endpoint(socket_.local_endpoint(ec));
+  asio::ip::udp::endpoint local_endpoint = from_boost(socket_.local_endpoint(ec));
   if (ec) {
     if (socket_.is_open())
       LOG(kError) << ec.message();
-    return ip::udp::endpoint();
+    return asio::ip::udp::endpoint();
   }
   return local_endpoint;
 }
 
-ip::udp::endpoint Multiplexer::external_endpoint() const {
+asio::ip::udp::endpoint Multiplexer::external_endpoint() const {
   std::lock_guard<std::mutex> lock(mutex_);
   return IsValid(external_endpoint_) ? external_endpoint_ : best_guess_external_endpoint_;
 }

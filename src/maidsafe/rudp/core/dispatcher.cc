@@ -29,8 +29,6 @@
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/core/socket.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
 
 namespace maidsafe {
 
@@ -64,8 +62,8 @@ void Dispatcher::RemoveSocket(uint32_t id) {
     connection_manager->RemoveSocket(id);
 }
 
-void Dispatcher::HandleReceiveFrom(const asio::const_buffer& data,
-                                   const ip::udp::endpoint& endpoint) {
+void Dispatcher::HandleReceiveFrom(const boost::asio::const_buffer& data,
+                                   const asio::ip::udp::endpoint& endpoint) {
   ConnectionManager* connection_manager;
   {
     std::lock_guard<decltype(mutex_)> guard(mutex_);

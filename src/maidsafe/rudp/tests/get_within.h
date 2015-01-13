@@ -16,47 +16,25 @@
     See the Licences for the specific language governing permissions and limitations relating to
     use of the MaidSafe Software.                                                                 */
 
-#ifndef MAIDSAFE_RUDP_NAT_TYPE_H_
-#define MAIDSAFE_RUDP_NAT_TYPE_H_
+#ifndef MAIDSAFE_RUDP_TESTS_GET_WITHIN_H_
+#define MAIDSAFE_RUDP_TESTS_GET_WITHIN_H_
 
-#include <string>
+#include <chrono>
+#include <future>
 
 namespace maidsafe {
 
-namespace rudp {
-
-enum class NatType {
-  kSymmetric,
-  kOther,
-  kUnknown
-};
-
-template <typename Elem, typename Traits>
-std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
-                                             const NatType& nat_type) {
-  std::string nat_str;
-  switch (nat_type) {
-    case NatType::kSymmetric:
-      nat_str = "symmetric NAT";
-      break;
-    case NatType::kOther:
-      nat_str = "other NAT";
-      break;
-    case NatType::kUnknown:
-      nat_str = "unknown NAT";
-      break;
-    default:
-      nat_str = "Invalid NAT type";
-      break;
+// Wait for the future to finish within the duration time or throw exception.
+template<class FutureT>
+auto get_within(FutureT&& future, std::chrono::steady_clock::duration duration)
+    -> decltype(future.get()) {
+  if (future.wait_for(duration) == std::future_status::ready) {
+    return future.get();
+  } else {
+    throw std::system_error(asio::error::timed_out);
   }
-
-  for (auto& ch : nat_str)
-    ostream << ostream.widen(ch);
-  return ostream;
 }
-
-}  // namespace rudp
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_RUDP_NAT_TYPE_H_
+#endif  // MAIDSAFE_RUDP_TESTS_GET_WITHIN_H_

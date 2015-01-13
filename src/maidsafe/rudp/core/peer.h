@@ -27,6 +27,7 @@
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
+
 #include "maidsafe/rudp/core/multiplexer.h"
 
 namespace maidsafe {
@@ -47,12 +48,12 @@ class Peer {
         peer_guessed_port_(0) {}
 
   // Endpoint of peer
-  const boost::asio::ip::udp::endpoint& PeerEndpoint() const { return peer_endpoint_; }
-  void SetPeerEndpoint(const boost::asio::ip::udp::endpoint& ep) { peer_endpoint_ = ep; }
+  const asio::ip::udp::endpoint& PeerEndpoint() const { return peer_endpoint_; }
+  void SetPeerEndpoint(const asio::ip::udp::endpoint& ep) { peer_endpoint_ = ep; }
 
   // This node's endpoint as viewed by peer
-  const boost::asio::ip::udp::endpoint& ThisEndpoint() const { return this_endpoint_; }
-  void SetThisEndpoint(const boost::asio::ip::udp::endpoint& ep) { this_endpoint_ = ep; }
+  const asio::ip::udp::endpoint& ThisEndpoint() const { return this_endpoint_; }
+  void SetThisEndpoint(const asio::ip::udp::endpoint& ep) { this_endpoint_ = ep; }
 
   uint32_t SocketId() const { return socket_id_; }
   void SetSocketId(uint32_t id) { socket_id_ = id; }
@@ -60,9 +61,9 @@ class Peer {
   NodeId node_id() const { return node_id_; }
   void set_node_id(NodeId node_id) { node_id_ = node_id; }
 
-  std::shared_ptr<asymm::PublicKey> public_key() const { return public_key_; }
-  void SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key) {
-    assert(asymm::ValidateKey(*public_key));
+  const asymm::PublicKey& public_key() const { return public_key_; }
+  void SetPublicKey(const asymm::PublicKey& public_key) {
+    assert(asymm::ValidateKey(public_key));
     public_key_ = public_key;
   }
 
@@ -82,15 +83,15 @@ class Peer {
   // The multiplexer used to send and receive UDP packets.
   Multiplexer& multiplexer_;
   // The remote socket's endpoint.
-  boost::asio::ip::udp::endpoint peer_endpoint_;
+  asio::ip::udp::endpoint peer_endpoint_;
   // This node's socket endpoint as seen by peer.
-  boost::asio::ip::udp::endpoint this_endpoint_;
+  asio::ip::udp::endpoint this_endpoint_;
   // The remote socket's identifier.
   uint32_t socket_id_;
   // The remote peer's NodeId.
   NodeId node_id_;
   // The remote peer's PublicKey.
-  std::shared_ptr<asymm::PublicKey> public_key_;
+  asymm::PublicKey public_key_;
   // The port originally guessed by the peer when passing its details to this node.  This will be
   // set by the ConnectionManager if it detects that the peer's actual external port is different to
   // the one provided by the peer as its best guess.

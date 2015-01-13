@@ -32,6 +32,7 @@
 
 #include "maidsafe/common/rsa.h"
 
+#include "maidsafe/rudp/types.h"
 #include "maidsafe/rudp/nat_type.h"
 
 namespace maidsafe {
@@ -46,8 +47,8 @@ class TickTimer;
 
 class Session {
  public:
-  typedef boost::signals2::signal<void(const boost::asio::ip::udp::endpoint&, const NodeId&,
-                                       const boost::asio::ip::udp::endpoint&, uint16_t&)>
+  typedef boost::signals2::signal<void(const asio::ip::udp::endpoint&, const NodeId&,
+                                       const asio::ip::udp::endpoint&, uint16_t&)>
       OnNatDetectionRequested;
 
   enum Mode {
@@ -57,13 +58,13 @@ class Session {
   };
 
   explicit Session(Peer& peer, TickTimer& tick_timer,
-                   boost::asio::ip::udp::endpoint& this_external_endpoint,
+                   asio::ip::udp::endpoint& this_external_endpoint,
                    std::mutex& this_external_endpoint_mutex,
-                   boost::asio::ip::udp::endpoint this_local_endpoint, NatType& nat_type);
+                   asio::ip::udp::endpoint this_local_endpoint, NatType& nat_type);
 
   // Open the session, returning the SYN cookie used.
   uint32_t Open(uint32_t id, NodeId this_node_id,
-                std::shared_ptr<asymm::PublicKey> this_public_key,
+                const asymm::PublicKey& this_public_key,
                 uint32_t sequence_number, Mode mode, uint32_t cookie_syn,
                 const OnNatDetectionRequested::slot_type& on_nat_detection_requested_slot);
 
@@ -96,7 +97,7 @@ class Session {
 
   Mode mode() const;
 
-  boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
+  asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
 
  private:
   // Disallow copying and assignment.
@@ -121,13 +122,13 @@ class Session {
   TickTimer& tick_timer_;
 
   // This node's external endpoint as viewed by peer.  Object owned by multiplexer.
-  boost::asio::ip::udp::endpoint& this_external_endpoint_;
+  asio::ip::udp::endpoint& this_external_endpoint_;
 
   // Mutex protecting this_external_endpoint_.  Object owned by multiplexer.
   std::mutex& this_external_endpoint_mutex_;
 
   // This node's local endpoint.
-  const boost::asio::ip::udp::endpoint kThisLocalEndpoint_;
+  const asio::ip::udp::endpoint kThisLocalEndpoint_;
 
   // This node's NAT type.  Object owned by ManagedConnections.
   NatType& nat_type_;
@@ -136,7 +137,7 @@ class Session {
   NodeId this_node_id_;
 
   // This node's public key
-  std::shared_ptr<asymm::PublicKey> this_public_key_;
+  asymm::PublicKey this_public_key_;
 
   // The local socket id.
   uint32_t id_;
@@ -154,7 +155,7 @@ class Session {
   bool peer_requested_nat_detection_port_;
 
   // Endpoint offered by peer for this node to perform NAT detection
-  boost::asio::ip::udp::endpoint peer_nat_detection_endpoint_;
+  asio::ip::udp::endpoint peer_nat_detection_endpoint_;
 
   // The open mode of the session.
   Mode mode_;

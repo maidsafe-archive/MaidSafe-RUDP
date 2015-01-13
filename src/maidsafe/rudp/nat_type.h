@@ -16,40 +16,47 @@
     See the Licences for the specific language governing permissions and limitations relating to
     use of the MaidSafe Software.                                                                 */
 
-#ifndef MAIDSAFE_RUDP_UTILS_H_
-#define MAIDSAFE_RUDP_UTILS_H_
+#ifndef MAIDSAFE_RUDP_NAT_TYPE_H_
+#define MAIDSAFE_RUDP_NAT_TYPE_H_
 
-#include "asio/ip/address.hpp"
-#include "asio/ip/udp.hpp"
-#include "boost/asio/ip/address.hpp"
-#include "boost/asio/ip/udp.hpp"
+#include <string>
 
 namespace maidsafe {
 
 namespace rudp {
 
-namespace detail {
+enum class NatType : char {
+  kSymmetric,
+  kOther,
+  kUnknown
+};
 
-// Returns true if port > 1024 and the address is correctly specified.
-bool IsValid(const asio::ip::udp::endpoint& endpoint);
+template <typename Elem, typename Traits>
+std::basic_ostream<Elem, Traits>& operator<<(std::basic_ostream<Elem, Traits>& ostream,
+                                             const NatType& nat_type) {
+  std::string nat_str;
+  switch (nat_type) {
+    case NatType::kSymmetric:
+      nat_str = "symmetric NAT";
+      break;
+    case NatType::kOther:
+      nat_str = "other NAT";
+      break;
+    case NatType::kUnknown:
+      nat_str = "unknown NAT";
+      break;
+    default:
+      nat_str = "Invalid NAT type";
+      break;
+  }
 
-// Returns true if the two endpoints represent nodes on the same local network
-bool OnSameLocalNetwork(const asio::ip::udp::endpoint& endpoint1,
-                        const asio::ip::udp::endpoint& endpoint2);
-
-// Returns true if peer_endpoint and this_external_endpoint are both non-local, or if
-// peer_endpoint and this_local_endpoint are both potentially on the same local network.
-bool IsConnectable(const asio::ip::udp::endpoint& peer_endpoint,
-                   const asio::ip::udp::endpoint& this_local_endpoint,
-                   const asio::ip::udp::endpoint& this_external_endpoint);
-
-// Returns true if the endpoint is within one of the ranges designated for private networks.
-bool OnPrivateNetwork(const asio::ip::udp::endpoint& endpoint);
-
-}  // namespace detail
+  for (auto& ch : nat_str)
+    ostream << ostream.widen(ch);
+  return ostream;
+}
 
 }  // namespace rudp
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_RUDP_UTILS_H_
+#endif  // MAIDSAFE_RUDP_NAT_TYPE_H_

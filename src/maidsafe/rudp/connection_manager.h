@@ -37,6 +37,9 @@
 #include "maidsafe/common/node_id.h"
 #include "maidsafe/common/rsa.h"
 
+#include "maidsafe/rudp/types.h"
+#include "connection.h" // NOLINT
+
 namespace maidsafe {
 
 namespace rudp {
@@ -44,33 +47,32 @@ namespace rudp {
 namespace detail {
 
 class Transport;
-class Connection;
 class Multiplexer;
 class Socket;
 class HandshakePacket;
 
 class ConnectionManager {
  public:
-  using Endpoint      = boost::asio::ip::udp::endpoint;
+  using Endpoint      = asio::ip::udp::endpoint;
   using ConnectionPtr = std::shared_ptr<Connection>;
-  using Error         = boost::system::error_code;
-  using OnConnect     = std::function<void(const Error&, const ConnectionPtr&)>;
+  using ExtErrorCode  = std::error_code;
+  using OnReceive     = Connection::OnReceive;
+  using OnConnect     = Connection::OnConnect;
+  using OnClose       = Connection::OnClose;
 
- public:
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
                     std::shared_ptr<Multiplexer> multiplexer, NodeId this_node_id,
-                    std::shared_ptr<asymm::PublicKey> this_public_key);
+                    asymm::PublicKey this_public_key);
   ~ConnectionManager();
 
   void Close();
 
   void Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
-               const std::string& validation_data,
+               const asymm::PublicKey& peer_public_key,
                const boost::posix_time::time_duration& connect_attempt_timeout,
                const boost::posix_time::time_duration& lifespan,
-               OnConnect on_connect,
-               const std::function<void()>& failure_functor);
+               OnConnect, OnClose);
 
   int AddConnection(std::shared_ptr<Connection> connection);
   bool CloseConnection(const NodeId& peer_id);
@@ -78,12 +80,11 @@ class ConnectionManager {
   std::shared_ptr<Connection> GetConnection(const NodeId& peer_id);
 
   void Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
+            const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
-  bool Send(const NodeId& peer_id, const std::string& message,
-            const std::function<void(int)>& message_sent_functor);  // NOLINT (Fraser)
-
-  bool MakeConnectionPermanent(const NodeId& peer_id, bool validated, Endpoint& peer_endpoint);
+  void Send(const NodeId& peer_id, const std::string& message,
+            const MessageSentFunctor& handler);
 
   // This node's endpoint as viewed by peer
   Endpoint ThisEndpoint(const NodeId& peer_id);
@@ -106,7 +107,7 @@ class ConnectionManager {
   size_t NormalConnectionsCount() const;
 
   NodeId node_id() const;
-  std::shared_ptr<asymm::PublicKey> public_key() const;
+  const asymm::PublicKey& public_key() const;
 
   std::string DebugString();
 
@@ -139,7 +140,7 @@ class ConnectionManager {
   boost::asio::io_service::strand strand_;
   std::shared_ptr<Multiplexer> multiplexer_;
   const NodeId kThisNodeId_;
-  std::shared_ptr<asymm::PublicKey> this_public_key_;
+  asymm::PublicKey this_public_key_;
   SocketMap sockets_;
 };
 

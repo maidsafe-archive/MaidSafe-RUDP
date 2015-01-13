@@ -28,6 +28,7 @@
 
 #include "boost/asio/buffer.hpp"
 #include "boost/asio/ip/udp.hpp"
+#include "asio/ip/udp.hpp"
 #include "boost/system/error_code.hpp"
 
 #include "maidsafe/common/node_id.h"
@@ -91,11 +92,11 @@ class HandshakePacket : public ControlPacket {
   uint16_t NatDetectionPort() const;
   void SetNatDetectionPort(uint16_t port);
 
-  boost::asio::ip::udp::endpoint PeerEndpoint() const;
-  void SetPeerEndpoint(const boost::asio::ip::udp::endpoint& endpoint);
+  asio::ip::udp::endpoint PeerEndpoint() const;
+  void SetPeerEndpoint(const asio::ip::udp::endpoint& endpoint);
 
-  std::shared_ptr<asymm::PublicKey> PublicKey() const;
-  void SetPublicKey(std::shared_ptr<asymm::PublicKey> public_key);
+  asymm::PublicKey PublicKey() const;
+  void SetPublicKey(const asymm::PublicKey& public_key);
 
   static bool IsValid(const boost::asio::const_buffer& buffer);
   bool Decode(const boost::asio::const_buffer& buffer);
@@ -114,8 +115,8 @@ class HandshakePacket : public ControlPacket {
   uint32_t syn_cookie_;
   bool request_nat_detection_port_;
   uint16_t nat_detection_port_;
-  boost::asio::ip::udp::endpoint peer_endpoint_;
-  std::shared_ptr<asymm::PublicKey> public_key_;
+  asio::ip::udp::endpoint peer_endpoint_;
+  asymm::PublicKey public_key_;
 };
 
 }  // namespace detail

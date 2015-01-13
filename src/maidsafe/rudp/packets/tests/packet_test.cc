@@ -501,8 +501,8 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetSynCookie(0xaaaaaaaa);
     handshake_packet_.SetRequestNatDetectionPort(true);
     handshake_packet_.SetNatDetectionPort(9999);
-    boost::asio::ip::udp::endpoint endpoint(
-        boost::asio::ip::address::from_string("2001:db8:85a3:8d3:1319:8a2e:370:7348"), 12345);
+    asio::ip::udp::endpoint endpoint(
+        asio::ip::address::from_string("2001:db8:85a3:8d3:1319:8a2e:370:7348"), 12345);
     handshake_packet_.SetPeerEndpoint(endpoint);
 
     char char_array1[HandshakePacket::kMinPacketSize] = {0};
@@ -523,8 +523,8 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetSynCookie(0);
     handshake_packet_.SetRequestNatDetectionPort(false);
     handshake_packet_.SetNatDetectionPort(0);
-    handshake_packet_.SetPeerEndpoint(boost::asio::ip::udp::endpoint());
-    EXPECT_FALSE(handshake_packet_.PublicKey());
+    handshake_packet_.SetPeerEndpoint(asio::ip::udp::endpoint());
+    EXPECT_TRUE(asymm::MatchingKeys(handshake_packet_.PublicKey(), asymm::PublicKey()));
 
     handshake_packet_.Decode(dbuffers[0]);
 
@@ -541,13 +541,12 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_TRUE(handshake_packet_.RequestNatDetectionPort());
     EXPECT_EQ(9999, handshake_packet_.NatDetectionPort());
     EXPECT_EQ(endpoint, handshake_packet_.PeerEndpoint());
-    EXPECT_FALSE(handshake_packet_.PublicKey());
+    EXPECT_TRUE(asymm::MatchingKeys(handshake_packet_.PublicKey(), asymm::PublicKey()));
 
     // Encode and decode with a valid public key
     asymm::Keys keys(asymm::GenerateKeyPair());
     std::string encoded_key(asymm::EncodeKey(keys.public_key).string());
-    handshake_packet_.SetPublicKey(
-        std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey(keys.public_key)));
+    handshake_packet_.SetPublicKey(keys.public_key);
     char char_array2[10000] = {0};
     dbuffers.clear();
     dbuffers.push_back(boost::asio::buffer(char_array2));
@@ -567,8 +566,8 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     handshake_packet_.SetSynCookie(0);
     handshake_packet_.SetRequestNatDetectionPort(false);
     handshake_packet_.SetNatDetectionPort(0);
-    handshake_packet_.SetPeerEndpoint(boost::asio::ip::udp::endpoint());
-    handshake_packet_.SetPublicKey(std::shared_ptr<asymm::PublicKey>());
+    handshake_packet_.SetPeerEndpoint(asio::ip::udp::endpoint());
+    handshake_packet_.SetPublicKey(asymm::PublicKey());
 
     handshake_packet_.Decode(dbuffers[0]);
 
@@ -585,9 +584,8 @@ TEST_F(HandshakePacketTest, BEH_EncodeDecode) {
     EXPECT_TRUE(handshake_packet_.RequestNatDetectionPort());
     EXPECT_EQ(9999, handshake_packet_.NatDetectionPort());
     EXPECT_EQ(endpoint, handshake_packet_.PeerEndpoint());
-    bool public_key_not_null(handshake_packet_.PublicKey());
-    ASSERT_TRUE(public_key_not_null);
-    EXPECT_TRUE(asymm::MatchingKeys(keys.public_key, *handshake_packet_.PublicKey()));
+    EXPECT_FALSE(asymm::MatchingKeys(handshake_packet_.PublicKey(), asymm::PublicKey()));
+    EXPECT_TRUE(asymm::MatchingKeys(keys.public_key, handshake_packet_.PublicKey()));
   }
 }
 
