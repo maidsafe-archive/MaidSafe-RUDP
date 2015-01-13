@@ -35,6 +35,7 @@
 
 #include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/transport.h"
+#include "maidsafe/rudp/types.h"
 
 namespace maidsafe {
 
@@ -81,8 +82,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void Close();
   // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
   // after lifespan has passed.
-  void StartConnecting(const NodeId& peer_node_id,
-                       const asio::ip::udp::endpoint& peer_endpoint,
+  void StartConnecting(const NodeId& peer_node_id, const asio::ip::udp::endpoint& peer_endpoint,
                        const asymm::PublicKey& peer_public_key,
                        const boost::posix_time::time_duration& connect_attempt_timeout,
                        const boost::posix_time::time_duration& lifespan,
@@ -124,13 +124,13 @@ class Connection : public std::enable_shared_from_this<Connection> {
 #else
         : encrypted_data_(std::move(encrypted_data)),
 #endif
-          handler_(std::move(message_sent_functor)) {}
+          handler_(std::move(message_sent_functor)) {
+    }
   };
 
   void DoClose(const ExtErrorCode&, int debug_line_no);
 
-  void DoStartConnecting(const NodeId& peer_node_id,
-                         const asio::ip::udp::endpoint& peer_endpoint,
+  void DoStartConnecting(const NodeId& peer_node_id, const asio::ip::udp::endpoint& peer_endpoint,
                          const asymm::PublicKey& peer_public_key,
                          const boost::posix_time::time_duration& connect_attempt_timeout,
                          const boost::posix_time::time_duration& lifespan,
@@ -194,11 +194,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   uint8_t failed_probe_count_;
   State state_;
   mutable std::mutex state_mutex_;
-  enum class TimeoutState {
-    kConnecting,
-    kConnected,
-    kClosing
-  } timeout_state_;
+  enum class TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
   bool sending_;
   std::function<void()> failure_functor_;
   std::queue<SendRequest> send_queue_;
