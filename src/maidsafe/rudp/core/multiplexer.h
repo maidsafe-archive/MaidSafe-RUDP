@@ -21,7 +21,8 @@
 #ifndef MAIDSAFE_RUDP_CORE_MULTIPLEXER_H_
 #define MAIDSAFE_RUDP_CORE_MULTIPLEXER_H_
 
-#include <array>  // NOLINT
+#include <array>
+#include <limits>
 #include <mutex>
 #include <vector>
 
@@ -36,6 +37,8 @@
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/return_codes.h"
+
+#include "maidsafe/rudp/boost_asio_conversions.h"
 
 namespace maidsafe {
 
@@ -52,7 +55,7 @@ class Multiplexer {
   ~Multiplexer();
 
   // Open the multiplexer.  If endpoint is valid, the new socket will be bound to it.
-  ReturnCode Open(const boost::asio::ip::udp::endpoint& endpoint);
+  ReturnCode Open(const asio::ip::udp::endpoint& endpoint);
 
   // Whether the multiplexer is open.
   bool IsOpen() const;
@@ -78,7 +81,7 @@ class Multiplexer {
     std::mutex lock;
     bool enabled, in_error_burst;
     double constant, bursty;
-    smallprng::ranctx ctx;
+    small_prng::RandomContext ctx;
     size_t count, total_byte_count, error_count;
     packet_loss_state() : enabled(false), in_error_burst(false), constant(0.0),
                           bursty(0.0), count(0), total_byte_count(0), error_count(0) {
@@ -88,7 +91,7 @@ class Multiplexer {
       const char *burstyenv = std::getenv("MAIDSAFE_RUDP_BURSTY_PACKET_LOSS");
       if (burstyenv)
         bursty = std::strtod(burstyenv, nullptr);
-      smallprng::raninit(&ctx, /*0xdeadbeef*/ (smallprng::u4) std::time(nullptr));
+      small_prng::Initialise(&ctx, /*0xdeadbeef*/ static_cast<small_prng::u4>(std::time(nullptr)));
     }
     bool should_drop_this_packet(size_t size) {
       bool ret = false;
@@ -98,7 +101,7 @@ class Multiplexer {
       if (bursty > 0.0) {
         if (in_error_burst)
           error_count += size;
-        auto v = smallprng::ranval(&ctx);
+        auto v = small_prng::RandomValue(&ctx);
         if (!(v & 7)) {
           if (in_error_burst) {
             if (double(error_count) / total_byte_count > bursty)
@@ -114,7 +117,8 @@ class Multiplexer {
         // If UDP packets exceed MTU, they get chopped up into MTU sized pieces the failure
         // any of which loses the entire packet
         for (size_t n = 0; n < size / 1500; n++) {
-          if (double(smallprng::ranval(&ctx)) / ((smallprng::u4) -1) <= constant) {
+          if (static_cast<double>(small_prng::RandomValue(&ctx)) /
+                  std::numeric_limits<small_prng::u4>::max() <= constant) {
             ret = true;
             break;
           }
@@ -150,7 +154,7 @@ class Multiplexer {
   // Called by the socket objects to send a packet. Returns kSuccess if the data was sent
   // successfully, kSendFailure otherwise.
   template <typename Packet>
-  ReturnCode SendTo(const Packet& packet, const boost::asio::ip::udp::endpoint& endpoint) {
+  ReturnCode SendTo(const Packet& packet, const asio::ip::udp::endpoint& endpoint) {
     unsigned char *data = *send_buffer_++;
     if (send_buffer_ == send_buffers_.end())
       send_buffer_ = send_buffers_.begin();
@@ -173,7 +177,7 @@ class Multiplexer {
         return kSuccess;
       {
         std::lock_guard<std::mutex> lock(mutex_);
-        socket_.send_to(buffers, endpoint, 0, ec);
+        socket_.send_to(buffers, to_boost(endpoint), 0, ec);
       }
       if (ec) {
 #ifndef NDEBUG
@@ -190,10 +194,10 @@ class Multiplexer {
     return kSendFailure;
   }
 
-  boost::asio::ip::udp::endpoint local_endpoint() const;
+  asio::ip::udp::endpoint local_endpoint() const;
 
   // Returns external_endpoint_ if valid, else best_guess_external_endpoint_.
-  boost::asio::ip::udp::endpoint external_endpoint() const;
+  asio::ip::udp::endpoint external_endpoint() const;
 
   friend class ConnectionManager;
   friend class Socket;
@@ -225,11 +229,11 @@ class Multiplexer {
   Dispatcher dispatcher_;
 
   // This node's external endpoint - passed to session and set during handshaking.
-  boost::asio::ip::udp::endpoint external_endpoint_;
+  asio::ip::udp::endpoint external_endpoint_;
 
   // This node's best guess at its external endpoint - set when bootstrapping a new transport
   // which is behind symmetric NAT, therefore no actual temporary connection is made.
-  boost::asio::ip::udp::endpoint best_guess_external_endpoint_;
+  asio::ip::udp::endpoint best_guess_external_endpoint_;
 
   // Mutex to protect access to external_endpoint_.
   mutable std::mutex mutex_;

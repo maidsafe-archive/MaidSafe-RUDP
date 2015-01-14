@@ -36,8 +36,8 @@
 #include "maidsafe/rudp/types.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace ip     = boost::asio::ip;
-namespace args   = std::placeholders;
+namespace ip = boost::asio::ip;
+namespace args = std::placeholders;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -54,20 +54,19 @@ Transport::Transport(AsioService& asio_service, NatType& nat_type)
       on_message_(),
       on_connection_added_(),
       on_connection_lost_(),
-      on_nat_detection_requested_slot_(),
-      managed_connections_debug_printout_() {}
+      on_nat_detection_requested_slot_() {}
 
-Transport::~Transport() {
-  Close();
-}
+Transport::~Transport() { Close(); }
 
-void Transport::Bootstrap(const BootstrapContacts& bootstrap_list, const NodeId& this_node_id,
+void Transport::Bootstrap(BootstrapContacts&& bootstrap_list, const NodeId& this_node_id,
                           const asymm::PublicKey& this_public_key, Endpoint local_endpoint,
                           bool bootstrap_off_existing_connection, OnMessage on_message_slot,
                           OnConnectionAdded on_connection_added_slot,
                           OnConnectionLost on_connection_lost_slot,
                           const OnNatDetected& on_nat_detection_requested_slot,
                           OnBootstrap on_bootstrap) {
+  using std::move;
+
   assert(on_nat_detection_requested_slot);
   assert(!multiplexer_->IsOpen());
 
@@ -83,9 +82,9 @@ void Transport::Bootstrap(const BootstrapContacts& bootstrap_list, const NodeId&
   // already been executed at that point in time.
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
-    on_message_ = std::move(on_message_slot);
-    on_connection_added_ = std::move(on_connection_added_slot);
-    on_connection_lost_ = std::move(on_connection_lost_slot);
+    on_message_ = move(on_message_slot);
+    on_connection_added_ = move(on_connection_added_slot);
+    on_connection_lost_ = move(on_connection_lost_slot);
   }
 
   on_nat_detection_requested_slot_ = on_nat_detection_requested_slot;
@@ -95,11 +94,11 @@ void Transport::Bootstrap(const BootstrapContacts& bootstrap_list, const NodeId&
 
   StartDispatch();
 
-  TryBootstrapping(bootstrap_list, bootstrap_off_existing_connection, on_bootstrap);
+  TryBootstrapping(move(bootstrap_list), bootstrap_off_existing_connection, on_bootstrap);
 }
 
-template<typename Handler /* void(ReturnCode, NodeId) */>
-void Transport::TryBootstrapping(const BootstrapContacts& bootstrap_list,
+template <typename Handler /* void(ReturnCode, NodeId) */>
+void Transport::TryBootstrapping(BootstrapContacts&& bootstrap_list,
                                  bool bootstrap_off_existing_connection, Handler handler) {
   bool try_connect(true);
   bptime::time_duration lifespan;
@@ -121,32 +120,28 @@ void Transport::TryBootstrapping(const BootstrapContacts& bootstrap_list,
   }
 #endif
 
-  // We need to create this shared_ptr copy to preserve the existence
-  // of the list while ConnectToBootstrapEndpoint iterates through it.
-  // FIXME: Get the bootstrap_list as a rvalue ref and just move it
-  // to this newly created list.
-  auto peers_copy = std::make_shared<BootstrapContacts>(bootstrap_list);
+  // We need to move the list into this shared_ptr to preserve its existence
+  // while ConnectToBootstrapEndpoint iterates through it.
+  auto bootstrap_list_ptr = std::make_shared<BootstrapContacts>(std::move(bootstrap_list));
 
-  auto on_bootstrap = [peers_copy, handler](const NodeId& peer_id) {
+  auto on_bootstrap = [bootstrap_list_ptr, handler](const NodeId& peer_id) {
     if (peer_id.IsValid()) {
-      auto itr = std::find_if(peers_copy->begin(), peers_copy->end(),
+      auto itr = std::find_if(bootstrap_list_ptr->begin(), bootstrap_list_ptr->end(),
                               [&peer_id](const Contact& contact) { return contact.id == peer_id; });
-      assert(itr != peers_copy->end());
+      assert(itr != bootstrap_list_ptr->end());
       handler(kSuccess, *itr);
     } else {
       handler(kNotConnectable, Contact());
     }
   };
 
-  ConnectToBootstrapEndpoint(peers_copy->begin(), peers_copy->end(), lifespan,
+  ConnectToBootstrapEndpoint(bootstrap_list_ptr->begin(), bootstrap_list_ptr->end(), lifespan,
                              strand_.wrap(on_bootstrap));
 }
 
-template<typename Iterator, typename Handler>
-void Transport::ConnectToBootstrapEndpoint(Iterator begin,
-                                           Iterator end,
-                                           Duration lifespan,
-                                           Handler  handler) {
+template <typename Iterator, typename Handler>
+void Transport::ConnectToBootstrapEndpoint(Iterator begin, Iterator end, Duration lifespan,
+                                           Handler handler) {
   if (begin == end) {
     return handler(NodeId());
   }
@@ -169,35 +164,32 @@ void Transport::ConnectToBootstrapEndpoint(const Contact& contact,
     return strand_.dispatch([handler]() mutable { handler(NodeId()); });
   }
 
-  auto default_on_connect = MakeDefaultOnConnectHandler();
+  auto default_on_connect = DefaultOnConnectHandler();
 
-  auto on_connect = [this, handler, default_on_connect]
-                    (const ExtErrorCode& error, const ConnectionPtr& connection) mutable {
+  auto on_connect = [this, handler, default_on_connect](const ExtErrorCode& error,
+                                                        const ConnectionPtr& connection) mutable {
     if (error) {
       return handler(NodeId());
     }
 
     default_on_connect(error, connection);
 
-    auto peer_id         = connection->Socket().PeerNodeId();
+    auto peer_id = connection->Socket().PeerNodeId();
     auto peer_public_key = connection->Socket().PeerPublicKey();
 
-    auto on_nat_detected = [peer_id, handler]() mutable {
-      handler(peer_id);
-    };
+    auto on_nat_detected = [peer_id, handler]() mutable { handler(peer_id); };
 
     DetectNatType(peer_id, peer_public_key, strand_.wrap(on_nat_detected));
   };
 
   connection_manager_->Connect(contact.id, contact.endpoint_pair.external, contact.public_key,
-                               nullptr, Parameters::bootstrap_connect_timeout, lifespan,
-                               strand_.wrap(on_connect), nullptr);
+                               Parameters::bootstrap_connect_timeout, lifespan,
+                               strand_.wrap(on_connect), strand_.wrap(DefaultOnCloseHandler()));
 }
 
-template<typename Handler>
-void Transport::DetectNatType( NodeId const& peer_id
-                             , const asymm::PublicKey& peer_public_key
-                             , Handler handler) {
+template <typename Handler>
+void Transport::DetectNatType(NodeId const& peer_id, const asymm::PublicKey& peer_public_key,
+                              Handler handler) {
   Endpoint nat_detection_endpoint(connection_manager_->RemoteNatDetectionEndpoint(peer_id));
 
   if (!IsValid(nat_detection_endpoint)) {
@@ -211,27 +203,29 @@ void Transport::DetectNatType( NodeId const& peer_id
     return handler();
   };
 
-  connection_manager_->Ping(peer_id,
-                            nat_detection_endpoint,
-                            peer_public_key,
+  connection_manager_->Ping(peer_id, nat_detection_endpoint, peer_public_key,
                             strand_.wrap(on_ping));
 }
 
 void Transport::Close() {
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
-    on_message_          = nullptr;
+    on_message_ = nullptr;
     on_connection_added_ = nullptr;
-    on_connection_lost_  = nullptr;
+    on_connection_lost_ = nullptr;
   }
 
   auto connection_manager = connection_manager_;
-  auto multiplexer        = multiplexer_;
+  auto multiplexer = multiplexer_;
 
   strand_.dispatch([connection_manager, multiplexer]() {
-      if (connection_manager) { connection_manager->Close(); }
-      if (multiplexer)        { multiplexer->Close(); }
-      });
+    if (connection_manager) {
+      connection_manager->Close();
+    }
+    if (multiplexer) {
+      multiplexer->Close();
+    }
+  });
 }
 
 void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
@@ -240,7 +234,23 @@ void Transport::Connect(const NodeId& peer_id, const EndpointPair& peer_endpoint
                              peer_public_key, handler));
 }
 
-Transport::OnConnect Transport::MakeDefaultOnConnectHandler() {
+Transport::OnMessage Transport::DefaultOnReceiveHandler() {
+  std::weak_ptr<Transport> weak_self = shared_from_this();
+
+  return strand_.wrap([weak_self](const NodeId& peer_id, std::vector<uint8_t> message) {
+    auto self = weak_self.lock();
+
+    if (!self)
+      return;
+    if (!self->on_message_)
+      return;
+
+    auto handler = self->on_message_;
+    handler(peer_id, std::move(message));
+  });
+}
+
+Transport::OnConnect Transport::DefaultOnConnectHandler() {
   std::weak_ptr<Transport> weak_self = shared_from_this();
 
   return [weak_self](const ExtErrorCode& error, const ConnectionPtr& connection) {  // NOLINT
@@ -253,32 +263,52 @@ Transport::OnConnect Transport::MakeDefaultOnConnectHandler() {
   };
 }
 
+Transport::OnClose Transport::DefaultOnCloseHandler() {
+  std::weak_ptr<Transport> weak_self = shared_from_this();
+
+  return [weak_self](const std::error_code& error, const ConnectionPtr& connection) {  // NOLINT
+    if (auto self = weak_self.lock()) {
+      self->RemoveConnection(connection, error == RudpErrors::timed_out);
+    }
+  };
+}
+
 void Transport::DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
-                          const asymm::PublicKey& peer_public_key,
-                          ConnectionAddedFunctor handler) {
+                          const asymm::PublicKey& peer_public_key, ConnectionAddedFunctor handler) {
   if (!multiplexer_->IsOpen())
     return handler(make_error_code(RudpErrors::failed_to_connect));
 
-  auto on_connect = MakeDefaultOnConnectHandler();
+  auto default_on_connect = DefaultOnConnectHandler();
+
+  auto on_connect = [=](std::error_code error, ConnectionPtr c) {
+    default_on_connect(error, c);
+    handler(error);
+  };
+
+  auto default_on_close = DefaultOnCloseHandler();
 
   if (IsValid(peer_endpoint_pair.external)) {
-    std::function<void()> failure_functor;
+    OnConnect on_connect2 = on_connect;
+
     if (peer_endpoint_pair.local != peer_endpoint_pair.external) {
-      failure_functor = [=] {
-        if (!multiplexer_->IsOpen())
-          return handler(make_error_code(RudpErrors::failed_to_connect));
-        connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key, handler,
+      on_connect2 = [=](std::error_code error, ConnectionPtr c) {
+        if (!multiplexer_->IsOpen()) {
+          return on_connect(error, c);
+        }
+
+        connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key,
                                      Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                     on_connect, nullptr);
+                                     on_connect, default_on_close);
       };
     }
-    connection_manager_->Connect(peer_id, peer_endpoint_pair.external, peer_public_key, handler,
+
+    connection_manager_->Connect(peer_id, peer_endpoint_pair.external, peer_public_key,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                 on_connect, failure_functor);
+                                 on_connect2, default_on_close);
   } else {
-    connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key, handler,
+    connection_manager_->Connect(peer_id, peer_endpoint_pair.local, peer_public_key,
                                  Parameters::rendezvous_connect_timeout, bptime::pos_infin,
-                                 on_connect, nullptr);
+                                 on_connect, default_on_close);
   }
 }
 
@@ -286,7 +316,7 @@ bool Transport::CloseConnection(const NodeId& peer_id) {
   return connection_manager_->CloseConnection(peer_id);
 }
 
-bool Transport::Send(const NodeId& peer_id, const std::string& message,
+void Transport::Send(const NodeId& peer_id, const std::string& message,
                      const MessageSentFunctor& message_sent_functor) {
   return connection_manager_->Send(peer_id, message, message_sent_functor);
 }
@@ -347,30 +377,9 @@ void Transport::HandleDispatch(const ExtErrorCode& /*ec*/) {
 
 NodeId Transport::node_id() const { return connection_manager_->node_id(); }
 
-const asymm::PublicKey& Transport::public_key() const {
-  return connection_manager_->public_key();
-}
-
-void Transport::SignalMessageReceived(const NodeId& peer_id, const std::string& message) {
-  // Dispatch the message outside the strand.
-  strand_.get_io_service().post(
-      std::bind(&Transport::DoSignalMessageReceived, shared_from_this(), peer_id, message));
-}
-
-void Transport::DoSignalMessageReceived(const NodeId& peer_id, const std::string& message) {
-  OnMessage local_callback;
-  {
-    std::lock_guard<std::mutex> guard(callback_mutex_);
-    local_callback = on_message_;
-  }
-  if (local_callback)
-    local_callback(peer_id, message);
-}
+const asymm::PublicKey& Transport::public_key() const { return connection_manager_->public_key(); }
 
 void Transport::AddConnection(ConnectionPtr connection) {
-  // Discard failure_functor
-  connection->GetAndClearFailureFunctor();
-
   // For temporary connections, we only need to invoke on_connection_lost_ then finish.
   if (connection->state() != Connection::State::kTemporary) {
     auto result(connection_manager_->AddConnection(connection));
@@ -388,7 +397,6 @@ void Transport::AddConnection(ConnectionPtr connection) {
   LOG(kSuccess) << "Successfully made " << connection->state() << " connection from "
                 << ThisDebugId() << " to " << connection->PeerDebugId();
 
-  std::atomic<bool> is_duplicate_normal_connection(false);
   OnConnectionAdded local_callback;
   {
     std::lock_guard<std::mutex> guard(callback_mutex_);
@@ -396,44 +404,18 @@ void Transport::AddConnection(ConnectionPtr connection) {
   }
   if (local_callback) {
     local_callback(connection->Socket().PeerNodeId(), shared_from_this(),
-                   connection->state() == Connection::State::kTemporary,
-                   is_duplicate_normal_connection);
-
-    if (is_duplicate_normal_connection) {
-      LOG(kError) << "Connection is a duplicate.  Failed to add " << connection->state()
-                  << " connection from " << ThisDebugId() << " to " << connection->PeerDebugId();
-      connection->MarkAsDuplicateAndClose();
-    }
+                   connection->state() == Connection::State::kTemporary, connection);
   }
 
 #ifndef NDEBUG
   std::string s("\n++++++++++++++++++++++++\nAdded ");
   s += boost::lexical_cast<std::string>(connection->state()) + " connection from ";
   s += ThisDebugId() + " to " + connection->PeerDebugId() + '\n';
-  if (managed_connections_debug_printout_)
-    s += managed_connections_debug_printout_();
   LOG(kVerbose) << s;
 #endif
 }
 
 void Transport::RemoveConnection(ConnectionPtr connection, bool timed_out) {
-  strand_.dispatch(
-      std::bind(&Transport::DoRemoveConnection, shared_from_this(), connection, timed_out));
-}
-
-void Transport::DoRemoveConnection(ConnectionPtr connection, bool timed_out) {
-  // The call to connection_manager_->RemoveConnection must come before the invocation of
-  // on_connection_lost_ so that the transport can be assessed for IsIdle properly during the
-  // execution of the functor.
-  if (connection->state() != Connection::State::kTemporary)
-    connection_manager_->RemoveConnection(connection);
-
-  // If the connection has a failure_functor, invoke that, otherwise invoke on_connection_lost_.
-  auto failure_functor(connection->GetAndClearFailureFunctor());
-  if (failure_functor) {
-    return failure_functor();
-  }
-
   if (connection->state() != Connection::State::kDuplicate) {
     OnConnectionLost local_callback;
     {
@@ -463,10 +445,6 @@ std::string Transport::DebugString() const {
   s += boost::lexical_cast<std::string>(nat_type_) + '\n';
   s += connection_manager_->DebugString();
   return s;
-}
-
-void Transport::SetManagedConnectionsDebugPrintout(std::function<std::string()> functor) {
-  managed_connections_debug_printout_ = functor;
 }
 
 }  // namespace detail

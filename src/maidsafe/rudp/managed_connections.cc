@@ -65,6 +65,7 @@ ManagedConnections::PendingConnection::PendingConnection(NodeId node_id_in, Tran
 
 ManagedConnections::ManagedConnections()
     : asio_service_(Parameters::thread_count),
+      strand_(asio_service_.service()),
       listener_(),
       this_node_id_(),
       chosen_bootstrap_contact_(),
@@ -72,15 +73,18 @@ ManagedConnections::ManagedConnections()
       connections_(),
       pendings_(),
       idle_transports_(),
-      mutex_(),
       local_ip_(),
-      nat_type_(maidsafe::make_unique<NatType>(NatType::kUnknown))
-{
-}
+      nat_type_(maidsafe::make_unique<NatType>(NatType::kUnknown)) {}
 
 ManagedConnections::~ManagedConnections() {
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
+  using lock_guard = std::lock_guard<std::mutex>;
+
+  std::mutex mutex;
+
+  std::promise<void> promise;
+  auto future = promise.get_future();
+
+  strand_.dispatch([&]() {
     for (auto connection_details : connections_)
       connection_details.second->Close();
     connections_.clear();
@@ -90,7 +94,14 @@ ManagedConnections::~ManagedConnections() {
     for (auto idle_transport : idle_transports_)
       idle_transport->Close();
     idle_transports_.clear();
-  }
+
+    lock_guard lock(mutex);
+    promise.set_value();
+  });
+
+  future.get();
+  { lock_guard lock(mutex); }
+
   asio_service_.Stop();
 }
 
@@ -114,12 +125,15 @@ int ManagedConnections::CheckBootstrappingParameters(const BootstrapContacts& bo
 }
 
 void ManagedConnections::ClearConnectionsAndIdleTransports() {
-  std::lock_guard<std::mutex> lock(mutex_);
+  assert(strand_.running_in_this_thread());
+
   if (!connections_.empty()) {
     for (auto connection_details : connections_) {
-      assert(connection_details.second->GetConnection(connection_details.first)->state() ==
-             detail::Connection::State::kBootstrapping);
-      connection_details.second->Close();
+      auto connection_ptr(connection_details.second->GetConnection(connection_details.first));
+      if (connection_ptr) {
+        assert(connection_ptr->state() == detail::Connection::State::kBootstrapping);
+        connection_details.second->Close();
+      }
     }
     connections_.clear();
   }
@@ -145,40 +159,37 @@ int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
 }
 
 void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
-                                          Endpoint local_endpoint,
-                                          const std::function<void(Error, const Contact&)>& handler) {
-  TransportPtr transport(std::make_shared<detail::Transport>(asio_service_, *nat_type_));
+    Endpoint local_endpoint,
+    const std::function<void(Error, const Contact&)>& handler) {
+  assert(strand_.running_in_this_thread());
 
-  transport->SetManagedConnectionsDebugPrintout([this]() { return DebugString(); });
+  auto transport = std::make_shared<detail::Transport>(asio_service_, *nat_type_);
 
   bool bootstrap_off_existing_connection(bootstrap_list.empty());
-  boost::asio::ip::address external_address;
+  asio::ip::address external_address;
   if (bootstrap_off_existing_connection)
     GetBootstrapEndpoints(bootstrap_list, external_address);
 
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    // Should not bootstrap from the transport belonging to the same routing object
-    for (const auto& element : idle_transports_) {
-      bootstrap_list.erase(std::remove_if(bootstrap_list.begin(), bootstrap_list.end(),
-                                          [&element](const BootstrapContacts::value_type& entry) {
-                             return entry.endpoint_pair.local == element->local_endpoint();
-                           }),
-                           bootstrap_list.end());
-    }
+  // Should not bootstrap from the transport belonging to the same routing object
+  for (const auto& element : idle_transports_) {
+    bootstrap_list.erase(std::remove_if(bootstrap_list.begin(), bootstrap_list.end(),
+                                        [&element](const BootstrapContacts::value_type& entry) {
+                           return entry.endpoint_pair.local == element->local_endpoint();
+                         }),
+                         bootstrap_list.end());
   }
 
+  //----------------------------------------------------------------------------
   auto on_bootstrap = [=](ReturnCode bootstrap_result, Contact chosen_contact) {
+    assert(strand_.running_in_this_thread());
+
     if (bootstrap_result != kSuccess) {
       transport->Close();
       return handler(RudpErrors::failed_to_bootstrap, chosen_contact);
     }
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      if (chosen_bootstrap_contact_.id.IsValid())
-        chosen_bootstrap_contact_ = chosen_contact;
-    }
+
+    if (chosen_bootstrap_contact_.id.IsValid())
+      chosen_bootstrap_contact_ = chosen_contact;
 
     if (!detail::IsValid(transport->external_endpoint()) && !external_address.is_unspecified()) {
       // Means this node's NAT is symmetric or unknown, so guess that it will be mapped to existing
@@ -195,22 +206,37 @@ void ManagedConnections::StartNewTransport(BootstrapContacts bootstrap_list,
   };
 
   transport->Bootstrap(
-      bootstrap_list, this_node_id_, keys_.public_key, local_endpoint,
+      std::move(bootstrap_list), this_node_id_, keys_.public_key, local_endpoint,
       bootstrap_off_existing_connection,
-      std::bind(&ManagedConnections::OnMessageSlot, this, args::_1, args::_2),
-      [this](const NodeId& peer_id, TransportPtr transport, bool temporary_connection,
-             std::atomic<bool>& is_duplicate_normal_connection) {
-        OnConnectionAddedSlot(peer_id, transport, temporary_connection,
-                              is_duplicate_normal_connection);
+      strand_.wrap(std::bind(&ManagedConnections::OnMessageSlot, this, args::_1, args::_2)),
+      strand_.wrap([this](const NodeId& peer_id,
+                          TransportPtr  transport,
+                          bool          temporary_connection,
+                          ConnectionPtr connection) mutable {
+        OnConnectionAddedSlot(peer_id, transport, temporary_connection, connection);
+      }),
+      strand_.wrap([this](const NodeId& peer_id, TransportPtr transport,
+                          bool temporary_connection, bool /* ? */) {
+        OnConnectionLostSlot(peer_id, transport, temporary_connection);
+      }),
+      // FIXME: This function doesn't seem to be used.
+      [this](const asio::ip::udp::endpoint& this_local_endpoint,
+             const NodeId& peer_id,
+             const asio::ip::udp::endpoint& peer_endpoint,
+             uint16_t& another_external_port) mutable {
+        assert(0 && "Is this ever used?");
+        OnNatDetectionRequestedSlot(this_local_endpoint,
+                                    peer_id,
+                                    peer_endpoint,
+                                    another_external_port);
       },
-      std::bind(&ManagedConnections::OnConnectionLostSlot, this, args::_1, args::_2, args::_3),
-      std::bind(&ManagedConnections::OnNatDetectionRequestedSlot, this, args::_1, args::_2,
-                args::_3, args::_4),
-      on_bootstrap);
+      strand_.wrap(on_bootstrap));
 }
 
 void ManagedConnections::GetBootstrapEndpoints(BootstrapContacts& bootstrap_list,
-                                               boost::asio::ip::address& this_external_address) {
+                                               asio::ip::address& this_external_address) {
+  assert(strand_.running_in_this_thread());
+
   bool external_address_consistent(true);
   // Favour connections which are on a different network to this to allow calculation of the new
   // transport's external endpoint.
@@ -218,7 +244,7 @@ void ManagedConnections::GetBootstrapEndpoints(BootstrapContacts& bootstrap_list
   bootstrap_list.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
   secondary_list.reserve(Parameters::max_transports * detail::Transport::kMaxConnections());
   std::set<Endpoint> non_duplicates;
-  std::lock_guard<std::mutex> lock(mutex_);
+
   for (auto element : connections_) {
     std::shared_ptr<detail::Connection> connection(element.second->GetConnection(element.first));
     if (!connection)
@@ -240,7 +266,7 @@ void ManagedConnections::GetBootstrapEndpoints(BootstrapContacts& bootstrap_list
     }
   }
   if (!external_address_consistent)
-    this_external_address = boost::asio::ip::address();
+    this_external_address = asio::ip::address();
   std::random_shuffle(bootstrap_list.begin(), bootstrap_list.end());
   std::random_shuffle(secondary_list.begin(), secondary_list.end());
   bootstrap_list.insert(bootstrap_list.end(), secondary_list.begin(), secondary_list.end());
@@ -361,14 +387,17 @@ bool ManagedConnections::ShouldStartNewTransport(const EndpointPair& peer_endpoi
 }
 
 void ManagedConnections::AddPending(std::unique_ptr<PendingConnection> connection) {
-  NodeId peer_id(connection->node_id);
+  assert(strand_.running_in_this_thread());
+
+  NodeId peer_id(connection->node_id.ToStringEncoded(NodeId::EncodingType::kHex),
+                 NodeId::EncodingType::kHex);
   pendings_.push_back(std::move(connection));
-  pendings_.back()->timer.async_wait([peer_id, this](const boost::system::error_code& ec) {
-    if (ec != boost::asio::error::operation_aborted) {
-      std::lock_guard<std::mutex> lock(mutex_);
-      RemovePending(peer_id);
-    }
-  });
+  pendings_.back()->timer.async_wait
+    (strand_.wrap([peer_id, this](const boost::system::error_code& ec) {
+      if (ec != boost::asio::error::operation_aborted) {
+        RemovePending(peer_id);
+      }
+    }));
 }
 
 void ManagedConnections::RemovePending(const NodeId& peer_id) {
@@ -394,12 +423,12 @@ std::vector<std::unique_ptr<ManagedConnections::PendingConnection>>::iterator
 }
 
 void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handler) {
+  assert(strand_.running_in_this_thread());
+
   if (peer.id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
     return handler(RudpErrors::operation_not_supported);
   }
-
-  std::lock_guard<std::mutex> lock(mutex_);
 
   auto itr(FindPendingTransportWithNodeId(peer.id));
   if (itr == pendings_.end()) {
@@ -454,25 +483,24 @@ void ManagedConnections::DoAdd(const Contact& peer, ConnectionAddedFunctor handl
 }
 
 void ManagedConnections::DoRemove(const NodeId& peer_id) {
+  assert(strand_.running_in_this_thread());
+
   if (peer_id == this_node_id_) {
     LOG(kError) << "Can't use this node's ID (" << this_node_id_ << ") as peerID.";
     return;
   }
 
-  TransportPtr transport_to_close;
-
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto itr(connections_.find(peer_id));
-    if (itr == connections_.end()) {
-      LOG(kWarning) << "Can't remove connection from " << this_node_id_ << " to " << peer_id
-                    << " - not in map.";
-      return;
-    } else {
-      transport_to_close = (*itr).second;
-    }
+  if (peer_id == this_node_id_) {
+    LOG(kError) << "Can't use this node's ID (" << DebugId(this_node_id_) << ") as peerID.";
+    return;
   }
-  transport_to_close->CloseConnection(peer_id);
+  auto itr(connections_.find(peer_id));
+  if (itr == connections_.end()) {
+    LOG(kWarning) << "Can't remove connection from " << this_node_id_ << " to " << peer_id
+                  << " - not in map.";
+  } else {
+    (*itr).second->CloseConnection(peer_id);
+  }
 }
 
 void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message,
@@ -482,47 +510,26 @@ void ManagedConnections::DoSend(const NodeId& peer_id, SendableMessage&& message
     return handler(RudpErrors::operation_not_supported);
   }
 
-  std::lock_guard<std::mutex> lock(mutex_);
   auto itr(connections_.find(peer_id));
   if (itr != connections_.end()) {
-    if (itr->second->Send(peer_id, std::string(std::begin(message), std::end(message)), handler)) {
-      return;
-    }
+    return itr->second->Send(peer_id, std::string(std::begin(message), std::end(message)), handler);
   }
+
   LOG(kError) << "Can't send from " << this_node_id_ << " to " << peer_id << " - not in map.";
-  if (handler) {
-    if (!connections_.empty() || !idle_transports_.empty()) {
-      handler(RudpErrors::not_connected);
-    } else {
-      // Probably haven't bootstrapped, so asio_service_ won't be running.
-      std::thread thread(handler, RudpErrors::not_connected);
-      thread.detach();
-    }
-  }
+  handler(RudpErrors::not_connected);
 }
 
-void ManagedConnections::OnMessageSlot(const NodeId& peer_id, const std::string& message) {
-  try {
-    std::string decrypted_message(
-#ifdef TESTING
-        !Parameters::rudp_encrypt ?
-            message :
-#endif
-            asymm::Decrypt(asymm::CipherText(message), keys_.private_key).string());
-    if (auto listener = listener_.lock()) {
-      listener->MessageReceived(peer_id, std::vector<unsigned char>(std::begin(decrypted_message),
-                                                                    std::end(decrypted_message)));
-    }
-  } catch (const std::exception& e) {
-    LOG(kError) << "Failed to decrypt message: " << e.what();
-  }
+void ManagedConnections::OnMessageSlot(const NodeId& peer_id, std::vector<uint8_t> message) {
+  auto listener = listener_.lock();
+  if (!listener) return;
+  listener->MessageReceived(peer_id, message);
 }
 
-void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id, TransportPtr transport,
-                                               bool temporary_connection,
-                                               std::atomic<bool>& is_duplicate_normal_connection) {
-  is_duplicate_normal_connection = false;
-  std::lock_guard<std::mutex> lock(mutex_);
+void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id,
+                                               TransportPtr  transport,
+                                               bool          temporary_connection,
+                                               ConnectionPtr connection) {
+  assert(strand_.running_in_this_thread());
 
   if (temporary_connection) {
     UpdateIdleTransports(transport);
@@ -531,12 +538,12 @@ void ManagedConnections::OnConnectionAddedSlot(const NodeId& peer_id, TransportP
 
     auto result = connections_.insert(std::make_pair(peer_id, transport));
     bool inserted = result.second;
-    is_duplicate_normal_connection = !inserted;
 
     if (inserted) {
       idle_transports_.erase(transport);
     } else {
       UpdateIdleTransports(transport);
+      connection->MarkAsDuplicateAndClose();
 
       LOG(kError) << (*result.first).second->ThisDebugId() << " is already connected to " << peer_id
                   << ".  Won't make duplicate normal connection on " << transport->ThisDebugId();
@@ -566,7 +573,8 @@ void ManagedConnections::UpdateIdleTransports(const TransportPtr& transport) {
 
 void ManagedConnections::OnConnectionLostSlot(const NodeId& peer_id, TransportPtr transport,
                                               bool temporary_connection) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  assert(strand_.running_in_this_thread());
+
   UpdateIdleTransports(transport);
 
   if (temporary_connection)
@@ -604,7 +612,6 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
     return;
   }
 
-  std::lock_guard<std::mutex> lock(mutex_);
   auto itr(std::find_if(connections_.begin(), connections_.end(),
                         [&this_local_endpoint](const ConnectionMap::value_type& element) {
     return this_local_endpoint != element.second->local_endpoint();
@@ -619,39 +626,6 @@ void ManagedConnections::OnNatDetectionRequestedSlot(const Endpoint& this_local_
   // This node doesn't care about the Ping result, but Ping should not be given a NULL functor.
   assert(0 && "FIXME: valid public key");
   (*itr).second->Ping(peer_id, peer_endpoint, asymm::PublicKey(), [](int) {});  // NOLINT (Fraser)
-}
-
-std::string ManagedConnections::DebugString() const {
-  std::lock_guard<std::mutex> lock(mutex_);
-  // Not interested in the log once accumulated enough connections
-  if (connections_.size() > 8)
-    return "";
-
-  //  std::string s = "This node's peer connections:\n";
-  std::set<TransportPtr> transports;
-  for (auto connection : connections_) {
-    transports.insert(connection.second);
-    //     s += '\t' + DebugId(connection.first).substr(0, 7) + '\n';
-  }
-
-  std::string s = "This node's own transports and their peer connections:\n";
-  for (auto transport : transports)
-    s += transport->DebugString();
-
-  s += "\nThis node's idle transports:\n";
-  for (auto idle_transport : idle_transports_)
-    s += idle_transport->DebugString();
-
-  s += "\nThis node's pending connections:\n";
-  for (auto& pending : pendings_) {
-    s += "\tPending to peer " + DebugId(pending->node_id).substr(0, 7);
-    s += " on this node's transport ";
-    s += boost::lexical_cast<std::string>(pending->pending_transport->external_endpoint()) + " / ";
-    s += boost::lexical_cast<std::string>(pending->pending_transport->local_endpoint()) + '\n';
-  }
-  s += "\n\n";
-
-  return s;
 }
 
 }  // namespace rudp

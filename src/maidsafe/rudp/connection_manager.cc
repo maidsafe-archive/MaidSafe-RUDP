@@ -44,8 +44,6 @@ namespace detail {
 
 namespace {
 
-typedef Asio::ip::udp::endpoint Endpoint;
-
 bool IsNormal(std::shared_ptr<Connection> connection) {
   return connection->state() == Connection::State::kPermanent ||
          connection->state() == Connection::State::kUnvalidated ||
@@ -110,30 +108,41 @@ void ConnectionManager::MarkDoneConnecting(NodeId peer_id, Endpoint peer_ep) {
 
 void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                                 const asymm::PublicKey& peer_public_key,
-                                ConnectionAddedFunctor handler,
                                 const bptime::time_duration& connect_attempt_timeout,
-                                const bptime::time_duration& lifespan, OnConnect on_connect,
-                                const std::function<void()>& failure_functor) {
+                                const bptime::time_duration& lifespan,
+                                OnConnect on_connect, OnClose on_close) {
   std::lock_guard<std::mutex> lock(mutex_);
 
   auto transport = transport_.lock();
 
   if (!transport) {
-    strand_.dispatch([handler] { handler(RudpErrors::failed_to_connect); });
     return strand_.dispatch([on_connect]() { on_connect(RudpErrors::shut_down, nullptr); });
   }
 
   if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
-    strand_.dispatch([handler] { handler(RudpErrors::failed_to_connect); });
     return strand_.dispatch([on_connect]() { on_connect(RudpErrors::already_started, nullptr); });
   }
 
   being_connected_.insert(std::make_pair(peer_id, peer_endpoint));
 
-  auto connection = std::make_shared<Connection>(transport, strand_, multiplexer_);
+  auto connection = std::make_shared<Connection>(transport,
+                                                 strand_,
+                                                 multiplexer_,
+                                                 transport->DefaultOnReceiveHandler());
 
-  connection->StartConnecting(peer_id, peer_endpoint, peer_public_key, handler,
-                              connect_attempt_timeout, lifespan, on_connect, failure_functor);
+  auto on_close2 = [=](const std::error_code& error, ConnectionPtr connection) {
+    // The call to connection_manager_->RemoveConnection must come before the invocation of
+    // on_connection_lost_ so that the transport can be assessed for IsIdle properly during the
+    // execution of the functor.
+    if (connection->state() != Connection::State::kTemporary)
+      RemoveConnection(connection);
+
+    on_close(error, connection);
+  };
+
+  connection->StartConnecting(peer_id, peer_endpoint, peer_public_key,
+                              connect_attempt_timeout, lifespan,
+                              on_connect, on_close2);
 }
 
 int ConnectionManager::AddConnection(ConnectionPtr connection) {
@@ -187,26 +196,28 @@ void ConnectionManager::Ping(const NodeId& peer_id, const Endpoint& peer_endpoin
                              const std::function<void(int)>& ping_functor) {  // NOLINT (Fraser)
   if (std::shared_ptr<Transport> transport = transport_.lock()) {
     assert(ping_functor);
-    ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_));
+    ConnectionPtr connection(std::make_shared<Connection>(transport, strand_, multiplexer_,
+                                                          transport->DefaultOnReceiveHandler()));
     connection->Ping(peer_id, peer_endpoint, peer_public_key, ping_functor);
   } else {
     assert(0 && "Transport already closed");
   }
 }
 
-bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
+void ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
                              const MessageSentFunctor& handler) {
   std::unique_lock<std::mutex> lock(mutex_);
   auto itr(FindConnection(peer_id));
   if (itr == connections_.end()) {
     LOG(kWarning) << kThisNodeId_ << " Not currently connected to " << peer_id;
-    return false;
+    return strand_.dispatch([=]() { handler(RudpErrors::not_connected); });
   }
 
   ConnectionPtr connection(*itr);
   lock.unlock();
-  strand_.dispatch([=] { connection->StartSending(message, handler); });
-  return true;
+  // using COW std::string will cause thread sanitizer warning of data racing
+  std::shared_ptr<std::string> message_ptr(new std::string(message.data(), message.size()));
+  strand_.dispatch([=] { connection->StartSending(*message_ptr, handler); });
 }
 
 Socket* ConnectionManager::GetSocket(const Asio::const_buffer& data, const Endpoint& endpoint) {
@@ -319,12 +330,11 @@ void ConnectionManager::HandlePingFrom(const HandshakePacket& handshake_packet,
           handshake_packet.node_id(),
           endpoint,
           handshake_packet.PublicKey(),
-          [](ExtErrorCode) {},
           Parameters::bootstrap_connect_timeout,
           bootstrap_and_drop ? bptime::time_duration()
                              : Parameters::bootstrap_connection_lifespan,
-          transport->MakeDefaultOnConnectHandler(),
-          nullptr);
+          transport->DefaultOnConnectHandler(),
+          transport->DefaultOnCloseHandler());
     }
   }
 }

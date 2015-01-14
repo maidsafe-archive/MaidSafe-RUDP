@@ -16,55 +16,25 @@
     See the Licences for the specific language governing permissions and limitations relating to
     use of the MaidSafe Software.                                                                 */
 
-// Original author: Christopher M. Kohlhoff (chris at kohlhoff dot com)
+#ifndef MAIDSAFE_RUDP_TESTS_GET_WITHIN_H_
+#define MAIDSAFE_RUDP_TESTS_GET_WITHIN_H_
 
-#ifndef MAIDSAFE_RUDP_CORE_DISPATCHER_H_
-#define MAIDSAFE_RUDP_CORE_DISPATCHER_H_
-
-#include <cstdint>
-#include <mutex>
-
-#include "boost/asio/buffer.hpp"
-#include "asio/ip/udp.hpp"
+#include <chrono>
+#include <future>
 
 namespace maidsafe {
 
-namespace rudp {
-
-namespace detail {
-
-class ConnectionManager;
-class Socket;
-
-class Dispatcher {
- public:
-  Dispatcher();
-
-  void SetConnectionManager(ConnectionManager* connection_manager);
-
-  // Add a socket. Returns a new unique id for the socket.
-  uint32_t AddSocket(Socket* socket);
-
-  // Remove the socket corresponding to the given id.
-  void RemoveSocket(uint32_t id);
-
-  // Handle a new packet by dispatching to the appropriate socket.
-  void HandleReceiveFrom(const boost::asio::const_buffer& data,
-                         const asio::ip::udp::endpoint& endpoint);
-
- private:
-  // Disallow copying and assignment.
-  Dispatcher(const Dispatcher&);
-  Dispatcher& operator=(const Dispatcher&);
-
-  std::mutex mutex_;
-  ConnectionManager* connection_manager_;
-};
-
-}  // namespace detail
-
-}  // namespace rudp
+// Wait for the future to finish within the duration time or throw exception.
+template<class FutureT>
+auto get_within(FutureT&& future, std::chrono::steady_clock::duration duration)
+    -> decltype(future.get()) {
+  if (future.wait_for(duration) == std::future_status::ready) {
+    return future.get();
+  } else {
+    throw std::system_error(asio::error::timed_out);
+  }
+}
 
 }  // namespace maidsafe
 
-#endif  // MAIDSAFE_RUDP_CORE_DISPATCHER_H_
+#endif  // MAIDSAFE_RUDP_TESTS_GET_WITHIN_H_

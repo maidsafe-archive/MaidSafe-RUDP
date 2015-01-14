@@ -36,7 +36,7 @@ class server {
     if (!error && bytes_recvd > 0) {
       std::string msg(data_, bytes_recvd);
       std::cout << "bytes_recvd : " << bytes_recvd << " msg size : " << msg.size() << std::endl;
-      char *reply = (char*)msg.c_str();  // NOLINT
+      char *reply = const_cast<char*>(msg.c_str());  // NOLINT
       socket_.async_send_to(
           boost::asio::buffer(reply, msg.size()), sender_endpoint_,
           std::bind(&server::handle_send_to, this, args::_1, args::_2));

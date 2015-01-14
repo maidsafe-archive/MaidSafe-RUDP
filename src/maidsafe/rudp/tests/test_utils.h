@@ -35,14 +35,13 @@
 #include "maidsafe/common/utils.h"
 
 #include "maidsafe/rudp/managed_connections.h"
+#include "maidsafe/rudp/async_queue.h"
 
 namespace maidsafe {
 
 namespace rudp {
 
 struct Contact;
-
-typedef boost::asio::ip::udp::endpoint Endpoint;
 
 typedef std::shared_ptr<ManagedConnections> ManagedConnectionsPtr;
 
@@ -65,10 +64,8 @@ class Node {
  public:
   explicit Node(int id);
   std::vector<NodeId> connection_lost_node_ids() const;
-  messages_t messages() const;
   std::future<Contact> Bootstrap(const Contacts&, Endpoint local_endpoint = Endpoint());
   std::future<Contact> Bootstrap(Contact, Endpoint local_endpoint = Endpoint());
-  boost::future<messages_t> GetFutureForMessages(uint32_t message_count);
 
   std::future<EndpointPair> GetAvailableEndpoints(NodeId id) {
     return managed_connections_->GetAvailableEndpoints(id, asio::use_future);
@@ -86,9 +83,12 @@ class Node {
     return managed_connections_->Send(id, msg, asio::use_future);
   }
 
-  std::future<void> Send(const NodeId& id, const std::string& msg) {
-    return managed_connections_->Send(id, message_t(msg.begin(), msg.end()), asio::use_future);
+  std::future<void> Send(const NodeId& id, const std::string& str) {
+    message_t msg(str.begin(), str.end());
+    return managed_connections_->Send(id, std::move(msg), asio::use_future);
   }
+
+  std::future<message_t> Receive() { return message_queue_.async_pop(asio::use_future); }
 
   std::string id() const { return id_; }
   NodeId node_id() const { return node_id_; }
@@ -103,9 +103,7 @@ class Node {
 
   ManagedConnectionsPtr managed_connections() const { return managed_connections_; }
 
-  int GetReceivedMessageCount(const message_t& message) const;
-
-  void ResetData();
+  void ResetLostConnections();
 
   std::vector<NodeId> GetConnectedNodeIds() { return connected_node_ids_; }
 
@@ -122,21 +120,14 @@ class Node {
   }
 
  private:
-  void SetPromiseIfDone();
-
- private:
   NodeId node_id_;
   std::string id_;
   asymm::Keys key_pair_;
-  NonEmptyString validation_data_;
   mutable std::mutex mutex_;
   std::vector<NodeId> connection_lost_node_ids_;
   std::vector<NodeId> connected_node_ids_;
-  messages_t messages_;
+  async_queue<std::error_code, message_t> message_queue_;
   ManagedConnectionsPtr managed_connections_;
-  bool promised_;
-  uint32_t total_message_count_expectation_;
-  boost::promise<messages_t> message_promise_;
 
   std::shared_ptr<ManagedConnections::Listener> bootstrap_listener_;
 };

@@ -73,10 +73,10 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   EXPECT_NO_THROW(node1_chosen_bootstrap_contact = node_1_bootstrap.get());
 
   // FIXME: Retry if either of the two ports had been taken.
-  //if (result0 == kBindError || result1 == kBindError) {
-  //  // The endpoints were taken by some other program, retry...
-  //  return SetupNetwork(nodes, bootstrap_endpoints, node_count);
-  //}
+  // if (result0 == kBindError || result1 == kBindError) {
+  //   // The endpoints were taken by some other program, retry...
+  //   return SetupNetwork(nodes, bootstrap_endpoints, node_count);
+  // }
 
   if (node1_chosen_bootstrap_contact.id != nodes[0]->node_id())
     return testing::AssertionFailure() << "Bootstrapping failed for Node 1.";
@@ -88,8 +88,10 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
   endpoint_pair1 = endpoints1;
   Sleep(std::chrono::milliseconds(250));
 
-  EXPECT_ANY_THROW(nodes[0]->GetAvailableEndpoints(nodes[1]->node_id()).get());
-  EXPECT_ANY_THROW(nodes[1]->GetAvailableEndpoints(nodes[0]->node_id()).get());
+  auto get_0 = nodes[0]->GetAvailableEndpoints(nodes[1]->node_id());
+  auto get_1 = nodes[1]->GetAvailableEndpoints(nodes[0]->node_id());
+  EXPECT_ANY_THROW(get_0.get());
+  EXPECT_ANY_THROW(get_1.get());
 
   EXPECT_THROW(nodes[0]->Add(contacts[1]).get(), system_error);
   nodes[0]->AddConnectedNodeId(nodes[1]->node_id());
@@ -99,8 +101,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
 
   bootstrap_endpoints.push_back(contacts[0]);
   bootstrap_endpoints.push_back(contacts[1]);
-  nodes[0]->ResetData();
-  nodes[1]->ResetData();
+  nodes[0]->ResetLostConnections();
+  nodes[1]->ResetLostConnections();
 
   if (node_count > 2)
     LOG(kInfo) << "Setting up remaining " << (node_count - 2) << " nodes";
@@ -120,11 +122,10 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
     Sleep(std::chrono::milliseconds(250));
     for (int j(0); j != i; ++j) {
       // Call GetAvailableEndpoint at each peer.
-      nodes[i]->ResetData();
-      nodes[j]->ResetData();
+      auto get_i = nodes[i]->GetAvailableEndpoints(nodes[j]->node_id());
 
       try {
-        ith_endpoint_pair = nodes[i]->GetAvailableEndpoints(nodes[j]->node_id()).get();
+        ith_endpoint_pair = get_i.get();
         if (!detail::IsValid(ith_endpoint_pair.external)) {
           ith_endpoint_pair.external = ith_endpoint_pair.local;
         }
@@ -133,8 +134,10 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
         EXPECT_EQ(e.code(), RudpErrors::already_connected);
       }
 
+      auto get_j = nodes[j]->GetAvailableEndpoints(nodes[i]->node_id());
+
       try {
-        jth_endpoint_pair = nodes[j]->GetAvailableEndpoints(nodes[i]->node_id()).get();
+        jth_endpoint_pair = get_j.get();
         if (!detail::IsValid(jth_endpoint_pair.external)) {
           jth_endpoint_pair.external = jth_endpoint_pair.local;
         }
@@ -168,35 +171,26 @@ Node::Node(int id)
     : node_id_(RandomString(NodeId::kSize)),
       id_("Node " + boost::lexical_cast<std::string>(id)),
       key_pair_(asymm::GenerateKeyPair()),
-      validation_data_(id_ + "'s validation data"),
       mutex_(),
       connection_lost_node_ids_(),
       connected_node_ids_(),
-      messages_(),
-      managed_connections_(new ManagedConnections),
-      promised_(false),
-      total_message_count_expectation_(0),
-      message_promise_() {}
+      managed_connections_(new ManagedConnections) {}
 
 std::vector<NodeId> Node::connection_lost_node_ids() const {
   std::lock_guard<std::mutex> guard(mutex_);
   return connection_lost_node_ids_;
 }
 
-Node::messages_t Node::messages() const {
-  std::lock_guard<std::mutex> guard(mutex_);
-  return messages_;
-}
-
 std::future<Contact> Node::Bootstrap(Contact bootstrap_endpoint, Endpoint local_endpoint) {
   return Bootstrap(Contacts{bootstrap_endpoint}, local_endpoint);
 }
 
-std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints, Endpoint local_endpoint) {
+std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpoints,
+                                     Endpoint                    local_endpoint) {
   struct BootstrapListener : public ManagedConnections::Listener {
     Node& self;
 
-    BootstrapListener(Node& self) : self(self) {}
+    explicit BootstrapListener(Node& self) : self(self) {}
 
     void MessageReceived(NodeId /*peer_id*/, ReceivedMessage message) override {
       bool is_printable(true);
@@ -207,11 +201,10 @@ std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpo
         }
       }
       std::string message_str(message.begin(), message.end());
-      LOG(kInfo) << self.id() << " -- Received: " << (is_printable ? message_str.substr(0, 30)
-                                                                   : HexEncode(message_str.substr(0, 15)));
-      std::lock_guard<std::mutex> guard(self.mutex_);
-      self.messages_.emplace_back(message);
-      self.SetPromiseIfDone();
+      LOG(kInfo) << self.id() << " -- Received: "
+                 << (is_printable ? message_str.substr(0, 30)
+                                  : HexEncode(message_str.substr(0, 15)));
+      self.message_queue_.push(std::error_code(), message);
     }
 
     void ConnectionLost(NodeId peer_id) override {
@@ -234,34 +227,9 @@ std::future<Contact> Node::Bootstrap(const std::vector<Contact>& bootstrap_endpo
                                          local_endpoint);
 }
 
-int Node::GetReceivedMessageCount(const message_t& message) const {
-  std::lock_guard<std::mutex> guard(mutex_);
-  return static_cast<int>(std::count(messages_.begin(), messages_.end(), message));
-}
-
-void Node::ResetData() {
+void Node::ResetLostConnections() {
   std::lock_guard<std::mutex> guard(mutex_);
   connection_lost_node_ids_.clear();
-  messages_.clear();
-  total_message_count_expectation_ = 0;
-}
-
-boost::future<Node::messages_t> Node::GetFutureForMessages(uint32_t message_count) {
-  std::lock_guard<std::mutex> guard(mutex_);
-  assert(message_count > 0);
-  total_message_count_expectation_ = message_count;
-  promised_ = true;
-  boost::promise<messages_t> message_promise;
-  message_promise_.swap(message_promise);
-  return message_promise_.get_future();
-}
-
-void Node::SetPromiseIfDone() {
-  if (promised_ && messages_.size() >= total_message_count_expectation_) {
-    message_promise_.set_value(messages_);
-    promised_ = false;
-    total_message_count_expectation_ = 0;
-  }
 }
 
 }  // namespace test

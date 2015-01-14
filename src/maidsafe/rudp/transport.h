@@ -57,39 +57,35 @@ class Socket;
 
 class Transport : public std::enable_shared_from_this<Transport> {
  public:
-  typedef std::function<void(const NodeId& peer_id, const std::string&)> OnMessage;
+  using Endpoint = asio::ip::udp::endpoint;
+  using ConnectionPtr = std::shared_ptr<Connection>;
+  using ExtErrorCode = std::error_code;
+  using ErrorCode = boost::system::error_code;
+  using OnMessage = std::function<void(const NodeId& peer_id, std::vector<uint8_t>)>;
+  using OnConnect = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using OnClose = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using Duration = boost::posix_time::time_duration;
+  using OnNatDetected = Session::OnNatDetectionRequested::slot_function_type;
+  using OnBootstrap = std::function<void(ReturnCode, Contact)>;
+  using BootstrapContacts = std::vector<Contact>;
 
-  typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, std::atomic<bool> &)>
+  typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, ConnectionPtr)>
       OnConnectionAdded;
 
   typedef std::function<void(const NodeId&, std::shared_ptr<Transport>, bool, bool)>
       OnConnectionLost;
-
-  using Endpoint          = boost::asio::ip::udp::endpoint;
-  using ConnectionPtr     = std::shared_ptr<Connection>;
-  using ExtErrorCode      = std::error_code;
-  using ErrorCode         = boost::system::error_code;
-  using OnConnect         = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
-  using Duration          = boost::posix_time::time_duration;
-  using OnNatDetected     = Session::OnNatDetectionRequested::slot_function_type;
-  using OnBootstrap       = std::function<void(ReturnCode, Contact)>;
-  using BootstrapContacts = std::vector<Contact>;
 
  public:
   Transport(AsioService& asio_service, NatType& nat_type_);
 
   virtual ~Transport();
 
-  void Bootstrap(const BootstrapContacts&          bootstrap_list,
-                 const NodeId&                     this_node_id,
-                 const asymm::PublicKey&  this_public_key,
-                 Endpoint                          local_endpoint,
-                 bool                              bootstrap_off_existing_connection,
-                 OnMessage                         on_message_slot,
-                 OnConnectionAdded                 on_connection_added_slot,
-                 OnConnectionLost                  on_connection_lost_slot,
-                 const OnNatDetected&              on_nat_detection_requested_slot,
-                 OnBootstrap                       on_bootstrap);
+  void Bootstrap(BootstrapContacts&& bootstrap_list, const NodeId& this_node_id,
+                 const asymm::PublicKey& this_public_key, Endpoint local_endpoint,
+                 bool bootstrap_off_existing_connection, OnMessage on_message_slot,
+                 OnConnectionAdded on_connection_added_slot,
+                 OnConnectionLost on_connection_lost_slot,
+                 const OnNatDetected& on_nat_detection_requested_slot, OnBootstrap on_bootstrap);
 
   void Close();
 
@@ -100,7 +96,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   // itself from ManagedConnections which will cause it to be destroyed.
   bool CloseConnection(const NodeId& peer_id);
 
-  bool Send(const NodeId& peer_id, const std::string& message,
+  void Send(const NodeId& peer_id, const std::string& message,
             const MessageSentFunctor& message_sent_functor);
 
   void Ping(const NodeId& peer_id, const Endpoint& peer_endpoint,
@@ -122,31 +118,33 @@ class Transport : public std::enable_shared_from_this<Transport> {
 
   std::string DebugString() const;
   std::string ThisDebugId() const;
-  void SetManagedConnectionsDebugPrintout(std::function<std::string()> functor);
 
-  friend class Connection;
+  NatType& reference_to_nat_type() { return nat_type_; }
+  NodeId node_id() const;
+  const asymm::PublicKey& public_key() const;
+  OnNatDetected get_nat_detection_handler() const { return on_nat_detection_requested_slot_; }
+
   friend class ConnectionManager;
 
  private:
   Transport(const Transport&);
   Transport& operator=(const Transport&);
 
-  typedef std::shared_ptr<Multiplexer>       MultiplexerPtr;
+  typedef std::shared_ptr<Multiplexer> MultiplexerPtr;
   typedef std::shared_ptr<ConnectionManager> ConnectionManagerPtr;
 
-  template<typename Handler>
-  void TryBootstrapping(const BootstrapContacts& bootstrap_list,
-                        bool bootstrap_off_existing_connection,
+  template <typename Handler>
+  void TryBootstrapping(BootstrapContacts&& bootstrap_list, bool bootstrap_off_existing_connection,
                         Handler);
 
-  template<typename Iterator, typename Handler>
+  template <typename Iterator, typename Handler>
   void ConnectToBootstrapEndpoint(Iterator begin, Iterator end, Duration lifespan, Handler handler);
 
-  template<typename Handler>
+  template <typename Handler>
   void ConnectToBootstrapEndpoint(const Contact& contact, const Duration& lifespan,
                                   Handler handler);
 
-  template<typename Handler>
+  template <typename Handler>
   void DetectNatType(NodeId const& peer_id, const asymm::PublicKey& peer_pub_key, Handler);
 
   void DoConnect(const NodeId& peer_id, const EndpointPair& peer_endpoint_pair,
@@ -156,32 +154,26 @@ class Transport : public std::enable_shared_from_this<Transport> {
   void StartDispatch();
   void HandleDispatch(const ExtErrorCode& ec);
 
-  NodeId node_id() const;
-  const asymm::PublicKey& public_key() const;
-
-  void SignalMessageReceived(const NodeId& peer_id, const std::string& message);
-  void DoSignalMessageReceived(const NodeId& peer_id, const std::string& message);
   void AddConnection(ConnectionPtr connection);
   void DoAddConnection(ConnectionPtr connection);
   void RemoveConnection(ConnectionPtr connection, bool timed_out);
-  void DoRemoveConnection(ConnectionPtr connection, bool timed_out);
 
-  OnConnect MakeDefaultOnConnectHandler();
+  OnMessage DefaultOnReceiveHandler();
+  OnConnect DefaultOnConnectHandler();
+  OnClose DefaultOnCloseHandler();
 
  private:
-  AsioService&                       asio_service_;
-  NatType&                           nat_type_;
-  boost::asio::io_service::strand    strand_;
-  MultiplexerPtr                     multiplexer_;
-  ConnectionManagerPtr               connection_manager_;
-  std::mutex                         callback_mutex_;
+  AsioService& asio_service_;
+  NatType& nat_type_;
+  boost::asio::io_service::strand strand_;
+  MultiplexerPtr multiplexer_;
+  ConnectionManagerPtr connection_manager_;
+  std::mutex callback_mutex_;
 
-  OnMessage         on_message_;
+  OnMessage on_message_;
   OnConnectionAdded on_connection_added_;
-  OnConnectionLost  on_connection_lost_;
-  OnNatDetected     on_nat_detection_requested_slot_;
-
-  std::function<std::string()> managed_connections_debug_printout_;
+  OnConnectionLost on_connection_lost_;
+  OnNatDetected on_nat_detection_requested_slot_;
 };
 
 typedef std::shared_ptr<Transport> TransportPtr;

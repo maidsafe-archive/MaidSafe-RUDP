@@ -28,6 +28,7 @@
 #include "boost/asio/handler_invoke_hook.hpp"
 #include "boost/system/error_code.hpp"
 #include "maidsafe/rudp/core/dispatcher.h"
+#include "maidsafe/rudp/boost_asio_conversions.h"
 
 namespace maidsafe {
 
@@ -63,12 +64,13 @@ class DispatchOp {
     while (!local_ec) {
       std::lock_guard<std::mutex> lock(*mutex_);
       dispatcher_.HandleReceiveFrom(boost::asio::buffer(buffer_, bytes_transferred),
-                                    sender_endpoint_);
+                                    from_boost(sender_endpoint_));
+
       bytes_transferred =
           socket_.receive_from(boost::asio::buffer(buffer_), sender_endpoint_, 0, local_ec);
     }
 
-    handler_(std::make_error_code(static_cast<std::errc>(local_ec.value())));
+    handler_(std::make_error_code(static_cast<std::errc>(ec.value())));
   }
 
   friend void* asio_handler_allocate(size_t n, DispatchOp* op) {

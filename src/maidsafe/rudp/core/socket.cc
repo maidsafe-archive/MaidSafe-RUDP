@@ -40,7 +40,6 @@
 #include "maidsafe/rudp/packets/shutdown_packet.h"
 
 namespace Asio = boost::asio;
-namespace ip = Asio::ip;
 namespace bs = boost::system;
 namespace bptime = boost::posix_time;
 namespace args = std::placeholders;
@@ -96,7 +95,7 @@ uint32_t Socket::Id() const { return session_.Id(); }
 
 int32_t Socket::BestReadBufferSize() const { return congestion_control_.BestReadBufferSize(); }
 
-ip::udp::endpoint Socket::PeerEndpoint() const { return peer_.PeerEndpoint(); }
+asio::ip::udp::endpoint Socket::PeerEndpoint() const { return peer_.PeerEndpoint(); }
 
 uint32_t Socket::PeerSocketId() const { return peer_.SocketId(); }
 
@@ -106,14 +105,14 @@ bool Socket::IsOpen() const { return session_.IsOpen(); }
 
 bool Socket::IsConnected() const { return session_.IsConnected(); }
 
-void Socket::UpdatePeerEndpoint(const ip::udp::endpoint& remote) {
+void Socket::UpdatePeerEndpoint(const asio::ip::udp::endpoint& remote) {
   peer_.SetPeerGuessedPort();
   peer_.SetPeerEndpoint(remote);
 }
 
 uint16_t Socket::PeerGuessedPort() const { return peer_.PeerGuessedPort(); }
 
-ip::udp::endpoint Socket::RemoteNatDetectionEndpoint() const {
+asio::ip::udp::endpoint Socket::RemoteNatDetectionEndpoint() const {
   return session_.RemoteNatDetectionEndpoint();
 }
 
@@ -149,7 +148,7 @@ void Socket::Close() {
 uint32_t Socket::StartConnect(
     const NodeId& this_node_id,
     const asymm::PublicKey& this_public_key,
-    const ip::udp::endpoint& remote,
+    const asio::ip::udp::endpoint& remote,
     const NodeId& peer_node_id,
     const asymm::PublicKey& peer_public_key,
     Session::Mode open_mode,
@@ -262,7 +261,8 @@ void Socket::ProcessFlush() {
   }
 }
 
-void Socket::HandleReceiveFrom(const Asio::const_buffer& data, const ip::udp::endpoint& endpoint) {
+void Socket::HandleReceiveFrom(const Asio::const_buffer&      data,
+                               const asio::ip::udp::endpoint& endpoint) {
   if (endpoint == peer_.PeerEndpoint()) {
     // TODO(Team): Surely this can be templetised somehow to avoid all the obejct creation
     DataPacket data_packet;
@@ -404,7 +404,7 @@ void Socket::HandleTick() {
 
 void Socket::MakeNormal() { session_.MakeNormal(); }
 
-ip::udp::endpoint Socket::ThisEndpoint() const { return peer_.ThisEndpoint(); }
+asio::ip::udp::endpoint Socket::ThisEndpoint() const { return peer_.ThisEndpoint(); }
 
 const asymm::PublicKey& Socket::PeerPublicKey() const { return peer_.public_key(); }
 

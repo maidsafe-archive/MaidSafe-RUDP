@@ -17,6 +17,7 @@
     use of the MaidSafe Software.                                                                 */
 
 #include <vector>
+#include <asio/use_future.hpp> // NOLINT
 
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/test.h"
@@ -25,6 +26,8 @@
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/transport.h"
 #include "maidsafe/rudp/tests/test_utils.h"
+#include "maidsafe/rudp/tests/get_within.h"
+#include "maidsafe/rudp/async_queue.h"
 #include "maidsafe/rudp/utils.h"
 
 namespace Asio = boost::asio;
@@ -34,216 +37,212 @@ namespace maidsafe {
 
 namespace rudp {
 
-typedef Asio::ip::udp::endpoint Endpoint;
-
 namespace detail {
 
 namespace test {
 
-// class RudpTransportTest : public testing::Test {
-// public:
-//  RudpTransportTest()
-//      : transports_(),
-//        network_size_(2),
-//        kTimeOut_(Parameters::keepalive_interval *
-//                  (Parameters::maximum_keepalive_failures + 1)) {}
-//
-//  ~RudpTransportTest() {}
-//
-// protected:
-//  struct TestPeer {
-//    TestPeer() : local_endpoint(GetLocalIp(), maidsafe::test::GetRandomPort()),
-//                 key_pair(),
-//                 mutex(),
-//                 cond_var_connection_added(),
-//                 cond_var_connection_lost(),
-//                 cond_var_msg_received(),
-//                 asio_service(Parameters::thread_count),
-//                 nat_type(NatType::kUnknown),
-//                 transport(),
-//                 messages_received(),
-//                 peers_added(),
-//                 peers_lost() {
-//      asymm::GenerateKeyPair(&key_pair);
-//      transport.reset(new Transport(asio_service, nat_type));
-//      Endpoint chosen_endpoint;
-//      std::vector<Endpoint> bootstrap_endpoints;
-//      boost::signals2::connection on_message_connection;
-//      boost::signals2::connection on_connection_added_connection;
-//      boost::signals2::connection on_connection_lost_connection;
-//      transport->Bootstrap(
-//          bootstrap_endpoints,
-//          std::shared_ptr<asymm::PublicKey>(new asymm::PublicKey(key_pair.public_key)),
-//          local_endpoint,
-//          true,
-//          boost::bind(&TestPeer::OnMessageSlot, this, _1),
-//          boost::bind(&TestPeer::OnConnectionAddedSlot, this, _1, _2),
-//          boost::bind(&TestPeer::OnConnectionLostSlot, this, _1, _2, _3, _4),
-//          boost::bind(&TestPeer::OnNatDetectionRequestedSlot, this, _1, _2, _3),
-//          &chosen_endpoint,
-//          &on_message_connection,
-//          &on_connection_added_connection,
-//          &on_connection_lost_connection);
-//    }
-//
-//    ~TestPeer() {
-//       transport->Close();
-//       asio_service.Stop();
-//    }
-//
-//    void OnMessageSlot(const std::string& message) {
-//      {
-//        boost::mutex::scoped_lock lock(mutex);
-//        messages_received.push_back(message);
-//      }
-//      cond_var_msg_received.notify_one();
-//    }
-//
-//    void OnConnectionAddedSlot(const Endpoint& peer_endpoint, TransportPtr /*transport*/) {
-//      {
-//        boost::mutex::scoped_lock lock(mutex);
-//        peers_added.push_back(peer_endpoint);
-//      }
-//      cond_var_connection_added.notify_one();
-//    }
-//
-//    void OnConnectionLostSlot(const Endpoint& peer_endpoint,
-//                              TransportPtr /*transport*/,
-//                              bool /*connections_empty*/,
-//                              bool /*temporary_connection*/) {
-//      {
-//        boost::mutex::scoped_lock lock(mutex);
-//        peers_lost.push_back(peer_endpoint);
-//      }
-//      cond_var_connection_lost.notify_one();
-//    }
-//
-//    void OnNatDetectionRequestedSlot(const Endpoint& /*this_local_endpoint*/,
-//                                     const asio::ip::udp::endpoint& /*peer_endpoint*/,
-//                                     uint16_t& /*another_external_port*/) {
-//    }
-//
-//    Endpoint local_endpoint;
-//    asymm::Keys key_pair;
-//    boost::mutex mutex;
-//    boost::condition_variable cond_var_connection_added;
-//    boost::condition_variable cond_var_connection_lost;
-//    boost::condition_variable cond_var_msg_received;
-//    AsioService asio_service;
-//    NatType nat_type;
-//    std::shared_ptr<Transport> transport;
-//    std::vector<std::string> messages_received;
-//    std::vector<Endpoint> peers_added;
-//    std::vector<Endpoint> peers_lost;
-//  };
-//
-//  void SetUp() {
-//    for (int i(0); i < network_size_; ++i) {
-//      std::shared_ptr<TestPeer> test_peer(new TestPeer());
-//      transports_.push_back(test_peer);
-//    }
-//  }
-//
-//  void TearDown() {
-//    transports_.clear();
-//  }
-//
-//  void ConnectTestPeers() {
-//    transports_[0]->transport->Connect(transports_[1]->local_endpoint,
-//                                       "validation data from node 0");
-//    transports_[1]->transport->Connect(transports_[0]->local_endpoint,
-//                                       "validation data from node 1");
-//    boost::mutex::scoped_lock lock(transports_[1]->mutex);
-//    EXPECT_TRUE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
-//  }
-//
-//  std::vector<std::shared_ptr<TestPeer> > transports_;
-//  uint16_t network_size_;
-//  bptime::time_duration kTimeOut_;
-// };
-//
-// TEST_F(RudpTransportTest, BEH_Connection) {
-//  ConnectTestPeers();
-//
-//  transports_[1]->messages_received.clear();
-//  std::string msg_content(RandomString(256));
-//
-//  int send_result(kGeneralError);
-//  bool message_sent(false);
-//  boost::mutex send_mutex;
-//  boost::condition_variable send_cond_var;
-//  boost::mutex::scoped_lock send_lock(send_mutex);
-//  auto message_sent_functor([&](int result_in) {
-//    {
-//      boost::mutex::scoped_lock lock(send_mutex);
-//      send_result = result_in;
-//      message_sent = true;
-//    }
-//    send_cond_var.notify_one();
-//  });
-//
-//  boost::mutex::scoped_lock lock(transports_[1]->mutex);
-//  transports_[0]->transport->Send(transports_[1]->local_endpoint, msg_content,
-//                                  message_sent_functor);  // NOLINT (Fraser)
-//  EXPECT_TRUE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
-//  EXPECT_TRUE(transports_[0]->cond_var_msg_received.timed_wait(
-//      send_lock, kTimeOut_, [&message_sent]() { return message_sent; }));  // NOLINT (Fraser)
-//  EXPECT_EQ(kSuccess, send_result);
-//  ASSERT_EQ(1U, transports_[1]->messages_received.size());
-//  EXPECT_NE(msg_content, transports_[1]->messages_received[0]);
-//  std::string decrypted_msg;
-//  EXPECT_EQ(kSuccess, asymm::Decrypt(transports_[1]->messages_received[0],
-//                                     transports_[1]->key_pair.private_key,
-//                                     &decrypted_msg));
-//  EXPECT_EQ(msg_content, decrypted_msg);
-// }
-//
-// TEST_F(RudpTransportTest, BEH_CloseConnection) {
-//  ConnectTestPeers();
-//  transports_[1]->transport->CloseConnection(transports_[0]->local_endpoint);
-//  {
-//    boost::mutex::scoped_lock lock(transports_[0]->mutex);
-//    EXPECT_TRUE(transports_[0]->cond_var_connection_lost.timed_wait(lock, kTimeOut_));
-//  }
-//  EXPECT_EQ(1U, transports_[0]->peers_lost.size());
-//  EXPECT_EQ(transports_[1]->local_endpoint, transports_[0]->peers_lost[0]);
-//
-//  int send_result(kSuccess);
-//  transports_[1]->messages_received.clear();
-//  std::string msg_content("testing msg from node 0");
-//  transports_[0]->transport->Send(transports_[1]->local_endpoint, msg_content,
-//                                  [&](int result) { send_result = result; });  // NOLINT (Fraser)
-//  boost::mutex::scoped_lock lock(transports_[1]->mutex);
-//  EXPECT_FALSE(transports_[1]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
-//  EXPECT_EQ(kInvalidConnection, send_result);
-//  EXPECT_EQ(0, transports_[1]->messages_received.size());
-// }
-//
-// TEST_F(RudpTransportTest, BEH_DropConnection) {
-//  ConnectTestPeers();
-//  Endpoint dropped_endpoint(transports_[0]->local_endpoint);
-//  int attempts(0);
-//  while ((attempts < 10) && (transports_[0]->messages_received.size() == 0)) {
-//    ++attempts;
-//    Sleep(std::chrono::milliseconds(100));
-//  }
-//  transports_.erase(transports_.begin());
-//
-//  boost::mutex::scoped_lock lock(transports_[0]->mutex);
-//  EXPECT_TRUE(transports_[0]->cond_var_connection_lost.timed_wait(lock, kTimeOut_));
-//
-//  ASSERT_EQ(1U, transports_[0]->peers_lost.size());
-//  EXPECT_EQ(dropped_endpoint, transports_[0]->peers_lost[0]);
-//
-//  int send_result(kSuccess);
-//  transports_[0]->messages_received.clear();
-//  std::string msg_content("testing msg from node 0");
-//  transports_[0]->transport->Send(dropped_endpoint, msg_content,
-//                                  [&](int result) { send_result = result; });  // NOLINT (Fraser)
-//  EXPECT_FALSE(transports_[0]->cond_var_msg_received.timed_wait(lock, kTimeOut_));
-//  EXPECT_EQ(kInvalidConnection, send_result);
-//  EXPECT_EQ(0, transports_[0]->messages_received.size());
-// }
+using std::chrono::milliseconds;
+using message_t = std::vector<unsigned char>;
+
+milliseconds to_std(const boost::posix_time::time_duration& d) {
+  return milliseconds(d.total_milliseconds());
+}
+
+struct PromiseHandler {
+  std::shared_ptr<std::promise<void>> promise;
+
+  PromiseHandler()
+    : promise(std::make_shared<std::promise<void>>()) {}
+
+  std::future<void> get_future() { return promise->get_future(); }
+
+  void operator()(std::error_code e) const {
+    try {
+      if (e) throw std::system_error(e);
+      return promise->set_value();
+    } catch (const std::exception& ex) {
+      promise->set_exception(std::current_exception());
+    }
+  }
+};
+
+class RudpTransportTest : public testing::Test {
+ public:
+  RudpTransportTest()
+      : transports_(),
+        network_size_(2),
+        kTimeOut_(Parameters::keepalive_interval *
+                  (Parameters::maximum_keepalive_failures + 1)) {}
+
+  ~RudpTransportTest() {}
+
+ protected:
+  struct TestPeer {
+    TestPeer() : local_endpoint(GetLocalIp(), maidsafe::test::GetRandomPort()),
+                 asio_service(Parameters::thread_count),
+                 node_id(RandomString(NodeId::kSize)),
+                 nat_type(NatType::kUnknown) {
+      key_pair = asymm::GenerateKeyPair();
+      transport.reset(new Transport(asio_service, nat_type));
+      auto promise = std::make_shared<std::promise<void>>();
+
+      transport->Bootstrap(
+          std::vector<Contact>(),
+          node_id,
+          key_pair.public_key,
+          local_endpoint,
+          true,
+          boost::bind(&TestPeer::OnMessageSlot, this, _1, _2),
+          boost::bind(&TestPeer::OnConnectionAddedSlot, this, _1, _2, _3, _4),
+          boost::bind(&TestPeer::OnConnectionLostSlot, this, _1, _2, _3, _4),
+          boost::bind(&TestPeer::OnNatDetectionRequestedSlot, this, _1, _2, _3, _4),
+          [=](ReturnCode, Contact) {
+            promise->set_value();
+          });
+
+      promise->get_future().get();
+    }
+
+    ~TestPeer() {
+       transport->Close();
+       asio_service.Stop();
+    }
+
+    std::future<message_t> Receive() { return recv_queue.async_pop(asio::use_future); }
+    std::future<NodeId> LostFuture() { return lost_queue.async_pop(asio::use_future); }
+
+    void OnMessageSlot(NodeId, std::vector<unsigned char> message) {
+      recv_queue.push(std::move(message));
+    }
+
+    void OnConnectionAddedSlot(const NodeId&, TransportPtr /*transport*/, bool,
+                               Transport::ConnectionPtr) {
+    }
+
+    void OnConnectionLostSlot(const NodeId& peer, TransportPtr /*transport*/, bool, bool) {
+      lost_queue.push(peer);
+    }
+
+    void OnNatDetectionRequestedSlot(const Endpoint& /*this_local_endpoint*/,
+                                     const NodeId& /*peer_endpoint*/,
+                                     const Endpoint&,
+                                     uint16_t& /*another_external_port*/) {
+    }
+
+    Endpoint local_endpoint;
+    asymm::Keys key_pair;
+    std::mutex mutex;
+    boost::condition_variable cond_var_connection_added;
+    boost::condition_variable cond_var_connection_lost;
+    boost::condition_variable cond_var_msg_received;
+    async_queue<message_t> recv_queue;
+    async_queue<NodeId> lost_queue;
+    BoostAsioService asio_service;
+    NodeId node_id;
+    NatType nat_type;
+    std::shared_ptr<Transport> transport;
+    std::vector<std::string> messages_received;
+    std::vector<NodeId> peers_added;
+    std::vector<NodeId> peers_lost;
+  };
+
+  void SetUp() {
+    for (int i(0); i < network_size_; ++i) {
+      std::shared_ptr<TestPeer> test_peer(new TestPeer());
+      transports_.push_back(test_peer);
+    }
+  }
+
+  void TearDown() {
+    transports_.clear();
+  }
+
+  void ConnectTestPeers() {
+    auto promise1 = PromiseHandler();
+    auto promise2 = PromiseHandler();
+
+    transports_[0]->transport->Connect(transports_[1]->node_id,
+                                       EndpointPair(transports_[1]->local_endpoint),
+                                       transports_[1]->key_pair.public_key,
+                                       promise1);
+
+    transports_[1]->transport->Connect(transports_[0]->node_id,
+                                       EndpointPair(transports_[0]->local_endpoint),
+                                       transports_[0]->key_pair.public_key,
+                                       promise2);
+
+    promise1.get_future().get();
+    promise2.get_future().get();
+  }
+
+  std::vector<std::shared_ptr<TestPeer> > transports_;
+  uint16_t network_size_;
+  bptime::time_duration kTimeOut_;
+};
+
+TEST_F(RudpTransportTest, BEH_Connection) {
+  ConnectTestPeers();
+
+  std::string msg_content(RandomString(256));
+
+  message_t message;
+  PromiseHandler promise;
+  transports_[0]->transport->Send(transports_[1]->node_id, msg_content, promise);
+  EXPECT_NO_THROW(get_within(promise.get_future(), to_std(kTimeOut_)));
+  EXPECT_NO_THROW(message = get_within(transports_[1]->Receive(), to_std(kTimeOut_)));
+  EXPECT_EQ(msg_content, std::string(message.begin(), message.end()));
+}
+
+TEST_F(RudpTransportTest, BEH_CloseConnection) {
+  ConnectTestPeers();
+  transports_[1]->transport->CloseConnection(transports_[0]->node_id);
+  NodeId lost_peer;
+  ASSERT_NO_THROW(lost_peer = get_within(transports_[0]->LostFuture(), to_std(kTimeOut_)));
+  EXPECT_EQ(transports_[1]->node_id, lost_peer);
+
+  std::string msg_content("testing msg from node 0");
+  PromiseHandler promise;
+  transports_[0]->transport->Send(transports_[1]->node_id, msg_content, promise);
+
+  try {
+    get_within(promise.get_future(), to_std(kTimeOut_));
+    GTEST_FAIL() << "Expected to throw";
+  }
+  catch (const std::system_error& e) {
+    ASSERT_EQ(e.code(), RudpErrors::not_connected) << "Got: " << e.what();
+  }
+  catch (const std::exception& e) {
+    GTEST_FAIL() << "Expected system_error exception. Got: " << e.what();
+  }
+}
+
+TEST_F(RudpTransportTest, BEH_DropConnection) {
+  ConnectTestPeers();
+  auto dropped_node(transports_[0]->node_id);
+  transports_.erase(transports_.begin());
+
+  NodeId lost_node;
+  ASSERT_NO_THROW(lost_node = get_within(transports_[0]->LostFuture(), to_std(kTimeOut_)));
+
+  EXPECT_EQ(lost_node, dropped_node);
+
+  std::string msg_content("testing msg from node 0");
+
+  PromiseHandler promise;
+
+  transports_[0]->transport->Send(dropped_node, msg_content, promise);
+
+  try {
+    get_within(promise.get_future(), to_std(kTimeOut_));
+    GTEST_FAIL() << "Expected to throw";
+  }
+  catch (const std::system_error& e) {
+    ASSERT_EQ(e.code(), RudpErrors::not_connected) << "Got: " << e.what();
+  }
+  catch (const std::exception& e) {
+    GTEST_FAIL() << "Expected system_error exception. Got: " << e.what();
+  }
+}
 
 }  // namespace test
 

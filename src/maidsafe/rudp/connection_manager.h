@@ -38,6 +38,7 @@
 #include "maidsafe/common/rsa.h"
 
 #include "maidsafe/rudp/types.h"
+#include "connection.h" // NOLINT
 
 namespace maidsafe {
 
@@ -46,17 +47,18 @@ namespace rudp {
 namespace detail {
 
 class Transport;
-class Connection;
 class Multiplexer;
 class Socket;
 class HandshakePacket;
 
 class ConnectionManager {
  public:
-  using Endpoint      = boost::asio::ip::udp::endpoint;
+  using Endpoint      = asio::ip::udp::endpoint;
   using ConnectionPtr = std::shared_ptr<Connection>;
   using ExtErrorCode  = std::error_code;
-  using OnConnect     = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using OnReceive     = Connection::OnReceive;
+  using OnConnect     = Connection::OnConnect;
+  using OnClose       = Connection::OnClose;
 
   ConnectionManager(std::shared_ptr<Transport> transport,
                     const boost::asio::io_service::strand& strand,
@@ -68,10 +70,9 @@ class ConnectionManager {
 
   void Connect(const NodeId& peer_id, const Endpoint& peer_endpoint,
                const asymm::PublicKey& peer_public_key,
-               ConnectionAddedFunctor handler,
                const boost::posix_time::time_duration& connect_attempt_timeout,
-               const boost::posix_time::time_duration& lifespan, OnConnect on_connect,
-               const std::function<void()>& failure_functor);
+               const boost::posix_time::time_duration& lifespan,
+               OnConnect, OnClose);
 
   int AddConnection(std::shared_ptr<Connection> connection);
   bool CloseConnection(const NodeId& peer_id);
@@ -82,7 +83,7 @@ class ConnectionManager {
             const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
   // Returns false if the connection doesn't exist.
-  bool Send(const NodeId& peer_id, const std::string& message,
+  void Send(const NodeId& peer_id, const std::string& message,
             const MessageSentFunctor& handler);
 
   // This node's endpoint as viewed by peer

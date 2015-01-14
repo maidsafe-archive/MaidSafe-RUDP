@@ -29,6 +29,7 @@
 #include "maidsafe/rudp/managed_connections.h"
 #include "maidsafe/rudp/return_codes.h"
 #include "maidsafe/rudp/tests/test_utils.h"
+#include "maidsafe/rudp/tests/get_within.h"
 
 namespace {
 
@@ -80,6 +81,10 @@ bool ParseArgs(int argc, char** argv, int& message_count, int& message_size,
 }  // unnamed namespace
 
 int main(int argc, char** argv) {
+  using maidsafe::rudp::test::Node;
+  using maidsafe::rudp::test::NodePtr;
+  using maidsafe::rudp::Contact;
+
   auto message_count(0), message_size(0);
   double packet_loss_constant(0), packet_loss_bursty(0);
   std::string csv_file_path;
@@ -98,20 +103,14 @@ int main(int argc, char** argv) {
 
   if (packet_loss_constant > 0 || packet_loss_bursty > 0)
     maidsafe::rudp::SetDebugPacketLossRate(packet_loss_constant, packet_loss_bursty);
-  std::vector<maidsafe::rudp::test::NodePtr> nodes;
-  std::vector<maidsafe::rudp::Endpoint> bootstrap_endpoints;
+  std::vector<NodePtr> nodes;
+  std::vector<Contact> bootstrap_endpoints;
   if (!maidsafe::rudp::test::SetupNetwork(nodes, bootstrap_endpoints, 2)) {
     LOG(kError) << "Failed to setup network.";
     std::cerr << "Failed to setup network.";
     return -2;
   }
 
-  maidsafe::rudp::MessageReceivedFunctor do_nothing_on_message;
-  maidsafe::rudp::ConnectionLostFunctor do_nothing_on_connection_lost;
-
-  nodes[0]->ResetData();
-  nodes[1]->ResetData();
-  auto messages_futures(nodes[1]->GetFutureForMessages(message_count));
   std::vector<std::string> messages;
   messages.reserve(message_count);
   std::string message(maidsafe::RandomAlphaNumericString(message_size - 12));
@@ -120,32 +119,30 @@ int main(int argc, char** argv) {
     prefix.insert(0, 10 - prefix.size(), '0');
     messages.push_back(prefix + ": " + message);
   }
-  int result_of_send(maidsafe::rudp::kConnectError);
-  int result_arrived_count(0);
-  std::condition_variable cond_var;
-  std::mutex mutex;
-  std::unique_lock<std::mutex> lock(mutex);
-  maidsafe::rudp::MessageSentFunctor message_sent_functor([&](int result_in) {
-    std::lock_guard<std::mutex> lock(mutex);
-    result_of_send = result_in;
-    ++result_arrived_count;
-    cond_var.notify_one();
-  });
 
   // Send and assess results
   TLOG(kDefaultColour) << "Starting to send ... ";
   auto start_point(std::chrono::steady_clock::now());
-  for (int i(0); i != message_count; ++i)
-    nodes[0]->managed_connections()->Send(nodes[1]->node_id(), messages[i], message_sent_functor);
+  std::vector<std::future<void>> send_futures;
+  for (int i(0); i != message_count; ++i) {
+    send_futures.push_back(nodes[0]->Send(nodes[1]->node_id(), messages[i]));
+  }
 
   TLOG(kDefaultColour) << "All messages enqueued ... ";
-  cond_var.wait(lock, [message_count, &result_arrived_count] {
-    std::cout << result_arrived_count << " ";
-    return result_arrived_count == message_count;
-  });  // NOLINT (Fraser)
-  std::cout << std::endl;
+  for (auto& send_future : send_futures) {
+    send_future.get();
+  }
 
-  auto received_messages(messages_futures.get());
+  std::vector<Node::message_t> received_messages;
+  for (int i = 0; i != message_count; ++i) {
+    try {
+      received_messages.push_back(
+          maidsafe::get_within(nodes[1]->Receive(), std::chrono::seconds(10)));
+    }
+    catch (const std::system_error& e) {
+      LOG(kError) << "Problem receiving message " << i << " (" << e.what() << ")";
+    }
+  }
   if (received_messages.size() != static_cast<size_t>(message_count)) {
     LOG(kError) << "Only received " << received_messages.size() << " of " << message_count
                 << " messages.";

@@ -35,6 +35,7 @@
 
 #include "maidsafe/rudp/core/socket.h"
 #include "maidsafe/rudp/transport.h"
+#include "maidsafe/rudp/types.h"
 
 namespace maidsafe {
 
@@ -64,46 +65,48 @@ class Connection : public std::enable_shared_from_this<Connection> {
     kDuplicate,
   };
 
-  using ConnectionPtr = std::shared_ptr<Connection>;
-  using ExtErrorCode  = std::error_code;
-  using ErrorCode     = boost::system::error_code;
-  using OnConnect     = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using ConnectionPtr     = std::shared_ptr<Connection>;
+  using ExtErrorCode      = std::error_code;
+  using ErrorCode         = boost::system::error_code;
+  using OnReceive         = std::function<void(const NodeId& peer_id, std::vector<uint8_t>)>;
+  using OnConnect         = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
+  using OnClose           = std::function<void(const ExtErrorCode&, const ConnectionPtr&)>;
 
   Connection(const std::shared_ptr<Transport>& transport,
              const boost::asio::io_service::strand& strand,
-             std::shared_ptr<Multiplexer> multiplexer);
+             std::shared_ptr<Multiplexer> multiplexer,
+             OnReceive);
 
   detail::Socket& Socket();
 
   void Close();
   // If lifespan is 0, only handshaking will be done.  Otherwise, the connection will be closed
   // after lifespan has passed.
-  void StartConnecting(const NodeId& peer_node_id,
-                       const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void StartConnecting(const NodeId& peer_node_id, const asio::ip::udp::endpoint& peer_endpoint,
                        const asymm::PublicKey& peer_public_key,
-                       ConnectionAddedFunctor connection_added_functor,
                        const boost::posix_time::time_duration& connect_attempt_timeout,
                        const boost::posix_time::time_duration& lifespan,
                        OnConnect on_connect,
-                       const std::function<void()>& failure_functor);
-  void Ping(const NodeId& peer_node_id, const boost::asio::ip::udp::endpoint& peer_endpoint,
+                       OnClose   on_close);
+
+  void Ping(const NodeId& peer_node_id, const asio::ip::udp::endpoint& peer_endpoint,
             const asymm::PublicKey& peer_public_key,
             const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
+
   void StartSending(const std::string& data, const MessageSentFunctor& message_sent_functor);
   State state() const;
   // Sets the state_ to kPermanent or kUnvalidated and sets the lifespan_timer_ to expire at
   // pos_infin.
   void MakePermanent(bool validated);
   void MarkAsDuplicateAndClose();
-  std::function<void()> GetAndClearFailureFunctor();
 
   // Get the remote endpoint offered for NAT detection.
-  boost::asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
+  asio::ip::udp::endpoint RemoteNatDetectionEndpoint() const;
   // Helpers for debugging
   boost::posix_time::time_duration ExpiresFromNow() const;
   std::string PeerDebugId() const;
 
-  boost::asio::ip::udp::endpoint PeerEndpoint() const { return peer_endpoint_; }
+  asio::ip::udp::endpoint PeerEndpoint() const { return peer_endpoint_; }
   NodeId PeerNodeId() const { return peer_node_id_; }
 
  private:
@@ -115,22 +118,28 @@ class Connection : public std::enable_shared_from_this<Connection> {
     MessageSentFunctor handler_;
 
     SendRequest(std::string encrypted_data, MessageSentFunctor message_sent_functor)
-        : encrypted_data_(std::move(encrypted_data)), handler_(std::move(message_sent_functor)) {}
+#if defined(__GLIBCXX__)
+        //  && __GLIBCXX__ < date (date in format of 20141218 as the date of fix of COW string)
+        : encrypted_data_(encrypted_data.data(), encrypted_data.size()),
+#else
+        : encrypted_data_(std::move(encrypted_data)),
+#endif
+          handler_(std::move(message_sent_functor)) {
+    }
   };
 
   void DoClose(const ExtErrorCode&, int debug_line_no);
 
-  void DoStartConnecting(const NodeId& peer_node_id,
-                         const boost::asio::ip::udp::endpoint& peer_endpoint,
+  void DoStartConnecting(const NodeId& peer_node_id, const asio::ip::udp::endpoint& peer_endpoint,
                          const asymm::PublicKey& peer_public_key,
-                         ConnectionAddedFunctor connection_added_functor,
                          const boost::posix_time::time_duration& connect_attempt_timeout,
                          const boost::posix_time::time_duration& lifespan,
                          const std::function<void(int)>& ping_functor,  // NOLINT (Fraser)
-                         const OnConnect& on_connect,
-                         const std::function<void()>& failure_functor);
-  void DoStartSending(SendRequest const& request);  // NOLINT (Fraser)
-  void DoQueueSendRequest(SendRequest const& request);
+                         OnConnect on_connect,
+                         OnClose on_close);
+
+  void DoStartSending(SendRequest request);  // NOLINT (Fraser)
+  void DoQueueSendRequest(SendRequest request);
   void FinishSendAndQueueNext();
 
   void CheckTimeout(const ErrorCode& ec);
@@ -145,6 +154,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
                     const boost::posix_time::time_duration& connect_attempt_timeout,
                     const boost::posix_time::time_duration& lifespan,
                     const std::function<void(int)>& ping_functor);  // NOLINT (Fraser)
+
   void HandleConnect(const ErrorCode& ec,
                      std::function<void(int)> ping_functor);  // NOLINT (Fraser)
 
@@ -169,7 +179,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
                          const ExtErrorCode& error) const;
 
   void FireOnConnectFunctor(const ExtErrorCode&);
-  void FireConnectionAddedFunctor(const ExtErrorCode&);
+  void FireOnCloseFunctor(const ExtErrorCode&);
 
   std::weak_ptr<Transport> transport_;
   boost::asio::io_service::strand strand_;
@@ -178,24 +188,21 @@ class Connection : public std::enable_shared_from_this<Connection> {
   uint32_t cookie_syn_;
   boost::asio::deadline_timer timer_, probe_interval_timer_, lifespan_timer_;
   NodeId peer_node_id_;
-  boost::asio::ip::udp::endpoint peer_endpoint_;
-  ConnectionAddedFunctor connection_added_functor_;
+  asio::ip::udp::endpoint peer_endpoint_;
   std::vector<unsigned char> send_buffer_, receive_buffer_;
   DataSize data_size_, data_received_;
   uint8_t failed_probe_count_;
   State state_;
   mutable std::mutex state_mutex_;
-  enum class TimeoutState {
-    kConnecting,
-    kConnected,
-    kClosing
-  } timeout_state_;
+  enum class TimeoutState { kConnecting, kConnected, kClosing } timeout_state_;
   bool sending_;
   std::function<void()> failure_functor_;
   std::queue<SendRequest> send_queue_;
   std::mutex handle_tick_lock_;
 
+  OnReceive on_message_received_;
   OnConnect on_connect_;
+  OnClose   on_close_;
 };
 
 template <typename Elem, typename Traits>
