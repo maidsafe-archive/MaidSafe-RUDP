@@ -26,8 +26,6 @@
 
 #include "maidsafe/common/log.h"
 
-namespace asio = boost::asio;
-
 namespace maidsafe {
 
 namespace rudp {
@@ -82,18 +80,18 @@ const std::string& DataPacket::Data() const { return data_; }
 
 void DataPacket::SetData(const std::string& data) { data_ = data; }
 
-bool DataPacket::IsValid(const asio::const_buffer& buffer) {
-  return ((asio::buffer_size(buffer) >= 16) &&
-          ((asio::buffer_cast<const unsigned char*>(buffer)[0] & 0x80) == 0));
+bool DataPacket::IsValid(const boost::asio::const_buffer& buffer) {
+  return ((boost::asio::buffer_size(buffer) >= 16) &&
+          ((boost::asio::buffer_cast<const unsigned char*>(buffer)[0] & 0x80) == 0));
 }
 
-bool DataPacket::Decode(const asio::const_buffer& buffer) {
+bool DataPacket::Decode(const boost::asio::const_buffer& buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
     return false;
 
-  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
-  size_t length = asio::buffer_size(buffer);
+  const unsigned char* p = boost::asio::buffer_cast<const unsigned char*>(buffer);
+  size_t length = boost::asio::buffer_size(buffer);
 
   packet_sequence_number_ = (p[0] & 0x7f);
   packet_sequence_number_ = ((packet_sequence_number_ << 8) | p[1]);
@@ -113,12 +111,12 @@ bool DataPacket::Decode(const asio::const_buffer& buffer) {
   return true;
 }
 
-size_t DataPacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
+size_t DataPacket::Encode(std::vector<boost::asio::mutable_buffer>& buffers) const {
   // Refuse to encode if the output buffer is not big enough.
-  if (asio::buffer_size(buffers[0]) < kHeaderSize + data_.size())
+  if (boost::asio::buffer_size(buffers[0]) < kHeaderSize + data_.size())
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char*>(buffers[0]);
+  unsigned char* p = boost::asio::buffer_cast<unsigned char*>(buffers[0]);
 
   p[0] = ((packet_sequence_number_ >> 24) & 0x7f);
   p[1] = ((packet_sequence_number_ >> 16) & 0xff);
@@ -136,9 +134,9 @@ size_t DataPacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
   // std::memcpy(p + kHeaderSize, data_.data(), data_.size());
   // 2014-8-25 ned: Split into a gather op
   buffers.pop_back();
-  buffers.push_back(asio::mutable_buffer(p, kHeaderSize));
+  buffers.push_back(boost::asio::mutable_buffer(p, kHeaderSize));
   // Actually const safe as buffer is only used for sending
-  buffers.push_back(asio::mutable_buffer(
+  buffers.push_back(boost::asio::mutable_buffer(
     reinterpret_cast<unsigned char *>(const_cast<char *>(data_.data())),
     data_.size()));
 

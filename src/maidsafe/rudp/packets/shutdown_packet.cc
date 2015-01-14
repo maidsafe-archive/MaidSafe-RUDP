@@ -22,8 +22,6 @@
 
 #include <vector>
 
-namespace asio = boost::asio;
-
 namespace maidsafe {
 
 namespace rudp {
@@ -32,17 +30,17 @@ namespace detail {
 
 ShutdownPacket::ShutdownPacket() { SetType(kPacketType); }
 
-bool ShutdownPacket::IsValid(const asio::const_buffer& buffer) {
-  return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) == kPacketSize));
+bool ShutdownPacket::IsValid(const boost::asio::const_buffer& buffer) {
+  return (IsValidBase(buffer, kPacketType) && (boost::asio::buffer_size(buffer) == kPacketSize));
 }
 
-bool ShutdownPacket::Decode(const asio::const_buffer& buffer) {
+bool ShutdownPacket::Decode(const boost::asio::const_buffer& buffer) {
   if (!IsValid(buffer))
     return false;
   return DecodeBase(buffer, kPacketType);
 }
 
-size_t ShutdownPacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
+size_t ShutdownPacket::Encode(std::vector<boost::asio::mutable_buffer>& buffers) const {
   return EncodeBase(buffers);
 }
 

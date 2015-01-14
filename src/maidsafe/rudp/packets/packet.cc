@@ -20,8 +20,6 @@
 
 #include "maidsafe/rudp/packets/packet.h"
 
-namespace asio = boost::asio;
-
 namespace maidsafe {
 
 namespace rudp {
@@ -30,12 +28,12 @@ namespace detail {
 
 Packet::~Packet() {}
 
-bool Packet::DecodeDestinationSocketId(uint32_t* id, const asio::const_buffer& data) {
+bool Packet::DecodeDestinationSocketId(uint32_t* id, const boost::asio::const_buffer& data) {
   // Refuse to decode anything that's too short.
-  if (asio::buffer_size(data) < 16)
+  if (boost::asio::buffer_size(data) < 16)
     return false;
 
-  DecodeUint32(id, asio::buffer_cast<const unsigned char*>(data) + 12);
+  DecodeUint32(id, boost::asio::buffer_cast<const unsigned char*>(data) + 12);
   return true;
 }
 

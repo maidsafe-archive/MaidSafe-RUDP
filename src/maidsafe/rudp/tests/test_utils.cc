@@ -53,8 +53,8 @@ testing::AssertionResult SetupNetwork(std::vector<NodePtr>& nodes,
 
   // Setting up first two nodes
   EndpointPair endpoints0, endpoints1;
-  endpoints0.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
-  endpoints1.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
+  endpoints0.local = Endpoint(AsioToBoostAsio(GetLocalIp()), maidsafe::test::GetRandomPort());
+  endpoints1.local = Endpoint(AsioToBoostAsio(GetLocalIp()), maidsafe::test::GetRandomPort());
   NodeId chosen_node_id, node1_chosen_bootstrap_peer;
   int result0(0);
 

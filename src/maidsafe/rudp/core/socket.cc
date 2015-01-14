@@ -39,8 +39,7 @@
 #include "maidsafe/rudp/packets/negative_ack_packet.h"
 #include "maidsafe/rudp/packets/shutdown_packet.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
+namespace ip = boost::asio::ip;
 namespace bs = boost::system;
 namespace bptime = boost::posix_time;
 namespace args = std::placeholders;
@@ -124,7 +123,7 @@ void Socket::NotifyClose() {
 
 void Socket::Close() {
   waiting_connect_ec_ =
-      session_.IsConnected() ? boost::system::error_code() : asio::error::operation_aborted;
+      session_.IsConnected() ? boost::system::error_code() : boost::asio::error::operation_aborted;
   if (session_.IsOpen()) {
     sender_.NotifyClose();
     congestion_control_.OnClose();
@@ -134,15 +133,15 @@ void Socket::Close() {
   peer_.SetSocketId(0);
   tick_timer_.Cancel();
   waiting_connect_.cancel();
-  waiting_write_ec_ = asio::error::operation_aborted;
+  waiting_write_ec_ = boost::asio::error::operation_aborted;
   waiting_write_bytes_transferred_ = 0;
   waiting_write_.cancel();
-  waiting_read_ec_ = asio::error::operation_aborted;
+  waiting_read_ec_ = boost::asio::error::operation_aborted;
   waiting_read_bytes_transferred_ = 0;
   waiting_read_.cancel();
-  waiting_flush_ec_ = asio::error::operation_aborted;
+  waiting_flush_ec_ = boost::asio::error::operation_aborted;
   waiting_flush_.cancel();
-  waiting_probe_ec_ = asio::error::shut_down;
+  waiting_probe_ec_ = boost::asio::error::shut_down;
   waiting_probe_.cancel();
 }
 
@@ -163,7 +162,7 @@ uint32_t Socket::StartConnect(
 }
 
 void Socket::StartProbe() {
-  waiting_probe_ec_ = asio::error::operation_aborted;
+  waiting_probe_ec_ = boost::asio::error::operation_aborted;
   if (!session_.IsConnected()) {
     waiting_probe_ec_ = boost::asio::error::not_connected;
     waiting_probe_.cancel();
@@ -179,10 +178,10 @@ void Socket::StartProbe() {
   }
 }
 
-void Socket::StartWrite(const asio::const_buffer& data,
+void Socket::StartWrite(const boost::asio::const_buffer& data,
                         const std::function<void(int)>& message_sent_functor) {  // NOLINT (Fraser)
   // Check for a no-op write.
-  if (asio::buffer_size(data) == 0) {
+  if (boost::asio::buffer_size(data) == 0) {
     waiting_write_ec_.clear();
     waiting_write_.cancel();
     return;
@@ -200,7 +199,7 @@ void Socket::StartWrite(const asio::const_buffer& data,
 
 void Socket::ProcessWrite() {
   // There's only a waiting write if the write buffer is non-empty.
-  if (asio::buffer_size(waiting_write_buffer_) == 0)
+  if (boost::asio::buffer_size(waiting_write_buffer_) == 0)
     return;
 
   // Copy whatever data we can into the write buffer.
@@ -209,16 +208,16 @@ void Socket::ProcessWrite() {
   waiting_write_bytes_transferred_ += length;
   // If we have finished writing all of the data then it's time to trigger the write's completion
   // handler.
-  if (asio::buffer_size(waiting_write_buffer_) == 0) {
+  if (boost::asio::buffer_size(waiting_write_buffer_) == 0) {
     // The write is done. Trigger the write's completion handler.
     waiting_write_ec_.clear();
     waiting_write_.cancel();
   }
 }
 
-void Socket::StartRead(const asio::mutable_buffer& data, size_t transfer_at_least) {
+void Socket::StartRead(const boost::asio::mutable_buffer& data, size_t transfer_at_least) {
   // Check for a no-read write.
-  if (asio::buffer_size(data) == 0) {
+  if (boost::asio::buffer_size(data) == 0) {
     waiting_read_ec_.clear();
     waiting_read_.cancel();
     return;
@@ -234,7 +233,7 @@ void Socket::StartRead(const asio::mutable_buffer& data, size_t transfer_at_leas
 
 void Socket::ProcessRead() {
   // There's only a waiting read if the read buffer is non-empty.
-  if (asio::buffer_size(waiting_read_buffer_) == 0)
+  if (boost::asio::buffer_size(waiting_read_buffer_) == 0)
     return;
 
   // Copy whatever data we can into the read buffer.
@@ -244,7 +243,7 @@ void Socket::ProcessRead() {
 
   // If we have filled the buffer, or read more than the minimum number of bytes required, then it's
   // time to trigger the read's completion handler.
-  if (asio::buffer_size(waiting_read_buffer_) == 0 ||
+  if (boost::asio::buffer_size(waiting_read_buffer_) == 0 ||
       waiting_read_bytes_transferred_ >= waiting_read_transfer_at_least_) {
     // the read is done. Trigger the read's completion handler.
     waiting_read_ec_.clear();
@@ -261,7 +260,8 @@ void Socket::ProcessFlush() {
   }
 }
 
-void Socket::HandleReceiveFrom(const asio::const_buffer& data, const ip::udp::endpoint& endpoint) {
+void Socket::HandleReceiveFrom(const boost::asio::const_buffer& data,
+                               const ip::udp::endpoint& endpoint) {
   if (endpoint == peer_.PeerEndpoint()) {
     // TODO(Team): Surely this can be templetised somehow to avoid all the obejct creation
     DataPacket data_packet;

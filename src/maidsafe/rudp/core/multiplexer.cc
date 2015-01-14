@@ -35,7 +35,6 @@
 #include "maidsafe/rudp/packets/packet.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace asio = boost::asio;
 namespace ip = boost::asio::ip;
 namespace bs = boost::system;
 
@@ -45,7 +44,7 @@ namespace rudp {
 
 namespace detail {
 
-Multiplexer::Multiplexer(asio::io_service& asio_service)
+Multiplexer::Multiplexer(boost::asio::io_service& asio_service)
     : socket_(asio_service),
       sender_endpoint_(),
       dispatcher_(),

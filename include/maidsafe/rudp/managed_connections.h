@@ -215,7 +215,7 @@ class ManagedConnections {
  private:
   std::string DebugString() const;
 
-  AsioService asio_service_;
+  BoostAsioService asio_service_;
   std::mutex callback_mutex_;
   MessageReceivedFunctor message_received_functor_;
   ConnectionLostFunctor connection_lost_functor_;

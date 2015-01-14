@@ -27,14 +27,13 @@
 #include "maidsafe/rudp/tests/test_utils.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace asio = boost::asio;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
 
 namespace rudp {
 
-typedef asio::ip::udp::endpoint Endpoint;
+typedef boost::asio::ip::udp::endpoint Endpoint;
 
 namespace detail {
 
@@ -119,7 +118,7 @@ namespace test {
 //    }
 //
 //    void OnNatDetectionRequestedSlot(const Endpoint& /*this_local_endpoint*/,
-//                                     const asio::ip::udp::endpoint& /*peer_endpoint*/,
+//                                     const boost::asio::ip::udp::endpoint& /*peer_endpoint*/,
 //                                     uint16_t& /*another_external_port*/) {
 //    }
 //
@@ -129,7 +128,7 @@ namespace test {
 //    boost::condition_variable cond_var_connection_added;
 //    boost::condition_variable cond_var_connection_lost;
 //    boost::condition_variable cond_var_msg_received;
-//    AsioService asio_service;
+//    BoostAsioService asio_service;
 //    NatType nat_type;
 //    std::shared_ptr<Transport> transport;
 //    std::vector<std::string> messages_received;
