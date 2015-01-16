@@ -23,8 +23,6 @@
 #include <cassert>
 #include <cstring>
 
-namespace asio = boost::asio;
-
 namespace maidsafe {
 
 namespace rudp {
@@ -69,13 +67,13 @@ uint32_t AckPacket::EstimatedLinkCapacity() const { return estimated_link_capaci
 
 void AckPacket::SetEstimatedLinkCapacity(uint32_t n) { estimated_link_capacity_ = n; }
 
-bool AckPacket::IsValid(const asio::const_buffer& buffer) {
-  auto buffer_size = asio::buffer_size(buffer);
+bool AckPacket::IsValid(const boost::asio::const_buffer& buffer) {
+  auto buffer_size = boost::asio::buffer_size(buffer);
   if (!IsValidBase(buffer, kPacketType) || buffer_size < kPacketSize)
     return false;
 
   // get the number of sequence parameters
-  auto p = asio::buffer_cast<const unsigned char*>(buffer) + kHeaderSize;
+  auto p = boost::asio::buffer_cast<const unsigned char*>(buffer) + kHeaderSize;
   uint32_t sequence_count = 0;
   DecodeUint32(&sequence_count, p);
 
@@ -119,7 +117,7 @@ std::vector<std::pair<uint32_t, uint32_t>> AckPacket::GetSequenceRanges() const 
   return sequence_numbers_;
 }
 
-bool AckPacket::Decode(const asio::const_buffer& buffer) {
+bool AckPacket::Decode(const boost::asio::const_buffer& buffer) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValid(buffer))
     return false;
@@ -128,8 +126,8 @@ bool AckPacket::Decode(const asio::const_buffer& buffer) {
   if (!DecodeBase(buffer, kPacketType))
     return false;
 
-  const unsigned char* p = asio::buffer_cast<const unsigned char *>(buffer);
-  const unsigned char* buffer_end = p + asio::buffer_size(buffer);
+  const unsigned char* p = boost::asio::buffer_cast<const unsigned char *>(buffer);
+  const unsigned char* buffer_end = p + boost::asio::buffer_size(buffer);
   p += kHeaderSize;
 
   // get the number of sequence parameters
@@ -165,20 +163,20 @@ bool AckPacket::Decode(const asio::const_buffer& buffer) {
   return true;
 }
 
-size_t AckPacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
+size_t AckPacket::Encode(std::vector<boost::asio::mutable_buffer>& buffers) const {
   size_t required_bytes = kPacketSize +
                           (has_optional_fields_ ? kOptionalPacketSize : 0) +
                           sequence_numbers_.size()*2*4;
 
   // Refuse to encode if the output buffer is not big enough.
-  if (asio::buffer_size(buffers[0]) < required_bytes)
+  if (boost::asio::buffer_size(buffers[0]) < required_bytes)
     return 0;
 
   // Encode the common parts of the control packet.
   if (EncodeBase(buffers) == 0)
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char*>(buffers[0]);
+  unsigned char* p = boost::asio::buffer_cast<unsigned char*>(buffers[0]);
   p += kHeaderSize;
 
 

@@ -36,8 +36,7 @@
 #include "maidsafe/rudp/packets/ack_of_ack_packet.h"
 #include "maidsafe/rudp/packets/negative_ack_packet.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
+namespace ip = boost::asio::ip;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -69,9 +68,9 @@ bool Receiver::Flushed() const {
 }
 
 size_t Receiver::ReadData(const boost::asio::mutable_buffer& data) {
-  unsigned char* begin = asio::buffer_cast<unsigned char*>(data);
+  unsigned char* begin = boost::asio::buffer_cast<unsigned char*>(data);
   unsigned char* ptr = begin;
-  unsigned char* end = begin + asio::buffer_size(data);
+  unsigned char* end = begin + boost::asio::buffer_size(data);
 
   for (uint32_t n = unread_packets_.Begin(); (n != unread_packets_.End()) && (ptr < end);
        n = unread_packets_.Next(n)) {

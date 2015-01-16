@@ -187,7 +187,7 @@ int ManagedConnections::TryToDetermineLocalEndpoint(Endpoint& local_endpoint) {
   if (zero_state) {
     local_ip_ = local_endpoint.address();
   } else {
-    local_ip_ = GetLocalIp();
+    local_ip_ = AsioToBoostAsio(GetLocalIp());
     if (local_ip_.is_unspecified()) {
       LOG(kError) << "Failed to retrieve local IP.";
       return kFailedToGetLocalAddress;

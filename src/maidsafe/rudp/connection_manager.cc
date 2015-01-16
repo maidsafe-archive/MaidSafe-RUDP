@@ -32,8 +32,7 @@
 #include "maidsafe/rudp/parameters.h"
 #include "maidsafe/rudp/utils.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
+namespace ip = boost::asio::ip;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -120,13 +119,13 @@ void ConnectionManager::Connect(const NodeId& peer_id, const Endpoint& peer_endp
 
   if (!transport) {
     return strand_.dispatch([on_connect]() {
-        on_connect(asio::error::shut_down, nullptr);
+        on_connect(boost::asio::error::shut_down, nullptr);
         });
   }
 
   if (!CanStartConnectingTo(peer_id, peer_endpoint)) {
     return strand_.dispatch([on_connect]() {
-        on_connect(asio::error::already_started, nullptr);
+        on_connect(boost::asio::error::already_started, nullptr);
         });
   }
 
@@ -210,7 +209,8 @@ bool ConnectionManager::Send(const NodeId& peer_id, const std::string& message,
   return true;
 }
 
-Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpoint& endpoint) {
+Socket* ConnectionManager::GetSocket(const boost::asio::const_buffer& data,
+                                     const Endpoint& endpoint) {
   uint32_t socket_id(0);
   if (!Packet::DecodeDestinationSocketId(&socket_id, data)) {
     LOG(kError) << kThisNodeId_ << " Received a non-RUDP packet from " << endpoint;
@@ -280,7 +280,7 @@ Socket* ConnectionManager::GetSocket(const asio::const_buffer& data, const Endpo
   if (socket_iter != sockets_.end()) {
     return socket_iter->second;
   } else {
-    const unsigned char* p = asio::buffer_cast<const unsigned char*>(data);
+    const unsigned char* p = boost::asio::buffer_cast<const unsigned char*>(data);
     LOG(kVerbose) << kThisNodeId_ << "  Received a packet \"0x" << std::hex
                   << static_cast<int>(*p) << std::dec << "\" for unknown connection " << socket_id
                   << " from " << endpoint;

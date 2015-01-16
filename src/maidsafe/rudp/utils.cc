@@ -24,8 +24,7 @@
 #include "maidsafe/common/log.h"
 #include "maidsafe/common/utils.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
+namespace ip = boost::asio::ip;
 
 namespace maidsafe {
 

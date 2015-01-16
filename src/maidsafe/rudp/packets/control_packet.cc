@@ -24,8 +24,6 @@
 #include <cstring>
 #include <vector>
 
-namespace asio = boost::asio;
-
 namespace maidsafe {
 
 namespace rudp {
@@ -56,20 +54,22 @@ uint32_t ControlPacket::DestinationSocketId() const { return destination_socket_
 
 void ControlPacket::SetDestinationSocketId(uint32_t n) { destination_socket_id_ = n; }
 
-bool ControlPacket::IsValidBase(const asio::const_buffer& buffer, uint16_t expected_packet_type) {
-  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
-  return (asio::buffer_size(buffer) >= kHeaderSize) && ((p[0] & 0x80) != 0) &&
+bool ControlPacket::IsValidBase(const boost::asio::const_buffer& buffer,
+                                uint16_t expected_packet_type) {
+  const unsigned char* p = boost::asio::buffer_cast<const unsigned char*>(buffer);
+  return (boost::asio::buffer_size(buffer) >= kHeaderSize) && ((p[0] & 0x80) != 0) &&
          ((p[0] & 0x7f) == ((expected_packet_type >> 8) & 0x7f)) &&
          (p[1] == (expected_packet_type & 0xff));
 }
 
-bool ControlPacket::DecodeBase(const asio::const_buffer& buffer, uint16_t expected_packet_type) {
+bool ControlPacket::DecodeBase(const boost::asio::const_buffer& buffer,
+                               uint16_t expected_packet_type) {
   // Refuse to decode if the input buffer is not valid.
   if (!IsValidBase(buffer, expected_packet_type))
     return false;
 
-  const unsigned char* p = asio::buffer_cast<const unsigned char*>(buffer);
-  //  size_t length = asio::buffer_size(buffer);
+  const unsigned char* p = boost::asio::buffer_cast<const unsigned char*>(buffer);
+  //  size_t length = boost::asio::buffer_size(buffer);
 
   type_ = (p[0] & 0x7f);
   type_ = ((type_ << 8) | p[1]);
@@ -80,12 +80,12 @@ bool ControlPacket::DecodeBase(const asio::const_buffer& buffer, uint16_t expect
   return true;
 }
 
-size_t ControlPacket::EncodeBase(std::vector<asio::mutable_buffer>& buffers) const {
+size_t ControlPacket::EncodeBase(std::vector<boost::asio::mutable_buffer>& buffers) const {
   // Refuse to encode if the output buffer is not big enough.
-  if (asio::buffer_size(buffers[0]) < kHeaderSize)
+  if (boost::asio::buffer_size(buffers[0]) < kHeaderSize)
     return 0;
 
-  unsigned char* p = asio::buffer_cast<unsigned char*>(buffers[0]);
+  unsigned char* p = boost::asio::buffer_cast<unsigned char*>(buffers[0]);
 
   p[0] = ((type_ >> 8) & 0x7f);
   p[0] |= 0x80;

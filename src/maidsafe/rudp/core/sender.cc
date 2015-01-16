@@ -33,8 +33,7 @@
 #include "maidsafe/rudp/packets/keepalive_packet.h"
 #include "maidsafe/rudp/packets/negative_ack_packet.h"
 
-namespace asio = boost::asio;
-namespace ip = asio::ip;
+namespace ip = boost::asio::ip;
 namespace bptime = boost::posix_time;
 
 namespace maidsafe {
@@ -55,15 +54,15 @@ uint32_t Sender::GetNextPacketSequenceNumber() const { return unacked_packets_.E
 
 bool Sender::Flushed() const { return unacked_packets_.IsEmpty(); }
 
-size_t Sender::AddData(const asio::const_buffer& data, uint32_t message_number) {
+size_t Sender::AddData(const boost::asio::const_buffer& data, uint32_t message_number) {
   if ((congestion_control_.SendWindowSize() == 0) && (unacked_packets_.Size() == 0))
     unacked_packets_.SetMaximumSize(Parameters::default_window_size);
   else
     unacked_packets_.SetMaximumSize(congestion_control_.SendWindowSize());
 
-  const unsigned char* begin = asio::buffer_cast<const unsigned char*>(data);
+  const unsigned char* begin = boost::asio::buffer_cast<const unsigned char*>(data);
   const unsigned char* ptr = begin;
-  const unsigned char* end = begin + asio::buffer_size(data);
+  const unsigned char* end = begin + boost::asio::buffer_size(data);
 
   while (!unacked_packets_.IsFull() && (ptr < end)) {
     size_t length = std::min<size_t>(congestion_control_.SendDataSize(), end - ptr);

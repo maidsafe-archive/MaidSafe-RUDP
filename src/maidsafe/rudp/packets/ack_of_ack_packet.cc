@@ -22,8 +22,6 @@
 
 #include <vector>
 
-namespace asio = boost::asio;
-
 namespace maidsafe {
 
 namespace rudp {
@@ -36,15 +34,15 @@ uint32_t AckOfAckPacket::AckSequenceNumber() const { return AdditionalInfo(); }
 
 void AckOfAckPacket::SetAckSequenceNumber(uint32_t n) { SetAdditionalInfo(n); }
 
-bool AckOfAckPacket::IsValid(const asio::const_buffer& buffer) {
-  return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) == kPacketSize));
+bool AckOfAckPacket::IsValid(const boost::asio::const_buffer& buffer) {
+  return (IsValidBase(buffer, kPacketType) && (boost::asio::buffer_size(buffer) == kPacketSize));
 }
 
-bool AckOfAckPacket::Decode(const asio::const_buffer& buffer) {
+bool AckOfAckPacket::Decode(const boost::asio::const_buffer& buffer) {
   return DecodeBase(buffer, kPacketType);
 }
 
-size_t AckOfAckPacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
+size_t AckOfAckPacket::Encode(std::vector<boost::asio::mutable_buffer>& buffers) const {
   return EncodeBase(buffers);
 }
 

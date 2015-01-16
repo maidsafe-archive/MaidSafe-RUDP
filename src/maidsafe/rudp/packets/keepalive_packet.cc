@@ -23,8 +23,6 @@
 #include <cassert>
 #include <vector>
 
-namespace asio = boost::asio;
-
 namespace maidsafe {
 
 namespace rudp {
@@ -37,8 +35,8 @@ uint32_t KeepalivePacket::SequenceNumber() const { return AdditionalInfo(); }
 
 void KeepalivePacket::SetSequenceNumber(uint32_t n) { SetAdditionalInfo(n); }
 
-bool KeepalivePacket::IsValid(const asio::const_buffer& buffer) {
-  return (IsValidBase(buffer, kPacketType) && (asio::buffer_size(buffer) == kPacketSize));
+bool KeepalivePacket::IsValid(const boost::asio::const_buffer& buffer) {
+  return (IsValidBase(buffer, kPacketType) && (boost::asio::buffer_size(buffer) == kPacketSize));
 }
 
 bool KeepalivePacket::IsRequest() const { return (AdditionalInfo() & 0x00000001); }
@@ -51,13 +49,13 @@ bool KeepalivePacket::IsResponseOf(uint32_t sequence_number) const {
           sequence_number + 1 == SequenceNumber());
 }
 
-bool KeepalivePacket::Decode(const asio::const_buffer& buffer) {
+bool KeepalivePacket::Decode(const boost::asio::const_buffer& buffer) {
   if (!IsValid(buffer))
     return false;
   return DecodeBase(buffer, kPacketType);
 }
 
-size_t KeepalivePacket::Encode(std::vector<asio::mutable_buffer>& buffers) const {
+size_t KeepalivePacket::Encode(std::vector<boost::asio::mutable_buffer>& buffers) const {
   return EncodeBase(buffers);
 }
 

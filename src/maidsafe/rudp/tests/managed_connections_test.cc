@@ -60,9 +60,8 @@ extern "C" char** environ;
 #include "maidsafe/rudp/utils.h"
 
 namespace args = std::placeholders;
-namespace asio = boost::asio;
 namespace bptime = boost::posix_time;
-namespace ip = asio::ip;
+namespace ip = boost::asio::ip;
 
 namespace maidsafe {
 
@@ -238,29 +237,30 @@ TEST_F(ManagedConnectionsTest, BEH_API_Bootstrap) {
                                                    chosen_bootstrap, nat_type));
   // Unavailable bootstrap_endpoints
   {
-    asio::io_service io_service;
-    boost::asio::ip::udp::socket tmp_socket(io_service, Endpoint(GetLocalIp(), 0));
+    boost::asio::io_service io_service;
+    boost::asio::ip::udp::socket tmp_socket(io_service, Endpoint(AsioToBoostAsio(GetLocalIp()), 0));
     int16_t some_used_port = tmp_socket.local_endpoint().port();
 
-    EXPECT_NE(kSuccess, node_.managed_connections()->Bootstrap(
-                            std::vector<Endpoint>(1, Endpoint(GetLocalIp(), some_used_port)),
-                            do_nothing_on_message_, do_nothing_on_connection_lost_, node_.node_id(),
-                            node_.private_key(), node_.public_key(), chosen_bootstrap, nat_type));
+    EXPECT_NE(kSuccess,
+              node_.managed_connections()->Bootstrap(
+                  std::vector<Endpoint>(1, Endpoint(AsioToBoostAsio(GetLocalIp()), some_used_port)),
+                  do_nothing_on_message_, do_nothing_on_connection_lost_, node_.node_id(),
+                  node_.private_key(), node_.public_key(), chosen_bootstrap, nat_type));
   }
   // Unavailable bootstrap_endpoints with kLivePort
   {
     // The tmp_socket opens the kLivePort to make sure no other program using RUDP
     // on this test PC is using it. Though, if some other test PC is using the port
     // already, then the test is pointless.
-    asio::io_service io_service;
+    boost::asio::io_service io_service;
     boost::system::error_code ec;
     boost::asio::ip::udp::socket tmp_socket(io_service);
-    tmp_socket.bind(Endpoint(GetLocalIp(), kLivePort), ec);
+    tmp_socket.bind(Endpoint(AsioToBoostAsio(GetLocalIp()), kLivePort), ec);
 
     if (!ec) {
       EXPECT_EQ(kTransportStartFailure,
                 node_.managed_connections()->Bootstrap(
-                    std::vector<Endpoint>(1, Endpoint(GetLocalIp(), kLivePort)),
+                    std::vector<Endpoint>(1, Endpoint(AsioToBoostAsio(GetLocalIp()), kLivePort)),
                     do_nothing_on_message_, do_nothing_on_connection_lost_, node_.node_id(),
                     node_.private_key(), node_.public_key(), chosen_bootstrap, nat_type));
     }
@@ -454,8 +454,10 @@ TEST_F(ManagedConnectionsTest, BEH_API_Add) {
 
   // Case: Non-existent endpoint
   EndpointPair random_peer_endpoint;
-  random_peer_endpoint.local = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
-  random_peer_endpoint.external = Endpoint(GetLocalIp(), maidsafe::test::GetRandomPort());
+  random_peer_endpoint.local =
+      Endpoint(AsioToBoostAsio(GetLocalIp()), maidsafe::test::GetRandomPort());
+  random_peer_endpoint.external =
+      Endpoint(AsioToBoostAsio(GetLocalIp()), maidsafe::test::GetRandomPort());
 
   EXPECT_EQ(kSuccess, node_.managed_connections()->GetAvailableEndpoint(
                           nodes_[1]->node_id(), EndpointPair(), this_endpoint_pair1, nat_type1));
@@ -542,13 +544,13 @@ TEST_F(ManagedConnectionsTest, BEH_API_AddDuplicateBootstrap) {
   EXPECT_EQ(nodes_[1]->validation_data(), this_node_messages[0]);
 
   // Start new Socket with nodes_[1]'s details
-  asio::io_service io_service;
-  boost::system::error_code error_code(asio::error::would_block);
+  boost::asio::io_service io_service;
+  boost::system::error_code error_code(boost::asio::error::would_block);
   ip::udp::endpoint endpoint(peer_endpoint_pair.local.address(), maidsafe::test::GetRandomPort());
   std::shared_ptr<detail::Multiplexer> multiplexer(new detail::Multiplexer(io_service));
-  detail::ConnectionManager connection_manager(std::shared_ptr<detail::Transport>(),
-                                               asio::io_service::strand(io_service), multiplexer,
-                                               nodes_[1]->node_id(), nodes_[1]->public_key());
+  detail::ConnectionManager connection_manager(
+      std::shared_ptr<detail::Transport>(), boost::asio::io_service::strand(io_service),
+      multiplexer, nodes_[1]->node_id(), nodes_[1]->public_key());
   ASSERT_EQ(kSuccess, multiplexer->Open(endpoint));
 
   multiplexer->AsyncDispatch(std::bind(&DispatchHandler, args::_1, multiplexer));
@@ -1327,17 +1329,17 @@ struct input_watcher {
 };
 #else
 struct input_watcher {
-  asio::io_service& _service;
-  asio::posix::stream_descriptor _h;
+  boost::asio::io_service& _service;
+  boost::asio::posix::stream_descriptor _h;
 
  public:
-  typedef asio::posix::stream_descriptor::native_handle_type native_handle_type;
+  typedef boost::asio::posix::stream_descriptor::native_handle_type native_handle_type;
 
  private:
-  asio::deadline_timer _timer;
-  std::unique_ptr<asio::io_service::work> _work;
+  boost::asio::deadline_timer _timer;
+  std::unique_ptr<boost::asio::io_service::work> _work;
   void _init(bool doTimer) {
-    _h.async_read_some(asio::null_buffers(),
+    _h.async_read_some(boost::asio::null_buffers(),
                        std::bind(&input_watcher::data_available, this, std::placeholders::_1));
     if (doTimer) {
       _timer.async_wait(std::bind(&input_watcher::timed_out, this, std::placeholders::_1));
@@ -1347,34 +1349,35 @@ struct input_watcher {
  protected:
   virtual void data_available(const boost::system::error_code&) = 0;
   virtual void timed_out(const boost::system::error_code&) { cancel(); };
-  input_watcher(asio::io_service& service, native_handle_type h)
+  input_watcher(boost::asio::io_service& service, native_handle_type h)
       : _service(service),
         _h(service, h),
         _timer(service),
-        _work(maidsafe::make_unique<asio::io_service::work>(service)) {
+        _work(maidsafe::make_unique<boost::asio::io_service::work>(service)) {
     _init(false);
   }
-  input_watcher(asio::io_service& service, native_handle_type h, boost::posix_time::ptime timeout)
+  input_watcher(boost::asio::io_service& service, native_handle_type h,
+                boost::posix_time::ptime timeout)
       : _service(service),
         _h(service, h),
         _timer(service, timeout),
-        _work(maidsafe::make_unique<asio::io_service::work>(service)) {
+        _work(maidsafe::make_unique<boost::asio::io_service::work>(service)) {
     _init(true);
   }
-  input_watcher(asio::io_service& service, native_handle_type h,
+  input_watcher(boost::asio::io_service& service, native_handle_type h,
                 boost::posix_time::time_duration timeout)
       : _service(service),
         _h(service, h),
         _timer(service, timeout),
-        _work(maidsafe::make_unique<asio::io_service::work>(service)) {
+        _work(maidsafe::make_unique<boost::asio::io_service::work>(service)) {
     _init(true);
   }
 
  public:
   ~input_watcher() { _h.release(); }
-  asio::io_service& service() { return _service; }
+  boost::asio::io_service& service() { return _service; }
   native_handle_type handle() { return _h.native(); }
-  asio::deadline_timer& timer() { return _timer; }
+  boost::asio::deadline_timer& timer() { return _timer; }
   void cancel() {
     _h.cancel();
     _timer.cancel();
@@ -1421,7 +1424,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnectionsWorker) {
 
     std::atomic<bool> sender_thread_done(false);
     std::mutex lock;
-    asio::io_service service;
+    boost::asio::io_service service;
     std::vector<NodeId> peer_node_ids;
     size_t peer_node_ids_idx = 0, messages_sent = 0;
     std::thread sender_thread([&] {
@@ -1595,7 +1598,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
         str.push_back(c);
     }
 #else
-    asio::io_service service;
+    boost::asio::io_service service;
     str.clear();
     for (;;) {
       char c;
@@ -1605,7 +1608,7 @@ TEST_F(ManagedConnectionsTest, FUNC_API_500ParallelConnections) {
         // Wait no more than ten seconds for something to turn up
         struct watcher : input_watcher {
           bool have_data;
-          watcher(asio::io_service& service, input_watcher::native_handle_type h)
+          watcher(boost::asio::io_service& service, input_watcher::native_handle_type h)
               : input_watcher(service, h, boost::posix_time::seconds(30)), have_data(false) {}
           virtual void data_available(const boost::system::error_code& ec) {
             if (!ec)

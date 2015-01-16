@@ -73,7 +73,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   using OnBootstrap     = std::function<void(ReturnCode, NodeId)>;
 
  public:
-  Transport(AsioService& asio_service, NatType& nat_type_);
+  Transport(BoostAsioService& asio_service, NatType& nat_type_);
 
   virtual ~Transport();
 
@@ -168,7 +168,7 @@ class Transport : public std::enable_shared_from_this<Transport> {
   OnConnect MakeDefaultOnConnectHandler();
 
  private:
-  AsioService&                       asio_service_;
+  BoostAsioService&                       asio_service_;
   NatType&                           nat_type_;
   boost::asio::io_service::strand    strand_;
   MultiplexerPtr                     multiplexer_;
